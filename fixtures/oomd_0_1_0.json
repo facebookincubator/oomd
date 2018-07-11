@@ -1,0 +1,7 @@
+{
+    "target": "system.slice",
+    "kill_list": [
+        {"chef.service": "100"},
+        {"sshd.service": "inf"}
+    ]
+}

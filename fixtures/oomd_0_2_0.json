@@ -1,0 +1,20 @@
+{
+    "cgroups": [
+        {
+            "target": "system.slice",
+            "kill_list": [
+                {"chef.service": { "kill_pressure": "60", "max_usage": "100" } },
+                {"sshd.service": { "max_usage": "inf" } }
+            ],
+            "oomdetector": "default",
+            "oomkiller": "noop"
+        },
+        {
+            "target": "workload.slice",
+            "kill_list": [],
+            "oomdetector": "default",
+            "oomkiller": "default"
+        }
+    ],
+    "version": "0.2.0"
+}
