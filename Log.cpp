@@ -34,7 +34,7 @@
 namespace Oomd {
 
 Log::Log(const char* outfile) {
-  kmsg_fd_ = ::open(outfile, O_CREAT | O_WRONLY);
+  kmsg_fd_ = ::open(outfile, O_WRONLY);
   if (kmsg_fd_ < 0) {
     int errcode = errno; // prevent errno clobbering
     perror("open");
