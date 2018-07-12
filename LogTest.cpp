@@ -40,28 +40,27 @@ class LogTest : public ::testing::Test {
   Test the plain log(buf) interface.
 */
 TEST_F(LogTest, VerifyOutputSimple) {
-  std::string outfile = "/tmp/logtest1.out";
+  std::string outfile = "/tmp/logtest.XXXXXX";
+  int fd = ::mkstemp(&outfile[0]);
+
   Log& logger = Log::get(outfile.c_str(), true);
+  std::ifstream result_file(outfile);
+
+  if (::close(fd) != 0) {
+    perror("close");
+  }
+  if (::remove(outfile.c_str()) != 0) {
+    perror("remove");
+  }
 
   logger.log(test_string, test_prefix);
-  /* ensure that output file is closed */
-  logger.~Log();
-  /* give file a sane protection mask */
-  chmod(outfile.c_str(), 0644);
 
   /* check output */
   std::string compare_string;
-  std::ifstream result_file(outfile);
   getline(result_file, compare_string);
 
   /* verify log contents */
   EXPECT_EQ(compare_string, test_prefix.append(": " + test_string));
-
-  /* cleanup */
-  result_file.close();
-  if (remove(outfile.c_str()) != 0) {
-    perror("remove");
-  }
 }
 
 /*
@@ -69,8 +68,19 @@ TEST_F(LogTest, VerifyOutputSimple) {
 */
 
 TEST_F(LogTest, VerifyOutputComplex) {
-  std::string outfile = "/tmp/logtest2.out";
+  std::string outfile = "/tmp/logtest.XXXXXX";
+  int fd = ::mkstemp(&outfile[0]);
+
   Log& logger = Log::get(outfile.c_str(), true);
+  std::ifstream result_file(outfile);
+
+  if (::close(fd) != 0) {
+    perror("close");
+  }
+  if (::remove(outfile.c_str()) != 0) {
+    perror("remove");
+  }
+
   CgroupContext mcontext;
   OomContext ocontext;
 
@@ -82,21 +92,10 @@ TEST_F(LogTest, VerifyOutputComplex) {
   ocontext.stat.swap_free = 12345;
 
   logger.log("Evil ", "Evaporate \n", mcontext, ocontext, false);
-  /* ensure that output file is closed */
-  logger.~Log();
-  /* give file a sane protection mask */
-  chmod(outfile.c_str(), 0644);
 
   /* check output */
   std::string compare_string;
-  std::ifstream result_file(outfile);
   getline(result_file, compare_string);
   /* verify log contents */
   EXPECT_EQ(compare_string, test_complex_string);
-
-  /* cleanup */
-  result_file.close();
-  if (remove(outfile.c_str()) != 0) {
-    perror("remove");
-  }
 }
