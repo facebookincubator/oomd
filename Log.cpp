@@ -44,7 +44,7 @@ Log::Log(const char* outfile) {
 }
 
 Log::~Log() {
-  if (kmsg_fd_ > 0) {
+  if (kmsg_fd_ >= 0) {
     ::close(kmsg_fd_);
   }
 }
@@ -75,7 +75,7 @@ Log& Log::get(const char* outfile, bool recreate) {
 }
 
 void Log::log(const std::string& buf, const std::string& prefix) const {
-  if (kmsg_ && kmsg_fd_ > 0) {
+  if (kmsg_ && kmsg_fd_ >= 0) {
     std::string message(buf);
     if (prefix.size() > 0) {
       message.insert(0, prefix + ": ");
