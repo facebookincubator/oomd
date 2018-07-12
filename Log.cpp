@@ -62,16 +62,8 @@ Log& Log::get() {
   return singleton;
 }
 
-Log& Log::get(const char* outfile, bool recreate) {
-  static Log* singletonf = new Log(outfile);
-  if (recreate) {
-    if (singletonf) {
-      delete singletonf;
-    }
-    singletonf = new Log(outfile);
-  }
-
-  return *singletonf;
+std::unique_ptr<Log> Log::get_for_unittest(const char* outfile) {
+  return std::unique_ptr<Log>(new Log(outfile));
 }
 
 void Log::log(const std::string& buf, const std::string& prefix) const {

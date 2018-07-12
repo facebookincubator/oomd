@@ -29,7 +29,7 @@ class Log {
   ~Log();
   static void init_or_die();
   static Log& get();
-  static Log& get(const char* outfile, bool recreate);
+  static std::unique_ptr<Log> get_for_unittest(const char* outfile);
 
   void set_kmsg(bool b) noexcept {
     kmsg_ = b;

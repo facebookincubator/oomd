@@ -34,26 +34,35 @@ class LogTest : public ::testing::Test {
   std::string test_prefix{"oomd"};
   std::string test_complex_string{
       "oomd kill: 10.00 60.00 600.00 Evil  1999 detector:swap,12345MB killer:Evaporate "};
+
+ protected:
+  std::pair<std::unique_ptr<Log>, std::ifstream> get_logger_and_file() {
+    std::string outfile = "/tmp/logtest.XXXXXX";
+    int fd = ::mkstemp(&outfile[0]);
+
+    auto logger = Log::get_for_unittest(outfile.c_str());
+    std::ifstream result_file(outfile);
+
+    if (::close(fd) != 0) {
+      perror("close");
+    }
+    if (::remove(outfile.c_str()) != 0) {
+      perror("remove");
+    }
+
+    return std::make_pair(std::move(logger), std::move(result_file));
+  }
 };
 
 /*
   Test the plain log(buf) interface.
 */
 TEST_F(LogTest, VerifyOutputSimple) {
-  std::string outfile = "/tmp/logtest.XXXXXX";
-  int fd = ::mkstemp(&outfile[0]);
+  auto logger_and_file = get_logger_and_file();
+  auto& logger = logger_and_file.first;
+  auto& result_file = logger_and_file.second;
 
-  Log& logger = Log::get(outfile.c_str(), true);
-  std::ifstream result_file(outfile);
-
-  if (::close(fd) != 0) {
-    perror("close");
-  }
-  if (::remove(outfile.c_str()) != 0) {
-    perror("remove");
-  }
-
-  logger.log(test_string, test_prefix);
+  logger->log(test_string, test_prefix);
 
   /* check output */
   std::string compare_string;
@@ -68,18 +77,9 @@ TEST_F(LogTest, VerifyOutputSimple) {
 */
 
 TEST_F(LogTest, VerifyOutputComplex) {
-  std::string outfile = "/tmp/logtest.XXXXXX";
-  int fd = ::mkstemp(&outfile[0]);
-
-  Log& logger = Log::get(outfile.c_str(), true);
-  std::ifstream result_file(outfile);
-
-  if (::close(fd) != 0) {
-    perror("close");
-  }
-  if (::remove(outfile.c_str()) != 0) {
-    perror("remove");
-  }
+  auto logger_and_file = get_logger_and_file();
+  auto& logger = logger_and_file.first;
+  auto& result_file = logger_and_file.second;
 
   CgroupContext mcontext;
   OomContext ocontext;
@@ -91,7 +91,7 @@ TEST_F(LogTest, VerifyOutputComplex) {
   ocontext.type = OomType::SWAP;
   ocontext.stat.swap_free = 12345;
 
-  logger.log("Evil ", "Evaporate \n", mcontext, ocontext, false);
+  logger->log("Evil ", "Evaporate \n", mcontext, ocontext, false);
 
   /* check output */
   std::string compare_string;
