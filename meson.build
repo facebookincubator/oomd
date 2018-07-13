@@ -34,6 +34,7 @@ srcs = files('''
     shared/KillList.h
     shared/OomdContext.cpp
     shared/OomdContext.h
+    shared/Tunables.cpp
     shared/Tunables.h
     util/Fs.h
 '''.split())

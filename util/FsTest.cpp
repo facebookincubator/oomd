@@ -72,6 +72,12 @@ TEST_F(FsTest, ReadFile) {
   EXPECT_EQ(lines[3], "1");
 }
 
+TEST_F(FsTest, ReadFileBad) {
+  auto file = std::string(kFsDataDir) + "/ksldjfksdlfdsjf";
+  auto lines = Fs::readFileByLine(file);
+  ASSERT_EQ(lines.size(), 0);
+}
+
 TEST_F(FsTest, GetPids) {
   std::string dir(kCgroupDataDir);
   auto pids = Fs::getPids(dir);

@@ -17,7 +17,6 @@
 
 #include "oomd/Config.h"
 
-#include <cstdlib>
 #include <fstream>
 #include <limits>
 #include <memory>
@@ -91,7 +90,7 @@ void Config::apply(Oomd& target) {
 
 void Config::applyCgroup(Oomd& target, Json::Value& cgroup) {
   auto target_cgroup = parseBasePath(cgroup);
-  std::shared_ptr<Tunables> tunables(parseEnvVars());
+  std::shared_ptr<Tunables> tunables(loadTunables());
   std::shared_ptr<KillList> kill_list(parseKillList(cgroup));
   PluginArgs args{target_cgroup, kill_list, tunables, dry_};
 
@@ -186,16 +185,10 @@ std::unique_ptr<KillList> Config::parseKillList(Json::Value& cgroup) {
   }
 }
 
-std::unique_ptr<Tunables> Config::parseEnvVars() {
+std::unique_ptr<Tunables> Config::loadTunables() {
   auto tunables = std::make_unique<Tunables>();
-
-  for (auto& knob : tunables->knobs) {
-    const char* env_val = std::getenv(knob.env_name.c_str());
-    if (env_val) {
-      knob.value = env_val;
-    }
-  }
-
+  tunables->parseEnvVars();
+  tunables->loadOverrides();
   tunables->dump();
   return tunables;
 }

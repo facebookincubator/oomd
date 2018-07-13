@@ -17,6 +17,8 @@
 
 #include "oomd/Oomd.h"
 
+#include <signal.h>
+
 #include <algorithm>
 #include <thread>
 
@@ -24,6 +26,14 @@
 
 #include "oomd/Log.h"
 #include "oomd/util/Fs.h"
+
+namespace {
+std::atomic<bool> need_tunables_reload{false};
+
+void reloadHandler(int /* unused */) {
+  need_tunables_reload = true;
+}
+} // namespace
 
 namespace Oomd {
 
@@ -38,7 +48,26 @@ bool Oomd::prepareRun() {
     return false;
   }
 
+  if (!registerHandlers()) {
+    XLOG(ERR) << "Unable to register signal handlers";
+    return false;
+  }
+
   updateTunables();
+  return true;
+}
+
+bool Oomd::registerHandlers() const {
+  struct sigaction act;
+  std::memset(&act, 0, sizeof(act));
+
+  act.sa_handler = reloadHandler;
+
+  if (::sigaction(SIGUSR1, &act, nullptr) < 0) {
+    perror("sigaction");
+    return false;
+  }
+
   return true;
 }
 
@@ -109,8 +138,14 @@ int Oomd::run() {
 
   XLOG(INFO) << "Running oomd";
   while (true) {
-    auto before = std::chrono::steady_clock::now();
+    if (need_tunables_reload) {
+      tunables_->loadOverrides();
+      tunables_->dump();
+      need_tunables_reload = false;
+    }
     updateTunables();
+
+    auto before = std::chrono::steady_clock::now();
 
     if (verbose_ && ++ticks % verbose_ticks_ == 0) {
       std::ostringstream oss;

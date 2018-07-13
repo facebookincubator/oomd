@@ -68,7 +68,7 @@ class Config {
   void apply_0_1_x(Oomd& target);
   void apply_0_2_x(Oomd& target);
 
-  std::unique_ptr<Tunables> parseEnvVars();
+  std::unique_ptr<Tunables> loadTunables();
   std::unique_ptr<KillList> parseKillList(Json::Value& cgroup);
   std::string parseBasePath(Json::Value& cgroup);
 

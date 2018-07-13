@@ -22,7 +22,11 @@
 
 #include <folly/logging/xlog.h>
 
+#include "oomd/util/Fs.h"
+
 namespace Oomd {
+
+constexpr auto kTunablesOverrideFile = "/etc/oomd_tunables.override";
 
 struct Tunables {
   enum Tunable {
@@ -44,28 +48,15 @@ struct Tunables {
   struct TunableEntry {
     Tunable knob;
     std::string env_name;
+    std::string default_value;
     std::string value;
   };
 
-  std::vector<TunableEntry> knobs = {
-      {INTERVAL, "OOMD_INTERVAL", "5"},
-      {VERBOSE_INTERVAL, "OOMD_VERBOSE_INTERVAL", "300"},
-      {POST_KILL_DELAY, "OOMD_POST_KILL_DELAY", "15"},
-      {THRESHOLD, "OOMD_THRESHOLD", "60"},
-      {HIGH_THRESHOLD, "OOMD_HIGH_THRESHOLD", "80"},
-      {HIGH_THRESHOLD_DURATION, "OOMD_HIGH_THRESHOLD_DURATION", "10"},
-      {LARGER_THAN, "OOMD_LARGER_THAN", "50"},
-      {GROWTH_ABOVE, "OOMD_GROWTH_ABOVE", "80"},
-      {AVERAGE_SIZE_DECAY, "OOMD_AVERAGE_SIZE_DECAY", "4"},
-      {FAST_FALL_RATIO, "OOMD_FAST_FALL_RATIO", "0.85"},
-      {MIN_SWAP_PCT, "OOMD_MIN_SWAP_PCT", "15"},
-  };
-
-  void dump() {
-    for (auto& k : knobs) {
-      XLOG(INFO) << k.env_name << "=" << k.value;
-    }
-  }
+  Tunables();
+  ~Tunables() = default;
+  void dump();
+  void parseEnvVars();
+  void loadOverrides(const std::string& fname = kTunablesOverrideFile);
 
   /*
    * It is up to the caller to know what type they want.
@@ -85,6 +76,20 @@ struct Tunables {
     }
     XLOG(FATAL) << "Unknown knob=" << knob << "is being retrieved";
   }
+
+  std::vector<TunableEntry> knobs = {
+      {INTERVAL, "OOMD_INTERVAL", "5", ""},
+      {VERBOSE_INTERVAL, "OOMD_VERBOSE_INTERVAL", "300", ""},
+      {POST_KILL_DELAY, "OOMD_POST_KILL_DELAY", "15", ""},
+      {THRESHOLD, "OOMD_THRESHOLD", "60", ""},
+      {HIGH_THRESHOLD, "OOMD_HIGH_THRESHOLD", "80", ""},
+      {HIGH_THRESHOLD_DURATION, "OOMD_HIGH_THRESHOLD_DURATION", "10", ""},
+      {LARGER_THAN, "OOMD_LARGER_THAN", "50", ""},
+      {GROWTH_ABOVE, "OOMD_GROWTH_ABOVE", "80", ""},
+      {AVERAGE_SIZE_DECAY, "OOMD_AVERAGE_SIZE_DECAY", "4", ""},
+      {FAST_FALL_RATIO, "OOMD_FAST_FALL_RATIO", "0.85", ""},
+      {MIN_SWAP_PCT, "OOMD_MIN_SWAP_PCT", "15", ""},
+  };
 };
 
 } // namespace Oomd

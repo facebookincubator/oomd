@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include <atomic>
 #include <chrono>
 #include <memory>
 #include <string>
@@ -60,6 +61,7 @@ class Oomd {
   }
 
   bool prepareRun();
+  bool registerHandlers() const;
   void updateTunables();
   void updateContext(const std::string& cgroup_path, OomdContext& ctx);
 

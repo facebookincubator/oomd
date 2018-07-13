@@ -38,6 +38,9 @@ using namespace testing;
 constexpr auto kConfig_0_1_0 = "oomd/fixtures/oomd_0_1_0.json";
 constexpr auto kConfig_0_1_1 = "oomd/fixtures/oomd_0_1_1.json";
 constexpr auto kConfig_0_2_0 = "oomd/fixtures/oomd_0_2_0.json";
+constexpr auto kConfigTunablesOverride = "oomd/fixtures/oomd_tunables.override";
+constexpr auto kConfigTunablesOverrideMissing =
+    "oomd/fixtures/asdfasdf.override";
 
 namespace Oomd {
 class MockOomd : public Oomd {
@@ -103,7 +106,7 @@ TEST_F(ConfigTest_0_1_1, CallsOomdMethods) {
   conf->apply(oomd);
 }
 
-TEST_F(ConfigTest_0_1_1, ParseEnvVars) {
+TEST_F(ConfigTest_0_1_1, LoadTunablesEnv) {
   EXPECT_EQ(setenv("OOMD_INTERVAL", "99", 1), 0);
   EXPECT_EQ(setenv("OOMD_POST_KILL_DELAY", "100", 1), 0);
   EXPECT_EQ(setenv("OOMD_THRESHOLD", "101", 1), 0);
@@ -114,7 +117,8 @@ TEST_F(ConfigTest_0_1_1, ParseEnvVars) {
   EXPECT_EQ(setenv("OOMD_AVERAGE_SIZE_DECAY", "106", 1), 0);
   EXPECT_EQ(setenv("OOMD_FAST_FALL_RATIO", "0.99", 1), 0);
 
-  auto tunables = conf->parseEnvVars();
+  auto tunables = std::make_shared<Tunables>();
+  tunables->parseEnvVars();
 
   EXPECT_EQ(tunables->get<int>(Tunables::Tunable::INTERVAL), 99);
   EXPECT_EQ(tunables->get<int>(Tunables::Tunable::POST_KILL_DELAY), 100);
@@ -127,6 +131,29 @@ TEST_F(ConfigTest_0_1_1, ParseEnvVars) {
   EXPECT_EQ(tunables->get<int>(Tunables::Tunable::AVERAGE_SIZE_DECAY), 106);
   EXPECT_FLOAT_EQ(
       tunables->get<float>(Tunables::Tunable::FAST_FALL_RATIO), 0.99);
+}
+
+TEST_F(ConfigTest_0_1_1, LoadTunablesOverride) {
+  auto tunables = std::make_shared<Tunables>();
+
+  ASSERT_NE(tunables->get<int>(Tunables::Tunable::INTERVAL), 99);
+  ASSERT_NE(
+      tunables->get<float>(Tunables::Tunable::FAST_FALL_RATIO),
+      0.01f); // Not ASSERT_FLOAT_NE b/c that doesn't exist
+
+  tunables->loadOverrides(kConfigTunablesOverride);
+
+  EXPECT_EQ(tunables->get<int>(Tunables::Tunable::INTERVAL), 99);
+  EXPECT_FLOAT_EQ(
+      tunables->get<float>(Tunables::Tunable::FAST_FALL_RATIO), 0.01);
+
+  // Now "delete" the override file and see if we fall back to defaults
+  tunables->loadOverrides(kConfigTunablesOverrideMissing);
+
+  EXPECT_NE(tunables->get<int>(Tunables::Tunable::INTERVAL), 99);
+  EXPECT_NE(
+      tunables->get<float>(Tunables::Tunable::FAST_FALL_RATIO),
+      0.01f); // Not ASSERT_FLOAT_NE b/c that doesn't exist
 }
 
 TEST_F(ConfigTest_0_1_1, ParseKillList) {
