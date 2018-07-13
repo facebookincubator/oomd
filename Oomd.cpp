@@ -38,6 +38,11 @@ bool Oomd::prepareRun() {
     return false;
   }
 
+  updateTunables();
+  return true;
+}
+
+void Oomd::updateTunables() {
   int raw_interval = tunables_->get<int>(Tunables::Tunable::INTERVAL);
   interval_ = std::chrono::seconds(raw_interval);
   post_kill_delay_ = std::chrono::seconds(
@@ -46,8 +51,6 @@ bool Oomd::prepareRun() {
       tunables_->get<int>(Tunables::Tunable::VERBOSE_INTERVAL) / raw_interval;
   average_size_decay_ =
       tunables_->get<double>(Tunables::Tunable::AVERAGE_SIZE_DECAY);
-
-  return true;
 }
 
 void Oomd::updateContext(const std::string& cgroup_path, OomdContext& ctx) {
@@ -107,6 +110,7 @@ int Oomd::run() {
   XLOG(INFO) << "Running oomd";
   while (true) {
     auto before = std::chrono::steady_clock::now();
+    updateTunables();
 
     if (verbose_ && ++ticks % verbose_ticks_ == 0) {
       std::ostringstream oss;

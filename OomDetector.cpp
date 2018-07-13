@@ -37,19 +37,9 @@ namespace Oomd {
 OomDetector::OomDetector(const PluginArgs& args)
     : cgroup_path_(args.cgroup_path),
       kill_list_(args.kill_list),
-      threshold_(args.tunables->get<int>(Tunables::Tunable::THRESHOLD)),
-      high_threshold_(
-          args.tunables->get<int>(Tunables::Tunable::HIGH_THRESHOLD)),
-      high_threshold_duration_(
-          args.tunables->get<int>(Tunables::Tunable::HIGH_THRESHOLD_DURATION)),
-      fast_fall_ratio_(
-          args.tunables->get<float>(Tunables::Tunable::FAST_FALL_RATIO)),
-      min_swap_pct_(
-          args.tunables->get<float>(Tunables::Tunable::MIN_SWAP_PCT)) {
+      tunables_(args.tunables) {
   auto vmstat = Fs::getVmstat();
   last_pgscan_ = vmstat[kPgscanSwap] + vmstat[kPgscanDirect];
-  pgscan_window_tick_thres_ = high_threshold_duration_ /
-      args.tunables->get<int>(Tunables::Tunable::INTERVAL);
 }
 
 bool OomDetector::isOOM(OomdContext& ctx) {
@@ -60,6 +50,9 @@ bool OomDetector::isOOM(OomdContext& ctx) {
   int64_t swaptotal = meminfo["SwapTotal"];
   auto vmstat = Fs::getVmstat();
   int64_t pgscan = vmstat[kPgscanSwap] + vmstat[kPgscanDirect];
+  int pgscan_window_tick_thres =
+      tunables_->get<int>(Tunables::HIGH_THRESHOLD_DURATION) /
+      tunables_->get<int>(Tunables::INTERVAL);
 
   // Update sliding window
   if (pgscan > last_pgscan_) {
@@ -83,12 +76,12 @@ bool OomDetector::isOOM(OomdContext& ctx) {
   XLOG(INFO) << oss.str();
 
   // We only declare an generalized OOM if the kernel has scanned for pages
-  // the last pgscan_window_tick_thres_ or more. Each tick is OOMD_INTERVAL
+  // the last pgscan_window_tick_thres or more. Each tick is OOMD_INTERVAL
   // seconds long.
   //
   // Swap OOM can happen regardless of pgscans.
   OomContext octx;
-  bool has_pg_scanned = pgscan_window_ >= pgscan_window_tick_thres_;
+  bool has_pg_scanned = pgscan_window_ >= pgscan_window_tick_thres;
 
   if (isPressureOOM(pressure, octx) && has_pg_scanned) {
     ctx.setOomContext(octx);
@@ -137,7 +130,8 @@ bool OomDetector::isSwapOOM(
     int64_t swapfree,
     int64_t swaptotal,
     OomContext& octx) {
-  int64_t swapthres = swaptotal * min_swap_pct_ / 100;
+  int min_swap_pct = tunables_->get<int>(Tunables::MIN_SWAP_PCT);
+  int64_t swapthres = swaptotal * min_swap_pct / 100;
   if (swaptotal > 0 && swapfree < swapthres) {
     XLOG(INFO) << "SwapFree " << swapfree
                << "MB is smaller than the threshold of " << swapthres
@@ -154,10 +148,16 @@ bool OomDetector::isHeuristicOOM(
     int64_t current,
     const MemoryPressure& pressure,
     OomContext& octx) {
-  // if 10s pressure stays above high_threshold_ for > high_threshold_duration_,
+  int threshold = tunables_->get<int>(Tunables::THRESHOLD);
+  int high_threshold = tunables_->get<int>(Tunables::HIGH_THRESHOLD);
+  int high_threshold_duration =
+      tunables_->get<int>(Tunables::HIGH_THRESHOLD_DURATION);
+  float fast_fall_ratio = tunables_->get<float>(Tunables::FAST_FALL_RATIO);
+
+  // if 10s pressure stays above high_threshold for > high_threshold_duration,
   // we are OOM
   auto now = steady_clock::now();
-  if (pressure.sec_10 > high_threshold_) {
+  if (pressure.sec_10 > high_threshold) {
     if (high_thres_at_ == steady_clock::time_point()) {
       high_thres_at_ = now;
     }
@@ -165,11 +165,11 @@ bool OomDetector::isHeuristicOOM(
     auto diff =
         std::chrono::duration_cast<std::chrono::seconds>(now - high_thres_at_)
             .count();
-    if (diff > high_threshold_duration_) {
+    if (diff > high_threshold_duration) {
       std::ostringstream oss;
       oss << std::setprecision(2) << std::fixed;
       oss << "10s pressure " << pressure.sec_10 << " >= high_threshold "
-          << high_threshold_ << " for " << diff << "s, total usage is "
+          << high_threshold << " for " << diff << "s, total usage is "
           << current / 1024 / 1024 << "MB";
       XLOG(INFO) << oss.str();
       high_thres_at_ = steady_clock::time_point();
@@ -179,16 +179,16 @@ bool OomDetector::isHeuristicOOM(
     }
   }
 
-  // if pressure is really high or above threshold_ and trending up
+  // if pressure is really high or above threshold and trending up
   // (10s value is higher than 1min and 10s isn't falling rapidly),
   // kill something
-  if ((pressure.sec_60 >= high_threshold_) ||
-      ((pressure.sec_60 > threshold_) && (pressure.sec_10 >= pressure.sec_60) &&
-       (pressure.sec_10 >= last_pressure_.sec_10 * fast_fall_ratio_))) {
+  if ((pressure.sec_60 >= high_threshold) ||
+      ((pressure.sec_60 > threshold) && (pressure.sec_10 >= pressure.sec_60) &&
+       (pressure.sec_10 >= last_pressure_.sec_10 * fast_fall_ratio))) {
     std::ostringstream oss;
     oss << std::setprecision(2) << std::fixed;
     oss << "1m pressure " << pressure.sec_60 << " is over the threshold of "
-        << threshold_ << " , total usage is " << current / 1024 / 1024 << "MB";
+        << threshold << " , total usage is " << current / 1024 / 1024 << "MB";
     XLOG(INFO) << oss.str();
     octx.type = OomType::PRESSURE_60;
     return true;

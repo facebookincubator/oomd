@@ -42,8 +42,7 @@ class OomKiller {
  protected:
   std::string cgroup_path_;
   std::shared_ptr<KillList> kill_list_;
-  int larger_than_;
-  int growth_above_;
+  std::shared_ptr<Tunables> tunables_;
   bool dry_;
 };
 

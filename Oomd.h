@@ -60,6 +60,7 @@ class Oomd {
   }
 
   bool prepareRun();
+  void updateTunables();
   void updateContext(const std::string& cgroup_path, OomdContext& ctx);
 
  private:

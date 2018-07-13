@@ -38,11 +38,12 @@ namespace Oomd {
 OomKiller::OomKiller(const PluginArgs& args)
     : cgroup_path_(args.cgroup_path),
       kill_list_(args.kill_list),
-      larger_than_(args.tunables->get<int>(Tunables::Tunable::LARGER_THAN)),
-      growth_above_(args.tunables->get<int>(Tunables::Tunable::GROWTH_ABOVE)),
+      tunables_(args.tunables),
       dry_(args.dry) {}
 
 bool OomKiller::tryToKillSomething(OomdContext& ctx) {
+  int larger_than = tunables_->get<int>(Tunables::Tunable::LARGER_THAN);
+  int growth_above = tunables_->get<int>(Tunables::Tunable::GROWTH_ABOVE);
   auto cur_memcurrent = Fs::readMemcurrent(cgroup_path_);
   auto cur_pressure = Fs::readMempressure(cgroup_path_);
 
@@ -101,7 +102,7 @@ bool OomKiller::tryToKillSomething(OomdContext& ctx) {
   // size heuristic first
   for (const auto& state_pair : size_sorted) {
     if (state_pair.second.current_usage <
-        (cur_memcurrent * (static_cast<double>(larger_than_) / 100))) {
+        (cur_memcurrent * (static_cast<double>(larger_than) / 100))) {
       XLOG(INFO) << "Skipping size heuristic kill on " << state_pair.first
                  << " b/c not big enough";
       break;
@@ -109,7 +110,7 @@ bool OomKiller::tryToKillSomething(OomdContext& ctx) {
 
     XLOG(INFO) << "Picked \"" << state_pair.first << "\" ("
                << state_pair.second.current_usage / 1024 / 1024
-               << "MB) based on size > " << larger_than_ << "% of total "
+               << "MB) based on size > " << larger_than << "% of total "
                << cur_memcurrent / 1024 / 1024 << "MB";
 
     if (tryToKillCgroup(state_pair.first)) {
@@ -123,13 +124,13 @@ bool OomKiller::tryToKillSomething(OomdContext& ctx) {
     }
   }
 
-  // growth heuristic -- pick the top P(growth_above_) and sort them
+  // growth heuristic -- pick the top P(growth_above) and sort them
   // by the growth rate (current usage / avg usage) and try to kill
   // the highest one.
   auto growth_sorted = std::move(size_sorted); // save ourselves an allocation
   OomdContext::dumpOomdContext(growth_sorted);
   int nr = std::ceil(
-      growth_sorted.size() * (100 - static_cast<double>(growth_above_)) / 100);
+      growth_sorted.size() * (100 - static_cast<double>(growth_above)) / 100);
   growth_sorted.resize(nr);
   OomdContext::reverseSort(growth_sorted, [](const CgroupContext& cgroup_ctx) {
     return static_cast<double>(cgroup_ctx.current_usage) /
@@ -143,7 +144,7 @@ bool OomKiller::tryToKillSomething(OomdContext& ctx) {
         << "MB) based on growth rate "
         << static_cast<double>(state_pair.second.current_usage) /
             state_pair.second.average_usage
-        << " among P" << growth_above_ << " largest";
+        << " among P" << growth_above << " largest";
     XLOG(INFO) << oss.str();
 
     if (tryToKillCgroup(state_pair.first)) {

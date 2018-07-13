@@ -56,12 +56,7 @@ class OomDetector {
   // tunables
   std::string cgroup_path_;
   std::shared_ptr<KillList> kill_list_;
-  int threshold_;
-  int high_threshold_;
-  int high_threshold_duration_;
-  float fast_fall_ratio_;
-  int min_swap_pct_;
-  int pgscan_window_tick_thres_;
+  std::shared_ptr<Tunables> tunables_;
 
   std::chrono::steady_clock::time_point high_thres_at_{};
   MemoryPressure last_pressure_{100, 100, 100};
