@@ -42,6 +42,7 @@ struct Tunables {
     AVERAGE_SIZE_DECAY,
     FAST_FALL_RATIO,
     MIN_SWAP_PCT,
+    FBTAX2_WORKLOAD_THRESHOLD,
     LAST, // Always keep this last
   };
 
@@ -89,6 +90,7 @@ struct Tunables {
       {AVERAGE_SIZE_DECAY, "OOMD_AVERAGE_SIZE_DECAY", "4", ""},
       {FAST_FALL_RATIO, "OOMD_FAST_FALL_RATIO", "0.85", ""},
       {MIN_SWAP_PCT, "OOMD_MIN_SWAP_PCT", "15", ""},
+      {FBTAX2_WORKLOAD_THRESHOLD, "OOMD_FBTAX2_WORKLOAD_THRESHOLD", "15", ""},
   };
 };
 

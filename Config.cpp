@@ -194,15 +194,18 @@ std::unique_ptr<Tunables> Config::loadTunables() {
 }
 
 std::unique_ptr<OomDetector> Config::parseDetectorPluginAndFactory(
-    Json::Value& /* unused */,
+    const Json::Value& cgroup,
     const PluginArgs& args) {
-  OomDetector* d = getDetectorRegistry().create("default", args);
+  std::string config_class = cgroup["oomdetector"].asString();
+  const char* chosen_class = config_class.size() ? config_class.c_str() : "default";
+  XLOG(INFO) << "OomDetector=" << chosen_class;
+  OomDetector* d = getDetectorRegistry().create(chosen_class, args);
   CHECK(!!d);
   return std::unique_ptr<OomDetector>(d);
 }
 
 std::unique_ptr<OomKiller> Config::parseKillerPluginAndFactory(
-    Json::Value& cgroup,
+    const Json::Value& cgroup,
     const PluginArgs& args) {
   std::string config_class = cgroup["oomkiller"].asString();
   const char* chosen_class = config_class.size() ? config_class.c_str() : "default";

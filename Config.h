@@ -73,10 +73,10 @@ class Config {
   std::string parseBasePath(Json::Value& cgroup);
 
   std::unique_ptr<OomDetector> parseDetectorPluginAndFactory(
-      Json::Value& cgroup,
+      const Json::Value& cgroup,
       const PluginArgs& args);
   std::unique_ptr<OomKiller> parseKillerPluginAndFactory(
-      Json::Value& cgroup,
+      const Json::Value& cgroup,
       const PluginArgs& args);
 
  private:
