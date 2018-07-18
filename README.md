@@ -7,26 +7,29 @@ oomd is *userspace* Out-Of-Memory (OOM) killer for linux systems.
 Out of memory killing has historically happened inside kernel space. On a
 [memory overcommitted][0] linux system, malloc(2) and friends will never fail.
 However, if an application dereferences the returned pointer and the system has
-run out of physical memory, the linux kernel is forced to OOM kill one or more
-processes. This is typically a slow and painful process because the kernel
-spends an unbounded amount of time swapping in and out pages and evicting the
-page cache. Furthermore, [configuring policy][1] is not very flexible while
-being somewhat complicated.
+run out of physical memory, the linux kernel is forced take extreme measures,
+up to and including killing processes. This is typically a slow and painful
+process because the kernel spends an unbounded amount of time swapping in and
+out pages and evicting the page cache. Furthermore, [configuring policy][1] is
+not very flexible while being somewhat complicated.
 
-oomd aims to solve this problem in userspace. oomd leverages cgroupsv2 and
-newly exposed counters and statistics to monitor a system holistically. oomd
-takes corrective action in userspace before an OOM occurs in kernel space.
-Corrective action is configured via a flexible plugin system, in which custom
-code can be written. By default, this involves killing offending processes.
-This enables an unparalleled level of flexibility where each workload can have
-custom protection rules. Furthermore, time spent churning pages in kernelspace
-is minimized. In practice at Facebook, we've regularly seen 30 minute host
-lockups go away entirely.
+oomd aims to solve this problem in userspace. oomd leverages [PSI][6] and
+cgroupsv2 to monitor a system holistically. oomd then takes corrective action
+in userspace before an OOM occurs in kernel space. Corrective action is
+configured via a flexible plugin system, in which custom code can be written.
+By default, this involves killing offending processes. This enables an
+unparalleled level of flexibility where each workload can have custom
+protection rules. Furthermore, time spent churning pages in kernelspace is
+minimized. In practice at Facebook, we've regularly seen 30 minute host lockups
+go away entirely.
 
 ## Building and installing
 
+Note that oomd requires [PSI][6] to function. This kernel feature has not yet
+been upstreamed (as of 7/18/18).
+
 oomd currently depends on [meson][2], [libfolly][3], and [jsoncpp][4].
-The dependency on folly will soon be removed (as of 7/10/18).
+The dependency on folly will soon be removed (as of 7/18/18).
 
     $ git clone https://github.com/facebook/oomd
     $ cd oomd
@@ -165,3 +168,4 @@ oomd is GPL 2 licensed, as found in the LICENSE file.
 [3]: https://github.com/facebook/folly
 [4]: https://github.com/open-source-parsers/jsoncpp
 [5]: https://github.com/google/googletest
+[6]: http://git.cmpxchg.org/cgit.cgi/linux-psi.git/
