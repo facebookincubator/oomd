@@ -63,10 +63,6 @@ class Fs {
       return v;
     }
 
-    SCOPE_EXIT {
-      closedir(d);
-    };
-
     while ((dir = readdir(d)) != NULL) {
       if (dir->d_name[0] == '.') {
         continue;
@@ -86,6 +82,7 @@ class Fs {
       }
     }
 
+    closedir(d);
     return v;
   }
 

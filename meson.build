@@ -37,6 +37,7 @@ srcs = files('''
     shared/Tunables.cpp
     shared/Tunables.h
     util/Fs.h
+    util/ScopeGuard.h
 '''.split())
 
 deps = [dependency('libfolly'),
@@ -82,6 +83,7 @@ if gtest_dep.found() and gmock_dep.found()
                             link_with : oomd_lib)
     util_tests = executable('oomd_util_tests',
                             'util/FsTest.cpp',
+                            'util/ScopeGuardTest.cpp',
                             include_directories : inc,
                             dependencies : deps,
                             link_with : oomd_lib)

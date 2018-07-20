@@ -26,6 +26,7 @@
 
 #include "oomd/Log.h"
 #include "oomd/util/Fs.h"
+#include "oomd/util/ScopeGuard.h"
 
 static auto constexpr kPgscanSwap = "pgscan_kswapd";
 static auto constexpr kPgscanDirect = "pgscan_direct";
@@ -61,7 +62,7 @@ bool OomDetector::isOOM(OomdContext& ctx) {
     pgscan_window_ = 0;
   }
 
-  SCOPE_EXIT {
+  OOMD_SCOPE_EXIT {
     last_pressure_ = pressure;
     last_pgscan_ = pgscan;
   };
