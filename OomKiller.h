@@ -40,6 +40,10 @@ class OomKiller {
   }
 
  protected:
+  bool isBlacklisted(const std::string& target);
+  void removeBlacklisted(
+      std::vector<std::pair<std::string, CgroupContext>>& list);
+
   std::string cgroup_path_;
   std::shared_ptr<KillList> kill_list_;
   std::shared_ptr<Tunables> tunables_;

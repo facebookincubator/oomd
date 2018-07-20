@@ -53,6 +53,7 @@ bool OomKiller::tryToKillSomething(OomdContext& ctx) {
     auto swap_sorted = ctx.reverseSort(
         [](const CgroupContext& cgroup_ctx) { return cgroup_ctx.swap_usage; });
     OomdContext::dumpOomdContext(swap_sorted);
+    removeBlacklisted(swap_sorted);
 
     for (const auto& state_pair : swap_sorted) {
       XLOG(INFO) << "Picked \"" << state_pair.first << "\" ("
@@ -75,6 +76,7 @@ bool OomKiller::tryToKillSomething(OomdContext& ctx) {
     return cgroup_ctx.current_usage - cgroup_ctx.memory_low;
   });
   OomdContext::dumpOomdContext(size_sorted);
+  removeBlacklisted(size_sorted);
   for (const auto& state_pair : size_sorted) {
     for (const auto& kl_entry : *kill_list_) {
       bool max_usage_kill =
@@ -136,6 +138,7 @@ bool OomKiller::tryToKillSomething(OomdContext& ctx) {
     return static_cast<double>(cgroup_ctx.current_usage) /
         cgroup_ctx.average_usage;
   });
+  removeBlacklisted(growth_sorted);
   for (const auto& state_pair : growth_sorted) {
     std::ostringstream oss;
     oss << std::setprecision(2) << std::fixed;
@@ -214,6 +217,26 @@ void OomKiller::reportToXattr(const std::string& id, int num_procs_killed) {
     XLOG(INFO) << "Set xattr " << kOomdKillXattr << "=" << new_xattr_str
                << " on " << full_path;
   }
+}
+
+bool OomKiller::isBlacklisted(const std::string& target) {
+  for (const auto& e : *kill_list_) {
+    if (target == e.service && e.max_usage == std::numeric_limits<int>::max()) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+void OomKiller::removeBlacklisted(
+    std::vector<std::pair<std::string, CgroupContext>>& list) {
+  list.erase(
+      std::remove_if(
+          list.begin(),
+          list.end(),
+          [this](const auto& pair) { return isBlacklisted(pair.first); }),
+      list.end());
 }
 
 } // namespace Oomd
