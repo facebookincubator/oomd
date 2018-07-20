@@ -166,16 +166,42 @@ class Fs {
 
   static MemoryPressure readMempressure(const std::string& path) {
     auto lines = readFileByLine(path + "/" + kMemPressureFile);
-    CHECK_EQ(lines.size(), 3);
 
-    std::vector<std::string> toks = split(lines[2], ' ');
-    CHECK_EQ(toks[0], "full");
+    if (lines.size() == 2) {
+      // Upstream v4.16+ format
+      //
+      // some avg10=0.22 avg60=0.17 avg300=1.11 total=58761459
+      // full avg10=0.22 avg60=0.16 avg300=1.08 total=58464525
+      std::vector<std::string> toks = split(lines[1], ' ');
+      CHECK_EQ(toks[0], "full");
+      std::vector<std::string> avg10 = split(toks[1], '=');
+      CHECK_EQ(avg10[0], "avg10");
+      std::vector<std::string> avg60 = split(toks[2], '=');
+      CHECK_EQ(avg60[0], "avg60");
+      std::vector<std::string> avg300 = split(toks[3], '=');
+      CHECK_EQ(avg300[0], "avg300");
 
-    return MemoryPressure{
-        std::stof(toks[1]),
-        std::stof(toks[2]),
-        std::stof(toks[3]),
-    };
+      return MemoryPressure{
+          std::stof(avg10[1]),
+          std::stof(avg60[1]),
+          std::stof(avg300[1]),
+      };
+    } else {
+      // Old experimental format
+      //
+      // aggr 316016073
+      // some 0.00 0.03 0.05
+      // full 0.00 0.03 0.05
+      CHECK_EQ(lines.size(), 3);
+      std::vector<std::string> toks = split(lines[2], ' ');
+      CHECK_EQ(toks[0], "full");
+
+      return MemoryPressure{
+          std::stof(toks[1]),
+          std::stof(toks[2]),
+          std::stof(toks[3]),
+      };
+    }
   }
 
   static int64_t readMemlow(const std::string& path) {

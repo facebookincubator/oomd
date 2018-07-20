@@ -125,12 +125,21 @@ TEST_F(FsTest, ReadControllers) {
 }
 
 TEST_F(FsTest, ReadMemoryPressure) {
+  // v4.16+ upstream format
   std::string dir(kCgroupDataDir);
   auto pressure = Fs::readMempressure(dir);
 
   EXPECT_FLOAT_EQ(pressure.sec_10, 4.44);
   EXPECT_FLOAT_EQ(pressure.sec_60, 5.55);
   EXPECT_FLOAT_EQ(pressure.sec_600, 6.66);
+
+  // old experimental format
+  auto dir2 = dir + "/service2.service";
+  auto pressure2 = Fs::readMempressure(dir2);
+
+  EXPECT_FLOAT_EQ(pressure2.sec_10, 4.44);
+  EXPECT_FLOAT_EQ(pressure2.sec_60, 5.55);
+  EXPECT_FLOAT_EQ(pressure2.sec_600, 6.66);
 }
 
 TEST_F(FsTest, GetVmstat) {
