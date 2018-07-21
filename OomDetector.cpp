@@ -43,8 +43,8 @@ OomDetector::OomDetector(const PluginArgs& args)
 }
 
 bool OomDetector::isOOM(OomdContext& ctx) {
-  auto current = Fs::readMemcurrent(cgroup_path_);
-  auto pressure = Fs::readMempressure(cgroup_path_);
+  const auto current = Fs::readMemcurrent(cgroup_path_);
+  const auto pressure = Fs::readMempressure(cgroup_path_);
   auto meminfo = Fs::getMeminfo();
   const int64_t swapfree = meminfo["SwapFree"];
   const int64_t swaptotal = meminfo["SwapTotal"];
@@ -152,7 +152,8 @@ bool OomDetector::isHeuristicOOM(
   const int high_threshold = tunables_->get<int>(Tunables::HIGH_THRESHOLD);
   const int high_threshold_duration =
       tunables_->get<int>(Tunables::HIGH_THRESHOLD_DURATION);
-  const float fast_fall_ratio = tunables_->get<float>(Tunables::FAST_FALL_RATIO);
+  const float fast_fall_ratio =
+      tunables_->get<float>(Tunables::FAST_FALL_RATIO);
 
   // if 10s pressure stays above high_threshold for > high_threshold_duration,
   // we are OOM
