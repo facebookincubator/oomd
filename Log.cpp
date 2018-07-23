@@ -36,7 +36,7 @@ namespace Oomd {
 Log::Log(const char* outfile) {
   kmsg_fd_ = ::open(outfile, O_WRONLY);
   if (kmsg_fd_ < 0) {
-    int errcode = errno; // prevent errno clobbering
+    const int errcode = errno; // prevent errno clobbering
     perror("open");
     XLOG(ERR) << "Unable to open outfile (default=/dev/kmsg), not logging";
     throw std::system_error(errcode, std::generic_category());

@@ -145,7 +145,7 @@ int Oomd::run() {
     }
     updateTunables();
 
-    auto before = std::chrono::steady_clock::now();
+    const auto before = std::chrono::steady_clock::now();
 
     if (verbose_ && ++ticks % verbose_ticks_ == 0) {
       std::ostringstream oss;
@@ -177,7 +177,7 @@ int Oomd::run() {
     std::rotate(cgroups_.begin(), cgroups_.begin() + 1, cgroups_.end());
 
     // We may have slept already, so recalculate
-    auto after = std::chrono::steady_clock::now();
+    const auto after = std::chrono::steady_clock::now();
     auto to_sleep = interval_ - (after - before);
     if (to_sleep < std::chrono::seconds(0)) {
       to_sleep = std::chrono::seconds(0);
