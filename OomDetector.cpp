@@ -44,14 +44,14 @@ OomDetector::OomDetector(const PluginArgs& args)
 }
 
 bool OomDetector::isOOM(OomdContext& ctx) {
-  auto current = Fs::readMemcurrent(cgroup_path_);
-  auto pressure = Fs::readMempressure(cgroup_path_);
+  const auto current = Fs::readMemcurrent(cgroup_path_);
+  const auto pressure = Fs::readMempressure(cgroup_path_);
   auto meminfo = Fs::getMeminfo();
-  int64_t swapfree = meminfo["SwapFree"];
-  int64_t swaptotal = meminfo["SwapTotal"];
+  const int64_t swapfree = meminfo["SwapFree"];
+  const int64_t swaptotal = meminfo["SwapTotal"];
   auto vmstat = Fs::getVmstat();
-  int64_t pgscan = vmstat[kPgscanSwap] + vmstat[kPgscanDirect];
-  int pgscan_window_tick_thres =
+  const int64_t pgscan = vmstat[kPgscanSwap] + vmstat[kPgscanDirect];
+  const int pgscan_window_tick_thres =
       tunables_->get<int>(Tunables::HIGH_THRESHOLD_DURATION) /
       tunables_->get<int>(Tunables::INTERVAL);
 
@@ -82,7 +82,7 @@ bool OomDetector::isOOM(OomdContext& ctx) {
   //
   // Swap OOM can happen regardless of pgscans.
   OomContext octx;
-  bool has_pg_scanned = pgscan_window_ >= pgscan_window_tick_thres;
+  const bool has_pg_scanned = pgscan_window_ >= pgscan_window_tick_thres;
 
   if (isPressureOOM(pressure, octx) && has_pg_scanned) {
     ctx.setOomContext(octx);
@@ -131,8 +131,8 @@ bool OomDetector::isSwapOOM(
     int64_t swapfree,
     int64_t swaptotal,
     OomContext& octx) {
-  int min_swap_pct = tunables_->get<int>(Tunables::MIN_SWAP_PCT);
-  int64_t swapthres = swaptotal * min_swap_pct / 100;
+  const int min_swap_pct = tunables_->get<int>(Tunables::MIN_SWAP_PCT);
+  const int64_t swapthres = swaptotal * min_swap_pct / 100;
   if (swaptotal > 0 && swapfree < swapthres) {
     XLOG(INFO) << "SwapFree " << swapfree
                << "MB is smaller than the threshold of " << swapthres
@@ -149,21 +149,22 @@ bool OomDetector::isHeuristicOOM(
     int64_t current,
     const MemoryPressure& pressure,
     OomContext& octx) {
-  int threshold = tunables_->get<int>(Tunables::THRESHOLD);
-  int high_threshold = tunables_->get<int>(Tunables::HIGH_THRESHOLD);
-  int high_threshold_duration =
+  const int threshold = tunables_->get<int>(Tunables::THRESHOLD);
+  const int high_threshold = tunables_->get<int>(Tunables::HIGH_THRESHOLD);
+  const int high_threshold_duration =
       tunables_->get<int>(Tunables::HIGH_THRESHOLD_DURATION);
-  float fast_fall_ratio = tunables_->get<float>(Tunables::FAST_FALL_RATIO);
+  const float fast_fall_ratio =
+      tunables_->get<float>(Tunables::FAST_FALL_RATIO);
 
   // if 10s pressure stays above high_threshold for > high_threshold_duration,
   // we are OOM
-  auto now = steady_clock::now();
+  const auto now = steady_clock::now();
   if (pressure.sec_10 > high_threshold) {
     if (high_thres_at_ == steady_clock::time_point()) {
       high_thres_at_ = now;
     }
 
-    auto diff =
+    const auto diff =
         std::chrono::duration_cast<std::chrono::seconds>(now - high_thres_at_)
             .count();
     if (diff > high_threshold_duration) {

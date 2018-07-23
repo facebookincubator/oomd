@@ -131,7 +131,7 @@ bool OomKiller::tryToKillSomething(OomdContext& ctx) {
   // the highest one.
   auto growth_sorted = std::move(size_sorted); // save ourselves an allocation
   OomdContext::dumpOomdContext(growth_sorted);
-  int nr = std::ceil(
+  const int nr = std::ceil(
       growth_sorted.size() * (100 - static_cast<double>(growth_above)) / 100);
   growth_sorted.resize(nr);
   OomdContext::reverseSort(growth_sorted, [](const CgroupContext& cgroup_ctx) {
@@ -210,7 +210,7 @@ int OomKiller::tryToKillPids(const std::vector<int>& pids) {
 void OomKiller::reportToXattr(const std::string& id, int num_procs_killed) {
   auto full_path = cgroup_path_ + "/" + id;
   auto prev_xattr_str = Fs::getxattr(full_path, kOomdKillXattr);
-  int prev_xattr = std::stoi(prev_xattr_str != "" ? prev_xattr_str : "0");
+  const int prev_xattr = std::stoi(prev_xattr_str != "" ? prev_xattr_str : "0");
   std::string new_xattr_str = std::to_string(prev_xattr + num_procs_killed);
 
   if (Fs::setxattr(full_path, kOomdKillXattr, new_xattr_str)) {
