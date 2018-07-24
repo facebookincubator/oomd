@@ -31,7 +31,7 @@ been upstreamed (as of 7/18/18).
 oomd currently depends on [meson][2], [libfolly][3], and [jsoncpp][4].
 The dependency on folly will soon be removed (as of 7/18/18).
 
-    $ git clone https://github.com/facebook/oomd
+    $ git clone https://github.com/facebookincubator/oomd
     $ cd oomd
     $ meson build && ninja -C build
     $ cd build && sudo ninja install
