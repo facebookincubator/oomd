@@ -235,7 +235,7 @@ void OomKiller::removeBlacklisted(
       std::remove_if(
           list.begin(),
           list.end(),
-          [this](const auto& pair) { return isBlacklisted(pair.first); }),
+          [this](const auto& pair) { return this->isBlacklisted(pair.first); }),
       list.end());
 }
 
