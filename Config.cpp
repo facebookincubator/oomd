@@ -40,12 +40,8 @@ namespace Oomd {
 REGISTER_DETECTOR_PLUGIN(default, OomDetector::create);
 REGISTER_KILLER_PLUGIN(default, OomKiller::create);
 
-Config::Config(
-    const std::string& config_path,
-    bool dry,
-    bool verbose,
-    bool report)
-    : dry_(dry), verbose_(verbose), report_(report) {
+Config::Config(const std::string& config_path, bool dry, bool verbose)
+    : dry_(dry), verbose_(verbose) {
   config_ = parseJson(config_path);
 }
 

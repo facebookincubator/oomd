@@ -38,7 +38,6 @@ static void printUsage() {
          "  --config CONFIG, -C CONFIG\n"
          "                        Config file (default: /etc/oomd.json)\n"
          "  --dry, -d             Dry run - do not actually kill\n"
-         "  --report, -r          Report statistics to ODS/Scuba every so often\n"
          "  --verbose, -v\n"
       << std::endl;
 }
@@ -51,7 +50,6 @@ int main(int argc, char** argv) {
 
   std::string flag_conf_file = kConfigFilePath;
   bool flag_dry = false;
-  bool flag_report = false;
   bool flag_verbose = false;
 
   int option_index = 0;
@@ -80,7 +78,7 @@ int main(int argc, char** argv) {
         flag_dry = true;
         break;
       case 'r':
-        flag_report = true;
+        std::cerr << "Noop for backwards compatible report\n";
         break;
       case 'v':
         flag_verbose = true;
@@ -117,12 +115,11 @@ int main(int argc, char** argv) {
 
   if (flag_verbose) {
     XLOG(INFO) << "oomd running with conf_file=" << flag_conf_file
-               << " dry=" << flag_dry << " report=" << flag_report
-               << " verbose=" << flag_verbose;
+               << " dry=" << flag_dry << " verbose=" << flag_verbose;
   }
 
   Oomd::Log::init_or_die();
-  auto conf = Oomd::Config(flag_conf_file, flag_dry, flag_verbose, flag_report);
+  auto conf = Oomd::Config(flag_conf_file, flag_dry, flag_verbose);
   Oomd::Oomd oomd;
   conf.apply(oomd);
   return oomd.run();

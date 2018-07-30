@@ -59,8 +59,7 @@ class Config {
   explicit Config(
       const std::string& config_path,
       bool dry = false,
-      bool verbose = false,
-      bool report = false);
+      bool verbose = false);
   Json::Value parseJson(const std::string& config_path);
 
   void apply(Oomd& target);
@@ -82,7 +81,6 @@ class Config {
  private:
   bool dry_{false};
   bool verbose_{false};
-  bool report_{false};
   Json::Value config_;
 };
 
