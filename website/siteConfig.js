@@ -49,7 +49,7 @@ const siteConfig = {
     
   // This copyright info is used in /core/Footer.js and blog rss/atom feeds.
   copyright:
-    'Copyright © ' +
+    'Copyright (c) ' +
     new Date().getFullYear() +
     ' Facebook Inc. ',
 
