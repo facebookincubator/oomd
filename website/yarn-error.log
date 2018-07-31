@@ -2,7 +2,7 @@ Arguments:
   /usr/local/bin/node /opt/facebook/fb-kpm/bin/yarn.js start
 
 PATH: 
-  /opt/facebook/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:/opt/homebrew/bin:/opt/facebook/ops/scripts/chef:/opt/facebook/nuclide/latest/nuclide/pkg/fb-biggrep-cli/bin:/opt/facebook/nuclide/latest/nuclide/pkg/fb-on-demand-cli/bin:/usr/local/munki:/opt/facebook/hg/bin
+  /opt/facebook/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:/opt/homebrew/bin:/opt/facebook/ops/scripts/chef:/opt/facebook/nuclide/latest/nuclide/pkg/fb-on-demand-cli/bin:/opt/facebook/nuclide/latest/nuclide/pkg/fb-biggrep-cli/bin:/usr/local/munki:/opt/facebook/hg/bin
 
 Yarn version: 
   1.5.1
@@ -4810,7 +4810,7 @@ Trace:
   Exit code: 1
   Command: sh
   Arguments: -c docusaurus-start
-  Directory: /Users/tconnally/cgroup2/website
+  Directory: /Users/tconnally/oomd/website
   Output:
   
       at ProcessTermError.MessageError (/opt/facebook/fb-kpm/lib/cli.js:186:110)
