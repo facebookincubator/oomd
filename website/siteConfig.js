@@ -11,7 +11,7 @@ const users = [
 
 const siteConfig = {
   title: 'oomd' /* title for your website */,
-  tagline: 'A new era for OOM killing',
+  tagline: 'A new userspace OOM killer',
   url: 'https://facebook.github.io' /* your website url */,
   baseUrl: '/oomd/' /* base url for your project */,
   projectName: 'oomd',
@@ -23,7 +23,6 @@ const siteConfig = {
       href: 'https://github.com/facebookincubator/oomd', 
       label: 'GitHub'
     },
-    {blog: true, label: 'Blog'},  
   ],
   users,
   /* path to images for header/footer */

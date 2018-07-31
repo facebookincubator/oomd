@@ -88,7 +88,7 @@ const ProjectGitHubStats = props => (
 
 const ProjectDescription = props => (
   <div>
-    <p>Use memory pressure thresholds for greater control during OOM events. </p>
+    <p>Use memory pressure thresholds for greater control during out-of-memory (OOM) events. </p>
   </div>
 );
 
@@ -125,17 +125,17 @@ const Features = props => (
       {
         content: 'Kill memory-hogging processes when PSI memory pressure exceeds a specified threshold.',
         imageAlign: 'top',
-        title: 'Memory Pressure Triggered OOM Killer',
+        title: 'OOM killer triggered by PSI memory pressure',
       },
       {
-        content: 'Works on a per-cgroup basis, allowing the killing of an entire groups of processes without compromising the system or the main workload.',
+        content: 'Works on a per-cgroup basis, allowing the killing of an entire group of processes without compromising the system or the main workload.',
         imageAlign: 'top',
-        title: 'Built on cgroup2',
+        title: 'Works with cgroup2',
       },
       {
-        content: 'Deal more proactively and gracefully with increasing memory pressure by pausing some tasks to ride out the bump, an app shutdown with a scheduled restart, or any other specified actions.',
+        content: 'Deal more proactively and gracefully with increasing memory pressure by pausing some tasks, performing an app shutdown with a scheduled restart, or other specified actions.',
         imageAlign: 'top',
-        title: 'More Granular OOM-Kill Options',
+        title: 'More granular OOM-kill options',
       },
       
     ]}
