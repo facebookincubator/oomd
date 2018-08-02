@@ -20,6 +20,7 @@
 #include <dirent.h>
 #include <sys/xattr.h>
 
+#include <cassert>
 #include <fstream>
 #include <sstream>
 #include <string>
@@ -157,7 +158,7 @@ class Fs {
 
   static int64_t readMemcurrent(const std::string& path) {
     auto lines = readFileByLine(path + "/" + kMemCurrentFile);
-    CHECK_EQ(lines.size(), 1);
+    assert(lines.size() == 1);
     return static_cast<int64_t>(std::stoll(lines[0]));
   }
 
@@ -170,13 +171,13 @@ class Fs {
       // some avg10=0.22 avg60=0.17 avg300=1.11 total=58761459
       // full avg10=0.22 avg60=0.16 avg300=1.08 total=58464525
       std::vector<std::string> toks = split(lines[1], ' ');
-      CHECK_EQ(toks[0], "full");
+      assert(toks[0] == "full");
       std::vector<std::string> avg10 = split(toks[1], '=');
-      CHECK_EQ(avg10[0], "avg10");
+      assert(avg10[0] == "avg10");
       std::vector<std::string> avg60 = split(toks[2], '=');
-      CHECK_EQ(avg60[0], "avg60");
+      assert(avg60[0] == "avg60");
       std::vector<std::string> avg300 = split(toks[3], '=');
-      CHECK_EQ(avg300[0], "avg300");
+      assert(avg300[0] == "avg300");
 
       return MemoryPressure{
           std::stof(avg10[1]),
@@ -189,9 +190,9 @@ class Fs {
       // aggr 316016073
       // some 0.00 0.03 0.05
       // full 0.00 0.03 0.05
-      CHECK_EQ(lines.size(), 3);
+      assert(lines.size() == 3);
       std::vector<std::string> toks = split(lines[2], ' ');
-      CHECK_EQ(toks[0], "full");
+      assert(toks[0] == "full");
 
       return MemoryPressure{
           std::stof(toks[1]),
@@ -203,13 +204,13 @@ class Fs {
 
   static int64_t readMemlow(const std::string& path) {
     auto lines = readFileByLine(path + "/" + kMemLowFile);
-    CHECK_EQ(lines.size(), 1);
+    assert(lines.size() == 1);
     return static_cast<int64_t>(std::stoll(lines[0]));
   }
 
   static int64_t readSwapCurrent(const std::string& path) {
     auto lines = readFileByLine(path + "/" + kMemSwapCurrentFile);
-    CHECK_EQ(lines.size(), 1);
+    assert(lines.size() == 1);
     return static_cast<int64_t>(std::stoll(lines[0]));
   }
 

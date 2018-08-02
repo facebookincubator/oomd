@@ -17,6 +17,7 @@
 
 #include "oomd/Config.h"
 
+#include <cassert>
 #include <fstream>
 #include <limits>
 #include <memory>
@@ -196,7 +197,7 @@ std::unique_ptr<OomDetector> Config::parseDetectorPluginAndFactory(
   const char* chosen_class = config_class.size() ? config_class.c_str() : "default";
   XLOG(INFO) << "OomDetector=" << chosen_class;
   OomDetector* d = getDetectorRegistry().create(chosen_class, args);
-  CHECK(!!d);
+  assert(!!d);
   return std::unique_ptr<OomDetector>(d);
 }
 
@@ -207,7 +208,7 @@ std::unique_ptr<OomKiller> Config::parseKillerPluginAndFactory(
   const char* chosen_class = config_class.size() ? config_class.c_str() : "default";
   XLOG(INFO) << "OomKiller=" << chosen_class;
   OomKiller* k = getKillerRegistry().create(chosen_class, args);
-  CHECK(!!k);
+  assert(!!k);
   return std::unique_ptr<OomKiller>(k);
 }
 
