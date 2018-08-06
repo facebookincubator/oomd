@@ -27,6 +27,7 @@
 
 #include <json/reader.h>
 
+#include "oomd/Log.h"
 #include "oomd/PluginRegistry.h"
 #include "oomd/shared/KillList.h"
 

@@ -33,11 +33,28 @@
 
 namespace Oomd {
 
-Log::Log(int kmsg_fd) : kmsg_fd_(kmsg_fd) {}
+LogStream::~LogStream() {
+  stream_ << '\n';
+  Log::get().debugLog(stream_.str());
+}
+
+Log::Log(int kmsg_fd, std::ostream& debug_sink) : kmsg_fd_(kmsg_fd) {
+  // Start async debug log flushing thread
+  io_thread_ = std::thread([this, &debug_sink] { this->ioThread(debug_sink); });
+}
 
 Log::~Log() {
   if (kmsg_fd_ >= 0) {
     ::close(kmsg_fd_);
+  }
+
+  {
+    std::lock_guard<std::mutex> lock(state_.lock);
+    state_.ioThreadRunning = false;
+  }
+  state_.cv.notify_all();
+  if (io_thread_.joinable()) {
+    io_thread_.join();
   }
 }
 
@@ -53,13 +70,15 @@ void Log::init_or_die() {
   Log::get(kmsg_fd);
 }
 
-Log& Log::get(int kmsg_fd) {
-  static Log singleton(kmsg_fd);
+Log& Log::get(int kmsg_fd, std::ostream& debug_sink) {
+  static Log singleton(kmsg_fd, debug_sink);
   return singleton;
 }
 
-std::unique_ptr<Log> Log::get_for_unittest(int kmsg_fd) {
-  return std::unique_ptr<Log>(new Log(kmsg_fd));
+std::unique_ptr<Log> Log::get_for_unittest(
+    int kmsg_fd,
+    std::ostream& debug_sink) {
+  return std::unique_ptr<Log>(new Log(kmsg_fd, debug_sink));
 }
 
 void Log::kmsgLog(const std::string& buf, const std::string& prefix) const {
@@ -112,6 +131,57 @@ void Log::kmsgLog(
       << "detector:" << octx_oss.str() << " "
       << "killer:" << (dry ? "(dry)" : "") << kill_type;
   kmsgLog(oss.str(), "oomd kill");
+}
+
+void Log::debugLog(std::string&& buf) {
+  std::unique_lock<std::mutex> lock(state_.lock);
+
+  if (buf.size() + state_.curSize > state_.maxSize) {
+    state_.numDiscarded++;
+    return;
+  }
+
+  auto* q = state_.getCurrentQueue();
+  q->emplace_back(std::move(buf));
+  state_.curSize += buf.size();
+  state_.cv.notify_one();
+}
+
+void Log::ioThread(std::ostream& debug_sink) {
+  bool io_thread_running = true;
+
+  while (io_thread_running) {
+    std::vector<std::string>* q = nullptr;
+    size_t numDiscarded;
+
+    // Swap the rx/tx queues
+    {
+      std::unique_lock<std::mutex> lock(state_.lock);
+      q = state_.getCurrentQueue();
+
+      // Wait until we have stuff to write
+      state_.cv.wait(
+          lock, [this, q] { return !state_.ioThreadRunning || q->size(); });
+
+      io_thread_running = state_.ioThreadRunning;
+      numDiscarded = state_.numDiscarded;
+
+      state_.curSize = 0;
+      state_.numDiscarded = 0;
+      state_.ioTick++; // flips the last bit that getCurrentQueue uses
+    }
+
+    for (auto& buf : *q) {
+      debug_sink << buf;
+    }
+
+    if (numDiscarded) {
+      debug_sink << "...\n" << numDiscarded << " messages dropped\n...\n";
+    }
+
+    // clear() doesn't shrink capacity, only invalidates contents
+    q->clear();
+  }
 }
 
 } // namespace Oomd

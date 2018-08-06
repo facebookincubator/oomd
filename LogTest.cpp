@@ -22,6 +22,7 @@
 #include <stdio.h>
 #include <sys/types.h>
 #include <fstream>
+#include <sstream>
 #include "oomd/Log.h"
 #include "oomd/shared/OomdContext.h"
 
@@ -40,7 +41,7 @@ class LogTestKmsg : public ::testing::Test {
     std::string outfile = "/tmp/logtest.XXXXXX";
     int fd = ::mkstemp(&outfile[0]);
 
-    auto logger = Log::get_for_unittest(fd);
+    auto logger = Log::get_for_unittest(fd, std::cerr);
     std::ifstream result_file(outfile);
 
     if (::remove(outfile.c_str()) != 0) {
@@ -95,4 +96,32 @@ TEST_F(LogTestKmsg, VerifyOutputComplex) {
   getline(result_file, compare_string);
   /* verify log contents */
   EXPECT_EQ(compare_string, test_complex_string);
+}
+
+TEST(LogTestAsyncDebug, CoupleLines) {
+  std::stringstream sstr;
+  {
+    auto logger = Log::get_for_unittest(STDERR_FILENO, sstr);
+
+    logger->debugLog(std::string("line one\n"));
+    logger->debugLog(std::string("line2\n"));
+  }
+
+  EXPECT_EQ(sstr.str(), "line one\nline2\n");
+}
+
+TEST(LogTestAsyncDebug, LotsOfLines) {
+  for (int i = 0; i < 10; ++i) {
+    std::stringstream expected;
+    std::stringstream sstr;
+    {
+      auto logger = Log::get_for_unittest(STDERR_FILENO, sstr);
+      for (int j = 0; j < 150; ++j) {
+        logger->debugLog(std::to_string(j) + "_line\n");
+        expected << j << "_line\n";
+      }
+    }
+
+    EXPECT_EQ(sstr.str(), expected.str());
+  }
 }
