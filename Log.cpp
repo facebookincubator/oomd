@@ -33,15 +33,7 @@
 
 namespace Oomd {
 
-Log::Log(const char* outfile) {
-  kmsg_fd_ = ::open(outfile, O_WRONLY);
-  if (kmsg_fd_ < 0) {
-    const int errcode = errno; // prevent errno clobbering
-    perror("open");
-    XLOG(ERR) << "Unable to open outfile (default=/dev/kmsg), not logging";
-    throw std::system_error(errcode, std::generic_category());
-  }
-}
+Log::Log(int kmsg_fd) : kmsg_fd_(kmsg_fd) {}
 
 Log::~Log() {
   if (kmsg_fd_ >= 0) {
@@ -50,24 +42,28 @@ Log::~Log() {
 }
 
 void Log::init_or_die() {
-  try {
-    Log::get();
-  } catch (const std::system_error& e) {
-    XLOG(FATAL) << "Log failed to init. Aborting.";
+  int kmsg_fd = ::open("/dev/kmsg", O_WRONLY);
+  if (kmsg_fd < 0) {
+    const int errcode = errno; // prevent errno clobbering
+    perror("open");
+    XLOG(ERR) << "Unable to open outfile (default=/dev/kmsg), not logging";
+    throw std::system_error(errcode, std::generic_category());
   }
+
+  Log::get(kmsg_fd);
 }
 
-Log& Log::get() {
-  static Log singleton;
+Log& Log::get(int kmsg_fd) {
+  static Log singleton(kmsg_fd);
   return singleton;
 }
 
-std::unique_ptr<Log> Log::get_for_unittest(const char* outfile) {
-  return std::unique_ptr<Log>(new Log(outfile));
+std::unique_ptr<Log> Log::get_for_unittest(int kmsg_fd) {
+  return std::unique_ptr<Log>(new Log(kmsg_fd));
 }
 
-void Log::log(const std::string& buf, const std::string& prefix) const {
-  if (kmsg_ && kmsg_fd_ >= 0) {
+void Log::kmsgLog(const std::string& buf, const std::string& prefix) const {
+  if (kmsg_fd_ >= 0) {
     std::string message(buf);
     if (prefix.size() > 0) {
       message.insert(0, prefix + ": ");
@@ -76,21 +72,13 @@ void Log::log(const std::string& buf, const std::string& prefix) const {
     if (ret == -1) {
       perror("error writing");
       XLOG(ERR) << "Unable to write log to output file";
-
-      // Prevents double printing to stderr
-      if (!stderr_) {
-        XLOG(ERR) << buf;
-      }
     }
   }
 
-  if (stderr_) {
-    // glog, by default, logs to stderr (unless turned off via cmdline)
-    XLOG(INFO) << buf;
-  }
+  XLOG(INFO) << buf;
 }
 
-void Log::log(
+void Log::kmsgLog(
     const std::string& to_kill,
     const std::string& kill_type,
     const CgroupContext& context,
@@ -123,7 +111,7 @@ void Log::log(
       << context.current_usage << " "
       << "detector:" << octx_oss.str() << " "
       << "killer:" << (dry ? "(dry)" : "") << kill_type;
-  log(oss.str(), "oomd kill");
+  kmsgLog(oss.str(), "oomd kill");
 }
 
 } // namespace Oomd

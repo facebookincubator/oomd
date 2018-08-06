@@ -151,7 +151,7 @@ int Oomd::run() {
       std::ostringstream oss;
       oss << "detectorticks=" << detector_ticks
           << " killticks=" << killer_ticks;
-      OOMD_LOG(oss.str(), "oomd heartbeat");
+      OOMD_KMSG_LOG(oss.str(), "oomd heartbeat");
     }
 
     for (auto& cgroup : cgroups_) {

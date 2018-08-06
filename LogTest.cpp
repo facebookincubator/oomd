@@ -28,7 +28,7 @@
 using namespace Oomd;
 using namespace testing;
 
-class LogTest : public ::testing::Test {
+class LogTestKmsg : public ::testing::Test {
  public:
   std::string test_string{"Testing basic logger output!"};
   std::string test_prefix{"oomd"};
@@ -40,12 +40,9 @@ class LogTest : public ::testing::Test {
     std::string outfile = "/tmp/logtest.XXXXXX";
     int fd = ::mkstemp(&outfile[0]);
 
-    auto logger = Log::get_for_unittest(outfile.c_str());
+    auto logger = Log::get_for_unittest(fd);
     std::ifstream result_file(outfile);
 
-    if (::close(fd) != 0) {
-      perror("close");
-    }
     if (::remove(outfile.c_str()) != 0) {
       perror("remove");
     }
@@ -55,14 +52,14 @@ class LogTest : public ::testing::Test {
 };
 
 /*
-  Test the plain log(buf) interface.
+  Test the plain kmsgLog(buf) interface.
 */
-TEST_F(LogTest, VerifyOutputSimple) {
+TEST_F(LogTestKmsg, VerifyOutputSimple) {
   auto logger_and_file = get_logger_and_file();
   auto& logger = logger_and_file.first;
   auto& result_file = logger_and_file.second;
 
-  logger->log(test_string, test_prefix);
+  logger->kmsgLog(test_string, test_prefix);
 
   /* check output */
   std::string compare_string;
@@ -76,7 +73,7 @@ TEST_F(LogTest, VerifyOutputSimple) {
   Test the memory status custom interface.
 */
 
-TEST_F(LogTest, VerifyOutputComplex) {
+TEST_F(LogTestKmsg, VerifyOutputComplex) {
   auto logger_and_file = get_logger_and_file();
   auto& logger = logger_and_file.first;
   auto& result_file = logger_and_file.second;
@@ -91,7 +88,7 @@ TEST_F(LogTest, VerifyOutputComplex) {
   ocontext.type = OomType::SWAP;
   ocontext.stat.swap_free = 12345;
 
-  logger->log("Evil ", "Evaporate \n", mcontext, ocontext, false);
+  logger->kmsgLog("Evil ", "Evaporate \n", mcontext, ocontext, false);
 
   /* check output */
   std::string compare_string;

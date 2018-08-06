@@ -28,19 +28,11 @@ class Log {
   Log& operator=(const Log& other) = delete;
   ~Log();
   static void init_or_die();
-  static Log& get();
-  static std::unique_ptr<Log> get_for_unittest(const char* outfile);
+  static Log& get(int kmsg_fd = -1);
+  static std::unique_ptr<Log> get_for_unittest(int kmsg_fd);
 
-  void set_kmsg(bool b) noexcept {
-    kmsg_ = b;
-  }
-  void set_stderr(bool b) noexcept {
-    stderr_ = b;
-  }
-
-  void log(const std::string& buf, const std::string& prefix) const;
-
-  void log(
+  void kmsgLog(const std::string& buf, const std::string& prefix) const;
+  void kmsgLog(
       const std::string& to_kill,
       const std::string& kill_type,
       const CgroupContext& context,
@@ -48,18 +40,14 @@ class Log {
       bool dry = false) const;
 
  private:
-  explicit Log(
-      const char* outfile = "/dev/kmsg"); // only get() is allowed to construct
-
-  bool kmsg_{true};
-  bool stderr_{true};
+  explicit Log(int kmsg_fd); // only get() is allowed to construct
 
   int kmsg_fd_{-1};
 };
 
 template <typename... Args>
-static void OOMD_LOG(Args&&... args) {
-  Log::get().log(std::forward<Args>(args)...);
+static void OOMD_KMSG_LOG(Args&&... args) {
+  Log::get().kmsgLog(std::forward<Args>(args)...);
 }
 
 } // namespace Oomd

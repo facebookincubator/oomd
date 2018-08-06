@@ -61,7 +61,7 @@ bool OomKiller::tryToKillSomething(OomdContext& ctx) {
                  << "MB) based on swap usage at "
                  << state_pair.second.swap_usage / 1024 / 1024 << "MB";
       if (tryToKillCgroup(state_pair.first)) {
-        OOMD_LOG(
+        OOMD_KMSG_LOG(
             state_pair.first,
             kKillTypeSwap,
             state_pair.second,
@@ -85,7 +85,7 @@ bool OomKiller::tryToKillSomething(OomdContext& ctx) {
       if (state_pair.first == kl_entry.service &&
           (max_usage_kill || pressure_kill)) {
         if (tryToKillCgroup(kl_entry.service)) {
-          OOMD_LOG(
+          OOMD_KMSG_LOG(
               kl_entry.service,
               (max_usage_kill ? kKillTypeKillListUsage
                               : kKillTypeKillListPressure),
@@ -116,7 +116,7 @@ bool OomKiller::tryToKillSomething(OomdContext& ctx) {
                << cur_memcurrent / 1024 / 1024 << "MB";
 
     if (tryToKillCgroup(state_pair.first)) {
-      OOMD_LOG(
+      OOMD_KMSG_LOG(
           state_pair.first,
           kKillTypeSize,
           state_pair.second,
@@ -151,7 +151,7 @@ bool OomKiller::tryToKillSomething(OomdContext& ctx) {
     XLOG(INFO) << oss.str();
 
     if (tryToKillCgroup(state_pair.first)) {
-      OOMD_LOG(
+      OOMD_KMSG_LOG(
           state_pair.first,
           kKillTypeGrowth,
           state_pair.second,
