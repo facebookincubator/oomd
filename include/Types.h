@@ -39,14 +39,14 @@ struct OomContext {
   OomStat stat;
 };
 
-struct MemoryPressure {
+struct ResourcePressure {
   float sec_10{0};
   float sec_60{0};
   float sec_600{0};
 };
 
 struct CgroupContext {
-  MemoryPressure pressure;
+  ResourcePressure pressure;
   int64_t current_usage{0};
   int64_t average_usage{0};
   int64_t memory_low{0};

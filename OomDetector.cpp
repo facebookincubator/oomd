@@ -110,7 +110,7 @@ void OomDetector::postKill(OomdContext& /* unused */) {
 }
 
 bool OomDetector::isPressureOOM(
-    const MemoryPressure& pressure,
+    const ResourcePressure& pressure,
     OomContext& octx) const {
   for (const auto& kl_entry : *kill_list_) {
     if (pressure.sec_60 >= kl_entry.kill_pressure) {
@@ -147,7 +147,7 @@ bool OomDetector::isSwapOOM(
 
 bool OomDetector::isHeuristicOOM(
     int64_t current,
-    const MemoryPressure& pressure,
+    const ResourcePressure& pressure,
     OomContext& octx) {
   const int threshold = tunables_->get<int>(Tunables::THRESHOLD);
   const int high_threshold = tunables_->get<int>(Tunables::HIGH_THRESHOLD);

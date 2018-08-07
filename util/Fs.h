@@ -41,6 +41,7 @@ class Fs {
   static constexpr auto kMemPressureFile = "memory.pressure";
   static constexpr auto kMemLowFile = "memory.low";
   static constexpr auto kMemSwapCurrentFile = "memory.swap.current";
+  static constexpr auto kIoPressureFile = "io.pressure";
 
   enum class EntryType {
     REG_FILE = 0,
@@ -156,14 +157,8 @@ class Fs {
     return pids;
   }
 
-  static int64_t readMemcurrent(const std::string& path) {
-    auto lines = readFileByLine(path + "/" + kMemCurrentFile);
-    assert(lines.size() == 1);
-    return static_cast<int64_t>(std::stoll(lines[0]));
-  }
-
-  static MemoryPressure readMempressure(const std::string& path) {
-    auto lines = readFileByLine(path + "/" + kMemPressureFile);
+  static ResourcePressure readRespressure(const std::string& path) {
+    auto lines = readFileByLine(path);
 
     if (lines.size() == 2) {
       // Upstream v4.16+ format
@@ -179,7 +174,7 @@ class Fs {
       std::vector<std::string> avg300 = split(toks[3], '=');
       assert(avg300[0] == "avg300");
 
-      return MemoryPressure{
+      return ResourcePressure{
           std::stof(avg10[1]),
           std::stof(avg60[1]),
           std::stof(avg300[1]),
@@ -194,12 +189,22 @@ class Fs {
       std::vector<std::string> toks = split(lines[2], ' ');
       assert(toks[0] == "full");
 
-      return MemoryPressure{
+      return ResourcePressure{
           std::stof(toks[1]),
           std::stof(toks[2]),
           std::stof(toks[3]),
       };
     }
+  }
+
+  static int64_t readMemcurrent(const std::string& path) {
+    auto lines = readFileByLine(path + "/" + kMemCurrentFile);
+    assert(lines.size() == 1);
+    return static_cast<int64_t>(std::stoll(lines[0]));
+  }
+
+  static ResourcePressure readMempressure(const std::string& path) {
+    return readRespressure(path + "/" + kMemPressureFile);
   }
 
   static int64_t readMemlow(const std::string& path) {
@@ -251,6 +256,10 @@ class Fs {
     }
 
     return map;
+  }
+
+  static ResourcePressure readIopressure(const std::string& path) {
+    return readRespressure(path + "/" + kIoPressureFile);
   }
 
   static ssize_t writeFull(int fd, const char* msg_buf, size_t count) {

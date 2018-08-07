@@ -46,11 +46,11 @@ class OomDetector {
   }
 
  protected:
-  bool isPressureOOM(const MemoryPressure& pressure, OomContext& octx) const;
+  bool isPressureOOM(const ResourcePressure& pressure, OomContext& octx) const;
   bool isSwapOOM(int64_t swapfree, int64_t swaptotal, OomContext& octx);
   bool isHeuristicOOM(
       int64_t current,
-      const MemoryPressure& pressure,
+      const ResourcePressure& pressure,
       OomContext& octx);
 
   // tunables
@@ -59,7 +59,7 @@ class OomDetector {
   std::shared_ptr<Tunables> tunables_;
 
   std::chrono::steady_clock::time_point high_thres_at_{};
-  MemoryPressure last_pressure_{100, 100, 100};
+  ResourcePressure last_pressure_{100, 100, 100};
   int64_t last_pgscan_{0};
   int64_t pgscan_window_{0}; // number of ticks where delta(pgscan) > 0
 

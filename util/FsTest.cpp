@@ -166,3 +166,12 @@ TEST_F(FsTest, GetMeminfo) {
   // we expect the key is missing (ie default val = 0)
   EXPECT_EQ(meminfo["asdf"], 0);
 }
+
+TEST_F(FsTest, ReadIoPressure) {
+  std::string dir(kCgroupDataDir);
+  auto pressure = Fs::readIopressure(dir);
+
+  EXPECT_FLOAT_EQ(pressure.sec_10, 4.45);
+  EXPECT_FLOAT_EQ(pressure.sec_60, 5.56);
+  EXPECT_FLOAT_EQ(pressure.sec_600, 6.67);
+}
