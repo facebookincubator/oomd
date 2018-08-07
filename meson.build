@@ -41,7 +41,8 @@ srcs = files('''
 '''.split())
 
 deps = [dependency('libfolly'),
-        dependency('jsoncpp')]
+        dependency('jsoncpp'),
+        dependency('threads')]
 oomd_lib = library('oomd',
                    srcs,
                    include_directories : inc,
