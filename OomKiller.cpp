@@ -21,6 +21,7 @@
 #include <algorithm>
 #include <cmath>
 #include <iomanip>
+#include <queue>
 #include <thread>
 
 #include "oomd/Log.h"
@@ -177,6 +178,11 @@ bool OomKiller::tryToKillCgroup(const std::string& id) {
   }
 
   XLOG(INFO) << "Trying to kill " << id;
+  if (Fs::getPids(cgroup_path_ + "/" + id, true).empty()) {
+    XLOG(INFO) << "No processes to kill";
+    return true;
+  }
+
   while (tries--) {
     nr_killed += tryToKillPids(Fs::getPids(cgroup_path_ + "/" + id, true));
 
@@ -192,6 +198,30 @@ bool OomKiller::tryToKillCgroup(const std::string& id) {
   reportToXattr(id, nr_killed);
 
   return nr_killed > 0;
+}
+
+bool OomKiller::tryToKillCgroupRecursively(const std::string& id) {
+  std::queue<std::string> cgroups_to_walk;
+  cgroups_to_walk.push(id);
+  std::vector<std::string> discovered_cgroups;
+
+  while (!cgroups_to_walk.empty()) {
+    const auto& curr = cgroups_to_walk.front();
+    auto path = cgroup_path_ + "/" + curr;
+    auto dirs = Fs::readDir(path, Fs::EntryType::DIRECTORY);
+    for (const auto& dir : dirs) {
+      cgroups_to_walk.push(curr + "/" + dir);
+    }
+    discovered_cgroups.push_back(curr);
+    cgroups_to_walk.pop();
+  }
+
+  auto ret = true;
+  for (const auto& cgroup : discovered_cgroups) {
+    ret &= tryToKillCgroup(cgroup);
+  }
+
+  return ret;
 }
 
 int OomKiller::tryToKillPids(const std::vector<int>& pids) {

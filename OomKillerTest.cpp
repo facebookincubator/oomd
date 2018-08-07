@@ -93,6 +93,22 @@ TEST_F(OomKillerTest, TriesToKillCgroup) {
   EXPECT_FALSE(killer->tryToKillSomething(ctx));
 }
 
+TEST_F(OomKillerTest, TriesToKillCgroupRecursively) {
+  ON_CALL(*killer, tryToKillCgroup(_)).WillByDefault(Return(true));
+  EXPECT_CALL(*killer, tryToKillCgroup(StrEq("slice1.slice"))).Times(1);
+  EXPECT_CALL(*killer, tryToKillCgroup(StrEq("slice1.slice/service1.service")))
+      .Times(1);
+  EXPECT_CALL(*killer, tryToKillCgroup(StrEq("slice1.slice/service2.service")))
+      .Times(1);
+  EXPECT_TRUE(killer->tryToKillCgroupRecursively("slice1.slice"));
+}
+
+TEST_F(OomKillerTest, TriesToKillCgroupRecursivelyOnLeaf) {
+  ON_CALL(*killer, tryToKillCgroup(_)).WillByDefault(Return(true));
+  EXPECT_CALL(*killer, tryToKillCgroup(StrEq("service1.service"))).Times(1);
+  EXPECT_TRUE(killer->tryToKillCgroupRecursively("service1.service"));
+}
+
 TEST_F(OomKillerBlacklistTest, Blacklist) {
   // We force tryToKillPids to return 0. This forces the test to go through
   // all the different kill heuristics in tryToKillSomething

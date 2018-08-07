@@ -48,12 +48,13 @@ TEST_F(OomdTest, OomdContextUpdate) {
 
   oomd.updateContext(cgroup_path, ctx);
 
-  EXPECT_EQ(ctx.cgroups().size(), 4);
+  EXPECT_EQ(ctx.cgroups().size(), 5);
 
   EXPECT_TRUE(ctx.hasCgroupContext("service1.service"));
   EXPECT_TRUE(ctx.hasCgroupContext("service2.service"));
   EXPECT_TRUE(ctx.hasCgroupContext("service3.service"));
   EXPECT_TRUE(ctx.hasCgroupContext("service4.service"));
+  EXPECT_TRUE(ctx.hasCgroupContext("slice1.slice"));
 }
 
 TEST_F(OomdTest, OomdContextMultipleUpdates) {

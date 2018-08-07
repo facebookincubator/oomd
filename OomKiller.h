@@ -32,6 +32,7 @@ class OomKiller {
   virtual ~OomKiller() = default;
   virtual bool tryToKillSomething(OomdContext& ctx);
   virtual bool tryToKillCgroup(const std::string& id);
+  virtual bool tryToKillCgroupRecursively(const std::string& id);
   virtual int tryToKillPids(const std::vector<int>& procs);
   virtual void reportToXattr(const std::string& id, int num_procs_killed);
 

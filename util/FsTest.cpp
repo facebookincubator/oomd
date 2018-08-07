@@ -91,7 +91,7 @@ TEST_F(FsTest, GetPids) {
   EXPECT_THAT(pids2, Contains(789));
 
   auto pids_r = Fs::getPids(dir, true);
-  EXPECT_EQ(pids_r.size(), 3);
+  EXPECT_EQ(pids_r.size(), 7);
   EXPECT_THAT(pids_r, Contains(123));
   EXPECT_THAT(pids_r, Contains(456));
   EXPECT_THAT(pids_r, Contains(789));
