@@ -44,7 +44,7 @@ class ScopeGuard {
   std::function<void()> fn_;
 };
 
-ScopeGuard operator+(ScopeGuardExit, std::function<void()> fn) {
+inline ScopeGuard operator+(ScopeGuardExit, std::function<void()> fn) {
   return ScopeGuard(fn);
 }
 
