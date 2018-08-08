@@ -174,11 +174,12 @@ bool OomDetector::isHeuristicOOM(
           << high_threshold << " for " << diff << "s, total usage is "
           << current / 1024 / 1024 << "MB";
       XLOG(INFO) << oss.str();
-      high_thres_at_ = steady_clock::time_point();
       octx.type = OomType::PRESSURE_10;
       octx.stat.pressure_10_duration = diff;
       return true;
     }
+  } else {
+    high_thres_at_ = steady_clock::time_point();
   }
 
   // if pressure is really high or above threshold and trending up
