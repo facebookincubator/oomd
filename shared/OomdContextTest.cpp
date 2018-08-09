@@ -33,7 +33,7 @@ TEST_F(OomdContextTest, MoveConstructor) {
   EXPECT_FALSE(ctx.hasCgroupContext("asdf"));
 
   OomdContext other;
-  other.setCgroupContext("asdf", CgroupContext{{}, 1, 2, 3});
+  other.setCgroupContext("asdf", CgroupContext{{}, {}, 1, 2, 3});
 
   ctx = std::move(other);
 
@@ -63,15 +63,15 @@ TEST_F(OomdContextTest, SetCgroup) {
   ctx.setCgroupContext("asdf", CgroupContext{});
   EXPECT_EQ(ctx.getCgroupContext("asdf").memory_low, 0);
 
-  ctx.setCgroupContext("asdf", CgroupContext{{}, 0, 0, 222});
+  ctx.setCgroupContext("asdf", CgroupContext{{}, {}, 0, 0, 222});
   EXPECT_EQ(ctx.getCgroupContext("asdf").memory_low, 222);
 }
 
 TEST_F(OomdContextTest, SortContext) {
-  ctx.setCgroupContext("biggest", {{}, 99999999, 0, 1});
-  ctx.setCgroupContext("smallest", {{}, 1, 988888888888, 4});
-  ctx.setCgroupContext("asdf", {{}, 88888888, 289349817823, 2});
-  ctx.setCgroupContext("fdsa", {{}, 77777777, 6, 3});
+  ctx.setCgroupContext("biggest", {{}, {}, 99999999, 0, 1});
+  ctx.setCgroupContext("smallest", {{}, {}, 1, 988888888888, 4});
+  ctx.setCgroupContext("asdf", {{}, {}, 88888888, 289349817823, 2});
+  ctx.setCgroupContext("fdsa", {{}, {}, 77777777, 6, 3});
 
   auto sorted = ctx.reverseSort(
       [](const CgroupContext& cgroup_ctx) { return cgroup_ctx.current_usage; });

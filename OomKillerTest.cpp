@@ -85,7 +85,8 @@ TEST_F(OomKillerTest, TriesToKillCgroup) {
 
   OomdContext ctx;
   ctx.setCgroupContext(
-      "service1.service", {{88.8, 88.8, 88.8}, 999999999, 999999999, 0});
+      "service1.service",
+      {{88.8, 88.8, 88.8}, {99.9, 99.9, 99.9}, 999999999, 999999999, 0});
 
   // We have forced tryToKillPids(..) to return 0, indicating
   // failure to kill. This means tryToKillSomething should fail
@@ -117,10 +118,18 @@ TEST_F(OomKillerBlacklistTest, Blacklist) {
       .Times(AtLeast(1));
 
   OomdContext ctx;
-  ctx.setCgroupContext("service1.service", {{88.8, 88.8, 88.8}, 555, 555, 0});
-  ctx.setCgroupContext("service2.service", {{88.8, 88.8, 88.8}, 555, 555, 0});
-  ctx.setCgroupContext("service3.service", {{88.8, 88.8, 88.8}, 555, 555, 0});
-  ctx.setCgroupContext("service4.service", {{88.8, 88.8, 88.8}, 555, 555, 0});
+  ctx.setCgroupContext(
+      "service1.service",
+      {{88.8, 88.8, 88.8}, {99.9, 99.9, 99.9}, 555, 555, 0});
+  ctx.setCgroupContext(
+      "service2.service",
+      {{88.8, 88.8, 88.8}, {99.9, 99.9, 99.9}, 555, 555, 0});
+  ctx.setCgroupContext(
+      "service3.service",
+      {{88.8, 88.8, 88.8}, {99.9, 99.9, 99.9}, 555, 555, 0});
+  ctx.setCgroupContext(
+      "service4.service",
+      {{88.8, 88.8, 88.8}, {99.9, 99.9, 99.9}, 555, 555, 0});
 
   // Run the loop a few times to reduce variance on it being a lucky pick
   for (int i = 0; i < 15; ++i) {

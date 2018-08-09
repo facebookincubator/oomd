@@ -20,6 +20,7 @@
 #include <signal.h>
 
 #include <algorithm>
+#include <cmath>
 #include <thread>
 
 #include <folly/logging/xlog.h>
@@ -105,8 +106,18 @@ void Oomd::updateContext(const std::string& cgroup_path, OomdContext& ctx) {
     auto pressures = Fs::readMempressure(child_cgroup);
     auto memlow = Fs::readMemlow(child_cgroup);
     auto swap_current = Fs::readSwapCurrent(child_cgroup);
+
+    ResourcePressure io_pressure;
+    try {
+      io_pressure = Fs::readIopressure(child_cgroup);
+    } catch (const std::exception& ex) {
+      XLOG(INFO) << "Failed to read io.pressure: " << ex.what();
+      // older kernels don't have io.pressure, nan them out
+      io_pressure = {std::nanf(""), std::nanf(""), std::nanf("")};
+    }
+
     new_ctx.setCgroupContext(
-        dir, {pressures, current, {}, memlow, swap_current});
+        dir, {pressures, io_pressure, current, {}, memlow, swap_current});
   }
 
   // calculate running averages

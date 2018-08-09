@@ -259,7 +259,14 @@ class Fs {
   }
 
   static ResourcePressure readIopressure(const std::string& path) {
-    return readRespressure(path + "/" + kIoPressureFile);
+    const std::string ioPressurePath = path + "/" + kIoPressureFile;
+
+    // earlier kernels had only mempressure, throw an exception if missing
+    std::ifstream f(ioPressurePath, std::ios::in);
+    if (!f.is_open()) {
+      throw std::system_error(ENOENT, std::system_category());
+    }
+    return readRespressure(ioPressurePath);
   }
 
   static ssize_t writeFull(int fd, const char* msg_buf, size_t count) {
