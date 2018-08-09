@@ -26,6 +26,7 @@ enum struct OomType {
   SWAP,
   PRESSURE_10,
   PRESSURE_60,
+  IO_PRESSURE_60,
   KILL_LIST,
 };
 
