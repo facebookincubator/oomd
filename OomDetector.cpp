@@ -22,8 +22,6 @@
 #include <fstream>
 #include <iomanip>
 
-#include <folly/logging/xlog.h>
-
 #include "oomd/Log.h"
 #include "oomd/util/Fs.h"
 #include "oomd/util/ScopeGuard.h"
@@ -74,7 +72,7 @@ bool OomDetector::isOOM(OomdContext& ctx) {
       << ":" << pressure.sec_60 << ":" << pressure.sec_600
       << " swapfree=" << swapfree / 1024 / 1024 << "MB/"
       << swaptotal / 1024 / 1024 << "MB pgscan=" << pgscan - last_pgscan_;
-  XLOG(INFO) << oss.str();
+  OLOG << oss.str();
 
   // We only declare an generalized OOM if the kernel has scanned for pages
   // the last pgscan_window_tick_thres or more. Each tick is OOMD_INTERVAL
@@ -97,7 +95,7 @@ bool OomDetector::isOOM(OomdContext& ctx) {
       (isPressureOOM(pressure, octx) ||
        isHeuristicOOM(current, pressure, octx)) &&
       !has_pg_scanned) {
-    XLOG(INFO)
+    OLOG
         << "Ignoring OOM b/c kernel has not pgscanned but OOM has been detected";
   }
 
@@ -118,7 +116,7 @@ bool OomDetector::isPressureOOM(
       oss << std::setprecision(2) << std::fixed;
       oss << "1m pressure " << pressure.sec_60 << " is over the kill_pressure "
           << kl_entry.kill_pressure << " of " << kl_entry.service;
-      XLOG(INFO) << oss.str();
+      OLOG << oss.str();
       octx.type = OomType::KILL_LIST;
       return true;
     }
@@ -134,9 +132,8 @@ bool OomDetector::isSwapOOM(
   const int min_swap_pct = tunables_->get<int>(Tunables::MIN_SWAP_PCT);
   const int64_t swapthres = swaptotal * min_swap_pct / 100;
   if (swaptotal > 0 && swapfree < swapthres) {
-    XLOG(INFO) << "SwapFree " << swapfree
-               << "MB is smaller than the threshold of " << swapthres
-               << "MB, total swap is " << swaptotal << "MB";
+    OLOG << "SwapFree " << swapfree << "MB is smaller than the threshold of "
+         << swapthres << "MB, total swap is " << swaptotal << "MB";
     octx.type = OomType::SWAP;
     octx.stat.swap_free = swapfree;
     return true;
@@ -173,7 +170,7 @@ bool OomDetector::isHeuristicOOM(
       oss << "10s pressure " << pressure.sec_10 << " >= high_threshold "
           << high_threshold << " for " << diff << "s, total usage is "
           << current / 1024 / 1024 << "MB";
-      XLOG(INFO) << oss.str();
+      OLOG << oss.str();
       octx.type = OomType::PRESSURE_10;
       octx.stat.pressure_10_duration = diff;
       return true;
@@ -192,7 +189,7 @@ bool OomDetector::isHeuristicOOM(
     oss << std::setprecision(2) << std::fixed;
     oss << "1m pressure " << pressure.sec_60 << " is over the threshold of "
         << threshold << " , total usage is " << current / 1024 / 1024 << "MB";
-    XLOG(INFO) << oss.str();
+    OLOG << oss.str();
     octx.type = OomType::PRESSURE_60;
     return true;
   }

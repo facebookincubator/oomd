@@ -70,34 +70,6 @@ TEST_F(LogTestKmsg, VerifyOutputSimple) {
   EXPECT_EQ(compare_string, test_prefix.append(": " + test_string));
 }
 
-/*
-  Test the memory status custom interface.
-*/
-
-TEST_F(LogTestKmsg, VerifyOutputComplex) {
-  auto logger_and_file = get_logger_and_file();
-  auto& logger = logger_and_file.first;
-  auto& result_file = logger_and_file.second;
-
-  CgroupContext mcontext;
-  OomContext ocontext;
-
-  mcontext.pressure.sec_10 = 10.0;
-  mcontext.pressure.sec_60 = 60.0;
-  mcontext.pressure.sec_600 = 600.0;
-  mcontext.current_usage = 1999;
-  ocontext.type = OomType::SWAP;
-  ocontext.stat.swap_free = 12345;
-
-  logger->kmsgLog("Evil ", "Evaporate \n", mcontext, ocontext, false);
-
-  /* check output */
-  std::string compare_string;
-  getline(result_file, compare_string);
-  /* verify log contents */
-  EXPECT_EQ(compare_string, test_complex_string);
-}
-
 TEST(LogTestAsyncDebug, CoupleLines) {
   std::stringstream sstr;
   {

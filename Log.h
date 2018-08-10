@@ -17,14 +17,13 @@
 
 #pragma once
 
+#include <algorithm>
 #include <condition_variable>
 #include <iostream>
 #include <mutex>
 #include <sstream>
 #include <thread>
-
-#include "oomd/include/Types.h"
-#include "oomd/shared/OomdContext.h"
+#include <vector>
 
 namespace Oomd {
 
@@ -55,13 +54,6 @@ class Log {
       std::ostream& debug_sink);
 
   void kmsgLog(const std::string& buf, const std::string& prefix) const;
-  void kmsgLog(
-      const std::string& to_kill,
-      const std::string& kill_type,
-      const CgroupContext& context,
-      const OomContext& oom_context,
-      bool dry = false) const;
-
   void debugLog(std::string&& buf);
 
  private:

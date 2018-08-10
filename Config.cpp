@@ -18,6 +18,7 @@
 #include "oomd/Config.h"
 
 #include <cassert>
+#include <cstdlib>
 #include <fstream>
 #include <limits>
 #include <memory>
@@ -50,7 +51,8 @@ Config::Config(const std::string& config_path, bool dry, bool verbose)
 Json::Value Config::parseJson(const std::string& config_path) {
   std::ifstream file(config_path, std::ios::in);
   if (!file.is_open()) {
-    XLOG(FATAL) << "Unable to read config file at " << config_path;
+    OLOG << "FATAL: Unable to read config file at " << config_path;
+    std::abort();
   }
   std::stringstream buffer;
   buffer << file.rdbuf();
@@ -61,7 +63,8 @@ Json::Value Config::parseJson(const std::string& config_path) {
   std::string errs;
   bool ok = Json::parseFromStream(rbuilder, buffer, &root, &errs);
   if (!ok) {
-    XLOG(FATAL) << "Unable to parse JSON from config file at " << config_path;
+    OLOG << "FATAL: Unable to parse JSON from config file at " << config_path;
+    std::abort();
   }
   return root;
 }
@@ -78,7 +81,8 @@ void Config::apply(Oomd& target) {
     if (version_str == "0.2.0") {
       apply_0_2_x(target);
     } else {
-      XLOG(FATAL) << "Unsupported version: " << version_str;
+      OLOG << "FATAL: Unsupported version: " << version_str;
+      std::abort();
     }
   } else {
     // Default is 0.1.x config. Why? It's the way it is in prod.
@@ -112,10 +116,11 @@ void Config::apply_0_2_x(Oomd& target) {
 std::string Config::parseBasePath(Json::Value& cgroup) {
   try {
     auto target = std::string(kCgroupBase) + cgroup["target"].asString();
-    XLOG(INFO) << "target_=" << target;
+    OLOG << "target_=" << target;
     return target;
   } catch (const std::exception& ex) {
-    XLOG(FATAL) << "Failed to parse config file: " << ex.what();
+    OLOG << "FATAL: Failed to parse config file: " << ex.what();
+    std::abort();
   }
 }
 
@@ -172,14 +177,15 @@ std::unique_ptr<KillList> Config::parseKillList(Json::Value& cgroup) {
     }
 
     for (auto& kl_entry : *kill_list) {
-      XLOG(INFO) << "Kill list: service=" << kl_entry.service
-                 << " kill_pressure= " << kl_entry.kill_pressure
-                 << " max_usage=" << kl_entry.max_usage << "MB";
+      OLOG << "Kill list: service=" << kl_entry.service
+           << " kill_pressure= " << kl_entry.kill_pressure
+           << " max_usage=" << kl_entry.max_usage << "MB";
     }
 
     return kill_list;
   } catch (const std::exception& ex) {
-    XLOG(FATAL) << "Failed to parse config file: " << ex.what();
+    OLOG << "FATAL: Failed to parse config file: " << ex.what();
+    std::abort();
   }
 }
 
@@ -196,7 +202,7 @@ std::unique_ptr<OomDetector> Config::parseDetectorPluginAndFactory(
     const PluginArgs& args) {
   std::string config_class = cgroup["oomdetector"].asString();
   const char* chosen_class = config_class.size() ? config_class.c_str() : "default";
-  XLOG(INFO) << "OomDetector=" << chosen_class;
+  OLOG << "OomDetector=" << chosen_class;
   OomDetector* d = getDetectorRegistry().create(chosen_class, args);
   assert(!!d);
   return std::unique_ptr<OomDetector>(d);
@@ -207,7 +213,7 @@ std::unique_ptr<OomKiller> Config::parseKillerPluginAndFactory(
     const PluginArgs& args) {
   std::string config_class = cgroup["oomkiller"].asString();
   const char* chosen_class = config_class.size() ? config_class.c_str() : "default";
-  XLOG(INFO) << "OomKiller=" << chosen_class;
+  OLOG << "OomKiller=" << chosen_class;
   OomKiller* k = getKillerRegistry().create(chosen_class, args);
   assert(!!k);
   return std::unique_ptr<OomKiller>(k);

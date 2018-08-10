@@ -57,12 +57,12 @@ bool OomKiller::tryToKillSomething(OomdContext& ctx) {
     removeBlacklisted(swap_sorted);
 
     for (const auto& state_pair : swap_sorted) {
-      XLOG(INFO) << "Picked \"" << state_pair.first << "\" ("
-                 << state_pair.second.current_usage / 1024 / 1024
-                 << "MB) based on swap usage at "
-                 << state_pair.second.swap_usage / 1024 / 1024 << "MB";
+      OLOG << "Picked \"" << state_pair.first << "\" ("
+           << state_pair.second.current_usage / 1024 / 1024
+           << "MB) based on swap usage at "
+           << state_pair.second.swap_usage / 1024 / 1024 << "MB";
       if (tryToKillCgroup(state_pair.first)) {
-        OOMD_KMSG_LOG(
+        logKill(
             state_pair.first,
             kKillTypeSwap,
             state_pair.second,
@@ -86,7 +86,7 @@ bool OomKiller::tryToKillSomething(OomdContext& ctx) {
       if (state_pair.first == kl_entry.service &&
           (max_usage_kill || pressure_kill)) {
         if (tryToKillCgroup(kl_entry.service)) {
-          OOMD_KMSG_LOG(
+          logKill(
               kl_entry.service,
               (max_usage_kill ? kKillTypeKillListUsage
                               : kKillTypeKillListPressure),
@@ -106,18 +106,18 @@ bool OomKiller::tryToKillSomething(OomdContext& ctx) {
   for (const auto& state_pair : size_sorted) {
     if (state_pair.second.current_usage <
         (cur_memcurrent * (static_cast<double>(larger_than) / 100))) {
-      XLOG(INFO) << "Skipping size heuristic kill on " << state_pair.first
-                 << " b/c not big enough";
+      OLOG << "Skipping size heuristic kill on " << state_pair.first
+           << " b/c not big enough";
       break;
     }
 
-    XLOG(INFO) << "Picked \"" << state_pair.first << "\" ("
-               << state_pair.second.current_usage / 1024 / 1024
-               << "MB) based on size > " << larger_than << "% of total "
-               << cur_memcurrent / 1024 / 1024 << "MB";
+    OLOG << "Picked \"" << state_pair.first << "\" ("
+         << state_pair.second.current_usage / 1024 / 1024
+         << "MB) based on size > " << larger_than << "% of total "
+         << cur_memcurrent / 1024 / 1024 << "MB";
 
     if (tryToKillCgroup(state_pair.first)) {
-      OOMD_KMSG_LOG(
+      logKill(
           state_pair.first,
           kKillTypeSize,
           state_pair.second,
@@ -149,10 +149,10 @@ bool OomKiller::tryToKillSomething(OomdContext& ctx) {
         << static_cast<double>(state_pair.second.current_usage) /
             state_pair.second.average_usage
         << " among P" << growth_above << " largest";
-    XLOG(INFO) << oss.str();
+    OLOG << oss.str();
 
     if (tryToKillCgroup(state_pair.first)) {
-      OOMD_KMSG_LOG(
+      logKill(
           state_pair.first,
           kKillTypeGrowth,
           state_pair.second,
@@ -173,13 +173,13 @@ bool OomKiller::tryToKillCgroup(const std::string& id) {
   int tries = 10;
 
   if (dry_) {
-    XLOG(INFO) << "OOMD: In dry-run mode; would have tried to kill " << id;
+    OLOG << "OOMD: In dry-run mode; would have tried to kill " << id;
     return true;
   }
 
-  XLOG(INFO) << "Trying to kill " << id;
+  OLOG << "Trying to kill " << id;
   if (Fs::getPids(cgroup_path_ + "/" + id, true).empty()) {
-    XLOG(INFO) << "No processes to kill";
+    OLOG << "No processes to kill";
     return true;
   }
 
@@ -228,10 +228,10 @@ int OomKiller::tryToKillPids(const std::vector<int>& pids) {
   int nr_killed = 0;
   for (int pid : pids) {
     if (::kill(static_cast<pid_t>(pid), SIGKILL) == 0) {
-      XLOG(INFO) << "Killed pid " << pid;
+      OLOG << "Killed pid " << pid;
       nr_killed++;
     } else {
-      XLOG(WARNING) << "Failed to kill pid " << pid;
+      OLOG << "Failed to kill pid " << pid;
     }
   }
   return nr_killed;
@@ -244,8 +244,8 @@ void OomKiller::reportToXattr(const std::string& id, int num_procs_killed) {
   std::string new_xattr_str = std::to_string(prev_xattr + num_procs_killed);
 
   if (Fs::setxattr(full_path, kOomdKillXattr, new_xattr_str)) {
-    XLOG(INFO) << "Set xattr " << kOomdKillXattr << "=" << new_xattr_str
-               << " on " << full_path;
+    OLOG << "Set xattr " << kOomdKillXattr << "=" << new_xattr_str << " on "
+         << full_path;
   }
 }
 
@@ -267,6 +267,42 @@ void OomKiller::removeBlacklisted(
           list.end(),
           [this](const auto& pair) { return this->isBlacklisted(pair.first); }),
       list.end());
+}
+
+void OomKiller::logKill(
+    const std::string& to_kill,
+    const std::string& kill_type,
+    const CgroupContext& context,
+    const OomContext& oom_context,
+    bool dry) const {
+  // Parse out OOM detection context
+  std::ostringstream octx_oss;
+  switch (oom_context.type) {
+    case OomType::SWAP:
+      octx_oss << "swap," << oom_context.stat.swap_free << "MB";
+      break;
+    case OomType::PRESSURE_10:
+      octx_oss << "pressure10," << oom_context.stat.pressure_10_duration << "s";
+      break;
+    case OomType::PRESSURE_60:
+      octx_oss << "pressure60";
+      break;
+    case OomType::KILL_LIST:
+      octx_oss << "killlist";
+      break;
+    default:
+      octx_oss << "none";
+      break;
+  }
+
+  std::ostringstream oss;
+  oss << std::setprecision(2) << std::fixed;
+  oss << context.pressure.sec_10 << " " << context.pressure.sec_60 << " "
+      << context.pressure.sec_600 << " " << to_kill << " "
+      << context.current_usage << " "
+      << "detector:" << octx_oss.str() << " "
+      << "killer:" << (dry ? "(dry)" : "") << kill_type;
+  OOMD_KMSG_LOG(oss.str(), "oomd kill");
 }
 
 } // namespace Oomd

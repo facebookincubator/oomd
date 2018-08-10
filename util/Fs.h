@@ -27,8 +27,7 @@
 #include <unordered_map>
 #include <vector>
 
-#include <folly/logging/xlog.h>
-
+#include "oomd/Log.h"
 #include "oomd/include/Types.h"
 
 namespace Oomd {
@@ -61,7 +60,7 @@ class Fs {
 
     d = opendir(path.c_str());
     if (!d) {
-      XLOG(WARNING) << "Unable to open directory=" << path;
+      OLOG << "Unable to open directory=" << path;
       return v;
     }
 
@@ -103,7 +102,7 @@ class Fs {
   static std::vector<std::string> readFileByLine(const std::string& path) {
     std::ifstream f(path, std::ios::in);
     if (!f.is_open()) {
-      XLOG(WARNING) << "Unable to open " << path;
+      OLOG << "Unable to open " << path;
     }
 
     std::string s;
@@ -113,7 +112,7 @@ class Fs {
     }
 
     if (f.bad()) {
-      XLOG(WARNING) << "Error while processing file " << path;
+      OLOG << "Error while processing file " << path;
     }
 
     return v;
@@ -141,7 +140,7 @@ class Fs {
         })) {
       auto str_pids = readFileByLine(path + "/" + kProcsFile);
       for (const auto& sp : str_pids) {
-        XLOG(INFO) << "found pid " << sp;
+        OLOG << "found pid " << sp;
         pids.push_back(std::stoi(sp));
       }
     }
@@ -269,26 +268,6 @@ class Fs {
     return readRespressure(ioPressurePath);
   }
 
-  static ssize_t writeFull(int fd, const char* msg_buf, size_t count) {
-    ssize_t totalBytes = 0;
-    ssize_t r;
-    do {
-      r = write(fd, msg_buf, count);
-      if (r == -1) {
-        if (errno == EINTR) {
-          continue;
-        }
-        return r;
-      }
-
-      totalBytes += r;
-      msg_buf += r;
-      count -= r;
-    } while (r != 0 && count); // 0 means EOF
-
-    return totalBytes;
-  }
-
   static bool setxattr(
       const std::string& path,
       const std::string& attr,
@@ -296,8 +275,8 @@ class Fs {
     int ret =
         ::setxattr(path.c_str(), attr.c_str(), val.c_str(), val.size(), 0);
     if (ret == -1) {
-      LOG(WARNING) << "Unable to set xattr " << attr << "=" << val << " on "
-                   << path << ". errno=" << errno;
+      OLOG << "Unable to set xattr " << attr << "=" << val << " on " << path
+           << ". errno=" << errno;
       return false;
     }
     return true;

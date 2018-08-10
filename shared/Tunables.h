@@ -20,8 +20,7 @@
 #include <string>
 #include <vector>
 
-#include <folly/logging/xlog.h>
-
+#include "oomd/Log.h"
 #include "oomd/util/Fs.h"
 
 namespace Oomd {
@@ -86,7 +85,8 @@ struct Tunables {
         return static_cast<T>(std::stod(k.value));
       }
     }
-    XLOG(FATAL) << "Unknown knob=" << knob << "is being retrieved";
+    OLOG << "FATAL: Unknown knob=" << knob << "is being retrieved";
+    std::abort();
   }
 
   std::vector<TunableEntry> knobs = {

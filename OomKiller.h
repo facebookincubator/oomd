@@ -44,6 +44,12 @@ class OomKiller {
   bool isBlacklisted(const std::string& target);
   void removeBlacklisted(
       std::vector<std::pair<std::string, CgroupContext>>& list);
+  void logKill(
+      const std::string& to_kill,
+      const std::string& kill_type,
+      const CgroupContext& context,
+      const OomContext& oom_context,
+      bool dry = false) const;
 
   std::string cgroup_path_;
   std::shared_ptr<KillList> kill_list_;

@@ -16,10 +16,9 @@
  */
 
 #include "oomd/shared/OomdContext.h"
+#include "oomd/Log.h"
 
 #include <exception>
-
-#include "oomd/util/Fs.h"
 
 namespace Oomd {
 
@@ -107,18 +106,16 @@ void OomdContext::dump() {
 
 void OomdContext::dumpOomdContext(
     const std::vector<std::pair<std::string, CgroupContext>>& vec) {
-  XLOG(INFO) << "Dumping OomdContext: ";
+  OLOG << "Dumping OomdContext: ";
   for (const auto& ms : vec) {
-    XLOG(INFO) << "name=" << ms.first;
-    XLOG(INFO) << "\tpressure=" << ms.second.pressure.sec_10 << " "
-               << ms.second.pressure.sec_60 << " "
-               << ms.second.pressure.sec_600;
-    XLOG(INFO) << "\tcurrent_usage=" << ms.second.current_usage / 1024 / 1024
-               << " MB";
-    XLOG(INFO) << "\taverage_usage=" << ms.second.average_usage / 1024 / 1024
-               << " MB";
-    XLOG(INFO) << "\tmemory_low=" << ms.second.memory_low / 1024 / 1024
-               << " MB";
+    OLOG << "name=" << ms.first;
+    OLOG << "\tpressure=" << ms.second.pressure.sec_10 << " "
+         << ms.second.pressure.sec_60 << " " << ms.second.pressure.sec_600;
+    OLOG << "\tcurrent_usage=" << ms.second.current_usage / 1024 / 1024
+         << " MB";
+    OLOG << "\taverage_usage=" << ms.second.average_usage / 1024 / 1024
+         << " MB";
+    OLOG << "\tmemory_low=" << ms.second.memory_low / 1024 / 1024 << " MB";
   }
 }
 

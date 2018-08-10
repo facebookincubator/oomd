@@ -29,7 +29,7 @@ Tunables::Tunables() {
 
 void Tunables::dump() {
   for (auto& k : knobs) {
-    XLOG(INFO) << k.env_name << "=" << k.value;
+    OLOG << k.env_name << "=" << k.value;
   }
 }
 
@@ -56,7 +56,7 @@ void Tunables::loadOverrides(const std::string& fname) {
   for (const auto& line : lines) {
     auto toks = Fs::split(line, '=');
     if (toks.size() != 2) {
-      XLOG(ERR) << "Tunables override line is malformed: " << line;
+      OLOG << "Tunables override line is malformed: " << line;
       continue;
     }
 

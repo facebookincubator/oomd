@@ -21,9 +21,9 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdlib>
+#include <cstring>
 #include <thread>
-
-#include <folly/logging/xlog.h>
 
 #include "oomd/Log.h"
 #include "oomd/util/Fs.h"
@@ -40,17 +40,17 @@ namespace Oomd {
 
 bool Oomd::prepareRun() {
   if (cgroups_.size() == 0) {
-    XLOG(ERR) << "OOM detection or OOM killer classes not injected";
+    OLOG << "OOM detection or OOM killer classes not injected";
     return false;
   }
 
   if (!tunables_) {
-    XLOG(ERR) << "Tunables not injected";
+    OLOG << "Tunables not injected";
     return false;
   }
 
   if (!registerHandlers()) {
-    XLOG(ERR) << "Unable to register signal handlers";
+    OLOG << "Unable to register signal handlers";
     return false;
   }
 
@@ -93,7 +93,8 @@ void Oomd::updateContext(const std::string& cgroup_path, OomdContext& ctx) {
   if (!std::any_of(controllers.begin(), controllers.end(), [](std::string& s) {
         return s == "memory";
       })) {
-    XLOG(FATAL) << "cgroup memory controller not enabled on " << cgroup_path;
+    OLOG << "FATAL: cgroup memory controller not enabled on " << cgroup_path;
+    std::abort();
   }
 
   // grab and update memory stats for cgroups which we are assigned
@@ -111,7 +112,7 @@ void Oomd::updateContext(const std::string& cgroup_path, OomdContext& ctx) {
     try {
       io_pressure = Fs::readIopressure(child_cgroup);
     } catch (const std::exception& ex) {
-      XLOG(INFO) << "Failed to read io.pressure: " << ex.what();
+      OLOG << "Failed to read io.pressure: " << ex.what();
       // older kernels don't have io.pressure, nan them out
       io_pressure = {std::nanf(""), std::nanf(""), std::nanf("")};
     }
@@ -147,7 +148,7 @@ int Oomd::run() {
   uint64_t detector_ticks = 0;
   uint64_t killer_ticks = 0;
 
-  XLOG(INFO) << "Running oomd";
+  OLOG << "Running oomd";
   while (true) {
     if (need_tunables_reload) {
       tunables_->loadOverrides();

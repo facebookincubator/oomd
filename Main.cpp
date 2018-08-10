@@ -20,8 +20,6 @@
 #include <string>
 
 #include <folly/init/Init.h>
-#include <folly/logging/Init.h>
-#include <folly/logging/xlog.h>
 #include <getopt.h>
 
 #include "oomd/Config.h"
@@ -41,8 +39,6 @@ static void printUsage() {
          "  --verbose, -v\n"
       << std::endl;
 }
-
-FOLLY_INIT_LOGGING_CONFIG(".=DEBUG; default:async=true");
 
 int main(int argc, char** argv) {
   int one = 1;
@@ -114,8 +110,8 @@ int main(int argc, char** argv) {
   }
 
   if (flag_verbose) {
-    XLOG(INFO) << "oomd running with conf_file=" << flag_conf_file
-               << " dry=" << flag_dry << " verbose=" << flag_verbose;
+    OLOG << "oomd running with conf_file=" << flag_conf_file
+         << " dry=" << flag_dry << " verbose=" << flag_verbose;
   }
 
   Oomd::Log::init_or_die();

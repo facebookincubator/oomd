@@ -26,10 +26,27 @@
 #include <iostream>
 #include <system_error>
 
-#include <folly/logging/xlog.h>
+namespace {
+ssize_t writeFull(int fd, const char* msg_buf, size_t count) {
+  ssize_t totalBytes = 0;
+  ssize_t r;
+  do {
+    r = ::write(fd, msg_buf, count);
+    if (r == -1) {
+      if (errno == EINTR) {
+        continue;
+      }
+      return r;
+    }
 
-#include "oomd/shared/OomdContext.h"
-#include "oomd/util/Fs.h"
+    totalBytes += r;
+    msg_buf += r;
+    count -= r;
+  } while (r != 0 && count); // 0 means EOF
+
+  return totalBytes;
+}
+}; // namespace
 
 namespace Oomd {
 
@@ -63,7 +80,7 @@ void Log::init_or_die() {
   if (kmsg_fd < 0) {
     const int errcode = errno; // prevent errno clobbering
     perror("open");
-    XLOG(ERR) << "Unable to open outfile (default=/dev/kmsg), not logging";
+    OLOG << "Unable to open outfile (default=/dev/kmsg), not logging";
     throw std::system_error(errcode, std::generic_category());
   }
 
@@ -87,50 +104,14 @@ void Log::kmsgLog(const std::string& buf, const std::string& prefix) const {
     if (prefix.size() > 0) {
       message.insert(0, prefix + ": ");
     }
-    auto ret = Fs::writeFull(kmsg_fd_, message.data(), message.size());
+    auto ret = writeFull(kmsg_fd_, message.data(), message.size());
     if (ret == -1) {
       perror("error writing");
-      XLOG(ERR) << "Unable to write log to output file";
+      OLOG << "Unable to write log to output file";
     }
   }
 
-  XLOG(INFO) << buf;
-}
-
-void Log::kmsgLog(
-    const std::string& to_kill,
-    const std::string& kill_type,
-    const CgroupContext& context,
-    const OomContext& oom_context,
-    bool dry) const {
-  // Parse out OOM detection context
-  std::ostringstream octx_oss;
-  switch (oom_context.type) {
-    case OomType::SWAP:
-      octx_oss << "swap," << oom_context.stat.swap_free << "MB";
-      break;
-    case OomType::PRESSURE_10:
-      octx_oss << "pressure10," << oom_context.stat.pressure_10_duration << "s";
-      break;
-    case OomType::PRESSURE_60:
-      octx_oss << "pressure60";
-      break;
-    case OomType::KILL_LIST:
-      octx_oss << "killlist";
-      break;
-    default:
-      octx_oss << "none";
-      break;
-  }
-
-  std::ostringstream oss;
-  oss << std::setprecision(2) << std::fixed;
-  oss << context.pressure.sec_10 << " " << context.pressure.sec_60 << " "
-      << context.pressure.sec_600 << " " << to_kill << " "
-      << context.current_usage << " "
-      << "detector:" << octx_oss.str() << " "
-      << "killer:" << (dry ? "(dry)" : "") << kill_type;
-  kmsgLog(oss.str(), "oomd kill");
+  OLOG << buf;
 }
 
 void Log::debugLog(std::string&& buf) {
