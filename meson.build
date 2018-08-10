@@ -2,9 +2,6 @@ project('oomd', 'cpp',
   version : '0.1.0',
   license : 'GPL2')
 
-# This leaky link arg is necessary until folly fixes their pkg-config
-add_global_link_arguments(['-ldouble-conversion'], language : 'cpp')
-
 # '..' is needed as an include directory b/c of how internal FB tooling
 # requires a specific header path
 inc = include_directories('''
@@ -40,8 +37,7 @@ srcs = files('''
     util/ScopeGuard.h
 '''.split())
 
-deps = [dependency('libfolly'),
-        dependency('jsoncpp'),
+deps = [dependency('jsoncpp'),
         dependency('threads')]
 oomd_lib = library('oomd',
                    srcs,

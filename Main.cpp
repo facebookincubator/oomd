@@ -19,7 +19,6 @@
 #include <iostream>
 #include <string>
 
-#include <folly/init/Init.h>
 #include <getopt.h>
 
 #include "oomd/Config.h"
@@ -41,9 +40,6 @@ static void printUsage() {
 }
 
 int main(int argc, char** argv) {
-  int one = 1;
-  folly::init(&one, &argv, false);
-
   std::string flag_conf_file = kConfigFilePath;
   bool flag_dry = false;
   bool flag_verbose = false;

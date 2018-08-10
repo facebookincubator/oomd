@@ -28,8 +28,7 @@ go away entirely.
 Note that oomd requires [PSI][6] to function. This kernel feature has not yet
 been upstreamed (as of 7/18/18).
 
-oomd currently depends on [meson][2], [libfolly][3], and [jsoncpp][4].
-The dependency on folly will soon be removed (as of 7/18/18).
+oomd currently depends on [meson][2] and [jsoncpp][4].
 
     $ git clone https://github.com/facebookincubator/oomd
     $ cd oomd
@@ -165,7 +164,6 @@ oomd is GPL 2 licensed, as found in the LICENSE file.
 [0]: https://www.kernel.org/doc/Documentation/vm/overcommit-accounting
 [1]: https://lwn.net/Articles/317814/
 [2]: http://mesonbuild.com/
-[3]: https://github.com/facebook/folly
 [4]: https://github.com/open-source-parsers/jsoncpp
 [5]: https://github.com/google/googletest
 [6]: http://git.cmpxchg.org/cgit.cgi/linux-psi.git/
