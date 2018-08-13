@@ -109,13 +109,15 @@ void OomdContext::dumpOomdContext(
   OLOG << "Dumping OomdContext: ";
   for (const auto& ms : vec) {
     OLOG << "name=" << ms.first;
-    OLOG << "\tpressure=" << ms.second.pressure.sec_10 << " "
-         << ms.second.pressure.sec_60 << " " << ms.second.pressure.sec_600;
-    OLOG << "\tcurrent_usage=" << ms.second.current_usage / 1024 / 1024
-         << " MB";
-    OLOG << "\taverage_usage=" << ms.second.average_usage / 1024 / 1024
-         << " MB";
-    OLOG << "\tmemory_low=" << ms.second.memory_low / 1024 / 1024 << " MB";
+    OLOG << "  pressure=" << ms.second.pressure.sec_10 << ":"
+         << ms.second.pressure.sec_60 << ":" << ms.second.pressure.sec_600
+         << "-" << ms.second.io_pressure.sec_10 << ":"
+         << ms.second.io_pressure.sec_60 << ":"
+         << ms.second.io_pressure.sec_600;
+    OLOG << "  mem=" << (ms.second.current_usage >> 20) << "MB"
+         << " mem_avg=" << (ms.second.average_usage >> 20) << "MB"
+         << " mem_low=" << (ms.second.memory_low >> 20) << "MB"
+         << " swap=" << (ms.second.swap_usage >> 20) << "MB";
   }
 }
 
