@@ -209,6 +209,9 @@ class Fs {
   static int64_t readMemlow(const std::string& path) {
     auto lines = readFileByLine(path + "/" + kMemLowFile);
     assert(lines.size() == 1);
+    if (lines[0] == "max") {
+      return std::numeric_limits<int64_t>::max();
+    }
     return static_cast<int64_t>(std::stoll(lines[0]));
   }
 
