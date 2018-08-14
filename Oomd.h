@@ -76,6 +76,8 @@ class Oomd {
   bool verbose_{false};
   std::shared_ptr<Tunables> tunables_;
   std::vector<std::unique_ptr<Cgroup>> cgroups_;
+
+  bool warned_io_pressure_{false};
 };
 
 } // namespace Oomd

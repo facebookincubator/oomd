@@ -112,7 +112,10 @@ void Oomd::updateContext(const std::string& cgroup_path, OomdContext& ctx) {
     try {
       io_pressure = Fs::readIopressure(child_cgroup);
     } catch (const std::exception& ex) {
-      OLOG << "Failed to read io.pressure: " << ex.what();
+      if (!warned_io_pressure_) {
+        warned_io_pressure_ = true;
+        OLOG << "IO pressure unavailable: " << ex.what();
+      }
       // older kernels don't have io.pressure, nan them out
       io_pressure = {std::nanf(""), std::nanf(""), std::nanf("")};
     }
