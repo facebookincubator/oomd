@@ -28,15 +28,14 @@
 static constexpr auto kConfigFilePath = "/etc/oomd.json";
 
 static void printUsage() {
-  std::cerr
-      << "usage: fb-oomd [-h] [--config CONFIG] [--dry] [--report] [--verbose]\n\n"
-         "optional arguments:\n"
-         "  -h, --help            show this help message and exit\n"
-         "  --config CONFIG, -C CONFIG\n"
-         "                        Config file (default: /etc/oomd.json)\n"
-         "  --dry, -d             Dry run - do not actually kill\n"
-         "  --verbose, -v\n"
-      << std::endl;
+  std::cerr << "usage: oomd [-h] [--config CONFIG] [--dry] [--verbose]\n\n"
+               "optional arguments:\n"
+               "  -h, --help            show this help message and exit\n"
+               "  --config CONFIG, -C CONFIG\n"
+               "                        Config file (default: /etc/oomd.json)\n"
+               "  --dry, -d             Dry run - do not actually kill\n"
+               "  --verbose, -v\n"
+            << std::endl;
 }
 
 int main(int argc, char** argv) {
