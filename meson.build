@@ -42,11 +42,14 @@ deps = [dependency('jsoncpp'),
 oomd_lib = library('oomd',
                    srcs,
                    include_directories : inc,
+                   install: true,
                    dependencies : deps)
 executable('oomd_bin',
            files('Main.cpp'),
            include_directories : inc,
            dependencies : deps,
+           install: true,
+           install_rpath: join_paths(get_option('prefix'), get_option('libdir')),
            link_with : oomd_lib)
 
 gtest_dep = dependency('gtest', main : true, required : false)
