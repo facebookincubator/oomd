@@ -39,6 +39,10 @@ static void printUsage() {
 }
 
 int main(int argc, char** argv) {
+  // Must be first to prevent accidental calls to OLOG from disabling
+  // kmsg logging
+  Oomd::Log::init_or_die();
+
   std::string flag_conf_file = kConfigFilePath;
   bool flag_dry = false;
   bool flag_verbose = false;
@@ -109,7 +113,6 @@ int main(int argc, char** argv) {
          << " dry=" << flag_dry << " verbose=" << flag_verbose;
   }
 
-  Oomd::Log::init_or_die();
   auto conf = Oomd::Config(flag_conf_file, flag_dry, flag_verbose);
   Oomd::Oomd oomd;
   conf.apply(oomd);

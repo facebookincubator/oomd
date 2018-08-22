@@ -109,6 +109,8 @@ void Log::kmsgLog(const std::string& buf, const std::string& prefix) const {
       perror("error writing");
       OLOG << "Unable to write log to output file";
     }
+  } else {
+    OLOG << "kmsg logging disabled b/c kmsg_fd_=" << kmsg_fd_;
   }
 
   OLOG << buf;
