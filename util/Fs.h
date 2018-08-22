@@ -18,7 +18,10 @@
 #pragma once
 
 #include <dirent.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 #include <sys/xattr.h>
+#include <unistd.h>
 
 #include <cassert>
 #include <fstream>
@@ -69,14 +72,25 @@ class Fs {
         continue;
       }
 
+      auto file = path + "/" + dir->d_name;
+      struct stat buf;
+      int ret = ::lstat(file.c_str(), &buf);
+      if (ret == -1) {
+        auto errorNum = errno;
+        // TODO: better error handling for methods here instead of ignoring.
+        OLOG << "lstat failed with errno: " << errno << ", file: " << file
+             << ", ignoring file";
+        continue;
+      }
+
       switch (type) {
         case EntryType::REG_FILE:
-          if (dir->d_type == DT_REG) {
+          if (buf.st_mode & S_IFREG) {
             v.push_back(dir->d_name);
           }
           break;
         case EntryType::DIRECTORY:
-          if (dir->d_type == DT_DIR) {
+          if (buf.st_mode & S_IFDIR) {
             v.push_back(dir->d_name);
           }
           break;
