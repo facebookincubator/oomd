@@ -29,7 +29,6 @@
 #include "oomd/OomDetector.h"
 #include "oomd/OomKiller.h"
 #include "oomd/Oomd.h"
-#include "oomd/plugins/Plugins.h"
 #include "oomd/shared/Tunables.h"
 
 using namespace Oomd;
