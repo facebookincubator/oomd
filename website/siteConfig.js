@@ -26,9 +26,9 @@ const siteConfig = {
   ],
   users,
   /* path to images for header/footer */
-  headerIcon: 'img/docusaurus.svg',
+  headerIcon: 'img/oomd_light.svg',
   footerIcon: 'img/docusaurus.svg',
-  favicon: 'img/favicon.png',
+  favicon: 'img/oomd_fullcolor.png',
   /* colors for website */
   colors: {
     primaryColor: '#1755b7',

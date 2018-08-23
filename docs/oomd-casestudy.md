@@ -4,35 +4,35 @@ title: oomd at Facebook
 sidebar_label: Case study: oomd at Facebook
 ---
 
-Sandcastle is a system that builds, tests, and lands code, and is one of the largest services running at Facebook. 
+Sandcastle is an internal system that builds, tests, and lands code, and is one of the largest services running at Facebook. 
 
 The Sandcastle team's servers were running out of memory and their jobs were getting repeatedly OOM-killed. About 5% of Sandcastle hosts rebooted unexpectedly every day. Scaling Sandcastle by simply adding new servers was no longer a possibility due to the crunch on hardware resources. 
 
-## The problem
+## The problem—unreleased memory and arbitrary kernel OOM kills
 
-Sandcastle machines use Tupperware, Facebook's in-house containerization solution, to run worker tasks that repeatedly fetch build jobs from a queue and run them. Sandcastle was using memory from *tmpfs* (an in-memory temporary filesystem) for the build jobs. When the build processes were killed they didn’t release their memory because the system’s *tmpfs* was bind mounted to each  worker.
+Sandcastle machines use Tupperware, Facebook's in-house containerization solution, to run worker tasks that repeatedly fetch build jobs from a queue and run them. Sandcastle was using memory from `tmpfs` (an in-memory temporary filesystem) for the build jobs. When the build processes were killed they didn’t release their memory because the system’s `tmpfs` was bind mounted to each worker.
 <p style="margin-top: 1.3em"></p>
 <div style="text-align: center;"><img src = "/oomd/docs/assets/sandcastle-before.png"/></div> 
 <p style="margin-top: 1.3em"></p>
 Another complication was that the kernel OOM killer would kill just one of a build job’s processes. Since the build job can't function without the dead process, it’s left in an undefined state. In such cases, all running jobs must be canceled and retried, taking nearly an hour before the host is up again.
 
-## The solution
+## The solution—controlled cgroup OOM kills with oomd
 
-The team wanted to create a cgroup architecture with the following objectives:
+The team wanted to create a [cgroup](https://facebookmicrosites.github.io/cgroup2/) architecture with the following objectives:
 
-- Make OOM kills immediately free the *tmpfs* space the build job was using.
+- Make OOM kills immediately free the `tmpfs` space the build job was using.
 - Make OOM kills kill an entire build job, instead of just one process within it.
 
 Experiments and testing led the team to the following solution:
 
 1. The worker contains each build job it runs inside its own sub-cgroup. All the build job processes are contained in their own cgroup in `workload.slice`.
-1. [*oomd*](/cgroup2/docs/memory-strategies.html#oomd-memory-pressure-based-oom) is configured to watch per-job cgroups.
-1. Each build job gets its own mount namespace and *tmpfs* mount, instead of living off the worker’s mount namespace and bind mounting the system’s *tmpfs*.
+1. oomd is configured to watch per-job cgroups.
+1. Each build job gets its own mount namespace and `tmpfs` mount, instead of living off the worker’s mount namespace and bind mounting the system’s `tmpfs`.
 <p style="margin-top: 1.3em"></p>
 <div style="text-align: center;"><img src = "/oomd/docs/assets/sandcastle-after.png"/></div> 
 <p style="margin-top: 1.3em"></p>
 
-With each build job contained in its own cgroup with ***oomd*** enabled, ***oomd*** kills the entire cgroup and all its processes at once. 
+With each build job contained in its own cgroup with oomd enabled, oomd kills the entire cgroup and all its processes at once. 
 
 Because the mount namespace is only pinned by the processes in that cgroup, the mount namespace gets released, which in turn frees the `tmpfs` instance the build job was using.
 

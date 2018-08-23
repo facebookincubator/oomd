@@ -103,7 +103,6 @@ class HomeSplash extends React.Component {
           <PromoSection>
             <Button href={docUrl('overview', language)}>Get Started</Button>
           </PromoSection>
-          <ProjectGitHubStats />
         </div>
       </SplashContainer>
     );
@@ -125,10 +124,10 @@ const Features = props => (
       {
         content: 'Kill memory-hogging processes when PSI memory pressure exceeds a specified threshold.',
         imageAlign: 'top',
-        title: 'OOM killer triggered by PSI memory pressure',
+        title: 'Triggered by PSI memory pressure',
       },
       {
-        content: 'Works on a per-cgroup basis, allowing the killing of an entire group of processes without compromising the system or the main workload.',
+        content: 'Works on a per-cgroup basis: kill an entire group of processes without compromising the system or the main workload.',
         imageAlign: 'top',
         title: 'Works with cgroup2',
       },
