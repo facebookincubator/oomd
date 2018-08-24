@@ -132,8 +132,9 @@ bool OomDetector::isSwapOOM(
   const int min_swap_pct = tunables_->get<int>(Tunables::MIN_SWAP_PCT);
   const int64_t swapthres = swaptotal * min_swap_pct / 100;
   if (swaptotal > 0 && swapfree < swapthres) {
-    OLOG << "SwapFree " << swapfree << "MB is smaller than the threshold of "
-         << swapthres << "MB, total swap is " << swaptotal << "MB";
+    OLOG << "SwapFree " << swapfree / 1024 / 1024
+         << "MB is smaller than the threshold of " << swapthres / 1024 / 1024
+         << "MB, total swap is " << swaptotal / 1024 / 1024 << "MB";
     octx.type = OomType::SWAP;
     octx.stat.swap_free = swapfree;
     return true;
