@@ -78,7 +78,7 @@ class Fs {
       if (ret == -1) {
         auto errorNum = errno;
         // TODO: better error handling for methods here instead of ignoring.
-        OLOG << "lstat failed with errno: " << errno << ", file: " << file
+        OLOG << "lstat failed with errno: " << errorNum << ", file: " << file
              << ", ignoring file";
         continue;
       }
