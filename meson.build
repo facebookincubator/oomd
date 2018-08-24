@@ -25,6 +25,9 @@ srcs = files('''
     OomKiller.h
     PluginRegistry.cpp
     PluginRegistry.h
+    include/Assert.cpp
+    include/Assert.h
+    include/Types.h
     plugins/OomKillerNoop.cpp
     plugins/OomKillerNoop.h
     plugins/Plugins.h
@@ -92,6 +95,11 @@ if gtest_dep.found() and gmock_dep.found()
                             include_directories : inc,
                             dependencies : deps,
                             link_with : oomd_lib)
+    assert_tests = executable('oomd_assert_tests',
+                            'include/AssertTest.cpp',
+                            include_directories : inc,
+                            dependencies : deps,
+                            link_with : oomd_lib)
     test('context_tests', context_tests)
     test('util_tests', util_tests)
     test('config_tests', config_tests)
@@ -99,6 +107,7 @@ if gtest_dep.found() and gmock_dep.found()
     test('killer_tests', killer_tests)
     test('oomd_tests', oomd_tests)
     test('log_tests', log_tests)
+    test('assert_tests', assert_tests)
 
     # Copy over fixtures to build dir so 'ninja test' will work
     r = run_command('rm', '-r', meson.build_root() + '/oomd')

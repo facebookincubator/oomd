@@ -17,7 +17,6 @@
 
 #include "oomd/Config.h"
 
-#include <cassert>
 #include <cstdlib>
 #include <fstream>
 #include <limits>
@@ -30,6 +29,7 @@
 
 #include "oomd/Log.h"
 #include "oomd/PluginRegistry.h"
+#include "oomd/include/Assert.h"
 #include "oomd/shared/KillList.h"
 
 static auto constexpr kCgroupBase = "/sys/fs/cgroup/";
@@ -204,7 +204,7 @@ std::unique_ptr<OomDetector> Config::parseDetectorPluginAndFactory(
   const char* chosen_class = config_class.size() ? config_class.c_str() : "default";
   OLOG << "OomDetector=" << chosen_class;
   OomDetector* d = getDetectorRegistry().create(chosen_class, args);
-  assert(!!d);
+  OCHECK(!!d);
   return std::unique_ptr<OomDetector>(d);
 }
 
@@ -215,7 +215,7 @@ std::unique_ptr<OomKiller> Config::parseKillerPluginAndFactory(
   const char* chosen_class = config_class.size() ? config_class.c_str() : "default";
   OLOG << "OomKiller=" << chosen_class;
   OomKiller* k = getKillerRegistry().create(chosen_class, args);
-  assert(!!k);
+  OCHECK(!!k);
   return std::unique_ptr<OomKiller>(k);
 }
 

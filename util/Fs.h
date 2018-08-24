@@ -23,7 +23,6 @@
 #include <sys/xattr.h>
 #include <unistd.h>
 
-#include <cassert>
 #include <fstream>
 #include <sstream>
 #include <string>
@@ -31,6 +30,7 @@
 #include <vector>
 
 #include "oomd/Log.h"
+#include "oomd/include/Assert.h"
 #include "oomd/include/Types.h"
 
 namespace Oomd {
@@ -179,13 +179,13 @@ class Fs {
       // some avg10=0.22 avg60=0.17 avg300=1.11 total=58761459
       // full avg10=0.22 avg60=0.16 avg300=1.08 total=58464525
       std::vector<std::string> toks = split(lines[1], ' ');
-      assert(toks[0] == "full");
+      OCHECK(toks[0] == "full");
       std::vector<std::string> avg10 = split(toks[1], '=');
-      assert(avg10[0] == "avg10");
+      OCHECK(avg10[0] == "avg10");
       std::vector<std::string> avg60 = split(toks[2], '=');
-      assert(avg60[0] == "avg60");
+      OCHECK(avg60[0] == "avg60");
       std::vector<std::string> avg300 = split(toks[3], '=');
-      assert(avg300[0] == "avg300");
+      OCHECK(avg300[0] == "avg300");
 
       return ResourcePressure{
           std::stof(avg10[1]),
@@ -198,9 +198,9 @@ class Fs {
       // aggr 316016073
       // some 0.00 0.03 0.05
       // full 0.00 0.03 0.05
-      assert(lines.size() == 3);
+      OCHECK(lines.size() == 3);
       std::vector<std::string> toks = split(lines[2], ' ');
-      assert(toks[0] == "full");
+      OCHECK(toks[0] == "full");
 
       return ResourcePressure{
           std::stof(toks[1]),
@@ -212,7 +212,7 @@ class Fs {
 
   static int64_t readMemcurrent(const std::string& path) {
     auto lines = readFileByLine(path + "/" + kMemCurrentFile);
-    assert(lines.size() == 1);
+    OCHECK(lines.size() == 1);
     return static_cast<int64_t>(std::stoll(lines[0]));
   }
 
@@ -222,7 +222,7 @@ class Fs {
 
   static int64_t readMemlow(const std::string& path) {
     auto lines = readFileByLine(path + "/" + kMemLowFile);
-    assert(lines.size() == 1);
+    OCHECK(lines.size() == 1);
     if (lines[0] == "max") {
       return std::numeric_limits<int64_t>::max();
     }
@@ -231,7 +231,7 @@ class Fs {
 
   static int64_t readSwapCurrent(const std::string& path) {
     auto lines = readFileByLine(path + "/" + kMemSwapCurrentFile);
-    assert(lines.size() == 1);
+    OCHECK(lines.size() == 1);
     return static_cast<int64_t>(std::stoll(lines[0]));
   }
 
