@@ -162,6 +162,8 @@ void Log::ioThread(std::ostream& debug_sink) {
       debug_sink << "...\n" << numDiscarded << " messages dropped\n...\n";
     }
 
+    debug_sink << std::flush;
+
     // clear() doesn't shrink capacity, only invalidates contents
     q->clear();
   }
