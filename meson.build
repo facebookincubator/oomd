@@ -47,6 +47,7 @@ deps = [dependency('jsoncpp'),
 oomd_lib = library('oomd',
                    srcs,
                    include_directories : inc,
+                   cpp_args : cpp_args,
                    install: true,
                    dependencies : deps)
 executable('oomd_bin',
