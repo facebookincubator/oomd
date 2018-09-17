@@ -63,7 +63,7 @@ gtest_dep = dependency('gtest', main : true, required : false)
 gmock_dep = dependency('gmock', required : false)
 if gtest_dep.found() and gmock_dep.found()
     deps += [gtest_dep, gmock_dep]
-    test_cpp_args += cpp_args + ['-DINLINE_LOGGING']
+    test_cpp_args = cpp_args + ['-DINLINE_LOGGING']
 
     config_tests = executable('oomd_config_tests',
                               'ConfigTest.cpp',
