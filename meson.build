@@ -2,6 +2,8 @@ project('oomd', 'cpp',
   version : '0.1.0',
   license : 'GPL2')
 
+cpp_args = ['-std=c++14', '-g']
+
 # '..' is needed as an include directory b/c of how internal FB tooling
 # requires a specific header path
 inc = include_directories('''
@@ -45,11 +47,13 @@ deps = [dependency('jsoncpp'),
 oomd_lib = library('oomd',
                    srcs,
                    include_directories : inc,
+                   cpp_args : cpp_args,
                    install: true,
                    dependencies : deps)
 executable('oomd_bin',
            files('Main.cpp'),
            include_directories : inc,
+           cpp_args : cpp_args,
            dependencies : deps,
            install: true,
            install_rpath: join_paths(get_option('prefix'), get_option('libdir')),
@@ -62,42 +66,50 @@ if gtest_dep.found() and gmock_dep.found()
     config_tests = executable('oomd_config_tests',
                               'ConfigTest.cpp',
                               include_directories : inc,
+                              cpp_args : cpp_args,
                               dependencies : deps,
                               link_with : oomd_lib)
     detector_tests = executable('oomd_detector_tests',
                                 'OomDetectorTest.cpp',
                                 include_directories : inc,
+                                cpp_args : cpp_args,
                                 dependencies : deps,
                                 link_with : oomd_lib)
     killer_tests = executable('oomd_killer_tests',
                               'OomKillerTest.cpp',
                               include_directories : inc,
+                              cpp_args : cpp_args,
                               dependencies : deps,
                               link_with : oomd_lib)
     oomd_tests = executable('oomd_oomd_tests',
                             'OomdTest.cpp',
                             include_directories : inc,
+                            cpp_args : cpp_args,
                             dependencies : deps,
                             link_with : oomd_lib)
     context_tests = executable('oomd_context_tests',
                             files('shared/OomdContextTest.cpp'),
                             include_directories : inc,
+                            cpp_args : cpp_args,
                             dependencies : deps,
                             link_with : oomd_lib)
     util_tests = executable('oomd_util_tests',
                             'util/FsTest.cpp',
                             'util/ScopeGuardTest.cpp',
                             include_directories : inc,
+                            cpp_args : cpp_args,
                             dependencies : deps,
                             link_with : oomd_lib)
     log_tests = executable('oomd_log_tests',
                             'LogTest.cpp',
                             include_directories : inc,
+                            cpp_args : cpp_args,
                             dependencies : deps,
                             link_with : oomd_lib)
     assert_tests = executable('oomd_assert_tests',
                             'include/AssertTest.cpp',
                             include_directories : inc,
+                            cpp_args : cpp_args,
                             dependencies : deps,
                             link_with : oomd_lib)
     test('context_tests', context_tests)
