@@ -51,8 +51,12 @@ ssize_t writeFull(int fd, const char* msg_buf, size_t count) {
 namespace Oomd {
 
 LogStream::~LogStream() {
-  stream_ << '\n';
+#ifdef INLINE_LOGGING
+  std::cerr << "(inl) " << stream_.str() << std::endl;
+#else
+  stream_ << std::endl;
   Log::get().debugLog(stream_.str());
+#endif
 }
 
 Log::Log(int kmsg_fd, std::ostream& debug_sink) : kmsg_fd_(kmsg_fd) {
