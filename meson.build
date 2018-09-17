@@ -63,55 +63,55 @@ gtest_dep = dependency('gtest', main : true, required : false)
 gmock_dep = dependency('gmock', required : false)
 if gtest_dep.found() and gmock_dep.found()
     deps += [gtest_dep, gmock_dep]
-    cpp_args += ['-DINLINE_LOGGING']
+    test_cpp_args += cpp_args + ['-DINLINE_LOGGING']
 
     config_tests = executable('oomd_config_tests',
                               'ConfigTest.cpp',
                               include_directories : inc,
-                              cpp_args : cpp_args,
+                              cpp_args : test_cpp_args,
                               dependencies : deps,
                               link_with : oomd_lib)
     detector_tests = executable('oomd_detector_tests',
                                 'OomDetectorTest.cpp',
                                 include_directories : inc,
-                                cpp_args : cpp_args,
+                                cpp_args : test_cpp_args,
                                 dependencies : deps,
                                 link_with : oomd_lib)
     killer_tests = executable('oomd_killer_tests',
                               'OomKillerTest.cpp',
                               include_directories : inc,
-                              cpp_args : cpp_args,
+                              cpp_args : test_cpp_args,
                               dependencies : deps,
                               link_with : oomd_lib)
     oomd_tests = executable('oomd_oomd_tests',
                             'OomdTest.cpp',
                             include_directories : inc,
-                            cpp_args : cpp_args,
+                            cpp_args : test_cpp_args,
                             dependencies : deps,
                             link_with : oomd_lib)
     context_tests = executable('oomd_context_tests',
                             files('shared/OomdContextTest.cpp'),
                             include_directories : inc,
-                            cpp_args : cpp_args,
+                            cpp_args : test_cpp_args,
                             dependencies : deps,
                             link_with : oomd_lib)
     util_tests = executable('oomd_util_tests',
                             'util/FsTest.cpp',
                             'util/ScopeGuardTest.cpp',
                             include_directories : inc,
-                            cpp_args : cpp_args,
+                            cpp_args : test_cpp_args,
                             dependencies : deps,
                             link_with : oomd_lib)
     log_tests = executable('oomd_log_tests',
                             'LogTest.cpp',
                             include_directories : inc,
-                            cpp_args : cpp_args,
+                            cpp_args : test_cpp_args,
                             dependencies : deps,
                             link_with : oomd_lib)
     assert_tests = executable('oomd_assert_tests',
                             'include/AssertTest.cpp',
                             include_directories : inc,
-                            cpp_args : cpp_args,
+                            cpp_args : test_cpp_args,
                             dependencies : deps,
                             link_with : oomd_lib)
     test('context_tests', context_tests)
