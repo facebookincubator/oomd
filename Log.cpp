@@ -22,6 +22,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <cstdlib>
 #include <iomanip>
 #include <iostream>
 #include <system_error>
@@ -51,17 +52,17 @@ ssize_t writeFull(int fd, const char* msg_buf, size_t count) {
 namespace Oomd {
 
 LogStream::~LogStream() {
-#ifdef INLINE_LOGGING
-  std::cerr << "(inl) " << stream_.str() << std::endl;
-#else
   stream_ << std::endl;
   Log::get().debugLog(stream_.str());
-#endif
 }
 
-Log::Log(int kmsg_fd, std::ostream& debug_sink) : kmsg_fd_(kmsg_fd) {
-  // Start async debug log flushing thread
-  io_thread_ = std::thread([this, &debug_sink] { this->ioThread(debug_sink); });
+Log::Log(int kmsg_fd, std::ostream& debug_sink, bool inl)
+    : kmsg_fd_(kmsg_fd), inline_(inl) {
+  // Start async debug log flushing thread if we are not inline logging
+  if (!inline_) {
+    io_thread_ =
+        std::thread([this, &debug_sink] { this->ioThread(debug_sink); });
+  }
 }
 
 Log::~Log() {
@@ -88,18 +89,18 @@ void Log::init_or_die() {
     throw std::system_error(errcode, std::generic_category());
   }
 
-  Log::get(kmsg_fd);
+  bool inline_logging = std::getenv("INLINE_LOGGING") ? true : false;
+  Log::get(kmsg_fd, std::cerr, inline_logging);
 }
 
-Log& Log::get(int kmsg_fd, std::ostream& debug_sink) {
-  static Log singleton(kmsg_fd, debug_sink);
+Log& Log::get(int kmsg_fd, std::ostream& debug_sink, bool inl) {
+  static Log singleton(kmsg_fd, debug_sink, inl);
   return singleton;
 }
 
-std::unique_ptr<Log> Log::get_for_unittest(
-    int kmsg_fd,
-    std::ostream& debug_sink) {
-  return std::unique_ptr<Log>(new Log(kmsg_fd, debug_sink));
+std::unique_ptr<Log>
+Log::get_for_unittest(int kmsg_fd, std::ostream& debug_sink, bool inl) {
+  return std::unique_ptr<Log>(new Log(kmsg_fd, debug_sink, inl));
 }
 
 void Log::kmsgLog(const std::string& buf, const std::string& prefix) const {
@@ -121,6 +122,13 @@ void Log::kmsgLog(const std::string& buf, const std::string& prefix) const {
 }
 
 void Log::debugLog(std::string&& buf) {
+  // If we are doing inline logging, we don't want to pass the buffer to the
+  // async queue
+  if (inline_) {
+    std::cerr << "(inl) " << buf;
+    return;
+  }
+
   std::unique_lock<std::mutex> lock(state_.lock);
 
   if (buf.size() + state_.curSize > state_.maxSize) {

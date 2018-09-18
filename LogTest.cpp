@@ -41,7 +41,7 @@ class LogTestKmsg : public ::testing::Test {
     std::string outfile = "/tmp/logtest.XXXXXX";
     int fd = ::mkstemp(&outfile[0]);
 
-    auto logger = Log::get_for_unittest(fd, std::cerr);
+    auto logger = Log::get_for_unittest(fd, std::cerr, /* inl= */ false);
     std::ifstream result_file(outfile);
 
     if (::remove(outfile.c_str()) != 0) {
@@ -73,7 +73,11 @@ TEST_F(LogTestKmsg, VerifyOutputSimple) {
 TEST(LogTestAsyncDebug, CoupleLines) {
   std::stringstream sstr;
   {
-    auto logger = Log::get_for_unittest(STDERR_FILENO, sstr);
+    // Do not use inline logging for our log tests because
+    //   1) we want to test async logging behavior
+    //   2) we correctly destroy the Log object during the test which
+    //      correctly joins the async thread
+    auto logger = Log::get_for_unittest(STDERR_FILENO, sstr, /* inl= */ false);
 
     logger->debugLog(std::string("line one\n"));
     logger->debugLog(std::string("line2\n"));
@@ -87,7 +91,9 @@ TEST(LogTestAsyncDebug, LotsOfLines) {
     std::stringstream expected;
     std::stringstream sstr;
     {
-      auto logger = Log::get_for_unittest(STDERR_FILENO, sstr);
+      // See comment in CoupleLines
+      auto logger =
+          Log::get_for_unittest(STDERR_FILENO, sstr, /* inl= */ false);
       for (int j = 0; j < 150; ++j) {
         logger->debugLog(std::to_string(j) + "_line\n");
         expected << j << "_line\n";

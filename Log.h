@@ -48,10 +48,10 @@ class Log {
   Log& operator=(const Log& other) = delete;
   ~Log();
   static void init_or_die();
-  static Log& get(int kmsg_fd = -1, std::ostream& debug_sink = std::cerr);
-  static std::unique_ptr<Log> get_for_unittest(
-      int kmsg_fd,
-      std::ostream& debug_sink);
+  static Log&
+  get(int kmsg_fd = -1, std::ostream& debug_sink = std::cerr, bool inl = true);
+  static std::unique_ptr<Log>
+  get_for_unittest(int kmsg_fd, std::ostream& debug_sink, bool inl);
 
   void kmsgLog(const std::string& buf, const std::string& prefix) const;
   void debugLog(std::string&& buf);
@@ -81,10 +81,11 @@ class Log {
   };
 
   // only get() is allowed to construct
-  explicit Log(int kmsg_fd, std::ostream& debug_sink);
+  explicit Log(int kmsg_fd, std::ostream& debug_sink, bool inl);
   void ioThread(std::ostream& debug_sink);
 
   int kmsg_fd_{-1};
+  bool inline_{true};
   std::thread io_thread_;
   AsyncLogState state_;
 };
