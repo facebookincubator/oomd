@@ -38,6 +38,7 @@ srcs = files('''
     shared/OomdContext.h
     shared/Tunables.cpp
     shared/Tunables.h
+    util/Fs.cpp
     util/Fs.h
     util/ScopeGuard.h
 '''.split())

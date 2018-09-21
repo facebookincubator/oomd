@@ -17,20 +17,10 @@
 
 #pragma once
 
-#include <dirent.h>
-#include <sys/stat.h>
-#include <sys/types.h>
-#include <sys/xattr.h>
-#include <unistd.h>
-
-#include <fstream>
-#include <sstream>
 #include <string>
 #include <unordered_map>
 #include <vector>
 
-#include "oomd/Log.h"
-#include "oomd/include/Assert.h"
 #include "oomd/include/Types.h"
 
 namespace Oomd {
@@ -56,263 +46,40 @@ class Fs {
    */
   static std::vector<std::string> readDir(
       const std::string& path,
-      EntryType type) {
-    DIR* d;
-    struct dirent* dir;
-    std::vector<std::string> v;
-
-    d = opendir(path.c_str());
-    if (!d) {
-      OLOG << "Unable to open directory=" << path;
-      return v;
-    }
-
-    while ((dir = readdir(d)) != NULL) {
-      if (dir->d_name[0] == '.') {
-        continue;
-      }
-
-      auto file = path + "/" + dir->d_name;
-      struct stat buf;
-      int ret = ::lstat(file.c_str(), &buf);
-      if (ret == -1) {
-        auto errorNum = errno;
-        // TODO: better error handling for methods here instead of ignoring.
-        OLOG << "lstat failed with errno: " << errorNum << ", file: " << file
-             << ", ignoring file";
-        continue;
-      }
-
-      switch (type) {
-        case EntryType::REG_FILE:
-          if (buf.st_mode & S_IFREG) {
-            v.push_back(dir->d_name);
-          }
-          break;
-        case EntryType::DIRECTORY:
-          if (buf.st_mode & S_IFDIR) {
-            v.push_back(dir->d_name);
-          }
-          break;
-      }
-    }
-
-    closedir(d);
-    return v;
-  }
+      EntryType type);
 
   /* Split string into tokens by delim */
-  static std::vector<std::string> split(const std::string& line, char delim) {
-    std::istringstream iss(line);
-    std::string item;
-    std::vector<std::string> ret;
-    while (std::getline(iss, item, delim)) {
-      ret.push_back(std::move(item));
-    }
-    return ret;
-  }
+  static std::vector<std::string> split(const std::string& line, char delim);
 
   /* Reads a file and returns a newline separated vector of strings */
-  static std::vector<std::string> readFileByLine(const std::string& path) {
-    std::ifstream f(path, std::ios::in);
-    if (!f.is_open()) {
-      OLOG << "Unable to open " << path;
-    }
+  static std::vector<std::string> readFileByLine(const std::string& path);
 
-    std::string s;
-    std::vector<std::string> v;
-    while (std::getline(f, s)) {
-      v.push_back(std::move(s));
-    }
-
-    if (f.bad()) {
-      OLOG << "Error while processing file " << path;
-    }
-
-    return v;
-  }
-
-  static std::vector<std::string> readControllers(const std::string& path) {
-    std::vector<std::string> controllers;
-    auto lines = readFileByLine(path + "/" + kSubtreeControlFile);
-    if (!lines.size()) {
-      return controllers;
-    }
-
-    controllers = split(lines[0], ' ');
-
-    return controllers;
-  }
+  static std::vector<std::string> readControllers(const std::string& path);
 
   static std::vector<int> getPids(
       const std::string& path,
-      bool recursive = false) {
-    std::vector<int> pids;
-    auto files = readDir(path, EntryType::REG_FILE);
-    if (std::any_of(files.begin(), files.end(), [](const std::string& s) {
-          return s == kProcsFile;
-        })) {
-      auto str_pids = readFileByLine(path + "/" + kProcsFile);
-      for (const auto& sp : str_pids) {
-        OLOG << "found pid " << sp;
-        pids.push_back(std::stoi(sp));
-      }
-    }
+      bool recursive = false);
 
-    if (recursive) {
-      auto dirs = readDir(path, EntryType::DIRECTORY);
-      for (const auto& dir : dirs) {
-        auto recursive_pids = getPids(path + "/" + dir, true);
-        pids.insert(pids.end(), recursive_pids.begin(), recursive_pids.end());
-      }
-    }
-
-    return pids;
-  }
-
-  static ResourcePressure readRespressure(const std::string& path) {
-    auto lines = readFileByLine(path);
-
-    if (lines.size() == 2) {
-      // Upstream v4.16+ format
-      //
-      // some avg10=0.22 avg60=0.17 avg300=1.11 total=58761459
-      // full avg10=0.22 avg60=0.16 avg300=1.08 total=58464525
-      std::vector<std::string> toks = split(lines[1], ' ');
-      OCHECK(toks[0] == "full");
-      std::vector<std::string> avg10 = split(toks[1], '=');
-      OCHECK(avg10[0] == "avg10");
-      std::vector<std::string> avg60 = split(toks[2], '=');
-      OCHECK(avg60[0] == "avg60");
-      std::vector<std::string> avg300 = split(toks[3], '=');
-      OCHECK(avg300[0] == "avg300");
-
-      return ResourcePressure{
-          std::stof(avg10[1]),
-          std::stof(avg60[1]),
-          std::stof(avg300[1]),
-      };
-    } else {
-      // Old experimental format
-      //
-      // aggr 316016073
-      // some 0.00 0.03 0.05
-      // full 0.00 0.03 0.05
-      OCHECK(lines.size() == 3);
-      std::vector<std::string> toks = split(lines[2], ' ');
-      OCHECK(toks[0] == "full");
-
-      return ResourcePressure{
-          std::stof(toks[1]),
-          std::stof(toks[2]),
-          std::stof(toks[3]),
-      };
-    }
-  }
-
-  static int64_t readMemcurrent(const std::string& path) {
-    auto lines = readFileByLine(path + "/" + kMemCurrentFile);
-    OCHECK(lines.size() == 1);
-    return static_cast<int64_t>(std::stoll(lines[0]));
-  }
-
-  static ResourcePressure readMempressure(const std::string& path) {
-    return readRespressure(path + "/" + kMemPressureFile);
-  }
-
-  static int64_t readMemlow(const std::string& path) {
-    auto lines = readFileByLine(path + "/" + kMemLowFile);
-    OCHECK(lines.size() == 1);
-    if (lines[0] == "max") {
-      return std::numeric_limits<int64_t>::max();
-    }
-    return static_cast<int64_t>(std::stoll(lines[0]));
-  }
-
-  static int64_t readSwapCurrent(const std::string& path) {
-    auto lines = readFileByLine(path + "/" + kMemSwapCurrentFile);
-    OCHECK(lines.size() == 1);
-    return static_cast<int64_t>(std::stoll(lines[0]));
-  }
+  /* Helpers to read PSI files */
+  static ResourcePressure readRespressure(const std::string& path);
+  static int64_t readMemcurrent(const std::string& path);
+  static ResourcePressure readMempressure(const std::string& path);
+  static int64_t readMemlow(const std::string& path);
+  static int64_t readSwapCurrent(const std::string& path);
+  static ResourcePressure readIopressure(const std::string& path);
 
   static std::unordered_map<std::string, int64_t> getVmstat(
-      const std::string& path = "/proc/vmstat") {
-    auto lines = readFileByLine(path);
-    std::unordered_map<std::string, int64_t> map;
-    char space{' '};
-
-    for (auto& line : lines) {
-      std::stringstream ss(line);
-      std::string item;
-
-      // get key
-      std::getline(ss, item, space);
-      std::string key{item};
-
-      // insert value into map
-      std::getline(ss, item, space);
-      map[key] = static_cast<int64_t>(std::stoll(item));
-    }
-
-    return map;
-  }
+      const std::string& path = "/proc/vmstat");
 
   static std::unordered_map<std::string, int64_t> getMeminfo(
-      const std::string& path = "/proc/meminfo") {
-    char name[256] = {0};
-    unsigned long val;
-    std::unordered_map<std::string, int64_t> map;
+      const std::string& path = "/proc/meminfo");
 
-    auto lines = readFileByLine(path);
-    for (auto& line : lines) {
-      int ret = sscanf(line.c_str(), "%255[^:]:%*[ \t]%lu%*s\n", name, &val);
-      if (ret == 2) {
-        map[name] = val * 1024;
-      }
-    }
-
-    return map;
-  }
-
-  static ResourcePressure readIopressure(const std::string& path) {
-    const std::string ioPressurePath = path + "/" + kIoPressureFile;
-
-    // earlier kernels had only mempressure, throw an exception if missing
-    std::ifstream f(ioPressurePath, std::ios::in);
-    if (!f.is_open()) {
-      throw std::system_error(ENOENT, std::system_category());
-    }
-    return readRespressure(ioPressurePath);
-  }
-
+  /* Getters and setters to set xattr values */
   static bool setxattr(
       const std::string& path,
       const std::string& attr,
-      const std::string& val) {
-    int ret =
-        ::setxattr(path.c_str(), attr.c_str(), val.c_str(), val.size(), 0);
-    if (ret == -1) {
-      OLOG << "Unable to set xattr " << attr << "=" << val << " on " << path
-           << ". errno=" << errno;
-      return false;
-    }
-    return true;
-  }
-
-  static std::string getxattr(
-      const std::string& path,
-      const std::string& attr) {
-    std::string val;
-
-    int size = ::getxattr(path.c_str(), attr.c_str(), nullptr, 0);
-    if (size <= 0) {
-      return val;
-    }
-
-    val.resize(size);
-    ::getxattr(path.c_str(), attr.c_str(), &val[0], val.size());
-    return val;
-  }
+      const std::string& val);
+  static std::string getxattr(const std::string& path, const std::string& attr);
 };
 
 } // namespace Oomd
