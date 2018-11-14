@@ -80,7 +80,9 @@ std::vector<std::string> Fs::split(const std::string& line, char delim) {
   std::string item;
   std::vector<std::string> ret;
   while (std::getline(iss, item, delim)) {
-    ret.push_back(std::move(item));
+    if (item.size()) {
+      ret.push_back(std::move(item));
+    }
   }
   return ret;
 }

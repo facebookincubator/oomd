@@ -49,6 +49,24 @@ TEST_F(FsTest, FindDirectories) {
   EXPECT_FALSE(existsInVec(dirs, std::string("dir22")));
 }
 
+TEST_F(FsTest, Split) {
+  auto toks = Fs::split("one by two", ' ');
+  ASSERT_EQ(toks.size(), 3);
+  EXPECT_TRUE(existsInVec(toks, "one"));
+  EXPECT_TRUE(existsInVec(toks, "by"));
+  EXPECT_TRUE(existsInVec(toks, "two"));
+
+  toks = Fs::split(" by two", ' ');
+  ASSERT_EQ(toks.size(), 2);
+  EXPECT_TRUE(existsInVec(toks, "by"));
+  EXPECT_TRUE(existsInVec(toks, "two"));
+
+  toks = Fs::split("     by        two", ' ');
+  ASSERT_EQ(toks.size(), 2);
+  EXPECT_TRUE(existsInVec(toks, "by"));
+  EXPECT_TRUE(existsInVec(toks, "two"));
+}
+
 TEST_F(FsTest, FindFiles) {
   std::string dir(kFsDataDir);
   auto files = Fs::readDir(dir, Fs::EntryType::REG_FILE);
