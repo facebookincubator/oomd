@@ -65,14 +65,16 @@ bool OomDetector::isOOM(OomdContext& ctx) {
     last_pgscan_ = pgscan;
   };
 
-  // log some updated stats
-  std::ostringstream oss;
-  oss << std::setprecision(2) << std::fixed;
-  oss << "total=" << current / 1024 / 1024 << "MB pressure=" << pressure.sec_10
-      << ":" << pressure.sec_60 << ":" << pressure.sec_600
-      << " swapfree=" << swapfree / 1024 / 1024 << "MB/"
-      << swaptotal / 1024 / 1024 << "MB pgscan=" << pgscan - last_pgscan_;
-  OLOG << oss.str();
+  if (pressure.sec_10 > 0 || pressure.sec_60 > 0 || pressure.sec_600 > 0) {
+    // log some updated stats
+    std::ostringstream oss;
+    oss << std::setprecision(2) << std::fixed;
+    oss << "total=" << current / 1024 / 1024
+        << "MB pressure=" << pressure.sec_10 << ":" << pressure.sec_60 << ":"
+        << pressure.sec_600 << " swapfree=" << swapfree / 1024 / 1024 << "MB/"
+        << swaptotal / 1024 / 1024 << "MB pgscan=" << pgscan - last_pgscan_;
+    OLOG << oss.str();
+  }
 
   // We only declare an generalized OOM if the kernel has scanned for pages
   // the last pgscan_window_tick_thres or more. Each tick is OOMD_INTERVAL
