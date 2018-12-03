@@ -15,7 +15,7 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#include "oomd/shared/OomdContext.h"
+#include "oomd/OomdContext.h"
 #include "oomd/Log.h"
 
 #include <exception>

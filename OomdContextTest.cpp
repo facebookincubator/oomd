@@ -18,7 +18,7 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
-#include "oomd/shared/OomdContext.h"
+#include "oomd/OomdContext.h"
 
 using namespace Oomd;
 using namespace testing;
