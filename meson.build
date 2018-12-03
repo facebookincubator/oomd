@@ -48,6 +48,8 @@ srcs = files('''
     plugins/ContinuePlugin.cpp
     plugins/ContinuePlugin.h
     util/Fs.cpp
+    plugins/PressureRisingBeyond.cpp
+    plugins/PressureRisingBeyond.h
     util/Fs.h
     util/ScopeGuard.h
 '''.split())
@@ -127,6 +129,11 @@ if gtest_dep.found() and gmock_dep.found()
                             include_directories : inc,
                             dependencies : deps,
                             link_with : oomd_lib)
+    plugin_tests = executable('oomd_plugin_tests',
+                            'plugins/CorePluginsTest.cpp',
+                            include_directories : inc,
+                            dependencies : deps,
+                            link_with : oomd_lib)
     test('context_tests', context_tests)
     test('util_tests', util_tests)
     test('config_tests', config_tests)
@@ -136,6 +143,7 @@ if gtest_dep.found() and gmock_dep.found()
     test('log_tests', log_tests)
     test('assert_tests', assert_tests)
     test('compiler_tests', compiler_tests)
+    test('plugin_tests', plugin_tests)
 
     # Copy over fixtures to build dir so 'ninja test' will work
     r = run_command('rm', '-r', meson.build_root() + '/oomd')
