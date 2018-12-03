@@ -17,47 +17,37 @@
 
 #pragma once
 
-#include <cstdint>
+#include <chrono>
+
+#include "oomd/engine/BasePlugin.h"
 
 namespace Oomd {
 
-enum struct OomType {
-  NONE,
-  SWAP,
-  PRESSURE_10,
-  PRESSURE_60,
-  IO_PRESSURE_60,
-  KILL_LIST,
-};
+class PressureRisingBeyond : public Oomd::Engine::BasePlugin {
+ public:
+  int init(
+      Engine::MonitoredResources& resources,
+      std::unordered_map<std::string, std::string> args) override;
 
-union OomStat {
-  int64_t swap_free; // in MB
-  int32_t pressure_10_duration; // in seconds
-};
+  Engine::PluginRet run(OomdContext& /* unused */) override;
 
-struct OomContext {
-  OomType type{OomType::NONE};
-  OomStat stat;
-};
+  static PressureRisingBeyond* create() {
+    return new PressureRisingBeyond();
+  }
 
-enum struct ResourceType {
-  MEMORY,
-  IO,
-};
+  ~PressureRisingBeyond() = default;
 
-struct ResourcePressure {
-  float sec_10{0};
-  float sec_60{0};
-  float sec_600{0};
-};
+ private:
+  std::string cgroup_;
+  std::string cgroup_fs_;
+  ResourceType resource_;
+  // Initialized to bogus values; init() will crash oomd if non-0 return
+  int threshold_;
+  int duration_;
+  float fast_fall_ratio_;
 
-struct CgroupContext {
-  ResourcePressure pressure;
-  ResourcePressure io_pressure;
-  int64_t current_usage{0};
-  int64_t average_usage{0};
-  int64_t memory_low{0};
-  int64_t swap_usage{0};
+  ResourcePressure last_pressure_{100, 100, 100};
+  std::chrono::steady_clock::time_point hit_thres_at_{};
 };
 
 } // namespace Oomd

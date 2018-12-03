@@ -22,6 +22,7 @@
 #include <unordered_set>
 
 #include "oomd/OomdContext.h"
+#include "oomd/include/Types.h"
 
 namespace Oomd {
 namespace Engine {
