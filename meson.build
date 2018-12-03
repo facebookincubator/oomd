@@ -43,14 +43,10 @@ srcs = files('''
     include/Assert.cpp
     include/Assert.h
     include/Types.h
-    plugins/OomKillerNoop.cpp
-    plugins/OomKillerNoop.h
-    plugins/Plugins.h
-    shared/KillList.h
+    plugins/ContinuePlugin.cpp
+    plugins/ContinuePlugin.h
     shared/OomdContext.cpp
     shared/OomdContext.h
-    shared/Tunables.cpp
-    shared/Tunables.h
     util/Fs.cpp
     util/Fs.h
     util/ScopeGuard.h

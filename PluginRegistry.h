@@ -21,8 +21,6 @@
 #include <string>
 #include <unordered_map>
 
-#include "oomd/OomDetector.h"
-#include "oomd/OomKiller.h"
 #include "oomd/engine/BasePlugin.h"
 
 namespace Oomd {
@@ -30,7 +28,7 @@ namespace Oomd {
 template <typename T>
 class PluginRegistry {
  public:
-  using FactoryFunction = std::function<T*(const PluginArgs&)>;
+  using FactoryFunction = std::function<T*()>;
   using FactoryMap = std::unordered_map<std::string, FactoryFunction>;
 
   bool add(const std::string& name, FactoryFunction fac) {
@@ -42,28 +40,20 @@ class PluginRegistry {
     return true;
   }
 
-  T* create(const std::string& name, const PluginArgs& args) {
+  T* create(const std::string& name) {
     if (map_.find(name) == map_.end()) {
       return nullptr;
     }
 
-    return map_[name](args);
+    return map_[name]();
   }
 
  private:
   FactoryMap map_;
 };
 
-PluginRegistry<OomDetector>& getDetectorRegistry();
-PluginRegistry<OomKiller>& getKillerRegistry();
 PluginRegistry<Engine::BasePlugin>& getPluginRegistry();
 
-#define REGISTER_DETECTOR_PLUGIN(plugin_name, create_func) \
-  bool plugin_name##_detector_entry =                      \
-      getDetectorRegistry().add(#plugin_name, (create_func))
-#define REGISTER_KILLER_PLUGIN(plugin_name, create_func) \
-  bool plugin_name##_killer_entry =                      \
-      getKillerRegistry().add(#plugin_name, (create_func))
 #define REGISTER_PLUGIN(plugin_name, create_func) \
   bool plugin_name##_plugin_entry =               \
       getPluginRegistry().add(#plugin_name, (create_func))

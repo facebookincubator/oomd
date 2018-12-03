@@ -21,6 +21,7 @@
 #include <chrono>
 #include <memory>
 #include <string>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -33,7 +34,26 @@ class Oomd {
   Oomd(std::unique_ptr<Engine::Engine> engine, int interval);
   virtual ~Oomd() = default;
 
-  void updateContext(const std::string& cgroup_path, OomdContext& ctx);
+  /*
+   * This method takes a @param parent_cgroup rooted at
+   * @param cgroup_root_dir to update @param ctx with.
+   *
+   * For example, consider the following tree:
+   *   |/sys/fs/cgroup/
+   *   |--system.slice
+   *   |--|--chef.service
+   *   |--|--cron.service
+   *   |--workload.slice
+   *   |--|--myworkload.slice
+   *
+   * If @param cgroup_root_dir == /sys/fs/cgroup and @param parent_cgroups ==
+   * {"system.slice"}, then @param ctx will be updated with the status of
+   * chef.service and cron.service.
+   */
+  void updateContext(
+      const std::string& cgroup_root_dir,
+      const std::unordered_set<std::string>& parent_cgroups,
+      OomdContext& ctx);
   int run();
 
  private:
