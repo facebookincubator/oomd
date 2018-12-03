@@ -23,6 +23,7 @@
 using namespace Oomd;
 using namespace testing;
 
+constexpr auto kCgroupRootDir = "oomd/fixtures/cgroup";
 constexpr auto kCgroupDataDir = "oomd/fixtures/cgroup/system.slice";
 constexpr auto kFsDataDir = "oomd/fixtures/fs_data";
 constexpr auto kFsVmstatFile = "oomd/fixtures/proc/vmstat";
@@ -74,6 +75,10 @@ TEST_F(FsTest, Split) {
   ASSERT_EQ(toks.size(), 2);
   EXPECT_TRUE(existsInVec(toks, "by"));
   EXPECT_TRUE(existsInVec(toks, "two"));
+
+  toks = Fs::split("one two three", ',');
+  ASSERT_EQ(toks.size(), 1);
+  EXPECT_EQ(toks[0], "one two three");
 }
 
 TEST_F(FsTest, RemovePrefix) {
@@ -182,6 +187,11 @@ TEST_F(FsTest, GetPids) {
 TEST_F(FsTest, ReadMemoryCurrent) {
   std::string dir(kCgroupDataDir);
   EXPECT_EQ(Fs::readMemcurrent(dir), 987654321);
+}
+
+TEST_F(FsTest, ReadMemoryCurrentWildcard) {
+  std::string dir(kCgroupRootDir);
+  EXPECT_EQ(Fs::readMemcurrentWildcard(dir + "/*"), 1975308642);
 }
 
 TEST_F(FsTest, ReadMemoryLow) {

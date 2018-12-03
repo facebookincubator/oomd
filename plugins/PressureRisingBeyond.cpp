@@ -35,8 +35,9 @@ int PressureRisingBeyond::init(
     Engine::MonitoredResources& resources,
     std::unordered_map<std::string, std::string> args) {
   if (args.find("cgroup") != args.end()) {
-    resources.emplace(args["cgroup"]);
-    cgroup_ = args["cgroup"];
+    auto cgroups = Fs::split(args["cgroup"], ',');
+    resources.insert(cgroups.begin(), cgroups.end());
+    cgroups_.insert(cgroups.begin(), cgroups.end());
     cgroup_fs_ =
         (args.find("cgroup_fs") != args.end() ? args["cgroup_fs"] : kCgroupFs);
   } else {
@@ -85,11 +86,15 @@ int PressureRisingBeyond::init(
 Engine::PluginRet PressureRisingBeyond::run(OomdContext& /* unused */) {
   using std::chrono::steady_clock;
 
-  auto resolved = Fs::resolveWildcardPath(cgroup_fs_ + "/" + cgroup_);
+  std::unordered_set<std::string> resolved_cgroups;
+  for (const auto& cgroup : cgroups_) {
+    auto resolved = Fs::resolveWildcardPath(cgroup_fs_ + "/" + cgroup);
+    resolved_cgroups.insert(resolved.begin(), resolved.end());
+  }
   ResourcePressure current_pressure;
   int64_t current_memory_usage = 0;
 
-  for (const auto& abs_cgroup_path : resolved) {
+  for (const auto& abs_cgroup_path : resolved_cgroups) {
     ResourcePressure rp;
     switch (resource_) {
       case ResourceType::IO:

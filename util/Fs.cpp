@@ -262,6 +262,19 @@ int64_t Fs::readMemcurrent(const std::string& path) {
   return static_cast<int64_t>(std::stoll(lines[0]));
 }
 
+int64_t Fs::readMemcurrentWildcard(const std::string& path) {
+  auto resolved = resolveWildcardPath(path);
+  int64_t total = 0;
+
+  for (const auto& path : resolved) {
+    auto lines = readFileByLine(path + "/" + kMemCurrentFile);
+    OCHECK(lines.size() == 1);
+    total += static_cast<int64_t>(std::stoll(lines[0]));
+  }
+
+  return total;
+}
+
 ResourcePressure Fs::readMempressure(const std::string& path) {
   return readRespressure(path + "/" + kMemPressureFile);
 }

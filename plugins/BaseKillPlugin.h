@@ -73,7 +73,7 @@ class BaseKillPlugin : public Oomd::Engine::BasePlugin {
    * was not assigned to kill.
    */
   virtual void removeSiblingCgroups(
-      const std::string& our_prefix,
+      const std::unordered_set<std::string>& our_prefixes,
       std::vector<std::pair<std::string, Oomd::CgroupContext>>& vec);
 };
 
