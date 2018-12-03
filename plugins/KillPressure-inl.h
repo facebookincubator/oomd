@@ -24,6 +24,7 @@
 
 #include "oomd/Log.h"
 #include "oomd/include/Types.h"
+#include "oomd/util/Fs.h"
 
 namespace Oomd {
 
@@ -32,8 +33,9 @@ int KillPressure<Base>::init(
     Engine::MonitoredResources& resources,
     std::unordered_map<std::string, std::string> args) {
   if (args.find("cgroup") != args.end()) {
-    resources.emplace(args["cgroup"]);
-    cgroup_ = args["cgroup"];
+    auto cgroups = Fs::split(args["cgroup"], ',');
+    resources.insert(cgroups.begin(), cgroups.end());
+    cgroups_.insert(cgroups.begin(), cgroups.end());
     cgroup_fs_ =
         (args.find("cgroup_fs") != args.end() ? args["cgroup_fs"] : kCgroupFs);
   } else {
@@ -108,8 +110,8 @@ bool KillPressure<Base>::tryToKillSomething(OomdContext& ctx) {
         return average;
       });
   OomdContext::dumpOomdContext(pressure_sorted);
-  Base::removeSiblingCgroups(cgroup_, pressure_sorted);
-  OLOG << "Removed sibling cgroups of " << cgroup_;
+  Base::removeSiblingCgroups(cgroups_, pressure_sorted);
+  OLOG << "Removed sibling cgroups";
   OomdContext::dumpOomdContext(pressure_sorted);
 
   for (const auto& state_pair : pressure_sorted) {

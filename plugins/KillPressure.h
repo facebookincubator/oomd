@@ -18,6 +18,7 @@
 #pragma once
 
 #include <chrono>
+#include <unordered_set>
 
 #include "oomd/plugins/BaseKillPlugin.h"
 
@@ -41,7 +42,7 @@ class KillPressure : public Base {
  protected:
   virtual bool tryToKillSomething(OomdContext& ctx);
 
-  std::string cgroup_;
+  std::unordered_set<std::string> cgroups_;
   std::string cgroup_fs_;
   ResourceType resource_;
   int post_action_delay_{15};

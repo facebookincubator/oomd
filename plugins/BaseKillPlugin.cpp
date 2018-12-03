@@ -22,6 +22,7 @@
 #include <chrono>
 #include <csignal>
 #include <iomanip>
+#include <unordered_set>
 
 #include "oomd/Log.h"
 #include "oomd/util/Fs.h"
@@ -108,17 +109,21 @@ void BaseKillPlugin::logKill(
 }
 
 void BaseKillPlugin::removeSiblingCgroups(
-    const std::string& our_prefix,
+    const std::unordered_set<std::string>& our_prefixes,
     std::vector<std::pair<std::string, Oomd::CgroupContext>>& vec) {
   vec.erase(
       std::remove_if(
           vec.begin(),
           vec.end(),
           [&](const auto& pair) {
-            // Remove this cgroup if its prefix does not being with ours
-            //
-            // fnmatch returns zero on match, non-zero on miss
-            return ::fnmatch((our_prefix + '*').c_str(), pair.first.c_str(), 0);
+            // Remove this cgroup if its prefix does not begin with any of ours
+            bool found = false;
+            for (const auto& prefix : our_prefixes) {
+              if (!::fnmatch((prefix + '*').c_str(), pair.first.c_str(), 0)) {
+                found = true;
+              }
+            }
+            return !found;
           }),
       vec.end());
 }

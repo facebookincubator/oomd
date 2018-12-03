@@ -18,6 +18,7 @@
 #pragma once
 
 #include <chrono>
+#include <unordered_set>
 
 #include "oomd/engine/BasePlugin.h"
 
@@ -38,7 +39,7 @@ class PressureAbove : public Oomd::Engine::BasePlugin {
   ~PressureAbove() = default;
 
  private:
-  std::string cgroup_;
+  std::unordered_set<std::string> cgroups_;
   std::string cgroup_fs_;
   ResourceType resource_;
   // Initialized to bogus values; init() will crash oomd if non-0 return

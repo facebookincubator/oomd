@@ -72,9 +72,9 @@ class BaseKillPluginShim : public BaseKillPlugin {
   }
 
   void removeSiblingCgroupsShim(
-      const std::string& our_prefix,
+      const std::unordered_set<std::string>& our_prefixes,
       std::vector<std::pair<std::string, Oomd::CgroupContext>>& vec) {
-    removeSiblingCgroups(our_prefix, vec);
+    removeSiblingCgroups(our_prefixes, vec);
   }
 };
 } // namespace Oomd
@@ -94,7 +94,7 @@ TEST(BaseKillPlugin, RemoveSiblingCgroups) {
   ASSERT_NE(plugin, nullptr);
 
   // Test wildcard support first
-  plugin->removeSiblingCgroupsShim("some/*/cgroup/path", vec);
+  plugin->removeSiblingCgroupsShim({"some/*/cgroup/path"}, vec);
   ASSERT_EQ(vec.size(), 2);
   EXPECT_TRUE(std::any_of(vec.begin(), vec.end(), [&](const auto& pair) {
     return pair.first == "some/made_up/cgroup/path/here";
@@ -104,9 +104,34 @@ TEST(BaseKillPlugin, RemoveSiblingCgroups) {
   }));
 
   // Now test non-wildcard
-  plugin->removeSiblingCgroupsShim("some/other/cgroup/path", vec);
+  plugin->removeSiblingCgroupsShim({"some/other/cgroup/path"}, vec);
   ASSERT_EQ(vec.size(), 1);
   EXPECT_EQ(vec[0].first, "some/other/cgroup/path/here");
+}
+
+TEST(BaseKillPlugin, RemoveSiblingCgroupsMultiple) {
+  OomdContext ctx;
+  ctx.setCgroupContext(
+      "some/made_up/cgroup/path/here", CgroupContext{{}, {}, 0, 0, 0, 0});
+  ctx.setCgroupContext(
+      "some/other/cgroup/path/here", CgroupContext{{}, {}, 0, 0, 0, 0});
+  ctx.setCgroupContext(
+      "notavalidcgrouppath/here", CgroupContext{{}, {}, 0, 0, 0, 0});
+  ctx.setCgroupContext("XXXXXXXX/here", CgroupContext{{}, {}, 0, 0, 0, 0});
+  auto vec = ctx.reverseSort();
+
+  auto plugin = std::make_shared<BaseKillPluginShim>();
+  ASSERT_NE(plugin, nullptr);
+
+  plugin->removeSiblingCgroupsShim(
+      {"some/made_up/cgroup/path", "some/other/cgroup/path"}, vec);
+  ASSERT_EQ(vec.size(), 2);
+  EXPECT_TRUE(std::any_of(vec.begin(), vec.end(), [&](const auto& pair) {
+    return pair.first == "some/made_up/cgroup/path/here";
+  }));
+  EXPECT_TRUE(std::any_of(vec.begin(), vec.end(), [&](const auto& pair) {
+    return pair.first == "some/other/cgroup/path/here";
+  }));
 }
 
 TEST(PresureRisingBeyond, DetectsHighMemPressure) {
@@ -145,6 +170,25 @@ TEST(PresureRisingBeyond, NoDetectLowMemPressure) {
 
   OomdContext ctx;
   EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
+}
+
+TEST(PresureRisingBeyond, DetectsHighMemPressureMultiCgroup) {
+  auto plugin = createPlugin("pressure_rising_beyond");
+  ASSERT_NE(plugin, nullptr);
+
+  Engine::MonitoredResources resources;
+  std::unordered_map<std::string, std::string> args;
+  args["cgroup_fs"] = "oomd/fixtures/plugins/pressure_rising_beyond";
+  args["cgroup"] = "low_pressure,high_pressure";
+  args["resource"] = "memory";
+  args["threshold"] = "80";
+  args["duration"] = "0";
+  args["fast_fall_ratio"] = "0";
+
+  ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+
+  OomdContext ctx;
+  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::CONTINUE);
 }
 
 TEST(PresureRisingBeyond, DetectsHighMemPressureWildcard) {
@@ -200,6 +244,24 @@ TEST(PressureAbove, NoDetectLowMemPressure) {
 
   OomdContext ctx;
   EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
+}
+
+TEST(PressureAbove, DetectsHighMemPressureMultiCgroup) {
+  auto plugin = createPlugin("pressure_above");
+  ASSERT_NE(plugin, nullptr);
+
+  Engine::MonitoredResources resources;
+  std::unordered_map<std::string, std::string> args;
+  args["cgroup_fs"] = "oomd/fixtures/plugins/pressure_above";
+  args["cgroup"] = "high_pressure,low_pressure";
+  args["resource"] = "memory";
+  args["threshold"] = "80";
+  args["duration"] = "0";
+
+  ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+
+  OomdContext ctx;
+  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::CONTINUE);
 }
 
 TEST(PressureAbove, DetectsHighMemPressureWildcard) {
@@ -293,6 +355,32 @@ TEST(KillMemoryGrowth, KillsBigCgroup) {
       plugin->killed, Not(Contains(888))); // make sure there's no siblings
 }
 
+TEST(KillMemoryGrowth, KillsBigCgroupMultiCgroup) {
+  auto plugin = std::make_shared<KillMemoryGrowth<BaseKillPluginMock>>();
+  ASSERT_NE(plugin, nullptr);
+
+  Engine::MonitoredResources resources;
+  std::unordered_map<std::string, std::string> args;
+  args["cgroup_fs"] = "oomd/fixtures/plugins/kill_by_memory_size_or_growth";
+  args["cgroup"] = "one_big,sibling";
+  args["post_action_delay"] = "0";
+
+  ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+
+  OomdContext ctx;
+  ctx.setCgroupContext("one_big/cgroup1", CgroupContext{{}, {}, 60, 60, 0, 0});
+  ctx.setCgroupContext("one_big/cgroup2", CgroupContext{{}, {}, 20, 20, 0, 0});
+  ctx.setCgroupContext("one_big/cgroup3", CgroupContext{{}, {}, 20, 20, 0, 0});
+  ctx.setCgroupContext(
+      "sibling/cgroup1", CgroupContext{{}, {}, 100, 100, 0, 0});
+  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
+  EXPECT_THAT(plugin->killed, Contains(888));
+  EXPECT_THAT(plugin->killed, Not(Contains(123)));
+  EXPECT_THAT(plugin->killed, Not(Contains(456)));
+  EXPECT_THAT(plugin->killed, Not(Contains(789)));
+  EXPECT_THAT(plugin->killed, Not(Contains(111)));
+}
+
 TEST(KillMemoryGrowth, DoesntKillBigCgroupInDry) {
   auto plugin = std::make_shared<KillMemoryGrowth<BaseKillPluginMock>>();
   ASSERT_NE(plugin, nullptr);
@@ -334,6 +422,31 @@ TEST(KillSwapUsage, KillsBigSwapCgroup) {
   EXPECT_THAT(plugin->killed, Contains(789));
   EXPECT_THAT(plugin->killed, Not(Contains(123)));
   EXPECT_THAT(plugin->killed, Not(Contains(456)));
+  EXPECT_THAT(plugin->killed, Not(Contains(111)));
+}
+
+TEST(KillSwapUsage, KillsBigSwapCgroupMultiCgroup) {
+  auto plugin = std::make_shared<KillSwapUsage<BaseKillPluginMock>>();
+  ASSERT_NE(plugin, nullptr);
+
+  Engine::MonitoredResources resources;
+  std::unordered_map<std::string, std::string> args;
+  args["cgroup_fs"] = "oomd/fixtures/plugins/kill_by_swap_usage";
+  args["cgroup"] = "one_big,sibling";
+  args["post_action_delay"] = "0";
+
+  ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+
+  OomdContext ctx;
+  ctx.setCgroupContext("one_big/cgroup1", CgroupContext{{}, {}, 0, 0, 0, 20});
+  ctx.setCgroupContext("one_big/cgroup2", CgroupContext{{}, {}, 0, 0, 0, 60});
+  ctx.setCgroupContext("one_big/cgroup3", CgroupContext{{}, {}, 0, 0, 0, 40});
+  ctx.setCgroupContext("sibling/cgroup1", CgroupContext{{}, {}, 0, 0, 0, 70});
+  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
+  EXPECT_THAT(plugin->killed, Contains(555));
+  EXPECT_THAT(plugin->killed, Not(Contains(123)));
+  EXPECT_THAT(plugin->killed, Not(Contains(456)));
+  EXPECT_THAT(plugin->killed, Not(Contains(789)));
   EXPECT_THAT(plugin->killed, Not(Contains(111)));
 }
 
@@ -390,6 +503,40 @@ TEST(KillPressure, KillsHighestPressure) {
   EXPECT_THAT(plugin->killed, Not(Contains(456)));
   EXPECT_THAT(plugin->killed, Not(Contains(789)));
   EXPECT_THAT(plugin->killed, Not(Contains(888)));
+}
+
+TEST(KillPressure, KillsHighestPressureMultiCgroup) {
+  auto plugin = std::make_shared<KillPressure<BaseKillPluginMock>>();
+  ASSERT_NE(plugin, nullptr);
+
+  Engine::MonitoredResources resources;
+  std::unordered_map<std::string, std::string> args;
+  args["cgroup_fs"] = "oomd/fixtures/plugins/kill_by_pressure";
+  args["cgroup"] = "one_high,sibling";
+  args["resource"] = "io";
+  args["post_action_delay"] = "0";
+
+  ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+
+  OomdContext ctx;
+  ctx.setCgroupContext(
+      "one_high/cgroup1",
+      CgroupContext{{}, {ResourcePressure{60, 60, 0}}, 0, 0, 0, 0});
+  ctx.setCgroupContext(
+      "one_high/cgroup2",
+      CgroupContext{{}, {ResourcePressure{50, 70, 0}}, 0, 0, 0, 0});
+  ctx.setCgroupContext(
+      "one_high/cgroup3",
+      CgroupContext{{}, {ResourcePressure{80, 80, 0}}, 0, 0, 0, 0});
+  ctx.setCgroupContext(
+      "sibling/cgroup1",
+      CgroupContext{{}, {ResourcePressure{99, 99, 99}}, 0, 0, 0, 0});
+  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
+  EXPECT_THAT(plugin->killed, Contains(888));
+  EXPECT_THAT(plugin->killed, Not(Contains(111)));
+  EXPECT_THAT(plugin->killed, Not(Contains(123)));
+  EXPECT_THAT(plugin->killed, Not(Contains(456)));
+  EXPECT_THAT(plugin->killed, Not(Contains(789)));
 }
 
 TEST(KillPressure, DoesntKillsHighestPressureDry) {
