@@ -23,6 +23,7 @@
 
 #include "oomd/OomDetector.h"
 #include "oomd/OomKiller.h"
+#include "oomd/engine/BasePlugin.h"
 
 namespace Oomd {
 
@@ -55,6 +56,7 @@ class PluginRegistry {
 
 PluginRegistry<OomDetector>& getDetectorRegistry();
 PluginRegistry<OomKiller>& getKillerRegistry();
+PluginRegistry<Engine::BasePlugin>& getPluginRegistry();
 
 #define REGISTER_DETECTOR_PLUGIN(plugin_name, create_func) \
   bool plugin_name##_detector_entry =                      \
@@ -62,5 +64,8 @@ PluginRegistry<OomKiller>& getKillerRegistry();
 #define REGISTER_KILLER_PLUGIN(plugin_name, create_func) \
   bool plugin_name##_killer_entry =                      \
       getKillerRegistry().add(#plugin_name, (create_func))
+#define REGISTER_PLUGIN(plugin_name, create_func) \
+  bool plugin_name##_plugin_entry =               \
+      getPluginRegistry().add(#plugin_name, (create_func))
 
 } // namespace Oomd
