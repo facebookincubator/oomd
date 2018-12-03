@@ -84,20 +84,23 @@ namespace Oomd {
 Oomd::Oomd(std::unique_ptr<Engine::Engine> engine, int interval)
     : interval_(interval), engine_(std::move(engine)) {}
 
-void Oomd::updateContext(
+bool Oomd::updateContext(
     const std::string& parent_cgroup,
     const std::string& absolute_cgroup_path,
     OomdContext& ctx) {
-  // If the targeted cgroup does not have the memory controller enabled,
-  // we fail fast and early b/c we need the exposed memory controller
-  // knobs to function
+  // Warn once if memory controller is not enabled on target cgroup
   auto controllers = Fs::readControllers(absolute_cgroup_path);
   if (!std::any_of(controllers.begin(), controllers.end(), [](std::string& s) {
         return s == "memory";
       })) {
-    OLOG << "FATAL: cgroup memory controller not enabled on "
-         << absolute_cgroup_path;
-    std::abort();
+    if (!warned_mem_controller_.count(absolute_cgroup_path)) {
+      OLOG << "WARNING: cgroup memory controller not enabled on "
+           << absolute_cgroup_path;
+      warned_mem_controller_.emplace(absolute_cgroup_path);
+    }
+
+    // Can't extract much info if memory controller isn't enabled
+    return false;
   }
 
   // grab and update memory stats for cgroups which we are assigned
@@ -115,9 +118,10 @@ void Oomd::updateContext(
     try {
       io_pressure = Fs::readIopressure(child_cgroup);
     } catch (const std::exception& ex) {
-      if (!warned_io_pressure_) {
-        warned_io_pressure_ = true;
-        OLOG << "IO pressure unavailable: " << ex.what();
+      if (!warned_io_pressure_.count(child_cgroup)) {
+        warned_io_pressure_.emplace(child_cgroup);
+        OLOG << "IO pressure unavailable on " << child_cgroup << ": "
+             << ex.what();
       }
       // older kernels don't have io.pressure, nan them out
       io_pressure = {std::nanf(""), std::nanf(""), std::nanf("")};
@@ -128,6 +132,8 @@ void Oomd::updateContext(
         (parent_cgroup.size() ? parent_cgroup + "/" : "") + dir,
         {pressures, io_pressure, current, {}, memlow, swap_current});
   }
+
+  return true;
 }
 
 void Oomd::updateContext(
@@ -141,8 +147,10 @@ void Oomd::updateContext(
     std::string parent_cgroup = resolved_cgroup;
     Fs::removePrefix(parent_cgroup, cgroup_root_dir + "/");
 
-    updateContext(parent_cgroup, resolved_cgroup, new_ctx);
-    dumpCgroupOverview(resolved_cgroup);
+    bool success = updateContext(parent_cgroup, resolved_cgroup, new_ctx);
+    if (success) {
+      dumpCgroupOverview(resolved_cgroup);
+    }
   }
 
   // calculate running averages
