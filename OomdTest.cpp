@@ -17,8 +17,6 @@
 
 #include <gtest/gtest.h>
 
-#include "oomd/OomDetector.h"
-#include "oomd/OomKiller.h"
 #include "oomd/Oomd.h"
 
 using namespace Oomd;
@@ -29,24 +27,18 @@ constexpr auto kCgroupDataDir = "oomd/fixtures/cgroup";
 class OomdTest : public ::testing::Test {
  public:
   OomdTest() {
-    auto tunables = std::make_shared<Tunables>();
-    std::unique_ptr<OomDetector> detector{nullptr};
-    std::unique_ptr<OomKiller> killer{nullptr};
-
-    oomd.setTunables(tunables);
-    oomd.addCgroup(std::move(detector), std::move(killer));
-    oomd.prepareRun();
+    oomd = std::make_unique<::Oomd::Oomd>(nullptr, 5);
   }
 
   std::string cgroup_path{kCgroupDataDir};
   OomdContext ctx;
-  ::Oomd::Oomd oomd;
+  std::unique_ptr<::Oomd::Oomd> oomd{nullptr};
 };
 
 TEST_F(OomdTest, OomdContextUpdate) {
   EXPECT_EQ(ctx.cgroups().size(), 0);
 
-  oomd.updateContext(cgroup_path, ctx);
+  oomd->updateContext(cgroup_path, ctx);
 
   EXPECT_EQ(ctx.cgroups().size(), 5);
 
@@ -58,11 +50,11 @@ TEST_F(OomdTest, OomdContextUpdate) {
 }
 
 TEST_F(OomdTest, OomdContextMultipleUpdates) {
-  oomd.updateContext(cgroup_path, ctx);
+  oomd->updateContext(cgroup_path, ctx);
 
   for (int i = 0; i < 3; i++) {
     int64_t average = ctx.getCgroupContext("service1.service").average_usage;
-    oomd.updateContext(cgroup_path, ctx);
+    oomd->updateContext(cgroup_path, ctx);
 
     // We expect the avg usage to slowly converge from 0 -> true avg
     // b/c of AVERAGE_SIZE_DECAY
