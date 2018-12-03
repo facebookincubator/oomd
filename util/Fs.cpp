@@ -78,6 +78,15 @@ std::vector<std::string> Fs::readDir(const std::string& path, EntryType type) {
   return v;
 }
 
+bool Fs::isDir(const std::string& path) {
+  struct stat sb;
+  if (!::stat(path.c_str(), &sb) && S_ISDIR(sb.st_mode)) {
+    return true;
+  }
+
+  return false;
+}
+
 std::unordered_set<std::string> Fs::resolveWildcardPath(
     const std::string& path) {
   std::unordered_set<std::string> ret;
@@ -104,8 +113,7 @@ std::unordered_set<std::string> Fs::resolveWildcardPath(
     queue.pop_front();
 
     // We can't continue BFS if we've hit a regular file
-    struct stat sb;
-    if (::stat(front.first.c_str(), &sb) || !S_ISDIR(sb.st_mode)) {
+    if (!isDir(front.first)) {
       continue;
     }
 
@@ -182,7 +190,7 @@ std::vector<std::string> Fs::readFileByLine(const std::string& path) {
 
 std::vector<std::string> Fs::readControllers(const std::string& path) {
   std::vector<std::string> controllers;
-  auto lines = readFileByLine(path + "/" + kSubtreeControlFile);
+  auto lines = readFileByLine(path + "/" + kControllersFile);
   if (!lines.size()) {
     return controllers;
   }

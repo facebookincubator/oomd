@@ -35,33 +35,26 @@ class Oomd {
   virtual ~Oomd() = default;
 
   /*
-   * This method takes a @param parent_cgroup rooted at
-   * @param cgroup_root_dir to update @param ctx with.
+   * This method updates @param ctx with the status of all the cgroups
+   * in @param cgroups. @param cgroup_root_dir is the location the cgroup2
+   * filesystem is mounted.
    *
-   * For example, consider the following tree:
-   *   |/sys/fs/cgroup/
-   *   |--system.slice
-   *   |--|--chef.service
-   *   |--|--cron.service
-   *   |--workload.slice
-   *   |--|--myworkload.slice
-   *
-   * If @param cgroup_root_dir == /sys/fs/cgroup and @param parent_cgroups ==
-   * {"system.slice"}, then @param ctx will be updated with the status of
-   * chef.service and cron.service.
+   * Every cgroup in @param cgroups will be treated relative to
+   * @param cgroup_root_dir.
    */
   void updateContext(
       const std::string& cgroup_root_dir,
-      const std::unordered_set<std::string>& parent_cgroups,
-      OomdContext& ctx);
-  bool updateContext(
-      const std::string& parent_cgroup,
-      const std::string& absolute_cgroup_path,
+      const std::unordered_set<std::string>& cgroups,
       OomdContext& ctx);
 
   int run();
 
  private:
+  bool updateContextCgroup(
+      const std::string& relative_cgroup_path,
+      const std::string& absolute_cgroup_path,
+      OomdContext& ctx);
+
   // runtime settings
   std::chrono::seconds interval_{0};
   const double average_size_decay_{

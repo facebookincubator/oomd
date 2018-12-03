@@ -59,6 +59,13 @@ TEST_F(FsTest, FindDirectories) {
   EXPECT_FALSE(existsInVec(dirs, std::string("dir22")));
 }
 
+TEST_F(FsTest, IsDir) {
+  std::string dir(kFsDataDir);
+  EXPECT_TRUE(Fs::isDir(dir + "/dir1"));
+  EXPECT_FALSE(Fs::isDir(dir + "/dir1/stuff"));
+  EXPECT_FALSE(Fs::isDir(dir + "/NOTINFS"));
+}
+
 TEST_F(FsTest, Split) {
   auto toks = Fs::split("one by two", ' ');
   ASSERT_EQ(toks.size(), 3);

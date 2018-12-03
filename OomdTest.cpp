@@ -42,7 +42,7 @@ TEST_F(OomdTest, OomdContextUpdate) {
   EXPECT_EQ(ctx.cgroups().size(), 0);
 
   std::unordered_set<std::string> parent_cgroups;
-  parent_cgroups.emplace("system.slice");
+  parent_cgroups.emplace("system.slice/*");
   oomd->updateContext(cgroup_path, parent_cgroups, ctx);
 
   EXPECT_EQ(ctx.cgroups().size(), 5);
@@ -56,7 +56,7 @@ TEST_F(OomdTest, OomdContextUpdate) {
 
 TEST_F(OomdTest, OomdContextMultipleUpdates) {
   std::unordered_set<std::string> parent_cgroups;
-  parent_cgroups.emplace("system.slice");
+  parent_cgroups.emplace("system.slice/*");
   oomd->updateContext(cgroup_path, parent_cgroups, ctx);
 
   for (int i = 0; i < 3; i++) {
@@ -76,8 +76,8 @@ TEST_F(OomdTest, OomdContextUpdateMultiCgroup) {
   EXPECT_EQ(ctx.cgroups().size(), 0);
 
   std::unordered_set<std::string> parent_cgroups;
-  parent_cgroups.emplace("system.slice");
-  parent_cgroups.emplace("workload.slice");
+  parent_cgroups.emplace("system.slice/*");
+  parent_cgroups.emplace("workload.slice/*");
   oomd->updateContext(cgroup_path, parent_cgroups, ctx);
 
   EXPECT_EQ(ctx.cgroups().size(), 6);
@@ -94,7 +94,7 @@ TEST_F(OomdTest, OomdContextUpdateMultiCgroupWildcard) {
   EXPECT_EQ(ctx.cgroups().size(), 0);
 
   std::unordered_set<std::string> parent_cgroups;
-  parent_cgroups.emplace("*.slice");
+  parent_cgroups.emplace("*.slice/*");
   oomd->updateContext(cgroup_path, parent_cgroups, ctx);
 
   EXPECT_EQ(ctx.cgroups().size(), 6);

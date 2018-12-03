@@ -33,33 +33,8 @@
 #include "oomd/util/Fs.h"
 
 static constexpr auto kCgroupFsRoot = "/sys/fs/cgroup";
-static auto constexpr kPgscanSwap = "pgscan_kswapd";
-static auto constexpr kPgscanDirect = "pgscan_direct";
 
 namespace {
-void dumpCgroupOverview(const std::string& absolute_cgroup_path) {
-  // Only log on exceptional cases
-  const auto pressure = Oomd::Fs::readMempressure(absolute_cgroup_path);
-  if (pressure.sec_10 < 1 && pressure.sec_60 < 1) {
-    return;
-  }
-
-  const int64_t current = Oomd::Fs::readMemcurrent(absolute_cgroup_path);
-  auto meminfo = Oomd::Fs::getMeminfo();
-  const int64_t swapfree = meminfo["SwapFree"];
-  const int64_t swaptotal = meminfo["SwapTotal"];
-  auto vmstat = Oomd::Fs::getVmstat();
-  const int64_t pgscan = vmstat[kPgscanSwap] + vmstat[kPgscanDirect];
-
-  std::ostringstream oss;
-  oss << std::setprecision(2) << std::fixed;
-  oss << "cgroup=" << absolute_cgroup_path << " total=" << current / 1024 / 1024
-      << "MB pressure=" << pressure.sec_10 << ":" << pressure.sec_60 << ":"
-      << pressure.sec_600 << " swapfree=" << swapfree / 1024 / 1024 << "MB/"
-      << swaptotal / 1024 / 1024 << "MB pgscan=" << pgscan;
-  OLOG << oss.str();
-}
-
 /*
  * Helper function that resolves a set of wildcarded cgroup paths.
  *
@@ -89,8 +64,8 @@ namespace Oomd {
 Oomd::Oomd(std::unique_ptr<Engine::Engine> engine, int interval)
     : interval_(interval), engine_(std::move(engine)) {}
 
-bool Oomd::updateContext(
-    const std::string& parent_cgroup,
+bool Oomd::updateContextCgroup(
+    const std::string& relative_cgroup_path,
     const std::string& absolute_cgroup_path,
     OomdContext& ctx) {
   // Warn once if memory controller is not enabled on target cgroup
@@ -108,54 +83,47 @@ bool Oomd::updateContext(
     return false;
   }
 
-  // grab and update memory stats for cgroups which we are assigned
-  // to watch
-  auto dirs = Fs::readDir(absolute_cgroup_path, Fs::EntryType::DIRECTORY);
-  for (auto& dir : dirs) {
-    // update our new map with new state information
-    auto child_cgroup = absolute_cgroup_path + "/" + dir;
-    auto current = Fs::readMemcurrent(child_cgroup);
-    auto pressures = Fs::readMempressure(child_cgroup);
-    auto memlow = Fs::readMemlow(child_cgroup);
-    auto swap_current = Fs::readSwapCurrent(child_cgroup);
+  auto current = Fs::readMemcurrent(absolute_cgroup_path);
+  auto pressures = Fs::readMempressure(absolute_cgroup_path);
+  auto memlow = Fs::readMemlow(absolute_cgroup_path);
+  auto swap_current = Fs::readSwapCurrent(absolute_cgroup_path);
 
-    ResourcePressure io_pressure;
-    try {
-      io_pressure = Fs::readIopressure(child_cgroup);
-    } catch (const std::exception& ex) {
-      if (!warned_io_pressure_.count(child_cgroup)) {
-        warned_io_pressure_.emplace(child_cgroup);
-        OLOG << "IO pressure unavailable on " << child_cgroup << ": "
-             << ex.what();
-      }
-      // older kernels don't have io.pressure, nan them out
-      io_pressure = {std::nanf(""), std::nanf(""), std::nanf("")};
+  ResourcePressure io_pressure;
+  try {
+    io_pressure = Fs::readIopressure(absolute_cgroup_path);
+  } catch (const std::exception& ex) {
+    if (!warned_io_pressure_.count(absolute_cgroup_path)) {
+      warned_io_pressure_.emplace(absolute_cgroup_path);
+      OLOG << "IO pressure unavailable on " << absolute_cgroup_path << ": "
+           << ex.what();
     }
-
-    // We key CgroupContext's by the full cgroup path (rooted at root)
-    ctx.setCgroupContext(
-        (parent_cgroup.size() ? parent_cgroup + "/" : "") + dir,
-        {pressures, io_pressure, current, {}, memlow, swap_current});
+    // older kernels don't have io.pressure, nan them out
+    io_pressure = {std::nanf(""), std::nanf(""), std::nanf("")};
   }
+
+  ctx.setCgroupContext(
+      relative_cgroup_path,
+      {pressures, io_pressure, current, {}, memlow, swap_current});
 
   return true;
 }
 
 void Oomd::updateContext(
     const std::string& cgroup_root_dir,
-    const std::unordered_set<std::string>& parent_cgroups,
+    const std::unordered_set<std::string>& cgroups,
     OomdContext& ctx) {
   OomdContext new_ctx;
 
-  auto resolved = resolveCgroupPaths(cgroup_root_dir, parent_cgroups);
+  auto resolved = resolveCgroupPaths(cgroup_root_dir, cgroups);
   for (const auto& resolved_cgroup : resolved) {
-    std::string parent_cgroup = resolved_cgroup;
-    Fs::removePrefix(parent_cgroup, cgroup_root_dir + "/");
-
-    bool success = updateContext(parent_cgroup, resolved_cgroup, new_ctx);
-    if (success) {
-      dumpCgroupOverview(resolved_cgroup);
+    // Only care about subtree cgroups, not the cgroup files
+    if (!Fs::isDir(resolved_cgroup)) {
+      continue;
     }
+
+    std::string relative_cgroup_path = resolved_cgroup;
+    Fs::removePrefix(relative_cgroup_path, cgroup_root_dir + "/");
+    updateContextCgroup(relative_cgroup_path, resolved_cgroup, new_ctx);
   }
 
   // calculate running averages

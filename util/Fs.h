@@ -28,6 +28,7 @@ namespace Oomd {
 
 class Fs {
  public:
+  static constexpr auto kControllersFile = "cgroup.controllers";
   static constexpr auto kSubtreeControlFile = "cgroup.subtree_control";
   static constexpr auto kProcsFile = "cgroup.procs";
   static constexpr auto kMemCurrentFile = "memory.current";
@@ -48,6 +49,11 @@ class Fs {
   static std::vector<std::string> readDir(
       const std::string& path,
       EntryType type);
+
+  /*
+   * Checks if @param path is a directory
+   */
+  static bool isDir(const std::string& path);
 
   /*
    * Takes a fully qualified and wildcarded path and returns a set of

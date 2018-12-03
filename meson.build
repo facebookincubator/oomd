@@ -45,6 +45,8 @@ srcs = files('''
     plugins/BaseKillPlugin.h
     plugins/ContinuePlugin.cpp
     plugins/ContinuePlugin.h
+    plugins/DumpCgroupOverview.cpp
+    plugins/DumpCgroupOverview.h
     util/Fs.cpp
     plugins/MemoryReclaim.cpp
     plugins/MemoryReclaim.h
