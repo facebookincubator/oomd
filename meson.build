@@ -56,6 +56,9 @@ srcs = files('''
     plugins/PressureRisingBeyond.h
     plugins/SwapFree.cpp
     plugins/SwapFree.h
+    plugins/KillMemoryGrowth.cpp
+    plugins/KillMemoryGrowth.h
+    plugins/KillMemoryGrowth-inl.h
     util/Fs.h
     util/ScopeGuard.h
 '''.split())
