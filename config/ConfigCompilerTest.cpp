@@ -51,7 +51,7 @@ class ContinuePlugin : public BasePlugin {
     return PluginRet::CONTINUE;
   }
 
-  static ContinuePlugin* create(const PluginArgs& /* unused */) {
+  static ContinuePlugin* create() {
     return new ContinuePlugin();
   }
 
@@ -70,7 +70,7 @@ class StopPlugin : public BasePlugin {
     return PluginRet::STOP;
   }
 
-  static StopPlugin* create(const PluginArgs& /* unused */) {
+  static StopPlugin* create() {
     return new StopPlugin();
   }
 
@@ -90,7 +90,7 @@ class IncrementCountPlugin : public BasePlugin {
     return PluginRet::CONTINUE;
   }
 
-  static IncrementCountPlugin* create(const PluginArgs& /* unused */) {
+  static IncrementCountPlugin* create() {
     return new IncrementCountPlugin();
   }
 
@@ -110,7 +110,7 @@ class RegistrationPlugin : public BasePlugin {
     return PluginRet::CONTINUE;
   }
 
-  static RegistrationPlugin* create(const PluginArgs& /* unused */) {
+  static RegistrationPlugin* create() {
     return new RegistrationPlugin();
   }
 
@@ -129,7 +129,7 @@ class NoInitPlugin : public BasePlugin {
     return PluginRet::CONTINUE;
   }
 
-  static NoInitPlugin* create(const PluginArgs& /* unused */) {
+  static NoInitPlugin* create() {
     return new NoInitPlugin();
   }
 

@@ -15,18 +15,12 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#pragma once
+#include "oomd/plugins/ContinuePlugin.h"
 
-#include <vector>
+#include "oomd/PluginRegistry.h"
 
 namespace Oomd {
 
-struct KillListEntry {
-  std::string service;
-  int kill_pressure;
-  int max_usage;
-};
-
-using KillList = std::vector<KillListEntry>;
+REGISTER_PLUGIN(continue, ContinuePlugin::create);
 
 } // namespace Oomd
