@@ -43,6 +43,8 @@ srcs = files('''
     include/Assert.cpp
     include/Assert.h
     include/Types.h
+    plugins/BaseKillPlugin.cpp
+    plugins/BaseKillPlugin.h
     plugins/ContinuePlugin.cpp
     plugins/ContinuePlugin.h
     util/Fs.cpp
