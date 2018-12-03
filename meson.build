@@ -27,6 +27,8 @@ srcs = files('''
     OomKiller.h
     PluginRegistry.cpp
     PluginRegistry.h
+    config/ConfigCompiler.cpp
+    config/ConfigCompiler.h
     config/ConfigTypes.cpp
     config/ConfigTypes.h
     config/JsonConfigParser.cpp
@@ -125,6 +127,11 @@ if gtest_dep.found() and gmock_dep.found()
                             cpp_args : cpp_args,
                             dependencies : deps,
                             link_with : oomd_lib)
+    compiler_tests = executable('oomd_compiler_tests',
+                            'config/ConfigCompilerTest.cpp',
+                            include_directories : inc,
+                            dependencies : deps,
+                            link_with : oomd_lib)
     test('context_tests', context_tests)
     test('util_tests', util_tests)
     test('config_tests', config_tests)
@@ -133,6 +140,7 @@ if gtest_dep.found() and gmock_dep.found()
     test('oomd_tests', oomd_tests)
     test('log_tests', log_tests)
     test('assert_tests', assert_tests)
+    test('compiler_tests', compiler_tests)
 
     # Copy over fixtures to build dir so 'ninja test' will work
     r = run_command('rm', '-r', meson.build_root() + '/oomd')

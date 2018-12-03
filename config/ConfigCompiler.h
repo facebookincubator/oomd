@@ -15,23 +15,20 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#include "PluginRegistry.h"
+#pragma once
+
+#include "oomd/config/ConfigTypes.h"
+#include "oomd/engine/Engine.h"
 
 namespace Oomd {
+namespace Config2 {
 
-PluginRegistry<OomDetector>& getDetectorRegistry() {
-  static PluginRegistry<OomDetector> r;
-  return r;
-}
+/*
+ * Compiles IR into Oomd::Engine data structures. Also performs full
+ * validation on the IR. If the IR is invalid, @method compile will
+ * print error messages and return a nullptr.
+ */
+std::unique_ptr<Engine::Engine> compile(const IR::Root& root);
 
-PluginRegistry<OomKiller>& getKillerRegistry() {
-  static PluginRegistry<OomKiller> r;
-  return r;
-}
-
-PluginRegistry<Engine::BasePlugin>& getPluginRegistry() {
-  static PluginRegistry<Engine::BasePlugin> r;
-  return r;
-}
-
+} // namespace Config2
 } // namespace Oomd
