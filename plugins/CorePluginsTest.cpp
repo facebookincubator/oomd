@@ -94,7 +94,7 @@ TEST(BaseKillPlugin, RemoveSiblingCgroups) {
   ASSERT_NE(plugin, nullptr);
 
   // Test wildcard support first
-  plugin->removeSiblingCgroupsShim({"some/*/cgroup/path"}, vec);
+  plugin->removeSiblingCgroupsShim({"some/*/cgroup/path/*"}, vec);
   ASSERT_EQ(vec.size(), 2);
   EXPECT_TRUE(std::any_of(vec.begin(), vec.end(), [&](const auto& pair) {
     return pair.first == "some/made_up/cgroup/path/here";
@@ -104,7 +104,7 @@ TEST(BaseKillPlugin, RemoveSiblingCgroups) {
   }));
 
   // Now test non-wildcard
-  plugin->removeSiblingCgroupsShim({"some/other/cgroup/path"}, vec);
+  plugin->removeSiblingCgroupsShim({"some/other/cgroup/path/*"}, vec);
   ASSERT_EQ(vec.size(), 1);
   EXPECT_EQ(vec[0].first, "some/other/cgroup/path/here");
 }
@@ -124,7 +124,7 @@ TEST(BaseKillPlugin, RemoveSiblingCgroupsMultiple) {
   ASSERT_NE(plugin, nullptr);
 
   plugin->removeSiblingCgroupsShim(
-      {"some/made_up/cgroup/path", "some/other/cgroup/path"}, vec);
+      {"some/made_up/cgroup/path/*", "some/other/cgroup/path/*"}, vec);
   ASSERT_EQ(vec.size(), 2);
   EXPECT_TRUE(std::any_of(vec.begin(), vec.end(), [&](const auto& pair) {
     return pair.first == "some/made_up/cgroup/path/here";
@@ -336,7 +336,7 @@ TEST(KillMemoryGrowth, KillsBigCgroup) {
   Engine::MonitoredResources resources;
   std::unordered_map<std::string, std::string> args;
   args["cgroup_fs"] = "oomd/fixtures/plugins/kill_by_memory_size_or_growth";
-  args["cgroup"] = "one_big";
+  args["cgroup"] = "one_big/*";
   args["post_action_delay"] = "0";
 
   ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
@@ -362,7 +362,7 @@ TEST(KillMemoryGrowth, KillsBigCgroupMultiCgroup) {
   Engine::MonitoredResources resources;
   std::unordered_map<std::string, std::string> args;
   args["cgroup_fs"] = "oomd/fixtures/plugins/kill_by_memory_size_or_growth";
-  args["cgroup"] = "one_big,sibling";
+  args["cgroup"] = "one_big/*,sibling/*";
   args["post_action_delay"] = "0";
 
   ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
@@ -388,7 +388,7 @@ TEST(KillMemoryGrowth, DoesntKillBigCgroupInDry) {
   Engine::MonitoredResources resources;
   std::unordered_map<std::string, std::string> args;
   args["cgroup_fs"] = "oomd/fixtures/plugins/kill_by_memory_size_or_growth";
-  args["cgroup"] = "one_big";
+  args["cgroup"] = "one_big/*";
   args["post_action_delay"] = "0";
   args["dry"] = "true";
 
@@ -409,7 +409,7 @@ TEST(KillSwapUsage, KillsBigSwapCgroup) {
   Engine::MonitoredResources resources;
   std::unordered_map<std::string, std::string> args;
   args["cgroup_fs"] = "oomd/fixtures/plugins/kill_by_swap_usage";
-  args["cgroup"] = "one_big";
+  args["cgroup"] = "one_big/*";
   args["post_action_delay"] = "0";
 
   ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
@@ -432,7 +432,7 @@ TEST(KillSwapUsage, KillsBigSwapCgroupMultiCgroup) {
   Engine::MonitoredResources resources;
   std::unordered_map<std::string, std::string> args;
   args["cgroup_fs"] = "oomd/fixtures/plugins/kill_by_swap_usage";
-  args["cgroup"] = "one_big,sibling";
+  args["cgroup"] = "one_big/*,sibling/*";
   args["post_action_delay"] = "0";
 
   ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
@@ -457,7 +457,7 @@ TEST(KillSwapUsage, DoesntKillBigSwapCgroupDry) {
   Engine::MonitoredResources resources;
   std::unordered_map<std::string, std::string> args;
   args["cgroup_fs"] = "oomd/fixtures/plugins/kill_by_swap_usage";
-  args["cgroup"] = "one_big";
+  args["cgroup"] = "one_big/*";
   args["post_action_delay"] = "0";
   args["dry"] = "true";
 
@@ -478,7 +478,7 @@ TEST(KillPressure, KillsHighestPressure) {
   Engine::MonitoredResources resources;
   std::unordered_map<std::string, std::string> args;
   args["cgroup_fs"] = "oomd/fixtures/plugins/kill_by_pressure";
-  args["cgroup"] = "one_high";
+  args["cgroup"] = "one_high/*";
   args["resource"] = "io";
   args["post_action_delay"] = "0";
 
@@ -512,7 +512,7 @@ TEST(KillPressure, KillsHighestPressureMultiCgroup) {
   Engine::MonitoredResources resources;
   std::unordered_map<std::string, std::string> args;
   args["cgroup_fs"] = "oomd/fixtures/plugins/kill_by_pressure";
-  args["cgroup"] = "one_high,sibling";
+  args["cgroup"] = "one_high/*,sibling/*";
   args["resource"] = "io";
   args["post_action_delay"] = "0";
 
@@ -546,7 +546,7 @@ TEST(KillPressure, DoesntKillsHighestPressureDry) {
   Engine::MonitoredResources resources;
   std::unordered_map<std::string, std::string> args;
   args["cgroup_fs"] = "oomd/fixtures/plugins/kill_by_pressure";
-  args["cgroup"] = "one_high";
+  args["cgroup"] = "one_high/*";
   args["resource"] = "io";
   args["post_action_delay"] = "0";
   args["dry"] = "true";

@@ -109,17 +109,17 @@ void BaseKillPlugin::logKill(
 }
 
 void BaseKillPlugin::removeSiblingCgroups(
-    const std::unordered_set<std::string>& our_prefixes,
+    const std::unordered_set<std::string>& ours,
     std::vector<std::pair<std::string, Oomd::CgroupContext>>& vec) {
   vec.erase(
       std::remove_if(
           vec.begin(),
           vec.end(),
           [&](const auto& pair) {
-            // Remove this cgroup if its prefix does not begin with any of ours
+            // Remove this cgroup if does not match any of ours
             bool found = false;
-            for (const auto& prefix : our_prefixes) {
-              if (!::fnmatch((prefix + '*').c_str(), pair.first.c_str(), 0)) {
+            for (const auto& our : ours) {
+              if (!::fnmatch(our.c_str(), pair.first.c_str(), 0)) {
                 found = true;
               }
             }
