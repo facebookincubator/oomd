@@ -59,6 +59,13 @@ class Fs {
   /* Split string into tokens by delim */
   static std::vector<std::string> split(const std::string& line, char delim);
 
+  /*
+   * Path aware prefix removal.
+   *
+   * If @param str begins with './', those two characters will be stripped.
+   */
+  static void removePrefix(std::string& str, const std::string& prefix);
+
   /* Reads a file and returns a newline separated vector of strings */
   static std::vector<std::string> readFileByLine(const std::string& path);
 
