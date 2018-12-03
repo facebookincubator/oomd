@@ -23,6 +23,8 @@
 #include <cmath>
 #include <cstdlib>
 #include <cstring>
+#include <iomanip>
+#include <sstream>
 #include <thread>
 
 #include "oomd/Log.h"
@@ -30,6 +32,31 @@
 #include "oomd/util/Fs.h"
 
 static constexpr auto kCgroupFsRoot = "/sys/fs/cgroup";
+static auto constexpr kPgscanSwap = "pgscan_kswapd";
+static auto constexpr kPgscanDirect = "pgscan_direct";
+
+namespace {
+void dumpCgroupOverview(
+    const std::string& cgroup_root_dir,
+    const std::string& cgroup) {
+  auto absolute_cgroup_path = cgroup_root_dir + "/" + cgroup;
+  const int64_t current = Oomd::Fs::readMemcurrent(absolute_cgroup_path);
+  const auto pressure = Oomd::Fs::readMempressure(absolute_cgroup_path);
+  auto meminfo = Oomd::Fs::getMeminfo();
+  const int64_t swapfree = meminfo["SwapFree"];
+  const int64_t swaptotal = meminfo["SwapTotal"];
+  auto vmstat = Oomd::Fs::getVmstat();
+  const int64_t pgscan = vmstat[kPgscanSwap] + vmstat[kPgscanDirect];
+
+  std::ostringstream oss;
+  oss << std::setprecision(2) << std::fixed;
+  oss << "cgroup=" << cgroup << " total=" << current / 1024 / 1024
+      << "MB pressure=" << pressure.sec_10 << ":" << pressure.sec_60 << ":"
+      << pressure.sec_600 << " swapfree=" << swapfree / 1024 / 1024 << "MB/"
+      << swaptotal / 1024 / 1024 << "MB pgscan=" << pgscan;
+  OLOG << oss.str();
+}
+} // namespace
 
 namespace Oomd {
 
@@ -116,6 +143,9 @@ int Oomd::run() {
     const auto before = std::chrono::steady_clock::now();
 
     updateContext(kCgroupFsRoot, engine_->getMonitoredResources(), ctx);
+    for (const auto& cgroup : engine_->getMonitoredResources()) {
+      dumpCgroupOverview(kCgroupFsRoot, cgroup);
+    }
 
     // Run all the plugins
     engine_->runOnce(ctx);
