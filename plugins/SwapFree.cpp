@@ -51,9 +51,6 @@ Engine::PluginRet SwapFree::run(OomdContext& /* unused */) {
   const int64_t swapfree = meminfo["SwapFree"];
   const int64_t swaptotal = meminfo["SwapTotal"];
 
-  OLOG << "swapfree=" << swapfree / 1024 / 1024
-       << "MB / swaptotal=" << swaptotal / 1024 / 1024 << "MB";
-
   const int64_t swapthres = swaptotal * threshold_pct_ / 100;
   if (swaptotal > 0 && swapfree < swapthres) {
     OLOG << "SwapFree " << swapfree / 1024 / 1024

@@ -38,8 +38,13 @@ static auto constexpr kPgscanDirect = "pgscan_direct";
 
 namespace {
 void dumpCgroupOverview(const std::string& absolute_cgroup_path) {
-  const int64_t current = Oomd::Fs::readMemcurrent(absolute_cgroup_path);
+  // Only log on exceptional cases
   const auto pressure = Oomd::Fs::readMempressure(absolute_cgroup_path);
+  if (pressure.sec_10 < 1 && pressure.sec_60 < 1) {
+    return;
+  }
+
+  const int64_t current = Oomd::Fs::readMemcurrent(absolute_cgroup_path);
   auto meminfo = Oomd::Fs::getMeminfo();
   const int64_t swapfree = meminfo["SwapFree"];
   const int64_t swaptotal = meminfo["SwapTotal"];
