@@ -17,6 +17,8 @@
 
 #include "oomd/plugins/BaseKillPlugin.h"
 
+#include <fnmatch.h>
+
 #include <chrono>
 #include <csignal>
 #include <iomanip>
@@ -114,8 +116,9 @@ void BaseKillPlugin::removeSiblingCgroups(
           vec.end(),
           [&](const auto& pair) {
             // Remove this cgroup if its prefix does not being with ours
-            auto index = pair.first.find(our_prefix);
-            return index == std::string::npos || index != 0;
+            //
+            // fnmatch returns zero on match, non-zero on miss
+            return ::fnmatch((our_prefix + '*').c_str(), pair.first.c_str(), 0);
           }),
       vec.end());
 }

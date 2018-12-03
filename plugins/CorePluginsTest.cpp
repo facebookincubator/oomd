@@ -18,6 +18,7 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <memory>
 #include <unordered_map>
 
@@ -54,7 +55,59 @@ class BaseKillPluginMock : public BaseKillPlugin {
 
   std::vector<int> killed;
 };
+
+/*
+ * Use this class to shim protected BaseKillPlugin methods
+ */
+class BaseKillPluginShim : public BaseKillPlugin {
+ public:
+  int init(
+      Engine::MonitoredResources& /* unused */,
+      std::unordered_map<std::string, std::string> /* unused */) override {
+    return 0;
+  }
+
+  Engine::PluginRet run(OomdContext& /* unused */) override {
+    return Engine::PluginRet::CONTINUE;
+  }
+
+  void removeSiblingCgroupsShim(
+      const std::string& our_prefix,
+      std::vector<std::pair<std::string, Oomd::CgroupContext>>& vec) {
+    removeSiblingCgroups(our_prefix, vec);
+  }
+};
 } // namespace Oomd
+
+TEST(BaseKillPlugin, RemoveSiblingCgroups) {
+  OomdContext ctx;
+  ctx.setCgroupContext(
+      "some/made_up/cgroup/path/here", CgroupContext{{}, {}, 0, 0, 0, 0});
+  ctx.setCgroupContext(
+      "some/other/cgroup/path/here", CgroupContext{{}, {}, 0, 0, 0, 0});
+  ctx.setCgroupContext(
+      "notavalidcgrouppath/here", CgroupContext{{}, {}, 0, 0, 0, 0});
+  ctx.setCgroupContext("XXXXXXXX/here", CgroupContext{{}, {}, 0, 0, 0, 0});
+  auto vec = ctx.reverseSort();
+
+  auto plugin = std::make_shared<BaseKillPluginShim>();
+  ASSERT_NE(plugin, nullptr);
+
+  // Test wildcard support first
+  plugin->removeSiblingCgroupsShim("some/*/cgroup/path", vec);
+  ASSERT_EQ(vec.size(), 2);
+  EXPECT_TRUE(std::any_of(vec.begin(), vec.end(), [&](const auto& pair) {
+    return pair.first == "some/made_up/cgroup/path/here";
+  }));
+  EXPECT_TRUE(std::any_of(vec.begin(), vec.end(), [&](const auto& pair) {
+    return pair.first == "some/other/cgroup/path/here";
+  }));
+
+  // Now test non-wildcard
+  plugin->removeSiblingCgroupsShim("some/other/cgroup/path", vec);
+  ASSERT_EQ(vec.size(), 1);
+  EXPECT_EQ(vec[0].first, "some/other/cgroup/path/here");
+}
 
 TEST(PresureRisingBeyond, DetectsHighMemPressure) {
   auto plugin = createPlugin("pressure_rising_beyond");
