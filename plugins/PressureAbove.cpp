@@ -36,7 +36,6 @@ int PressureAbove::init(
     std::unordered_map<std::string, std::string> args) {
   if (args.find("cgroup") != args.end()) {
     auto cgroups = Fs::split(args["cgroup"], ',');
-    resources.insert(cgroups.begin(), cgroups.end());
     cgroups_.insert(cgroups.begin(), cgroups.end());
     cgroup_fs_ =
         (args.find("cgroup_fs") != args.end() ? args["cgroup_fs"] : kCgroupFs);
