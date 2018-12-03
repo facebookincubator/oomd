@@ -122,3 +122,35 @@ TEST(MemoryReclaim, InstantPgscan) {
   OomdContext ctx;
   EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::CONTINUE);
 }
+
+TEST(SwapFree, LowSwap) {
+  auto plugin = createPlugin("swap_free");
+  ASSERT_NE(plugin, nullptr);
+
+  Engine::MonitoredResources resources;
+  std::unordered_map<std::string, std::string> args;
+  args["meminfo_location"] = "oomd/fixtures/plugins/swap_free/meminfo_low";
+  args["threshold_pct"] = "20";
+  args["duration"] = "0";
+
+  ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+
+  OomdContext ctx;
+  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::CONTINUE);
+}
+
+TEST(SwapFree, EnoughSwap) {
+  auto plugin = createPlugin("swap_free");
+  ASSERT_NE(plugin, nullptr);
+
+  Engine::MonitoredResources resources;
+  std::unordered_map<std::string, std::string> args;
+  args["meminfo_location"] = "oomd/fixtures/plugins/swap_free/meminfo_enough";
+  args["threshold_pct"] = "20";
+  args["duration"] = "0";
+
+  ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+
+  OomdContext ctx;
+  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
+}
