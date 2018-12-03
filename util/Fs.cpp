@@ -18,13 +18,16 @@
 #include "oomd/util/Fs.h"
 
 #include <dirent.h>
+#include <fnmatch.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/xattr.h>
 #include <unistd.h>
 
+#include <deque>
 #include <fstream>
 #include <sstream>
+#include <utility>
 
 #include "oomd/Log.h"
 #include "oomd/include/Assert.h"
@@ -35,7 +38,7 @@ std::vector<std::string> Fs::readDir(const std::string& path, EntryType type) {
   DIR* d;
   std::vector<std::string> v;
 
-  d = opendir(path.c_str());
+  d = ::opendir(path.c_str());
   if (!d) {
     OLOG << "Unable to open directory=" << path;
     return v;
@@ -73,6 +76,63 @@ std::vector<std::string> Fs::readDir(const std::string& path, EntryType type) {
 
   ::closedir(d);
   return v;
+}
+
+std::unordered_set<std::string> Fs::resolveWildcardPath(
+    const std::string& path) {
+  std::unordered_set<std::string> ret;
+  if (path.empty()) {
+    return ret;
+  }
+
+  auto parts = split(path, '/');
+  std::deque<std::pair<std::string, int>> queue;
+  // Add initial path piece to begin search on. Start at root
+  // if provided path is absolute, else go with relative dir.
+  queue.emplace_back((path[0] == '/' ? "/" : "./"), 0);
+
+  // Perform a DFS on the entire search space. Note that we pattern
+  // match at each level of the provided path to eliminate "dead"
+  // branches. The algorithm is still O(N) but in practice this will
+  // prevent us from enumerating every entry in the root filesystem.
+  //
+  // We choose DFS because we predict the FS tree is wider than it
+  // is tall. DFS will use less space than BFS in this case because
+  // it does not need to store every node at each level of the tree.
+  while (!queue.empty()) {
+    const auto front = queue.front(); // copy
+    queue.pop_front();
+
+    // We can't continue BFS if we've hit a regular file
+    struct stat sb;
+    if (::stat(front.first.c_str(), &sb) || !S_ISDIR(sb.st_mode)) {
+      continue;
+    }
+
+    // Only resolve regular files and directories
+    auto entries = readDir(front.first, EntryType::DIRECTORY);
+    auto files = readDir(front.first, EntryType::REG_FILE);
+    entries.insert(entries.end(), files.begin(), files.end());
+
+    for (const auto& entry : entries) {
+      if (::fnmatch(parts[front.second].c_str(), entry.c_str(), 0) == 0) {
+        if (front.second == parts.size() - 1) {
+          // We have reached a leaf, add it to the return set
+          ret.emplace(front.first + entry);
+        } else if (front.second < parts.size() - 1) {
+          // There are still more parts of the provided path to search.
+          //
+          // Note that we add the '/' at the end of the new path. This makes
+          // the recursive case easier, as the recursive case need only
+          // add the next part of the path on. Also note the 'emplace_front'
+          // that makes the deque into a stack (thus the DFS).
+          queue.emplace_front(front.first + entry + "/", front.second + 1);
+        }
+      }
+    }
+  }
+
+  return ret;
 }
 
 std::vector<std::string> Fs::split(const std::string& line, char delim) {

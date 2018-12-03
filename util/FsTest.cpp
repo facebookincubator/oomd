@@ -35,16 +35,25 @@ class FsTest : public ::testing::Test {
       return fname == needle;
     });
   }
+
+  bool existsInSet(
+      const std::unordered_set<std::string>& hay,
+      std::string needle) {
+    return std::any_of(hay.begin(), hay.end(), [&](const std::string& fname) {
+      return fname == needle;
+    });
+  }
 };
 
 TEST_F(FsTest, FindDirectories) {
   std::string dir(kFsDataDir);
   auto dirs = Fs::readDir(dir, Fs::EntryType::DIRECTORY);
 
-  ASSERT_EQ(dirs.size(), 3);
+  ASSERT_EQ(dirs.size(), 4);
   EXPECT_TRUE(existsInVec(dirs, std::string("dir1")));
   EXPECT_TRUE(existsInVec(dirs, std::string("dir2")));
   EXPECT_TRUE(existsInVec(dirs, std::string("dir3")));
+  EXPECT_TRUE(existsInVec(dirs, std::string("wildcard")));
   EXPECT_FALSE(existsInVec(dirs, std::string("dir21")));
   EXPECT_FALSE(existsInVec(dirs, std::string("dir22")));
 }
@@ -77,6 +86,39 @@ TEST_F(FsTest, FindFiles) {
   EXPECT_TRUE(existsInVec(files, std::string("file3")));
   EXPECT_TRUE(existsInVec(files, std::string("file4")));
   EXPECT_FALSE(existsInVec(files, std::string("file5")));
+}
+
+TEST_F(FsTest, ResolveWildcardedPathRelative) {
+  std::string dir(kFsDataDir);
+  dir += "/wildcard";
+
+  std::string wildcarded_path_some = "/this/path/is*/going/to/be/long/file";
+  auto resolved = Fs::resolveWildcardPath(dir + wildcarded_path_some);
+  ASSERT_EQ(resolved.size(), 2);
+  EXPECT_TRUE(existsInSet(
+      resolved, "./" + dir + "/this/path/is/going/to/be/long/file"));
+  EXPECT_TRUE(existsInSet(
+      resolved, "./" + dir + "/this/path/isNOT/going/to/be/long/file"));
+
+  std::string wildcarded_path_all = "/this/path/*/going/to/be/long/file";
+  resolved = Fs::resolveWildcardPath(dir + wildcarded_path_all);
+  ASSERT_EQ(resolved.size(), 3);
+  EXPECT_TRUE(existsInSet(
+      resolved, "./" + dir + "/this/path/is/going/to/be/long/file"));
+  EXPECT_TRUE(existsInSet(
+      resolved, "./" + dir + "/this/path/isNOT/going/to/be/long/file"));
+  EXPECT_TRUE(existsInSet(
+      resolved, "./" + dir + "/this/path/WAH/going/to/be/long/file"));
+
+  resolved = Fs::resolveWildcardPath(dir + "/not/a/valid/dir");
+  ASSERT_EQ(resolved.size(), 0);
+}
+
+TEST_F(FsTest, ResolveWildcardedPathAbsolute) {
+  auto resolved = Fs::resolveWildcardPath("/proc/vm*");
+  ASSERT_EQ(resolved.size(), 2);
+  EXPECT_TRUE(existsInSet(resolved, "/proc/vmstat"));
+  EXPECT_TRUE(existsInSet(resolved, "/proc/vmallocinfo"));
 }
 
 TEST_F(FsTest, ReadFile) {
