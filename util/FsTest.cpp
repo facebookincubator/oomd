@@ -76,6 +76,28 @@ TEST_F(FsTest, Split) {
   EXPECT_TRUE(existsInVec(toks, "two"));
 }
 
+TEST_F(FsTest, RemovePrefix) {
+  std::string s = "long string like this";
+  Fs::removePrefix(s, "long string ");
+  EXPECT_EQ(s, "like this");
+
+  std::string ss = "random string";
+  Fs::removePrefix(ss, "asdf");
+  EXPECT_EQ(ss, "random string");
+
+  std::string sss = "asdf";
+  Fs::removePrefix(sss, "asdf");
+  EXPECT_EQ(sss, "");
+
+  std::string path = "./var/log/messages";
+  Fs::removePrefix(path, "var/log/");
+  EXPECT_EQ(path, "messages");
+
+  std::string path2 = "./var/log/messages";
+  Fs::removePrefix(path2, "./var/log/");
+  EXPECT_EQ(path2, "messages");
+}
+
 TEST_F(FsTest, FindFiles) {
   std::string dir(kFsDataDir);
   auto files = Fs::readDir(dir, Fs::EntryType::REG_FILE);
