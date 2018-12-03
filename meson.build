@@ -23,8 +23,6 @@ srcs = files('''
     Oomd.h
     OomdContext.cpp
     OomdContext.h
-    OomDetector.cpp
-    OomDetector.h
     OomKiller.cpp
     OomKiller.h
     PluginRegistry.cpp
@@ -87,12 +85,6 @@ if gtest_dep.found() and gmock_dep.found()
                               cpp_args : cpp_args,
                               dependencies : deps,
                               link_with : oomd_lib)
-    detector_tests = executable('oomd_detector_tests',
-                                'OomDetectorTest.cpp',
-                                include_directories : inc,
-                                cpp_args : cpp_args,
-                                dependencies : deps,
-                                link_with : oomd_lib)
     killer_tests = executable('oomd_killer_tests',
                               'OomKillerTest.cpp',
                               include_directories : inc,
@@ -143,7 +135,6 @@ if gtest_dep.found() and gmock_dep.found()
     test('context_tests', context_tests)
     test('util_tests', util_tests)
     test('config_tests', config_tests)
-    test('detector_tests', detector_tests)
     test('killer_tests', killer_tests)
     test('oomd_tests', oomd_tests)
     test('log_tests', log_tests)
