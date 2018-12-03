@@ -263,11 +263,11 @@ int64_t Fs::readMemcurrent(const std::string& path) {
 }
 
 int64_t Fs::readMemcurrentWildcard(const std::string& path) {
-  auto resolved = resolveWildcardPath(path);
+  auto resolved = resolveWildcardPath(path + "/" + kMemCurrentFile);
   int64_t total = 0;
 
   for (const auto& path : resolved) {
-    auto lines = readFileByLine(path + "/" + kMemCurrentFile);
+    auto lines = readFileByLine(path);
     OCHECK(lines.size() == 1);
     total += static_cast<int64_t>(std::stoll(lines[0]));
   }
