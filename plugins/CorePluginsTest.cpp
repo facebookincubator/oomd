@@ -147,6 +147,25 @@ TEST(PresureRisingBeyond, NoDetectLowMemPressure) {
   EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
 }
 
+TEST(PresureRisingBeyond, DetectsHighMemPressureWildcard) {
+  auto plugin = createPlugin("pressure_rising_beyond");
+  ASSERT_NE(plugin, nullptr);
+
+  Engine::MonitoredResources resources;
+  std::unordered_map<std::string, std::string> args;
+  args["cgroup_fs"] = "oomd/fixtures/plugins/pressure_rising_beyond";
+  args["cgroup"] = "*_*";
+  args["resource"] = "memory";
+  args["threshold"] = "80";
+  args["duration"] = "0";
+  args["fast_fall_ratio"] = "0";
+
+  ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+
+  OomdContext ctx;
+  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::CONTINUE);
+}
+
 TEST(PressureAbove, DetectsHighMemPressure) {
   auto plugin = createPlugin("pressure_above");
   ASSERT_NE(plugin, nullptr);
@@ -181,6 +200,24 @@ TEST(PressureAbove, NoDetectLowMemPressure) {
 
   OomdContext ctx;
   EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
+}
+
+TEST(PressureAbove, DetectsHighMemPressureWildcard) {
+  auto plugin = createPlugin("pressure_above");
+  ASSERT_NE(plugin, nullptr);
+
+  Engine::MonitoredResources resources;
+  std::unordered_map<std::string, std::string> args;
+  args["cgroup_fs"] = "oomd/fixtures/plugins/pressure_above";
+  args["cgroup"] = "*";
+  args["resource"] = "memory";
+  args["threshold"] = "80";
+  args["duration"] = "0";
+
+  ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+
+  OomdContext ctx;
+  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::CONTINUE);
 }
 
 TEST(MemoryReclaim, InstantPgscan) {

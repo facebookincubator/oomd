@@ -85,21 +85,35 @@ int PressureRisingBeyond::init(
 Engine::PluginRet PressureRisingBeyond::run(OomdContext& /* unused */) {
   using std::chrono::steady_clock;
 
+  auto resolved = Fs::resolveWildcardPath(cgroup_fs_ + "/" + cgroup_);
   ResourcePressure current_pressure;
-  switch (resource_) {
-    case ResourceType::IO:
-      current_pressure = Fs::readIopressure(cgroup_fs_ + "/" + cgroup_);
-      break;
-    case ResourceType::MEMORY:
-      current_pressure = Fs::readMempressure(cgroup_fs_ + "/" + cgroup_);
-      break;
-      // No default case to catch for future additions to ResourceType
+  int64_t current_memory_usage = 0;
+
+  for (const auto& abs_cgroup_path : resolved) {
+    ResourcePressure rp;
+    switch (resource_) {
+      case ResourceType::IO:
+        rp = Fs::readIopressure(abs_cgroup_path);
+        break;
+      case ResourceType::MEMORY:
+        rp = Fs::readMempressure(abs_cgroup_path);
+        break;
+        // No default case to catch for future additions to ResourceType
+    }
+
+    // Do a weighted comparison (we care more about 10s, then 60s, then 600s)
+    if (rp.sec_10 * 3 + rp.sec_60 * 2 + rp.sec_600 >
+        current_pressure.sec_10 * 3 + current_pressure.sec_60 * 2 +
+            current_pressure.sec_600) {
+      current_pressure = rp;
+      current_memory_usage = Fs::readMemcurrent(abs_cgroup_path);
+    }
   }
+
   OOMD_SCOPE_EXIT {
     last_pressure_ = current_pressure;
   };
 
-  int64_t current_memory_usage = Fs::readMemcurrent(cgroup_fs_ + "/" + cgroup_);
   const auto now = steady_clock::now();
 
   // Check if the 60s pressure is above threshold_ for duration_
