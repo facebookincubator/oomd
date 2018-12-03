@@ -38,8 +38,9 @@ int KillMemoryGrowth<Base>::init(
     Engine::MonitoredResources& resources,
     std::unordered_map<std::string, std::string> args) {
   if (args.find("cgroup") != args.end()) {
-    resources.emplace(args["cgroup"]);
-    cgroup_ = args["cgroup"];
+    auto cgroups = Fs::split(args["cgroup"], ',');
+    resources.insert(cgroups.begin(), cgroups.end());
+    cgroups_.insert(cgroups.begin(), cgroups.end());
     cgroup_fs_ =
         (args.find("cgroup_fs") != args.end() ? args["cgroup_fs"] : kCgroupFs);
   } else {
@@ -106,8 +107,10 @@ Engine::PluginRet KillMemoryGrowth<Base>::run(OomdContext& ctx) {
 
 template <typename Base>
 bool KillMemoryGrowth<Base>::tryToKillSomething(OomdContext& ctx) {
-  auto cur_memcurrent = Fs::readMemcurrent(cgroup_fs_ + "/" + cgroup_);
-  auto cur_pressure = Fs::readMempressure(cgroup_fs_ + "/" + cgroup_);
+  int64_t cur_memcurrent = 0;
+  for (const auto& cgroup : cgroups_) {
+    cur_memcurrent += Fs::readMemcurrentWildcard(cgroup_fs_ + "/" + cgroup);
+  }
 
   // Sort all the cgroups by (size - memory.low) and remove all the cgroups
   // we are not assigned to kill
@@ -115,8 +118,8 @@ bool KillMemoryGrowth<Base>::tryToKillSomething(OomdContext& ctx) {
     return cgroup_ctx.current_usage - cgroup_ctx.memory_low;
   });
   OomdContext::dumpOomdContext(size_sorted);
-  OLOG << "Removed sibling cgroups of " << cgroup_;
-  Base::removeSiblingCgroups(cgroup_, size_sorted);
+  OLOG << "Removed sibling cgroups";
+  Base::removeSiblingCgroups(cgroups_, size_sorted);
   OomdContext::dumpOomdContext(size_sorted);
 
   // First try to kill the biggest cgroup over it's assigned memory.low

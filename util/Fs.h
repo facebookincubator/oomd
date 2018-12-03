@@ -78,6 +78,7 @@ class Fs {
   /* Helpers to read PSI files */
   static ResourcePressure readRespressure(const std::string& path);
   static int64_t readMemcurrent(const std::string& path);
+  static int64_t readMemcurrentWildcard(const std::string& path);
   static ResourcePressure readMempressure(const std::string& path);
   static int64_t readMemlow(const std::string& path);
   static int64_t readSwapCurrent(const std::string& path);

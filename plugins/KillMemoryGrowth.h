@@ -18,6 +18,7 @@
 #pragma once
 
 #include <chrono>
+#include <unordered_set>
 
 #include "oomd/plugins/BaseKillPlugin.h"
 
@@ -41,7 +42,7 @@ class KillMemoryGrowth : public Base {
  protected:
   virtual bool tryToKillSomething(OomdContext& ctx);
 
-  std::string cgroup_;
+  std::unordered_set<std::string> cgroups_;
   std::string cgroup_fs_;
   int size_threshold_{50};
   int growing_size_percentile_{80};
