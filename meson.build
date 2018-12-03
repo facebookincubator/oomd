@@ -48,6 +48,8 @@ srcs = files('''
     plugins/ContinuePlugin.cpp
     plugins/ContinuePlugin.h
     util/Fs.cpp
+    plugins/PressureAbove.cpp
+    plugins/PressureAbove.h
     plugins/PressureRisingBeyond.cpp
     plugins/PressureRisingBeyond.h
     util/Fs.h
