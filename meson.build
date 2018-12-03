@@ -78,8 +78,7 @@ gmock_dep = dependency('gmock', required : false)
 if gtest_dep.found() and gmock_dep.found()
     deps += [gtest_dep, gmock_dep]
     config_tests = executable('oomd_config_tests',
-                              files('ConfigTest.cpp',
-                                    'JsonConfigParserTest.cpp'),
+                              files('JsonConfigParserTest.cpp'),
                               include_directories : inc,
                               cpp_args : cpp_args,
                               dependencies : deps,
