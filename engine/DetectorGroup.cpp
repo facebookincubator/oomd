@@ -29,17 +29,12 @@ DetectorGroup::DetectorGroup(
 
 bool DetectorGroup::check(OomdContext& context) {
   for (const auto& detector : detectors_) {
-    OLOG << "Running Detector=" << detector->getName();
     PluginRet ret = detector->run(context);
 
     switch (ret) {
       case PluginRet::CONTINUE:
-        OLOG << "Detector=" << detector->getName()
-             << " returned CONTINUE. Continuing detector chain.";
         continue;
       case PluginRet::STOP:
-        OLOG << "Detector=" << detector->getName()
-             << " returned STOP. Terminating detector chain.";
         return false;
         // missing default to protect against future PluginRet vals
     }
