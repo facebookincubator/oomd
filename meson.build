@@ -27,6 +27,8 @@ srcs = files('''
     OomKiller.h
     PluginRegistry.cpp
     PluginRegistry.h
+    config/ConfigTypes.cpp
+    config/ConfigTypes.h
     include/Assert.cpp
     include/Assert.h
     include/Types.h
