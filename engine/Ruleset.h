@@ -17,9 +17,9 @@
 
 #pragma once
 
+#include "oomd/OomdContext.h"
 #include "oomd/engine/BasePlugin.h"
 #include "oomd/engine/DetectorGroup.h"
-#include "oomd/shared/OomdContext.h"
 
 namespace Oomd {
 namespace Engine {

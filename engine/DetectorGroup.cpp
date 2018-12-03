@@ -17,7 +17,7 @@
 
 #include "oomd/engine/DetectorGroup.h"
 #include "oomd/Log.h"
-#include "oomd/shared/OomdContext.h"
+#include "oomd/OomdContext.h"
 
 namespace Oomd {
 namespace Engine {

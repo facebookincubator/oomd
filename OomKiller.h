@@ -20,7 +20,7 @@
 #include <functional>
 #include <vector>
 
-#include "oomd/shared/OomdContext.h"
+#include "oomd/OomdContext.h"
 #include "oomd/shared/Plugin.h"
 
 namespace Oomd {
