@@ -147,6 +147,18 @@ std::vector<std::string> Fs::split(const std::string& line, char delim) {
   return ret;
 }
 
+void Fs::removePrefix(std::string& str, const std::string& prefix) {
+  if (str.find(prefix) != std::string::npos) {
+    // Strip the leading './' if it exists and we haven't been explicitly
+    // told to strip it
+    if (str.find("./") == 0 && prefix.find("./") != 0) {
+      str.erase(0, 2);
+    }
+
+    str.erase(0, prefix.size());
+  }
+}
+
 /* Reads a file and returns a newline separated vector of strings */
 std::vector<std::string> Fs::readFileByLine(const std::string& path) {
   std::ifstream f(path, std::ios::in);

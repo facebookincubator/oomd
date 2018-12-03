@@ -54,6 +54,11 @@ class Oomd {
       const std::string& cgroup_root_dir,
       const std::unordered_set<std::string>& parent_cgroups,
       OomdContext& ctx);
+  void updateContext(
+      const std::string& parent_cgroup,
+      const std::string& absolute_cgroup_path,
+      OomdContext& ctx);
+
   int run();
 
  private:

@@ -89,3 +89,21 @@ TEST_F(OomdTest, OomdContextUpdateMultiCgroup) {
   EXPECT_TRUE(ctx.hasCgroupContext("system.slice/slice1.slice"));
   EXPECT_TRUE(ctx.hasCgroupContext("workload.slice/service1.service"));
 }
+
+TEST_F(OomdTest, OomdContextUpdateMultiCgroupWildcard) {
+  EXPECT_EQ(ctx.cgroups().size(), 0);
+
+  std::unordered_set<std::string> parent_cgroups;
+  parent_cgroups.emplace("*.slice");
+  oomd->updateContext(cgroup_path, parent_cgroups, ctx);
+
+  EXPECT_EQ(ctx.cgroups().size(), 6);
+  ctx.dump();
+
+  EXPECT_TRUE(ctx.hasCgroupContext("system.slice/service1.service"));
+  EXPECT_TRUE(ctx.hasCgroupContext("system.slice/service2.service"));
+  EXPECT_TRUE(ctx.hasCgroupContext("system.slice/service3.service"));
+  EXPECT_TRUE(ctx.hasCgroupContext("system.slice/service4.service"));
+  EXPECT_TRUE(ctx.hasCgroupContext("system.slice/slice1.slice"));
+  EXPECT_TRUE(ctx.hasCgroupContext("workload.slice/service1.service"));
+}
