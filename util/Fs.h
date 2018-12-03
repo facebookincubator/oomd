@@ -19,6 +19,7 @@
 
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 #include "oomd/include/Types.h"
@@ -47,6 +48,13 @@ class Fs {
   static std::vector<std::string> readDir(
       const std::string& path,
       EntryType type);
+
+  /*
+   * Takes a fully qualified and wildcarded path and returns a set of
+   * resolved fully qualified paths.
+   */
+  static std::unordered_set<std::string> resolveWildcardPath(
+      const std::string& path);
 
   /* Split string into tokens by delim */
   static std::vector<std::string> split(const std::string& line, char delim);
