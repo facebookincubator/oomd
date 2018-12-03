@@ -22,8 +22,8 @@
 #include <vector>
 
 #include "oomd/OomKiller.h"
+#include "oomd/OomdContext.h"
 #include "oomd/shared/KillList.h"
-#include "oomd/shared/OomdContext.h"
 #include "oomd/shared/Tunables.h"
 
 using namespace Oomd;

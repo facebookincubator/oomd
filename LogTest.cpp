@@ -24,7 +24,7 @@
 #include <fstream>
 #include <sstream>
 #include "oomd/Log.h"
-#include "oomd/shared/OomdContext.h"
+#include "oomd/OomdContext.h"
 
 using namespace Oomd;
 using namespace testing;

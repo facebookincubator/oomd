@@ -21,7 +21,7 @@
 #include <unordered_map>
 #include <unordered_set>
 
-#include "oomd/shared/OomdContext.h"
+#include "oomd/OomdContext.h"
 
 namespace Oomd {
 namespace Engine {

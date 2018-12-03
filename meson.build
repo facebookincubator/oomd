@@ -21,6 +21,8 @@ srcs = files('''
     Log.h
     Oomd.cpp
     Oomd.h
+    OomdContext.cpp
+    OomdContext.h
     OomDetector.cpp
     OomDetector.h
     OomKiller.cpp
@@ -45,8 +47,6 @@ srcs = files('''
     include/Types.h
     plugins/ContinuePlugin.cpp
     plugins/ContinuePlugin.h
-    shared/OomdContext.cpp
-    shared/OomdContext.h
     util/Fs.cpp
     util/Fs.h
     util/ScopeGuard.h
@@ -98,7 +98,7 @@ if gtest_dep.found() and gmock_dep.found()
                             dependencies : deps,
                             link_with : oomd_lib)
     context_tests = executable('oomd_context_tests',
-                            files('shared/OomdContextTest.cpp'),
+                            files('OomdContextTest.cpp'),
                             include_directories : inc,
                             cpp_args : cpp_args,
                             dependencies : deps,

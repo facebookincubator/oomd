@@ -21,8 +21,8 @@
 #include <string>
 #include <vector>
 
+#include "oomd/OomdContext.h"
 #include "oomd/engine/BasePlugin.h"
-#include "oomd/shared/OomdContext.h"
 
 namespace Oomd {
 namespace Engine {
