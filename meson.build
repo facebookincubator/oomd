@@ -29,6 +29,8 @@ srcs = files('''
     PluginRegistry.h
     config/ConfigTypes.cpp
     config/ConfigTypes.h
+    config/JsonConfigParser.cpp
+    config/JsonConfigParser.h
     include/Assert.cpp
     include/Assert.h
     include/Types.h
@@ -67,7 +69,8 @@ gmock_dep = dependency('gmock', required : false)
 if gtest_dep.found() and gmock_dep.found()
     deps += [gtest_dep, gmock_dep]
     config_tests = executable('oomd_config_tests',
-                              'ConfigTest.cpp',
+                              files('ConfigTest.cpp',
+                                    'JsonConfigParserTest.cpp'),
                               include_directories : inc,
                               cpp_args : cpp_args,
                               dependencies : deps,
