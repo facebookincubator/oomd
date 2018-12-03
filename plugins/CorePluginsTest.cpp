@@ -15,6 +15,7 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
+#include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
 #include <memory>
@@ -23,6 +24,7 @@
 #include "oomd/OomdContext.h"
 #include "oomd/PluginRegistry.h"
 #include "oomd/engine/BasePlugin.h"
+#include "oomd/plugins/KillMemoryGrowth.h"
 
 using namespace Oomd;
 using namespace testing;
@@ -153,4 +155,66 @@ TEST(SwapFree, EnoughSwap) {
 
   OomdContext ctx;
   EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
+}
+
+namespace Oomd {
+class KillMemoryGrowthMocked : public KillMemoryGrowth<> {
+ public:
+  int tryToKillPids(const std::vector<int>& pids) override {
+    for (int pid : pids) {
+      killed_.emplace_back(pid);
+    }
+
+    return pids.size();
+  }
+
+  std::vector<int> killed_;
+};
+} // namespace Oomd
+
+TEST(KillMemoryGrowth, KillsBigCgroup) {
+  auto plugin = std::make_shared<KillMemoryGrowthMocked>();
+  ASSERT_NE(plugin, nullptr);
+
+  Engine::MonitoredResources resources;
+  std::unordered_map<std::string, std::string> args;
+  args["cgroup_fs"] = "oomd/fixtures/plugins/kill_by_memory_size_or_growth";
+  args["cgroup"] = "one_big";
+  args["post_action_delay"] = "0";
+
+  ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+
+  OomdContext ctx;
+  ctx.setCgroupContext("one_big/cgroup1", CgroupContext{{}, {}, 60, 60, 0, 0});
+  ctx.setCgroupContext("one_big/cgroup2", CgroupContext{{}, {}, 20, 20, 0, 0});
+  ctx.setCgroupContext("one_big/cgroup3", CgroupContext{{}, {}, 20, 20, 0, 0});
+  ctx.setCgroupContext("sibling/cgroup1", CgroupContext{{}, {}, 20, 20, 0, 0});
+  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
+  EXPECT_THAT(plugin->killed_, Contains(123));
+  EXPECT_THAT(plugin->killed_, Contains(456));
+  EXPECT_THAT(plugin->killed_, Not(Contains(789)));
+  EXPECT_THAT(plugin->killed_, Not(Contains(111)));
+  EXPECT_THAT(
+      plugin->killed_, Not(Contains(888))); // make sure there's no siblings
+}
+
+TEST(KillMemoryGrowth, DoesntKillBigCgroupInDry) {
+  auto plugin = std::make_shared<KillMemoryGrowthMocked>();
+  ASSERT_NE(plugin, nullptr);
+
+  Engine::MonitoredResources resources;
+  std::unordered_map<std::string, std::string> args;
+  args["cgroup_fs"] = "oomd/fixtures/plugins/kill_by_memory_size_or_growth";
+  args["cgroup"] = "one_big";
+  args["post_action_delay"] = "0";
+  args["dry"] = "true";
+
+  ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+
+  OomdContext ctx;
+  ctx.setCgroupContext("one_big/cgroup1", CgroupContext{{}, {}, 60, 60, 0, 0});
+  ctx.setCgroupContext("one_big/cgroup2", CgroupContext{{}, {}, 20, 20, 0, 0});
+  ctx.setCgroupContext("one_big/cgroup3", CgroupContext{{}, {}, 20, 20, 0, 0});
+  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
+  EXPECT_EQ(plugin->killed_.size(), 0);
 }

@@ -64,6 +64,17 @@ class BaseKillPlugin : public Oomd::Engine::BasePlugin {
       const std::string& killed_group,
       const CgroupContext& context,
       bool dry = false) const;
+
+  /*
+   * Removes all cgroups not prefixed with @param our_prefix from @param vec.
+   *
+   * This is useful in kill plugins, as kill plugins usually have an assigned
+   * cgroup to kill in. Those plugins probably would not want to kill cgroups it
+   * was not assigned to kill.
+   */
+  virtual void removeSiblingCgroups(
+      const std::string& our_prefix,
+      std::vector<std::pair<std::string, Oomd::CgroupContext>>& vec);
 };
 
 } // namespace Oomd
