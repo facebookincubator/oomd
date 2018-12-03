@@ -65,8 +65,6 @@ void Ruleset::runOnce(OomdContext& context) {
 
     break;
   }
-
-  OLOG << "Finished executing Ruleset=" << name_;
 }
 
 } // namespace Engine
