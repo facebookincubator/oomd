@@ -5,28 +5,27 @@ oomd is *userspace* Out-Of-Memory (OOM) killer for linux systems.
 ## Background
 
 Out of memory killing has historically happened inside kernel space. On a
-[memory overcommitted][0] linux system, malloc(2) and friends will never fail.
-However, if an application dereferences the returned pointer and the system has
-run out of physical memory, the linux kernel is forced take extreme measures,
-up to and including killing processes. This is typically a slow and painful
-process because the kernel spends an unbounded amount of time swapping in and
-out pages and evicting the page cache. Furthermore, [configuring policy][1] is
-not very flexible while being somewhat complicated.
+[memory overcommitted][0] linux system, malloc(2) and friends usually never
+fail. However, if an application dereferences the returned pointer and the
+system has run out of physical memory, the linux kernel is forced take extreme
+measures, up to and including killing processes. This is sometimes a slow and
+painful process because the kernel can spend an unbounded amount of time
+swapping in and out pages and evicting the page cache. Furthermore,
+[configuring policy][1] is not very flexible while being somewhat complicated.
 
-oomd aims to solve this problem in userspace. oomd leverages [PSI][6] and
-cgroupsv2 to monitor a system holistically. oomd then takes corrective action
-in userspace before an OOM occurs in kernel space. Corrective action is
-configured via a flexible plugin system, in which custom code can be written.
-By default, this involves killing offending processes. This enables an
-unparalleled level of flexibility where each workload can have custom
-protection rules. Furthermore, time spent churning pages in kernelspace is
-minimized. In practice at Facebook, we've regularly seen 30 minute host lockups
-go away entirely.
+oomd aims to solve this problem in userspace. oomd leverages PSI and cgroupv2
+to monitor a system holistically. oomd then takes corrective action in
+userspace before an OOM occurs in kernel space. Corrective action is configured
+via a flexible plugin system, in which custom code can be written. By default,
+this involves killing offending processes. This enables an unparalleled level
+of flexibility where each workload can have custom protection rules.
+Furthermore, time spent livedlocked in kernelspace is minimized. In practice at
+Facebook, we've regularly seen 30 minute host lockups go away entirely.
 
 ## Building and installing
 
-Note that oomd requires [PSI][6] to function. This kernel feature has not yet
-been upstreamed (as of 7/18/18).
+Note that oomd requires PSI to function. This kernel feature has been landed
+upstream and is staged for the 4.20 release.
 
 oomd currently depends on [meson][2] and [jsoncpp][4].
 
@@ -35,117 +34,15 @@ oomd currently depends on [meson][2] and [jsoncpp][4].
     $ meson build && ninja -C build
     $ cd build && sudo ninja install
 
-## Configuring oomd
+## Configuration
 
-oomd receives runtime configuration from two sources: environment vars and a
-config file. You typically do not need to change the default environment
-values. However, to finely tune oomd, you may want to.
+See [docs/configuration.md](docs/Configuration.md) for a high level overview
+and some examples.
 
-### Config file
+See [docs/core_plugins.md](docs/core_plugins.md) for a quick reference on
+core plugin capabilities.
 
-Default location: /etc/oomd.json
-
-Example config:
-
-    {
-        "cgroups": [
-            {
-                "target": "system.slice",
-                "kill_list": [
-                    {"chef.service": { "kill_pressure": "60", "max_usage": "100" } },
-                    {"sshd.service": { "max_usage": "inf" } }
-                ],
-                "oomdetector": "default",
-                "oomkiller": "noop"
-            },
-            {
-                "target": "workload.slice",
-                "kill_list": [],
-                "oomdetector": "default",
-                "oomkiller": "default"
-            }
-        ],
-        "version": "0.2.0"
-    }
-
-This example config describes the following:
-
-* oomd shall monitor two cgroups: 'system.slice' and 'workload.slice'
-* system.slice
-    * When an OOM is detected, first look at the kill list and attempt to kill
-      chef.service first if it's generating >= 60% of total memory pressure OR
-      it's using >= 100MB of memory
-    * Never kill 'sshd.service'
-    * Use the default oomdetector
-    * Use the custom 'noop' killing plugin
-* workload.slice
-    * Do not specify kill list policy
-    * Use the default oomdetector
-    * Use the default oomkiller
-
-### Environment variables
-
-`OOMD_INTERVAL`
-
-* How often oomd polls the system
-* Unit: seconds (integer)
-* Default: 5
-
-`OOMD_VERBOSE_INTERVAL`
-
-* How often oomd logs verbose state to /dev/kmsg
-* Unit: seconds (integer)
-* Default: 300
-
-`OOMD_POST_KILL_DELAY`
-
-* How long oomd will sleep after performing a corrective action
-* Unit: seconds (integer)
-* Default: 15
-
-`OOMD_THRESHOLD`
-
-* How sensitive oomd will be to slow growing OOMs
-* Unit: none (integer)
-* Values: [0, 100], 0 being extremely sensitive and 100 being not sensitive
-* Default: 60
-
-`OOMD_HIGH_THRESHOLD`
-
-* How sensitive oomd will be to fast growing OOMs
-* Unit: none (integer)
-* Values: [0, 100], 0 being extremely sensitive and 100 being not sensitive
-* Default: 80
-
-`OOMD_HIGH_THRESHOLD_DURATION`
-
-* How quick oomd will be to declare a fast growing OOM
-* Unit: seconds (integer)
-* Default: 10
-
-`OOMD_LARGER_THAN`
-
-* When killing via size heuristic, only kill targets using greater than X%
-  of total used memory
-* Unit: percent (integer)
-* Values: [0, 100]
-* Default: 50
-
-`OOMD_GROWTH_ABOVE`
-
-* When killing via growth heuristic, only consider P(X) top growers
-* Unit: percent (integer)
-* Values: [0, 100]
-* Default: 80
-
-`OOMD_MIN_SWAP_PCT`
-
-* When swap is enabled, perform corrective actions when X% of swap is
-  remaining
-* Unit: percent (int)
-* Default: 15
-
-## Tests
+## Running tests
 
 oomd depends on [gtest/gmock][5] to run tests. Installing gtest/gmock from master
 is preferred.
@@ -155,6 +52,13 @@ If meson detects gtest/gmock is installed, meson will generate build rules for t
     $ cd oomd
     $ rm -rf build
     $ meson build && ninja test -C build
+
+## Writing custom plugins
+
+It is both possible and encouraged to write custom plugins. The codebase is designed
+to make writing plugins as easy as possible.
+
+See [docs/writing_a_plugin.md](docs/writing_a_plugin.md) for a tutorial.
 
 ## License
 
@@ -166,4 +70,3 @@ oomd is GPL 2 licensed, as found in the LICENSE file.
 [2]: http://mesonbuild.com/
 [4]: https://github.com/open-source-parsers/jsoncpp
 [5]: https://github.com/google/googletest
-[6]: http://git.cmpxchg.org/cgit.cgi/linux-psi.git/
