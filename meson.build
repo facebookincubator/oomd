@@ -31,6 +31,13 @@ srcs = files('''
     config/ConfigTypes.h
     config/JsonConfigParser.cpp
     config/JsonConfigParser.h
+    engine/BasePlugin.h
+    engine/DetectorGroup.cpp
+    engine/DetectorGroup.h
+    engine/Engine.cpp
+    engine/Engine.h
+    engine/Ruleset.cpp
+    engine/Ruleset.h
     include/Assert.cpp
     include/Assert.h
     include/Types.h
