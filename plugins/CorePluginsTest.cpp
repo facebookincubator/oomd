@@ -24,6 +24,7 @@
 #include "oomd/OomdContext.h"
 #include "oomd/PluginRegistry.h"
 #include "oomd/engine/BasePlugin.h"
+#include "oomd/plugins/BaseKillPlugin.h"
 #include "oomd/plugins/KillMemoryGrowth.h"
 #include "oomd/plugins/KillPressure.h"
 #include "oomd/plugins/KillSwapUsage.h"
@@ -37,6 +38,23 @@ std::unique_ptr<Engine::BasePlugin> createPlugin(const std::string& name) {
       Oomd::getPluginRegistry().create(name));
 }
 } // namespace
+
+namespace Oomd {
+class BaseKillPluginMock : public BaseKillPlugin {
+ public:
+  int tryToKillPids(const std::vector<int>& pids) override {
+    killed.reserve(killed.size() + pids.size());
+
+    for (int pid : pids) {
+      killed.emplace_back(pid);
+    }
+
+    return pids.size();
+  }
+
+  std::vector<int> killed;
+};
+} // namespace Oomd
 
 TEST(PresureRisingBeyond, DetectsHighMemPressure) {
   auto plugin = createPlugin("pressure_rising_beyond");
@@ -159,23 +177,8 @@ TEST(SwapFree, EnoughSwap) {
   EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
 }
 
-namespace Oomd {
-class KillMemoryGrowthMocked : public KillMemoryGrowth<> {
- public:
-  int tryToKillPids(const std::vector<int>& pids) override {
-    for (int pid : pids) {
-      killed_.emplace_back(pid);
-    }
-
-    return pids.size();
-  }
-
-  std::vector<int> killed_;
-};
-} // namespace Oomd
-
 TEST(KillMemoryGrowth, KillsBigCgroup) {
-  auto plugin = std::make_shared<KillMemoryGrowthMocked>();
+  auto plugin = std::make_shared<KillMemoryGrowth<BaseKillPluginMock>>();
   ASSERT_NE(plugin, nullptr);
 
   Engine::MonitoredResources resources;
@@ -192,16 +195,16 @@ TEST(KillMemoryGrowth, KillsBigCgroup) {
   ctx.setCgroupContext("one_big/cgroup3", CgroupContext{{}, {}, 20, 20, 0, 0});
   ctx.setCgroupContext("sibling/cgroup1", CgroupContext{{}, {}, 20, 20, 0, 0});
   EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
-  EXPECT_THAT(plugin->killed_, Contains(123));
-  EXPECT_THAT(plugin->killed_, Contains(456));
-  EXPECT_THAT(plugin->killed_, Not(Contains(789)));
-  EXPECT_THAT(plugin->killed_, Not(Contains(111)));
+  EXPECT_THAT(plugin->killed, Contains(123));
+  EXPECT_THAT(plugin->killed, Contains(456));
+  EXPECT_THAT(plugin->killed, Not(Contains(789)));
+  EXPECT_THAT(plugin->killed, Not(Contains(111)));
   EXPECT_THAT(
-      plugin->killed_, Not(Contains(888))); // make sure there's no siblings
+      plugin->killed, Not(Contains(888))); // make sure there's no siblings
 }
 
 TEST(KillMemoryGrowth, DoesntKillBigCgroupInDry) {
-  auto plugin = std::make_shared<KillMemoryGrowthMocked>();
+  auto plugin = std::make_shared<KillMemoryGrowth<BaseKillPluginMock>>();
   ASSERT_NE(plugin, nullptr);
 
   Engine::MonitoredResources resources;
@@ -218,26 +221,11 @@ TEST(KillMemoryGrowth, DoesntKillBigCgroupInDry) {
   ctx.setCgroupContext("one_big/cgroup2", CgroupContext{{}, {}, 20, 20, 0, 0});
   ctx.setCgroupContext("one_big/cgroup3", CgroupContext{{}, {}, 20, 20, 0, 0});
   EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
-  EXPECT_EQ(plugin->killed_.size(), 0);
+  EXPECT_EQ(plugin->killed.size(), 0);
 }
 
-namespace Oomd {
-class KillSwapUsageMocked : public KillSwapUsage<> {
- public:
-  int tryToKillPids(const std::vector<int>& pids) override {
-    for (int pid : pids) {
-      killed_.emplace_back(pid);
-    }
-
-    return pids.size();
-  }
-
-  std::vector<int> killed_;
-};
-} // namespace Oomd
-
 TEST(KillSwapUsage, KillsBigSwapCgroup) {
-  auto plugin = std::make_shared<KillSwapUsageMocked>();
+  auto plugin = std::make_shared<KillSwapUsage<BaseKillPluginMock>>();
   ASSERT_NE(plugin, nullptr);
 
   Engine::MonitoredResources resources;
@@ -253,14 +241,14 @@ TEST(KillSwapUsage, KillsBigSwapCgroup) {
   ctx.setCgroupContext("one_big/cgroup2", CgroupContext{{}, {}, 0, 0, 0, 60});
   ctx.setCgroupContext("one_big/cgroup3", CgroupContext{{}, {}, 0, 0, 0, 40});
   EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
-  EXPECT_THAT(plugin->killed_, Contains(789));
-  EXPECT_THAT(plugin->killed_, Not(Contains(123)));
-  EXPECT_THAT(plugin->killed_, Not(Contains(456)));
-  EXPECT_THAT(plugin->killed_, Not(Contains(111)));
+  EXPECT_THAT(plugin->killed, Contains(789));
+  EXPECT_THAT(plugin->killed, Not(Contains(123)));
+  EXPECT_THAT(plugin->killed, Not(Contains(456)));
+  EXPECT_THAT(plugin->killed, Not(Contains(111)));
 }
 
 TEST(KillSwapUsage, DoesntKillBigSwapCgroupDry) {
-  auto plugin = std::make_shared<KillSwapUsageMocked>();
+  auto plugin = std::make_shared<KillSwapUsage<BaseKillPluginMock>>();
   ASSERT_NE(plugin, nullptr);
 
   Engine::MonitoredResources resources;
@@ -277,26 +265,11 @@ TEST(KillSwapUsage, DoesntKillBigSwapCgroupDry) {
   ctx.setCgroupContext("one_big/cgroup2", CgroupContext{{}, {}, 0, 0, 0, 60});
   ctx.setCgroupContext("one_big/cgroup3", CgroupContext{{}, {}, 0, 0, 0, 40});
   EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
-  EXPECT_EQ(plugin->killed_.size(), 0);
+  EXPECT_EQ(plugin->killed.size(), 0);
 }
 
-namespace Oomd {
-class KillPressureMocked : public KillPressure<> {
- public:
-  int tryToKillPids(const std::vector<int>& pids) override {
-    for (int pid : pids) {
-      killed_.emplace_back(pid);
-    }
-
-    return pids.size();
-  }
-
-  std::vector<int> killed_;
-};
-} // namespace Oomd
-
 TEST(KillPressure, KillsHighestPressure) {
-  auto plugin = std::make_shared<KillPressureMocked>();
+  auto plugin = std::make_shared<KillPressure<BaseKillPluginMock>>();
   ASSERT_NE(plugin, nullptr);
 
   Engine::MonitoredResources resources;
@@ -322,15 +295,15 @@ TEST(KillPressure, KillsHighestPressure) {
       "sibling/cgroup1",
       CgroupContext{{}, {ResourcePressure{99, 99, 99}}, 0, 0, 0, 0});
   EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
-  EXPECT_THAT(plugin->killed_, Contains(111));
-  EXPECT_THAT(plugin->killed_, Not(Contains(123)));
-  EXPECT_THAT(plugin->killed_, Not(Contains(456)));
-  EXPECT_THAT(plugin->killed_, Not(Contains(789)));
-  EXPECT_THAT(plugin->killed_, Not(Contains(888)));
+  EXPECT_THAT(plugin->killed, Contains(111));
+  EXPECT_THAT(plugin->killed, Not(Contains(123)));
+  EXPECT_THAT(plugin->killed, Not(Contains(456)));
+  EXPECT_THAT(plugin->killed, Not(Contains(789)));
+  EXPECT_THAT(plugin->killed, Not(Contains(888)));
 }
 
 TEST(KillPressure, DoesntKillsHighestPressureDry) {
-  auto plugin = std::make_shared<KillPressureMocked>();
+  auto plugin = std::make_shared<KillPressure<BaseKillPluginMock>>();
   ASSERT_NE(plugin, nullptr);
 
   Engine::MonitoredResources resources;
@@ -357,5 +330,5 @@ TEST(KillPressure, DoesntKillsHighestPressureDry) {
       "sibling/cgroup1",
       CgroupContext{{}, {ResourcePressure{99, 99, 99}}, 0, 0, 0, 0});
   EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
-  EXPECT_EQ(plugin->killed_.size(), 0);
+  EXPECT_EQ(plugin->killed.size(), 0);
 }
