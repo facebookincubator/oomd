@@ -25,6 +25,7 @@
 #include "oomd/PluginRegistry.h"
 #include "oomd/engine/BasePlugin.h"
 #include "oomd/plugins/KillMemoryGrowth.h"
+#include "oomd/plugins/KillPressure.h"
 #include "oomd/plugins/KillSwapUsage.h"
 
 using namespace Oomd;
@@ -275,6 +276,86 @@ TEST(KillSwapUsage, DoesntKillBigSwapCgroupDry) {
   ctx.setCgroupContext("one_big/cgroup1", CgroupContext{{}, {}, 0, 0, 0, 20});
   ctx.setCgroupContext("one_big/cgroup2", CgroupContext{{}, {}, 0, 0, 0, 60});
   ctx.setCgroupContext("one_big/cgroup3", CgroupContext{{}, {}, 0, 0, 0, 40});
+  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
+  EXPECT_EQ(plugin->killed_.size(), 0);
+}
+
+namespace Oomd {
+class KillPressureMocked : public KillPressure<> {
+ public:
+  int tryToKillPids(const std::vector<int>& pids) override {
+    for (int pid : pids) {
+      killed_.emplace_back(pid);
+    }
+
+    return pids.size();
+  }
+
+  std::vector<int> killed_;
+};
+} // namespace Oomd
+
+TEST(KillPressure, KillsHighestPressure) {
+  auto plugin = std::make_shared<KillPressureMocked>();
+  ASSERT_NE(plugin, nullptr);
+
+  Engine::MonitoredResources resources;
+  std::unordered_map<std::string, std::string> args;
+  args["cgroup_fs"] = "oomd/fixtures/plugins/kill_by_pressure";
+  args["cgroup"] = "one_high";
+  args["resource"] = "io";
+  args["post_action_delay"] = "0";
+
+  ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+
+  OomdContext ctx;
+  ctx.setCgroupContext(
+      "one_high/cgroup1",
+      CgroupContext{{}, {ResourcePressure{60, 60, 0}}, 0, 0, 0, 0});
+  ctx.setCgroupContext(
+      "one_high/cgroup2",
+      CgroupContext{{}, {ResourcePressure{50, 70, 0}}, 0, 0, 0, 0});
+  ctx.setCgroupContext(
+      "one_high/cgroup3",
+      CgroupContext{{}, {ResourcePressure{80, 80, 0}}, 0, 0, 0, 0});
+  ctx.setCgroupContext(
+      "sibling/cgroup1",
+      CgroupContext{{}, {ResourcePressure{99, 99, 99}}, 0, 0, 0, 0});
+  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
+  EXPECT_THAT(plugin->killed_, Contains(111));
+  EXPECT_THAT(plugin->killed_, Not(Contains(123)));
+  EXPECT_THAT(plugin->killed_, Not(Contains(456)));
+  EXPECT_THAT(plugin->killed_, Not(Contains(789)));
+  EXPECT_THAT(plugin->killed_, Not(Contains(888)));
+}
+
+TEST(KillPressure, DoesntKillsHighestPressureDry) {
+  auto plugin = std::make_shared<KillPressureMocked>();
+  ASSERT_NE(plugin, nullptr);
+
+  Engine::MonitoredResources resources;
+  std::unordered_map<std::string, std::string> args;
+  args["cgroup_fs"] = "oomd/fixtures/plugins/kill_by_pressure";
+  args["cgroup"] = "one_high";
+  args["resource"] = "io";
+  args["post_action_delay"] = "0";
+  args["dry"] = "true";
+
+  ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+
+  OomdContext ctx;
+  ctx.setCgroupContext(
+      "one_high/cgroup1",
+      CgroupContext{{}, {ResourcePressure{60, 60, 0}}, 0, 0, 0, 0});
+  ctx.setCgroupContext(
+      "one_high/cgroup2",
+      CgroupContext{{}, {ResourcePressure{50, 70, 0}}, 0, 0, 0, 0});
+  ctx.setCgroupContext(
+      "one_high/cgroup3",
+      CgroupContext{{}, {ResourcePressure{80, 80, 0}}, 0, 0, 0, 0});
+  ctx.setCgroupContext(
+      "sibling/cgroup1",
+      CgroupContext{{}, {ResourcePressure{99, 99, 99}}, 0, 0, 0, 0});
   EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
   EXPECT_EQ(plugin->killed_.size(), 0);
 }
