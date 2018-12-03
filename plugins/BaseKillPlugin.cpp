@@ -17,6 +17,7 @@
 
 #include "oomd/plugins/BaseKillPlugin.h"
 
+#include <chrono>
 #include <csignal>
 #include <iomanip>
 
@@ -102,6 +103,21 @@ void BaseKillPlugin::logKill(
       << context.current_usage << " "
       << "killer:" << (dry ? "(dry)" : "") << getName() << " v2";
   OOMD_KMSG_LOG(oss.str(), "oomd kill");
+}
+
+void BaseKillPlugin::removeSiblingCgroups(
+    const std::string& our_prefix,
+    std::vector<std::pair<std::string, Oomd::CgroupContext>>& vec) {
+  vec.erase(
+      std::remove_if(
+          vec.begin(),
+          vec.end(),
+          [&](const auto& pair) {
+            // Remove this cgroup if its prefix does not being with ours
+            auto index = pair.first.find(our_prefix);
+            return index == std::string::npos || index != 0;
+          }),
+      vec.end());
 }
 
 } // namespace Oomd
