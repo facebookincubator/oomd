@@ -23,7 +23,7 @@
 using namespace Oomd;
 using namespace testing;
 
-constexpr auto kCgroupDataDir = "oomd/fixtures/cgroup";
+constexpr auto kCgroupDataDir = "oomd/fixtures/cgroup/system.slice";
 constexpr auto kFsDataDir = "oomd/fixtures/fs_data";
 constexpr auto kFsVmstatFile = "oomd/fixtures/proc/vmstat";
 constexpr auto kFsMeminfoFile = "oomd/fixtures/proc/meminfo";

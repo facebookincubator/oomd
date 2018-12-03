@@ -17,4 +17,27 @@
 
 #pragma once
 
-#include "oomd/plugins/OomKillerNoop.h"
+#include "oomd/engine/BasePlugin.h"
+
+namespace Oomd {
+
+class ContinuePlugin : public Engine::BasePlugin {
+ public:
+  int init(
+      Engine::MonitoredResources& /* unused */,
+      std::unordered_map<std::string, std::string> /* unused */) override {
+    return 0;
+  }
+
+  Engine::PluginRet run(OomdContext& /* unused */) override {
+    return Engine::PluginRet::CONTINUE;
+  }
+
+  static ContinuePlugin* create() {
+    return new ContinuePlugin();
+  }
+
+  ~ContinuePlugin() = default;
+};
+
+} // namespace Oomd

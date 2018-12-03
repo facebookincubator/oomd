@@ -19,16 +19,6 @@
 
 namespace Oomd {
 
-PluginRegistry<OomDetector>& getDetectorRegistry() {
-  static PluginRegistry<OomDetector> r;
-  return r;
-}
-
-PluginRegistry<OomKiller>& getKillerRegistry() {
-  static PluginRegistry<OomKiller> r;
-  return r;
-}
-
 PluginRegistry<Engine::BasePlugin>& getPluginRegistry() {
   static PluginRegistry<Engine::BasePlugin> r;
   return r;

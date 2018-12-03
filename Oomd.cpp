@@ -29,50 +29,63 @@
 #include "oomd/include/Assert.h"
 #include "oomd/util/Fs.h"
 
+static constexpr auto kCgroupFsRoot = "/sys/fs/cgroup";
+
 namespace Oomd {
 
 Oomd::Oomd(std::unique_ptr<Engine::Engine> engine, int interval)
     : interval_(interval), engine_(std::move(engine)) {}
 
-void Oomd::updateContext(const std::string& cgroup_path, OomdContext& ctx) {
+void Oomd::updateContext(
+    const std::string& cgroup_root_dir,
+    const std::unordered_set<std::string>& parent_cgroups,
+    OomdContext& ctx) {
   OomdContext new_ctx;
 
-  // If the targeted cgroup does not have the memory controller enabled,
-  // we fail fast and early b/c we need the exposed memory controller
-  // knobs to function
-  auto controllers = Fs::readControllers(cgroup_path);
-  if (!std::any_of(controllers.begin(), controllers.end(), [](std::string& s) {
-        return s == "memory";
-      })) {
-    OLOG << "FATAL: cgroup memory controller not enabled on " << cgroup_path;
-    std::abort();
-  }
+  for (const auto& parent_cgroup : parent_cgroups) {
+    auto absolute_cgroup_path = cgroup_root_dir + "/" + parent_cgroup;
 
-  // grab and update memory stats for cgroups which we are assigned
-  // to watch
-  auto dirs = Fs::readDir(cgroup_path, Fs::EntryType::DIRECTORY);
-  for (auto& dir : dirs) {
-    // update our new map with new state information
-    auto child_cgroup = cgroup_path + "/" + dir;
-    auto current = Fs::readMemcurrent(child_cgroup);
-    auto pressures = Fs::readMempressure(child_cgroup);
-    auto memlow = Fs::readMemlow(child_cgroup);
-    auto swap_current = Fs::readSwapCurrent(child_cgroup);
-
-    ResourcePressure io_pressure;
-    try {
-      io_pressure = Fs::readIopressure(child_cgroup);
-    } catch (const std::exception& ex) {
-      if (!warned_io_pressure_) {
-        warned_io_pressure_ = true;
-        OLOG << "IO pressure unavailable: " << ex.what();
-      }
-      // older kernels don't have io.pressure, nan them out
-      io_pressure = {std::nanf(""), std::nanf(""), std::nanf("")};
+    // If the targeted cgroup does not have the memory controller enabled,
+    // we fail fast and early b/c we need the exposed memory controller
+    // knobs to function
+    auto controllers = Fs::readControllers(absolute_cgroup_path);
+    if (!std::any_of(
+            controllers.begin(), controllers.end(), [](std::string& s) {
+              return s == "memory";
+            })) {
+      OLOG << "FATAL: cgroup memory controller not enabled on "
+           << absolute_cgroup_path;
+      std::abort();
     }
 
-    new_ctx.setCgroupContext(
-        dir, {pressures, io_pressure, current, {}, memlow, swap_current});
+    // grab and update memory stats for cgroups which we are assigned
+    // to watch
+    auto dirs = Fs::readDir(absolute_cgroup_path, Fs::EntryType::DIRECTORY);
+    for (auto& dir : dirs) {
+      // update our new map with new state information
+      auto child_cgroup = absolute_cgroup_path + "/" + dir;
+      auto current = Fs::readMemcurrent(child_cgroup);
+      auto pressures = Fs::readMempressure(child_cgroup);
+      auto memlow = Fs::readMemlow(child_cgroup);
+      auto swap_current = Fs::readSwapCurrent(child_cgroup);
+
+      ResourcePressure io_pressure;
+      try {
+        io_pressure = Fs::readIopressure(child_cgroup);
+      } catch (const std::exception& ex) {
+        if (!warned_io_pressure_) {
+          warned_io_pressure_ = true;
+          OLOG << "IO pressure unavailable: " << ex.what();
+        }
+        // older kernels don't have io.pressure, nan them out
+        io_pressure = {std::nanf(""), std::nanf(""), std::nanf("")};
+      }
+
+      // We key CgroupContext's by the full cgroup path (rooted at root)
+      new_ctx.setCgroupContext(
+          (parent_cgroup.size() ? parent_cgroup + "/" : "") + dir,
+          {pressures, io_pressure, current, {}, memlow, swap_current});
+    }
   }
 
   // calculate running averages
@@ -102,9 +115,7 @@ int Oomd::run() {
   while (true) {
     const auto before = std::chrono::steady_clock::now();
 
-    for (const auto& cgroup : engine_->getMonitoredResources()) {
-      updateContext(cgroup, ctx);
-    }
+    updateContext(kCgroupFsRoot, engine_->getMonitoredResources(), ctx);
 
     // Run all the plugins
     engine_->runOnce(ctx);
