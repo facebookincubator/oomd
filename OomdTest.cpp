@@ -17,6 +17,9 @@
 
 #include <gtest/gtest.h>
 
+#include <string>
+#include <unordered_set>
+
 #include "oomd/Oomd.h"
 
 using namespace Oomd;
@@ -38,26 +41,51 @@ class OomdTest : public ::testing::Test {
 TEST_F(OomdTest, OomdContextUpdate) {
   EXPECT_EQ(ctx.cgroups().size(), 0);
 
-  oomd->updateContext(cgroup_path, ctx);
+  std::unordered_set<std::string> parent_cgroups;
+  parent_cgroups.emplace("system.slice");
+  oomd->updateContext(cgroup_path, parent_cgroups, ctx);
 
   EXPECT_EQ(ctx.cgroups().size(), 5);
 
-  EXPECT_TRUE(ctx.hasCgroupContext("service1.service"));
-  EXPECT_TRUE(ctx.hasCgroupContext("service2.service"));
-  EXPECT_TRUE(ctx.hasCgroupContext("service3.service"));
-  EXPECT_TRUE(ctx.hasCgroupContext("service4.service"));
-  EXPECT_TRUE(ctx.hasCgroupContext("slice1.slice"));
+  EXPECT_TRUE(ctx.hasCgroupContext("system.slice/service1.service"));
+  EXPECT_TRUE(ctx.hasCgroupContext("system.slice/service2.service"));
+  EXPECT_TRUE(ctx.hasCgroupContext("system.slice/service3.service"));
+  EXPECT_TRUE(ctx.hasCgroupContext("system.slice/service4.service"));
+  EXPECT_TRUE(ctx.hasCgroupContext("system.slice/slice1.slice"));
 }
 
 TEST_F(OomdTest, OomdContextMultipleUpdates) {
-  oomd->updateContext(cgroup_path, ctx);
+  std::unordered_set<std::string> parent_cgroups;
+  parent_cgroups.emplace("system.slice");
+  oomd->updateContext(cgroup_path, parent_cgroups, ctx);
 
   for (int i = 0; i < 3; i++) {
-    int64_t average = ctx.getCgroupContext("service1.service").average_usage;
-    oomd->updateContext(cgroup_path, ctx);
+    int64_t average =
+        ctx.getCgroupContext("system.slice/service1.service").average_usage;
+    oomd->updateContext(cgroup_path, parent_cgroups, ctx);
 
     // We expect the avg usage to slowly converge from 0 -> true avg
     // b/c of AVERAGE_SIZE_DECAY
-    EXPECT_GT(ctx.getCgroupContext("service1.service").average_usage, average);
+    EXPECT_GT(
+        ctx.getCgroupContext("system.slice/service1.service").average_usage,
+        average);
   }
+}
+
+TEST_F(OomdTest, OomdContextUpdateMultiCgroup) {
+  EXPECT_EQ(ctx.cgroups().size(), 0);
+
+  std::unordered_set<std::string> parent_cgroups;
+  parent_cgroups.emplace("system.slice");
+  parent_cgroups.emplace("workload.slice");
+  oomd->updateContext(cgroup_path, parent_cgroups, ctx);
+
+  EXPECT_EQ(ctx.cgroups().size(), 6);
+
+  EXPECT_TRUE(ctx.hasCgroupContext("system.slice/service1.service"));
+  EXPECT_TRUE(ctx.hasCgroupContext("system.slice/service2.service"));
+  EXPECT_TRUE(ctx.hasCgroupContext("system.slice/service3.service"));
+  EXPECT_TRUE(ctx.hasCgroupContext("system.slice/service4.service"));
+  EXPECT_TRUE(ctx.hasCgroupContext("system.slice/slice1.slice"));
+  EXPECT_TRUE(ctx.hasCgroupContext("workload.slice/service1.service"));
 }

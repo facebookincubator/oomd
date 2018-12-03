@@ -35,9 +35,8 @@ std::unique_ptr<Oomd::Engine::BasePlugin> compilePlugin(
     return nullptr;
   }
 
-  Oomd::PluginArgs old_plugin_args; // TODO(dlxu): remove legacy args
   std::unique_ptr<Oomd::Engine::BasePlugin> instance(
-      Oomd::getPluginRegistry().create(plugin.name, old_plugin_args));
+      Oomd::getPluginRegistry().create(plugin.name));
   if (!instance) {
     OLOG << "Could not locate plugin=" << plugin.name << " in plugin registry";
     return nullptr;
