@@ -1,0 +1,57 @@
+{
+    "rulesets": [
+        {
+            "name": "my first ruleset",
+            "detectors": [
+                [
+                    "group1",
+                    [
+                        "pressure_rising_beyond",
+                        "cgroup=workload.slice",
+                        "resource=memory",
+                        "threshold=5"
+                    ],
+                    [
+                        "pressure_rising_beyond",
+                        "cgroup=system.slice",
+                        "resource=memory",
+                        "threshold=40"
+                    ]
+                ]
+            ],
+            "actions": [
+                [
+                    "kill_by_memory_size_or_growth",
+                    "cgroup=system.slice"
+                ]
+            ]
+        },
+        {
+            "name": "low swap ruleset",
+            "detectors": [
+                [
+                    "my other group",
+                    [
+                        "swap_free",
+                        "threshold_pct=15"
+                    ]
+                ]
+            ],
+            "actions": [
+                [
+                    "kill_by_swap_usage",
+                    "cgroup=system.slice"
+                ],
+                [
+                    "kill_by_swap_usage",
+                    "cgroup=workload.slice/workload-wdb.slice"
+                ],
+                [
+                    "kill_by_swap_usage",
+                    "cgroup=workload.slice/workload-tw.slice"
+                ]
+            ]
+        }
+    ],
+    "version": "1.0.0"
+}
