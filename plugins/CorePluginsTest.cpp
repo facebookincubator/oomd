@@ -107,3 +107,18 @@ TEST(PressureAbove, NoDetectLowMemPressure) {
   OomdContext ctx;
   EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
 }
+
+TEST(MemoryReclaim, InstantPgscan) {
+  auto plugin = createPlugin("memory_reclaim");
+  ASSERT_NE(plugin, nullptr);
+
+  Engine::MonitoredResources resources;
+  std::unordered_map<std::string, std::string> args;
+  args["vmstat_location"] = "oomd/fixtures/plugins/memory_reclaim/vmstat";
+  args["duration"] = "0";
+
+  ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+
+  OomdContext ctx;
+  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::CONTINUE);
+}
