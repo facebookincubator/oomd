@@ -26,62 +26,13 @@
 #include <thread>
 
 #include "oomd/Log.h"
+#include "oomd/include/Assert.h"
 #include "oomd/util/Fs.h"
-
-namespace {
-std::atomic<bool> need_tunables_reload{false};
-
-void reloadHandler(int /* unused */) {
-  need_tunables_reload = true;
-}
-} // namespace
 
 namespace Oomd {
 
-bool Oomd::prepareRun() {
-  if (cgroups_.size() == 0) {
-    OLOG << "OOM detection or OOM killer classes not injected";
-    return false;
-  }
-
-  if (!tunables_) {
-    OLOG << "Tunables not injected";
-    return false;
-  }
-
-  if (!registerHandlers()) {
-    OLOG << "Unable to register signal handlers";
-    return false;
-  }
-
-  updateTunables();
-  return true;
-}
-
-bool Oomd::registerHandlers() const {
-  struct sigaction act;
-  std::memset(&act, 0, sizeof(act));
-
-  act.sa_handler = reloadHandler;
-
-  if (::sigaction(SIGUSR1, &act, nullptr) < 0) {
-    perror("sigaction");
-    return false;
-  }
-
-  return true;
-}
-
-void Oomd::updateTunables() {
-  int raw_interval = tunables_->get<int>(Tunables::Tunable::INTERVAL);
-  interval_ = std::chrono::seconds(raw_interval);
-  post_kill_delay_ = std::chrono::seconds(
-      tunables_->get<int>(Tunables::Tunable::POST_KILL_DELAY));
-  verbose_ticks_ =
-      tunables_->get<int>(Tunables::Tunable::VERBOSE_INTERVAL) / raw_interval;
-  average_size_decay_ =
-      tunables_->get<double>(Tunables::Tunable::AVERAGE_SIZE_DECAY);
-}
+Oomd::Oomd(std::unique_ptr<Engine::Engine> engine, int interval)
+    : interval_(interval), engine_(std::move(engine)) {}
 
 void Oomd::updateContext(const std::string& cgroup_path, OomdContext& ctx) {
   OomdContext new_ctx;
@@ -143,53 +94,20 @@ void Oomd::updateContext(const std::string& cgroup_path, OomdContext& ctx) {
 }
 
 int Oomd::run() {
-  if (!prepareRun()) {
-    return 1;
-  }
-
-  uint64_t ticks = 0;
-  uint64_t detector_ticks = 0;
-  uint64_t killer_ticks = 0;
+  OomdContext ctx;
 
   OLOG << "Running oomd";
-  while (true) {
-    if (need_tunables_reload) {
-      tunables_->loadOverrides();
-      tunables_->dump();
-      need_tunables_reload = false;
-    }
-    updateTunables();
+  OCHECK(engine_);
 
+  while (true) {
     const auto before = std::chrono::steady_clock::now();
 
-    if (verbose_ && ++ticks % verbose_ticks_ == 0) {
-      std::ostringstream oss;
-      oss << "detectorticks=" << detector_ticks
-          << " killticks=" << killer_ticks;
-      OOMD_KMSG_LOG(oss.str(), "oomd heartbeat");
+    for (const auto& cgroup : engine_->getMonitoredResources()) {
+      updateContext(cgroup, ctx);
     }
 
-    for (auto& cgroup : cgroups_) {
-      updateContext(cgroup->detector->getCgroupPath(), cgroup->context);
-
-      ++detector_ticks;
-      if (cgroup->detector->isOOM(cgroup->context)) {
-        ++killer_ticks;
-        if (cgroup->killer->tryToKillSomething(cgroup->context)) {
-          std::this_thread::sleep_for(post_kill_delay_ / 2);
-          cgroup->detector->postKill(cgroup->context);
-          std::this_thread::sleep_for(post_kill_delay_ / 2);
-
-          // Only kill 1 process system-wide per Tunable::INTERVAL.
-          // We do this because oomd examines the system as a whole,
-          // as opposed to an isolated per-cgroup manner
-          break;
-        }
-      }
-    }
-
-    // Rotate cgroups_ so we have round robin for fairness
-    std::rotate(cgroups_.begin(), cgroups_.begin() + 1, cgroups_.end());
+    // Run all the plugins
+    engine_->runOnce(ctx);
 
     // We may have slept already, so recalculate
     const auto after = std::chrono::steady_clock::now();

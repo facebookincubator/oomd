@@ -16,14 +16,18 @@
  */
 
 #include <cstring>
+#include <fstream>
 #include <iostream>
+#include <sstream>
 #include <string>
 
 #include <getopt.h>
 
-#include "oomd/Config.h"
 #include "oomd/Log.h"
 #include "oomd/Oomd.h"
+#include "oomd/config/ConfigCompiler.h"
+#include "oomd/config/JsonConfigParser.h"
+#include "oomd/include/Assert.h"
 
 static constexpr auto kConfigFilePath = "/etc/oomd.json";
 
@@ -45,7 +49,7 @@ int main(int argc, char** argv) {
 
   std::string flag_conf_file = kConfigFilePath;
   bool flag_dry = false;
-  bool flag_verbose = false;
+  int interval = 5;
 
   int option_index = 0;
   int c = 0;
@@ -58,6 +62,7 @@ int main(int argc, char** argv) {
                            option{"dry", no_argument, nullptr, 'd'},
                            option{"report", no_argument, nullptr, 'r'},
                            option{"verbose", no_argument, nullptr, 'v'},
+                           option{"interval", required_argument, nullptr, 'i'},
                            option{nullptr, 0, nullptr, 0}};
 
   while ((c = getopt_long(
@@ -76,7 +81,10 @@ int main(int argc, char** argv) {
         std::cerr << "Noop for backwards compatible report\n";
         break;
       case 'v':
-        flag_verbose = true;
+        std::cerr << "Noop for backwards compatible verbose\n";
+        break;
+      case 'i':
+        interval = std::stoi(optarg);
         break;
       case 0:
         if (long_options[option_index].flag != nullptr) {
@@ -108,13 +116,19 @@ int main(int argc, char** argv) {
     return 1;
   }
 
-  if (flag_verbose) {
-    OLOG << "oomd running with conf_file=" << flag_conf_file
-         << " dry=" << flag_dry << " verbose=" << flag_verbose;
-  }
+  OLOG << "oomd running with conf_file=" << flag_conf_file
+       << " dry=" << flag_dry << " interval=" << interval;
 
-  auto conf = Oomd::Config(flag_conf_file, flag_dry, flag_verbose);
-  Oomd::Oomd oomd;
-  conf.apply(oomd);
+  // Load config
+  std::ifstream conf_file(flag_conf_file, std::ios::in);
+  OCHECK(conf_file.is_open());
+  std::stringstream buf;
+  buf << conf_file.rdbuf();
+  Oomd::Config2::JsonConfigParser json_parser;
+  auto ir = json_parser.parse(buf.str());
+  OCHECK(ir != nullptr);
+  auto engine = Oomd::Config2::compile(*ir);
+
+  Oomd::Oomd oomd(std::move(engine), interval);
   return oomd.run();
 }
