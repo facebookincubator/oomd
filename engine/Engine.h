@@ -20,9 +20,9 @@
 #include <memory>
 #include <vector>
 
+#include "oomd/OomdContext.h"
 #include "oomd/engine/BasePlugin.h"
 #include "oomd/engine/Ruleset.h"
-#include "oomd/shared/OomdContext.h"
 
 namespace Oomd {
 namespace Engine {
