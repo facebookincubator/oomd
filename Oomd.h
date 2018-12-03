@@ -54,7 +54,7 @@ class Oomd {
       const std::string& cgroup_root_dir,
       const std::unordered_set<std::string>& parent_cgroups,
       OomdContext& ctx);
-  void updateContext(
+  bool updateContext(
       const std::string& parent_cgroup,
       const std::string& absolute_cgroup_path,
       OomdContext& ctx);
@@ -67,9 +67,9 @@ class Oomd {
   const double average_size_decay_{
       4}; // TODO(dlxu): migrate to ring buffer for raw datapoints so plugins
           // can calculate weighted average themselves
-
   std::unique_ptr<Engine::Engine> engine_;
-  bool warned_io_pressure_{false};
+  std::unordered_set<std::string> warned_io_pressure_;
+  std::unordered_set<std::string> warned_mem_controller_;
 };
 
 } // namespace Oomd
