@@ -8,15 +8,12 @@ cpp_args = ['-std=c++14', '-g']
 # requires a specific header path
 inc = include_directories('''
     include
-    shared
     util
     .
     ..
 '''.split())
 
 srcs = files('''
-    Config.cpp
-    Config.h
     Log.cpp
     Log.h
     Oomd.cpp
@@ -91,7 +88,7 @@ gmock_dep = dependency('gmock', required : false)
 if gtest_dep.found() and gmock_dep.found()
     deps += [gtest_dep, gmock_dep]
     config_tests = executable('oomd_config_tests',
-                              files('JsonConfigParserTest.cpp'),
+                              files('config/JsonConfigParserTest.cpp'),
                               include_directories : inc,
                               cpp_args : cpp_args,
                               dependencies : deps,
