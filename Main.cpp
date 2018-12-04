@@ -32,23 +32,18 @@
 static constexpr auto kConfigFilePath = "/etc/oomd.json";
 
 static void printUsage() {
-  std::cerr << "usage: oomd [-h] [--config CONFIG] [--dry] [--verbose]\n\n"
-               "optional arguments:\n"
-               "  -h, --help            show this help message and exit\n"
-               "  --config CONFIG, -C CONFIG\n"
-               "                        Config file (default: /etc/oomd.json)\n"
-               "  --dry, -d             Dry run - do not actually kill\n"
-               "  --verbose, -v\n"
-            << std::endl;
+  std::cerr
+      << "usage: oomd [-h] [--config CONFIG] [--interval INTERVAL]\n\n"
+         "optional arguments:\n"
+         "  --help, -h            show this help message and exit\n"
+         "  --config CONFIG, -C CONFIG\n"
+         "                        Config file (default: /etc/oomd.json)\n"
+         "  --interval, -i        Event loop polling interval (default: 5)\n"
+      << std::endl;
 }
 
 int main(int argc, char** argv) {
-  // Must be first to prevent accidental calls to OLOG from disabling
-  // kmsg logging
-  Oomd::Log::init_or_die();
-
   std::string flag_conf_file = kConfigFilePath;
-  bool flag_dry = false;
   int interval = 5;
 
   int option_index = 0;
@@ -75,7 +70,7 @@ int main(int argc, char** argv) {
         flag_conf_file = std::string(optarg);
         break;
       case 'd':
-        flag_dry = true;
+        std::cerr << "Noop for backwards compatible dry\n";
         break;
       case 'r':
         std::cerr << "Noop for backwards compatible report\n";
@@ -116,8 +111,16 @@ int main(int argc, char** argv) {
     return 1;
   }
 
-  OLOG << "oomd running with conf_file=" << flag_conf_file
-       << " dry=" << flag_dry << " interval=" << interval;
+  // Init oomd logging code
+  //
+  // NB: do not use OLOG before initializing logging. Doing so will disable
+  // kmsg logging (due to some weird setup code required to get unit testing
+  // correct). Be careful not to make any oomd library calls before initing
+  // logging.
+  Oomd::Log::init_or_die();
+
+  std::cerr << "oomd running with conf_file=" << flag_conf_file
+            << " interval=" << interval << std::endl;
 
   // Load config
   std::ifstream conf_file(flag_conf_file, std::ios::in);
