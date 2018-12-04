@@ -36,7 +36,7 @@ oomd currently depends on [meson][2] and [jsoncpp][4].
 
 ## Configuration
 
-See [docs/configuration.md](docs/Configuration.md) for a high level overview
+See [docs/configuration.md](docs/configuration.md) for a high level overview
 and some examples.
 
 See [docs/core_plugins.md](docs/core_plugins.md) for a quick reference on
