@@ -29,7 +29,7 @@ class KillMemoryGrowth : public Base {
  public:
   int init(
       Engine::MonitoredResources& resources,
-      std::unordered_map<std::string, std::string> args) override;
+      const Engine::PluginArgs& args) override;
 
   Engine::PluginRet run(OomdContext& ctx) override;
 

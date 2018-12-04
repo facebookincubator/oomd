@@ -27,16 +27,16 @@ REGISTER_PLUGIN(swap_free, SwapFree::create);
 
 int SwapFree::init(
     Engine::MonitoredResources& /* unused */,
-    std::unordered_map<std::string, std::string> args) {
+    const Engine::PluginArgs& args) {
   if (args.find("threshold_pct") != args.end()) {
-    threshold_pct_ = std::stoi(args["threshold_pct"]);
+    threshold_pct_ = std::stoi(args.at("threshold_pct"));
   } else {
     OLOG << "Argument=threshold_pct not present";
     return 1;
   }
 
   if (args.find("meminfo_location") != args.end()) {
-    meminfo_location_ = args["meminfo_location"];
+    meminfo_location_ = args.at("meminfo_location");
   }
 
   // Success

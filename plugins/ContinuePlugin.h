@@ -25,7 +25,7 @@ class ContinuePlugin : public Engine::BasePlugin {
  public:
   int init(
       Engine::MonitoredResources& /* unused */,
-      std::unordered_map<std::string, std::string> /* unused */) override {
+      const Engine::PluginArgs& /* unused */) override {
     return 0;
   }
 

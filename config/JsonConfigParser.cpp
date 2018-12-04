@@ -40,31 +40,31 @@ void getJson(Json::Value& root, const std::string& input) {
   }
 }
 
-Oomd::Config2::IR::Detector parseDetector(const Json::Value& detector) {
-  Oomd::Config2::IR::Detector ir_detector;
-  if (!detector.isArray()) {
+template <typename T>
+T parsePlugin(const Json::Value& plugin) {
+  if (!plugin.isObject()) {
     return {};
   }
 
-  for (int j = 0; j < detector.size(); ++j) {
-    if (j == 0 && detector[j].isString()) {
-      ir_detector.name = detector[j].asString();
-      continue;
-    }
+  const auto& name = plugin["name"];
+  const auto& json_args = plugin["args"];
 
-    // else: all other indicies (ie args)
-    if (!detector[j].isString()) {
-      continue;
-    }
-
-    auto args = Oomd::Fs::split(detector[j].asString(), '=');
-    if (args.size() < 2) {
-      continue;
-    }
-    ir_detector.args[args[0]] = std::move(args[1]);
+  if (!name.isString() || !json_args.isObject()) {
+    return {};
   }
 
-  return ir_detector;
+  T ret;
+  ret.name = name.asString();
+
+  for (const auto& key : json_args.getMemberNames()) {
+    const auto& value = json_args[key];
+    if (!value.isString()) {
+      return {};
+    }
+    ret.args[key] = value.asString();
+  }
+
+  return ret;
 }
 
 Oomd::Config2::IR::DetectorGroup parseDetectorGroup(
@@ -82,37 +82,11 @@ Oomd::Config2::IR::DetectorGroup parseDetectorGroup(
 
     // else: all other indicies (ie detectors)
     const auto& detector = detector_group[i];
-    ir_detectorgroup.detectors.emplace_back(parseDetector(detector));
+    ir_detectorgroup.detectors.emplace_back(
+        parsePlugin<Oomd::Config2::IR::Detector>(detector));
   }
 
   return ir_detectorgroup;
-}
-
-Oomd::Config2::IR::Action parseAction(const Json::Value& action) {
-  Oomd::Config2::IR::Action ir_action;
-  if (!action.isArray()) {
-    return {};
-  }
-
-  for (int i = 0; i < action.size(); ++i) {
-    if (i == 0 && action[i].isString()) {
-      ir_action.name = action[i].asString();
-      continue;
-    }
-
-    // else: all other indicies are args
-    if (!action[i].isString()) {
-      continue;
-    }
-
-    auto args = Oomd::Fs::split(action[i].asString(), '=');
-    if (args.size() < 2) {
-      continue;
-    }
-    ir_action.args[args[0]] = std::move(args[1]);
-  }
-
-  return ir_action;
 }
 
 Oomd::Config2::IR::Ruleset parseRuleset(const Json::Value& ruleset) {
@@ -125,7 +99,8 @@ Oomd::Config2::IR::Ruleset parseRuleset(const Json::Value& ruleset) {
   }
 
   for (const auto& action : ruleset.get("actions", {})) {
-    ir_ruleset.acts.emplace_back(parseAction(action));
+    ir_ruleset.acts.emplace_back(
+        parsePlugin<Oomd::Config2::IR::Action>(action));
   }
 
   return ir_ruleset;

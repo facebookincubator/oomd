@@ -13,13 +13,19 @@ I promise).
 oomd configs have a loosely defined BNF:
 
     ARG:
-    <string>=<string>
+    <string>: <string>
 
     NAME:
     <string>
 
     PLUGIN:
-    [ NAME, [ARG[,ARG[,...]]] ]
+    {
+      "name": NAME,
+      "args": {
+        ARG[,ARG[,...]]
+      }
+    }
+
 
     DETECTOR:
     PLUGIN
@@ -80,37 +86,45 @@ config front end.
                 "detectors": [
                     [
                         "workload is under pressure and system is under a lot of pressure",
-                        [
-                            "pressure_rising_beyond",
-                            "cgroup=workload.slice",
-                            "resource=memory",
-                            "threshold=5",
-                            "duration=15"
-                        ],
-                        [
-                            "pressure_rising_beyond",
-                            "cgroup=system.slice",
-                            "resource=memory",
-                            "threshold=40",
-                            "duration=15"
-                        ]
+                        {
+                            "name": "pressure_rising_beyond",
+                            "args": {
+                              "cgroup": "workload.slice",
+                              "resource": "memory",
+                              "threshold": "5",
+                              "duration": "15"
+                            }
+                        },
+                        {
+                            "name": "pressure_rising_beyond",
+                            "args": {
+                              "cgroup": "system.slice",
+                              "resource": "memory",
+                              "threshold": "40",
+                              "duration": "15"
+                            }
+                        }
                     ],
                     [
                         "system is under a lot of pressure",
-                        [
-                            "pressure_rising_beyond",
-                            "cgroup=system.slice",
-                            "resource=memory",
-                            "threshold=80",
-                            "duration=30"
-                        ]
+                        {
+                            "name": "pressure_rising_beyond",
+                            "args": {
+                              "cgroup": "system.slice",
+                              "resource": "memory",
+                              "threshold": "80",
+                              "duration": "30"
+                            }
+                        }
                     ]
                 ],
                 "actions": [
-                    [
-                        "kill_by_memory_size_or_growth",
-                        "cgroup=system.slice/*"
-                    ]
+                    {
+                        "name": "kill_by_memory_size_or_growth",
+                        "args": {
+                          "cgroup": "system.slice/*"
+                        }
+                    }
                 ]
             },
             {
@@ -118,17 +132,21 @@ config front end.
                 "detectors": [
                     [
                         "swap is running low",
-                        [
-                            "swap_free",
-                            "threshold_pct=15"
-                        ]
+                        {
+                            "name": "swap_free",
+                            "args": {
+                              "threshold_pct": "15"
+                            }
+                        }
                     ]
                 ],
                 "actions": [
-                    [
-                        "kill_by_swap_usage",
-                        "cgroup=system.slice/*,workload.slice/workload-wdb.slice/*,workload.slice/workload-tw.slice/*"
-                    ]
+                    {
+                        "name": "kill_by_swap_usage",
+                        "args": {
+                          "cgroup": "system.slice/*,workload.slice/workload-wdb.slice/*,workload.slice/workload-tw.slice/*"
+                        }
+                    }
                 ]
             }
         ],

@@ -31,20 +31,21 @@ namespace Oomd {
 template <typename Base>
 int KillSwapUsage<Base>::init(
     Engine::MonitoredResources& resources,
-    std::unordered_map<std::string, std::string> args) {
+    const Engine::PluginArgs& args) {
   if (args.find("cgroup") != args.end()) {
-    auto cgroups = Fs::split(args["cgroup"], ',');
+    auto cgroups = Fs::split(args.at("cgroup"), ',');
     resources.insert(cgroups.begin(), cgroups.end());
     cgroups_.insert(cgroups.begin(), cgroups.end());
     cgroup_fs_ =
-        (args.find("cgroup_fs") != args.end() ? args["cgroup_fs"] : kCgroupFs);
+        (args.find("cgroup_fs") != args.end() ? args.at("cgroup_fs")
+                                              : kCgroupFs);
   } else {
     OLOG << "Argument=cgroup not present";
     return 1;
   }
 
   if (args.find("post_action_delay") != args.end()) {
-    int val = std::stoi(args["post_action_delay"]);
+    int val = std::stoi(args.at("post_action_delay"));
 
     if (val < 0) {
       OLOG << "Argument=post_action_delay must be non-negative";
@@ -55,7 +56,7 @@ int KillSwapUsage<Base>::init(
   }
 
   if (args.find("dry") != args.end()) {
-    const std::string& val = args["dry"];
+    const std::string& val = args.at("dry");
 
     if (val == "true" || val == "True" || val == "1") {
       dry_ = true;

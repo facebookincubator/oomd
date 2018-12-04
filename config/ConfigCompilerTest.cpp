@@ -43,7 +43,7 @@ class ContinuePlugin : public BasePlugin {
  public:
   int init(
       Engine::MonitoredResources& /* unused */,
-      std::unordered_map<std::string, std::string> /* unused */) override {
+      const PluginArgs& /* unused */) override {
     return 0;
   }
 
@@ -62,7 +62,7 @@ class StopPlugin : public BasePlugin {
  public:
   int init(
       Engine::MonitoredResources& /* unused */,
-      std::unordered_map<std::string, std::string> /* unused */) override {
+      const PluginArgs& /* unused */) override {
     return 0;
   }
 
@@ -81,7 +81,7 @@ class IncrementCountPlugin : public BasePlugin {
  public:
   int init(
       Engine::MonitoredResources& /* unused */,
-      std::unordered_map<std::string, std::string> /* unused */) override {
+      const PluginArgs& /* unused */) override {
     return 0;
   }
 
@@ -101,7 +101,7 @@ class RegistrationPlugin : public BasePlugin {
  public:
   int init(
       Engine::MonitoredResources& resources,
-      std::unordered_map<std::string, std::string> /* unused */) override {
+      const PluginArgs& /* unused */) override {
     resources.emplace(kRandomCgroupDependency);
     return 0;
   }
@@ -121,7 +121,7 @@ class NoInitPlugin : public BasePlugin {
  public:
   int init(
       Engine::MonitoredResources& /* unused */,
-      std::unordered_map<std::string, std::string> /* unused */) override {
+      const PluginArgs& /* unused */) override {
     return 1;
   }
 

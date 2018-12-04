@@ -28,7 +28,7 @@ class DumpCgroupOverview : public Engine::BasePlugin {
  public:
   int init(
       Engine::MonitoredResources& /* unused */,
-      std::unordered_map<std::string, std::string> args) override;
+      const Engine::PluginArgs& args) override;
 
   Engine::PluginRet run(OomdContext& /* unused */) override;
 

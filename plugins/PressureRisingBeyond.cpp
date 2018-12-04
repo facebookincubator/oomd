@@ -33,20 +33,21 @@ REGISTER_PLUGIN(pressure_rising_beyond, PressureRisingBeyond::create);
 
 int PressureRisingBeyond::init(
     Engine::MonitoredResources& resources,
-    std::unordered_map<std::string, std::string> args) {
+    const Engine::PluginArgs& args) {
   if (args.find("cgroup") != args.end()) {
-    auto cgroups = Fs::split(args["cgroup"], ',');
+    auto cgroups = Fs::split(args.at("cgroup"), ',');
     cgroups_.insert(cgroups.begin(), cgroups.end());
     cgroup_fs_ =
-        (args.find("cgroup_fs") != args.end() ? args["cgroup_fs"] : kCgroupFs);
+        (args.find("cgroup_fs") != args.end() ? args.at("cgroup_fs")
+                                              : kCgroupFs);
   } else {
     OLOG << "Argument=cgroup not present";
     return 1;
   }
 
   if (args.find("resource") != args.end() &&
-      (args["resource"] == "io" || args["resource"] == "memory")) {
-    const auto& res = args["resource"];
+      (args.at("resource") == "io" || args.at("resource") == "memory")) {
+    const auto& res = args.at("resource");
     if (res == "io") {
       resource_ = ResourceType::IO;
     } else if (res == "memory") {
@@ -58,14 +59,14 @@ int PressureRisingBeyond::init(
   }
 
   if (args.find("threshold") != args.end()) {
-    threshold_ = std::stoi(args["threshold"]);
+    threshold_ = std::stoi(args.at("threshold"));
   } else {
     OLOG << "Argument=threshold not present";
     return 1;
   }
 
   if (args.find("duration") != args.end()) {
-    duration_ = std::stoi(args["duration"]);
+    duration_ = std::stoi(args.at("duration"));
   } else {
     OLOG << "Argument=duration not present";
     return 1;
@@ -73,7 +74,7 @@ int PressureRisingBeyond::init(
 
   // `fast_fall_ratio` is optional
   if (args.find("fast_fall_ratio") != args.end()) {
-    fast_fall_ratio_ = std::stof(args["fast_fall_ratio"]);
+    fast_fall_ratio_ = std::stof(args.at("fast_fall_ratio"));
   } else {
     fast_fall_ratio_ = 0.85;
   }

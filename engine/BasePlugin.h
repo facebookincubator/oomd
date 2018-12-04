@@ -33,6 +33,7 @@ enum class PluginRet {
 };
 
 using MonitoredResources = std::unordered_set<std::string>;
+using PluginArgs = std::unordered_map<std::string, std::string>;
 
 class BasePlugin {
  public:
@@ -47,9 +48,7 @@ class BasePlugin {
    *
    * @return 0 on successful initialization.
    */
-  virtual int init(
-      MonitoredResources& resources,
-      std::unordered_map<std::string, std::string> args) = 0;
+  virtual int init(MonitoredResources& resources, const PluginArgs& args) = 0;
 
   /*
    * This is the main work method every plugin will implement.

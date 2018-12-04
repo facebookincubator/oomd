@@ -60,19 +60,20 @@ REGISTER_PLUGIN(dump_cgroup_overview, DumpCgroupOverview::create);
 
 int DumpCgroupOverview::init(
     Engine::MonitoredResources& /* unused */,
-    std::unordered_map<std::string, std::string> args) {
+    const Engine::PluginArgs& args) {
   if (args.find("cgroup") != args.end()) {
-    auto cgroups = Fs::split(args["cgroup"], ',');
+    auto cgroups = Fs::split(args.at("cgroup"), ',');
     cgroups_.insert(cgroups.begin(), cgroups.end());
     cgroup_fs_ =
-        (args.find("cgroup_fs") != args.end() ? args["cgroup_fs"] : kCgroupFs);
+        (args.find("cgroup_fs") != args.end() ? args.at("cgroup_fs")
+                                              : kCgroupFs);
   } else {
     OLOG << "Argument=cgroup not present";
     return 1;
   }
 
   if (args.find("always") != args.end()) {
-    const auto& var = args["always"];
+    const auto& var = args.at("always");
     if (var == "true" || var == "True" || var == "1") {
       always_ = true;
     }

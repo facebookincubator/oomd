@@ -31,16 +31,16 @@ REGISTER_PLUGIN(memory_reclaim, MemoryReclaim::create);
 
 int MemoryReclaim::init(
     Engine::MonitoredResources& /* unused */,
-    std::unordered_map<std::string, std::string> args) {
+    const Engine::PluginArgs& args) {
   if (args.find("duration") != args.end()) {
-    duration_ = std::stoi(args["duration"]);
+    duration_ = std::stoi(args.at("duration"));
   } else {
     OLOG << "Argument=duration not present";
     return 1;
   }
 
   if (args.find("vmstat_location") != args.end()) {
-    vmstat_location_ = args["vmstat_location"];
+    vmstat_location_ = args.at("vmstat_location");
   }
 
   // Success
