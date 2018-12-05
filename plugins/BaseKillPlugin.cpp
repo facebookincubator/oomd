@@ -26,6 +26,7 @@
 
 #include "oomd/Log.h"
 #include "oomd/util/Fs.h"
+#include "oomd/util/ScopeGuard.h"
 
 static auto constexpr kOomdKillXattr = "trusted.oomd_kill";
 
@@ -58,10 +59,17 @@ bool BaseKillPlugin::tryToKillCgroup(
     if (nr_killed == last_nr_killed) {
       break;
     }
-    last_nr_killed = nr_killed;
+    OOMD_SCOPE_EXIT {
+      last_nr_killed = nr_killed;
+    };
 
-    // give it a breather before killing again
-    std::this_thread::sleep_for(1s);
+    // Give it a breather before killing again
+    //
+    // Don't sleep after the first round of kills b/c the majority of the
+    // time the sleep isn't necessary. The system responds fast enough.
+    if (last_nr_killed) {
+      std::this_thread::sleep_for(1s);
+    }
   }
 
   reportToXattr(cgroup_path, nr_killed);

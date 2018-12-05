@@ -20,6 +20,7 @@
 
 #include <algorithm>
 #include <memory>
+#include <unordered_set>
 
 #include "oomd/OomdContext.h"
 #include "oomd/PluginRegistry.h"
@@ -43,16 +44,20 @@ namespace Oomd {
 class BaseKillPluginMock : public BaseKillPlugin {
  public:
   int tryToKillPids(const std::vector<int>& pids) override {
-    killed.reserve(killed.size() + pids.size());
+    int ret = 0;
+    killed.reserve(pids.size());
 
     for (int pid : pids) {
-      killed.emplace_back(pid);
+      if (killed.find(pid) == killed.end()) {
+        killed.emplace(pid);
+        ++ret;
+      }
     }
 
-    return pids.size();
+    return ret;
   }
 
-  std::vector<int> killed;
+  std::unordered_set<int> killed;
 };
 
 /*
