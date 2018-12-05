@@ -60,6 +60,11 @@ to make writing plugins as easy as possible.
 
 See [docs/writing_a_plugin.md](docs/writing_a_plugin.md) for a tutorial.
 
+## Help / Discussion / Support
+
+Join our **#oomd** channel on irc.freenode.net!
+
+
 ## License
 
 oomd is GPL 2 licensed, as found in the LICENSE file.
