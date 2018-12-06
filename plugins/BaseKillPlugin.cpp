@@ -59,9 +59,6 @@ bool BaseKillPlugin::tryToKillCgroup(
     if (nr_killed == last_nr_killed) {
       break;
     }
-    OOMD_SCOPE_EXIT {
-      last_nr_killed = nr_killed;
-    };
 
     // Give it a breather before killing again
     //
@@ -70,6 +67,8 @@ bool BaseKillPlugin::tryToKillCgroup(
     if (last_nr_killed) {
       std::this_thread::sleep_for(1s);
     }
+
+    last_nr_killed = nr_killed;
   }
 
   reportToXattr(cgroup_path, nr_killed);
