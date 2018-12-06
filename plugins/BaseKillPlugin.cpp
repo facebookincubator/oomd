@@ -26,7 +26,6 @@
 
 #include "oomd/Log.h"
 #include "oomd/util/Fs.h"
-#include "oomd/util/ScopeGuard.h"
 
 static auto constexpr kOomdKillXattr = "trusted.oomd_kill";
 
