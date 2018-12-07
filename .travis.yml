@@ -1,0 +1,20 @@
+language: cpp
+
+compiler:
+  - clang
+  - gcc
+
+sudo: required
+
+dist: xenial
+
+before_install:
+  - sudo apt-get update
+  - sudo apt-get install -y python3-pip python3-setuptools libjsoncpp-dev ninja-build
+  - pip3 install --user meson
+
+script:
+  - mkdir build
+  - meson build
+  - cd build
+  - ninja
