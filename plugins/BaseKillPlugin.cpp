@@ -58,10 +58,16 @@ bool BaseKillPlugin::tryToKillCgroup(
     if (nr_killed == last_nr_killed) {
       break;
     }
-    last_nr_killed = nr_killed;
 
-    // give it a breather before killing again
-    std::this_thread::sleep_for(1s);
+    // Give it a breather before killing again
+    //
+    // Don't sleep after the first round of kills b/c the majority of the
+    // time the sleep isn't necessary. The system responds fast enough.
+    if (last_nr_killed) {
+      std::this_thread::sleep_for(1s);
+    }
+
+    last_nr_killed = nr_killed;
   }
 
   reportToXattr(cgroup_path, nr_killed);
