@@ -10,8 +10,8 @@ dist: xenial
 
 before_install:
   - sudo apt-get update
-  - sudo apt-get install -y python3 libjsoncpp-dev ninja-build
-  - python3 -m pip install --user meson
+  - sudo apt-get install -y python3-pip libjsoncpp-dev ninja-build
+  - pip3 install --user meson
 
 script:
   - mkdir build
