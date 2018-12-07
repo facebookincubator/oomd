@@ -13,6 +13,13 @@ before_install:
   - sudo apt-get install -y python3-pip python3-setuptools libjsoncpp-dev ninja-build
   - pip3 install --user meson
 
+notifications:
+  irc:
+    channels:
+      - "chat.freenode.net#oomd"
+    on_success: change
+    on_failure: always
+
 script:
   - mkdir build
   - meson build
