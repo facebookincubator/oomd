@@ -124,10 +124,10 @@ std::unordered_set<std::string> Fs::resolveWildcardPath(
 
     for (const auto& entry : entries) {
       if (::fnmatch(parts[front.second].c_str(), entry.c_str(), 0) == 0) {
-        if (front.second == parts.size() - 1) {
+        if (front.second == parts.size() - 1 ) {
           // We have reached a leaf, add it to the return set
           ret.emplace(front.first + entry);
-        } else if (front.second < parts.size() - 1) {
+        } else if (front.second < parts.size() - 1 ) {
           // There are still more parts of the provided path to search.
           //
           // Note that we add the '/' at the end of the new path. This makes
