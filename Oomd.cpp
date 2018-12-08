@@ -81,16 +81,17 @@ bool Oomd::updateContextCgroup(
 
     // Can't extract much info if memory controller isn't enabled
     return false;
-  }
-
-  auto current = Fs::readMemcurrent(absolute_cgroup_path);
-  auto pressures = Fs::readMempressure(absolute_cgroup_path);
-  auto memlow = Fs::readMemlow(absolute_cgroup_path);
-  auto swap_current = Fs::readSwapCurrent(absolute_cgroup_path);
-
-  ResourcePressure io_pressure;
+  };
+  int64_t current, memlow, swap_current;
+  ResourcePressure io_pressure, pressures;
   try {
+    current = Fs::readMemcurrent(absolute_cgroup_path);
+    pressures = Fs::readMempressure(absolute_cgroup_path);
+    memlow = Fs::readMemlow(absolute_cgroup_path);
+    swap_current = Fs::readSwapCurrent(absolute_cgroup_path);
     io_pressure = Fs::readIopressure(absolute_cgroup_path);
+  } catch (short_lived_exception* exception_var) {
+    OLOG << exception_var->exception_type;
   } catch (const std::exception& ex) {
     if (!warned_io_pressure_.count(absolute_cgroup_path)) {
       warned_io_pressure_.emplace(absolute_cgroup_path);
