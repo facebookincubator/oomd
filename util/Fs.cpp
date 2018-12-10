@@ -256,7 +256,6 @@ ResourcePressure Fs::readRespressure(const std::string& path) {
       short_lived_exception exception_var( "(short lived process ) read Mempressure");
       throw &exception_var;
     }
-    //OCHECK(lines.size() == 3);
     std::vector<std::string> toks = split(lines[2], ' ');
     OCHECK(toks[0] == "full");
 
@@ -274,7 +273,6 @@ int64_t Fs::readMemcurrent(const std::string& path) {
     short_lived_exception exception_var("(short lived process ) read Memcurrent");
     throw &exception_var;
   }
-  //OCHECK(lines.size() == 1);
   return static_cast<int64_t>(std::stoll(lines[0]));
 }
 
@@ -301,7 +299,6 @@ int64_t Fs::readMemlow(const std::string& path) {
     short_lived_exception exception_var("(short lived process ) read Memlow");
     throw &exception_var;
   }
-  //OCHECK(lines.size() == 1);
   if (lines[0] == "max") {
     return std::numeric_limits<int64_t>::max();
   }
@@ -314,7 +311,6 @@ int64_t Fs::readSwapCurrent(const std::string& path) {
     short_lived_exception exception_var("(short lived process ) read SwapCurrent");
     throw &exception_var;
   }
-  //OCHECK(lines.size() == 1);
   return static_cast<int64_t>(std::stoll(lines[0]));
 }
 

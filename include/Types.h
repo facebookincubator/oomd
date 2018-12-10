@@ -29,7 +29,6 @@ class short_lived_exception : public std::exception {
    std::string exception_type;
    short_lived_exception(const std::string except) {
      exception_type =except ;
-     //strcpy(exception_type, except);
   }
 };
 enum struct OomType {
