@@ -95,7 +95,7 @@ std::unordered_set<std::string> Fs::resolveWildcardPath(
   }
 
   auto parts = split(path, '/');
-  std::deque<std::pair<std::string, int>> queue;
+  std::deque<std::pair<std::string, size_t>> queue;
   // Add initial path piece to begin search on. Start at root
   // if provided path is absolute, else go with relative dir.
   queue.emplace_back((path[0] == '/' ? "/" : "./"), 0);
