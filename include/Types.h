@@ -18,9 +18,20 @@
 #pragma once
 
 #include <cstdint>
+#include <string.h>
+//#include <exception.h>
+#include <bits/stdc++.h>
 
 namespace Oomd {
 
+class short_lived_exception : public std::exception {
+  public :
+   std::string exception_type;
+   short_lived_exception(const std::string except) {
+     exception_type =except ;
+     //strcpy(exception_type, except);
+  }
+};
 enum struct OomType {
   NONE,
   SWAP,

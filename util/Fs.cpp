@@ -252,7 +252,11 @@ ResourcePressure Fs::readRespressure(const std::string& path) {
     // aggr 316016073
     // some 0.00 0.03 0.05
     // full 0.00 0.03 0.05
-    OCHECK(lines.size() == 3);
+    if (lines.size() != 3) {
+      short_lived_exception exception_var( "(short lived process ) read Mempressure");
+      throw &exception_var;
+    }
+    //OCHECK(lines.size() == 3);
     std::vector<std::string> toks = split(lines[2], ' ');
     OCHECK(toks[0] == "full");
 
@@ -266,7 +270,11 @@ ResourcePressure Fs::readRespressure(const std::string& path) {
 
 int64_t Fs::readMemcurrent(const std::string& path) {
   auto lines = readFileByLine(path + "/" + kMemCurrentFile);
-  OCHECK(lines.size() == 1);
+  if (lines.size()!=1){
+    short_lived_exception exception_var("(short lived process ) read Memcurrent");
+    throw &exception_var;
+  }
+  //OCHECK(lines.size() == 1);
   return static_cast<int64_t>(std::stoll(lines[0]));
 }
 
@@ -289,7 +297,11 @@ ResourcePressure Fs::readMempressure(const std::string& path) {
 
 int64_t Fs::readMemlow(const std::string& path) {
   auto lines = readFileByLine(path + "/" + kMemLowFile);
-  OCHECK(lines.size() == 1);
+  if (lines.size() != 1) {
+    short_lived_exception exception_var("(short lived process ) read Memlow");
+    throw &exception_var;
+  }
+  //OCHECK(lines.size() == 1);
   if (lines[0] == "max") {
     return std::numeric_limits<int64_t>::max();
   }
@@ -298,7 +310,11 @@ int64_t Fs::readMemlow(const std::string& path) {
 
 int64_t Fs::readSwapCurrent(const std::string& path) {
   auto lines = readFileByLine(path + "/" + kMemSwapCurrentFile);
-  OCHECK(lines.size() == 1);
+  if (lines.size() != 1) {
+    short_lived_exception exception_var("(short lived process ) read SwapCurrent");
+    throw &exception_var;
+  }
+  //OCHECK(lines.size() == 1);
   return static_cast<int64_t>(std::stoll(lines[0]));
 }
 
