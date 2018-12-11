@@ -124,10 +124,10 @@ std::unordered_set<std::string> Fs::resolveWildcardPath(
 
     for (const auto& entry : entries) {
       if (::fnmatch(parts[front.second].c_str(), entry.c_str(), 0) == 0) {
-        if (front.second == parts.size() - 1 ) {
+        if (front.second == parts.size() - 1) {
           // We have reached a leaf, add it to the return set
           ret.emplace(front.first + entry);
-        } else if (front.second < parts.size() - 1 ) {
+        } else if (front.second < parts.size() - 1) {
           // There are still more parts of the provided path to search.
           //
           // Note that we add the '/' at the end of the new path. This makes
@@ -253,8 +253,7 @@ ResourcePressure Fs::readRespressure(const std::string& path) {
     // some 0.00 0.03 0.05
     // full 0.00 0.03 0.05
     if (lines.size() != 3) {
-      short_lived_exception exception_var( "(short lived process ) read Mempressure");
-      throw &exception_var;
+      throw std::runtime_error("(short lived process ) read Mempressure");
     }
     std::vector<std::string> toks = split(lines[2], ' ');
     OCHECK(toks[0] == "full");
@@ -269,9 +268,8 @@ ResourcePressure Fs::readRespressure(const std::string& path) {
 
 int64_t Fs::readMemcurrent(const std::string& path) {
   auto lines = readFileByLine(path + "/" + kMemCurrentFile);
-  if (lines.size()!=1){
-    short_lived_exception exception_var("(short lived process ) read Memcurrent");
-    throw &exception_var;
+  if (lines.size() != 1) {
+    throw std::runtime_error("(short lived process ) read Memcurrent");
   }
   return static_cast<int64_t>(std::stoll(lines[0]));
 }
@@ -296,8 +294,7 @@ ResourcePressure Fs::readMempressure(const std::string& path) {
 int64_t Fs::readMemlow(const std::string& path) {
   auto lines = readFileByLine(path + "/" + kMemLowFile);
   if (lines.size() != 1) {
-    short_lived_exception exception_var("(short lived process ) read Memlow");
-    throw &exception_var;
+    throw std::runtime_error("(short lived process ) read Memlow");
   }
   if (lines[0] == "max") {
     return std::numeric_limits<int64_t>::max();
@@ -308,8 +305,7 @@ int64_t Fs::readMemlow(const std::string& path) {
 int64_t Fs::readSwapCurrent(const std::string& path) {
   auto lines = readFileByLine(path + "/" + kMemSwapCurrentFile);
   if (lines.size() != 1) {
-    short_lived_exception exception_var("(short lived process ) read SwapCurrent");
-    throw &exception_var;
+    throw std::runtime_error("(short lived process) read SwapCurrent");
   }
   return static_cast<int64_t>(std::stoll(lines[0]));
 }

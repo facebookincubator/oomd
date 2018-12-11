@@ -89,9 +89,11 @@ bool Oomd::updateContextCgroup(
     pressures = Fs::readMempressure(absolute_cgroup_path);
     memlow = Fs::readMemlow(absolute_cgroup_path);
     swap_current = Fs::readSwapCurrent(absolute_cgroup_path);
+  } catch (const std::exception& ex) {
+    OLOG << ex.what();
+  }
+  try {
     io_pressure = Fs::readIopressure(absolute_cgroup_path);
-  } catch (short_lived_exception* exception_var) {
-    OLOG << exception_var->exception_type;
   } catch (const std::exception& ex) {
     if (!warned_io_pressure_.count(absolute_cgroup_path)) {
       warned_io_pressure_.emplace(absolute_cgroup_path);
