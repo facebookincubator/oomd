@@ -95,7 +95,7 @@ std::unordered_set<std::string> Fs::resolveWildcardPath(
   }
 
   auto parts = split(path, '/');
-  std::deque<std::pair<std::string, int>> queue;
+  std::deque<std::pair<std::string, size_t>> queue;
   // Add initial path piece to begin search on. Start at root
   // if provided path is absolute, else go with relative dir.
   queue.emplace_back((path[0] == '/' ? "/" : "./"), 0);
@@ -253,7 +253,7 @@ ResourcePressure Fs::readRespressure(const std::string& path) {
     // some 0.00 0.03 0.05
     // full 0.00 0.03 0.05
     if (lines.size() != 3) {
-      throw std::runtime_error("could not read Mempressure process terminated");
+      throw std::runtime_error("cgroups are not valid:" + path);
     }
     std::vector<std::string> toks = split(lines[2], ' ');
     OCHECK(toks[0] == "full");
@@ -269,7 +269,7 @@ ResourcePressure Fs::readRespressure(const std::string& path) {
 int64_t Fs::readMemcurrent(const std::string& path) {
   auto lines = readFileByLine(path + "/" + kMemCurrentFile);
   if (lines.size() != 1) {
-    throw std::runtime_error("could not read Memcurrent process terminated");
+    throw std::runtime_error("cgroups are not valid" + path);
   }
   return static_cast<int64_t>(std::stoll(lines[0]));
 }
@@ -294,7 +294,7 @@ ResourcePressure Fs::readMempressure(const std::string& path) {
 int64_t Fs::readMemlow(const std::string& path) {
   auto lines = readFileByLine(path + "/" + kMemLowFile);
   if (lines.size() != 1) {
-    throw std::runtime_error("could not read Memlow process terminated");
+    throw std::runtime_error("cgroups are not valid:" + path);
   }
   if (lines[0] == "max") {
     return std::numeric_limits<int64_t>::max();
@@ -305,7 +305,7 @@ int64_t Fs::readMemlow(const std::string& path) {
 int64_t Fs::readSwapCurrent(const std::string& path) {
   auto lines = readFileByLine(path + "/" + kMemSwapCurrentFile);
   if (lines.size() != 1) {
-    throw std::runtime_error("could not read SwapCurrent process terminated");
+    throw std::runtime_error("cgroups are not valid:" + path);
   }
   return static_cast<int64_t>(std::stoll(lines[0]));
 }
