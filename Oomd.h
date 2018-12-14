@@ -31,7 +31,10 @@ namespace Oomd {
 
 class Oomd {
  public:
-  Oomd(std::unique_ptr<Engine::Engine> engine, int interval);
+  Oomd(
+      std::unique_ptr<Engine::Engine> engine,
+      int interval,
+      const std::string& cgroup_fs);
   virtual ~Oomd() = default;
 
   /*
@@ -57,6 +60,7 @@ class Oomd {
 
   // runtime settings
   std::chrono::seconds interval_{0};
+  std::string cgroup_fs_;
   const double average_size_decay_{
       4}; // TODO(dlxu): migrate to ring buffer for raw datapoints so plugins
           // can calculate weighted average themselves

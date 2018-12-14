@@ -33,8 +33,6 @@
 #include "oomd/include/Defines.h"
 #include "oomd/util/Fs.h"
 
-static constexpr auto kCgroupFsRoot = "/sys/fs/cgroup";
-
 namespace {
 /*
  * Helper function that resolves a set of wildcarded cgroup paths.
@@ -62,8 +60,11 @@ std::unordered_set<std::string> resolveCgroupPaths(
 
 namespace Oomd {
 
-Oomd::Oomd(std::unique_ptr<Engine::Engine> engine, int interval)
-    : interval_(interval), engine_(std::move(engine)) {}
+Oomd::Oomd(
+    std::unique_ptr<Engine::Engine> engine,
+    int interval,
+    const std::string& cgroup_fs)
+    : interval_(interval), cgroup_fs_(cgroup_fs), engine_(std::move(engine)) {}
 
 bool Oomd::updateContextCgroup(
     const std::string& relative_cgroup_path,
@@ -159,7 +160,7 @@ int Oomd::run() {
     try {
       const auto before = std::chrono::steady_clock::now();
 
-      updateContext(kCgroupFsRoot, engine_->getMonitoredResources(), ctx);
+      updateContext(cgroup_fs_, engine_->getMonitoredResources(), ctx);
 
       // Run all the plugins
       engine_->runOnce(ctx);
