@@ -74,7 +74,8 @@ Oomd::Config2::IR::DetectorGroup parseDetectorGroup(
     return {};
   }
 
-  for (int i = 0; i < (signed)detector_group.size(); ++i) {
+  for (int i = 0; i < detector_group.size(); ++i) {
+  for (Json::ArrayIndex i = 0; i < detector_group.size(); ++i) {
     if (i == 0 && detector_group[i].isString()) {
       ir_detectorgroup.name = detector_group[i].asString();
       continue;
