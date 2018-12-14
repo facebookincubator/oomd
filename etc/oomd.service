@@ -1,0 +1,13 @@
+[Unit]
+Description=Userland out-of-memory killer daemon
+After=network.service system.slice
+ConditionFileIsExecutable=/usr/local/bin/oomd_bin
+
+[Service]
+ExecStart=/usr/local/bin/oomd_bin --interval 1 --config /etc/oomd.json
+Restart=always
+SyslogIdentifier=oomd
+MemoryLow=64M
+
+[Install]
+WantedBy=multi-user.target
