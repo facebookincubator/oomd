@@ -1,0 +1,69 @@
+//
+// Basic configuration for a desktop linux machine
+//
+
+{
+    "rulesets": [
+        {
+            "name": "user session protection",
+            "detectors": [
+                [
+                    "pressure above 60 for 30s",
+                    {
+                        "name": "dump_cgroup_overview",
+                        "args": {
+                            "cgroup": "user.slice,system.slice",
+                            "always": "true"
+                        }
+                    },
+                    {
+                        "name": "pressure_above",
+                        "args": {
+                            "cgroup": "user.slice,system.slice",
+                            "resource": "memory",
+                            "threshold": "60",
+                            "duration": "30"
+                        }
+                    },
+                    {
+                        "name": "memory_reclaim",
+                        "args": {
+                            "duration": "10"
+                        }
+                    }
+                ]
+            ],
+            "actions": [
+                {
+                    "name": "kill_by_memory_size_or_growth",
+                    "args": {
+                        "cgroup": "user.slice/user-*.slice/session-*.scope,user.slice/user-*.slice/user@*.service/*,system.slice/*"
+                    }
+                }
+            ]
+        },
+        {
+            "name": "protection against low swap",
+            "detectors": [
+                [
+                    "free swap goes below 15 percent",
+                    {
+                        "name": "swap_free",
+                        "args": {
+                            "threshold_pct": "15"
+                        }
+                    }
+                ]
+            ],
+            "actions": [
+                {
+                    "name": "kill_by_swap_usage",
+                    "args": {
+                        "cgroup": "user.slice/user-*.slice/session-*.scope,user.slice/user-*.slice/user@*.service/*,system.slice/*"
+                    }
+                }
+            ]
+        }
+    ],
+    "version": "1.0.0"
+}
