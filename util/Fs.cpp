@@ -253,7 +253,12 @@ ResourcePressure Fs::readRespressure(const std::string& path) {
     // some 0.00 0.03 0.05
     // full 0.00 0.03 0.05
     if (lines.size() != 3) {
-      throw std::runtime_error("cgroups are not valid:" + path);
+      std::string exception_error;
+      for(unsigned int i=0;i<lines.size();i++)
+      {
+        exception_error+="\n"+lines[i];
+      }
+      throw std::runtime_error("cgroups are not valid:"+exception_error);
     }
     std::vector<std::string> toks = split(lines[2], ' ');
     OCHECK(toks[0] == "full");
