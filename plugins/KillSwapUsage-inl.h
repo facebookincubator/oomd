@@ -89,6 +89,11 @@ bool KillSwapUsage<Base>::tryToKillSomething(OomdContext& ctx) {
   OomdContext::dumpOomdContext(swap_sorted);
 
   for (const auto& state_pair : swap_sorted) {
+    // If our target isn't using any swap, killing it won't free up any either
+    if (!state_pair.second.swap_usage) {
+      continue;
+    }
+
     OLOG << "Picked \"" << state_pair.first << "\" ("
          << state_pair.second.current_usage / 1024 / 1024
          << "MB) based on swap usage at "

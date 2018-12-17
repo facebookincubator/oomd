@@ -475,6 +475,27 @@ TEST(KillSwapUsage, DoesntKillBigSwapCgroupDry) {
   EXPECT_EQ(plugin->killed.size(), 0);
 }
 
+TEST(KillSwapUsage, DoesntKillNoSwap) {
+  auto plugin = std::make_shared<KillSwapUsage<BaseKillPluginMock>>();
+  ASSERT_NE(plugin, nullptr);
+
+  Engine::MonitoredResources resources;
+  Engine::PluginArgs args;
+  args["cgroup_fs"] = "oomd/fixtures/plugins/kill_by_swap_usage";
+  args["cgroup"] = "one_big/*";
+  args["post_action_delay"] = "0";
+  args["dry"] = "true";
+
+  ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+
+  OomdContext ctx;
+  ctx.setCgroupContext("one_big/cgroup1", CgroupContext{{}, {}, 0, 0, 0, 0});
+  ctx.setCgroupContext("one_big/cgroup2", CgroupContext{{}, {}, 0, 0, 0, 0});
+  ctx.setCgroupContext("one_big/cgroup3", CgroupContext{{}, {}, 0, 0, 0, 0});
+  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::CONTINUE);
+  EXPECT_EQ(plugin->killed.size(), 0);
+}
+
 TEST(KillPressure, KillsHighestPressure) {
   auto plugin = std::make_shared<KillPressure<BaseKillPluginMock>>();
   ASSERT_NE(plugin, nullptr);
