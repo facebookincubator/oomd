@@ -298,8 +298,13 @@ int64_t Fs::readMemlow(const std::string& path) {
 
 int64_t Fs::readSwapCurrent(const std::string& path) {
   auto lines = readFileByLine(path + "/" + kMemSwapCurrentFile);
-  OCHECK(lines.size() == 1);
-  return static_cast<int64_t>(std::stoll(lines[0]));
+
+  // The swap controller can be disabled via CONFIG_MEMCG_SWAP=n
+  if (lines.size() == 1) {
+    return static_cast<int64_t>(std::stoll(lines[0]));
+  } else {
+    return 0;
+  }
 }
 
 std::unordered_map<std::string, int64_t> Fs::getVmstat(
