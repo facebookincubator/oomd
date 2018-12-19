@@ -87,7 +87,8 @@ bool Oomd::updateContextCgroup(
   auto pressures = Fs::readMempressure(absolute_cgroup_path);
   auto memlow = Fs::readMemlow(absolute_cgroup_path);
   auto swap_current = Fs::readSwapCurrent(absolute_cgroup_path);
-
+  auto memory_stats = Fs::getMemstat(absolute_cgroup_path);
+  auto anon_usage = memory_stats["anon"];
   ResourcePressure io_pressure;
   try {
     io_pressure = Fs::readIopressure(absolute_cgroup_path);
@@ -103,7 +104,7 @@ bool Oomd::updateContextCgroup(
 
   ctx.setCgroupContext(
       relative_cgroup_path,
-      {pressures, io_pressure, current, {}, memlow, swap_current});
+      {pressures, io_pressure, current, {}, memlow, swap_current, anon_usage});
 
   return true;
 }

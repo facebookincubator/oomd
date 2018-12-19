@@ -26,9 +26,11 @@
 #include "oomd/PluginRegistry.h"
 #include "oomd/engine/BasePlugin.h"
 #include "oomd/plugins/BaseKillPlugin.h"
+#include "oomd/plugins/BaseSystemdPlugin.h"
 #include "oomd/plugins/KillMemoryGrowth.h"
 #include "oomd/plugins/KillPressure.h"
 #include "oomd/plugins/KillSwapUsage.h"
+#include "oomd/plugins/SystemdRestart.h"
 
 using namespace Oomd;
 using namespace testing;
@@ -58,6 +60,27 @@ class BaseKillPluginMock : public BaseKillPlugin {
   }
 
   std::unordered_set<int> killed;
+};
+
+class BaseSystemdPluginMock : public BaseSystemdPlugin {
+ public:
+  bool restartService(const std::string& service) override {
+    restarted = service;
+    return true;
+  }
+  bool stopService(const std::string& service) override {
+    stopped = service;
+    return true;
+  }
+  bool talkToSystemdManager(
+      const std::string& /* unused */,
+      const std::string& /* unused */,
+      const std::string& /* unused */) override {
+    return true;
+  }
+
+  std::string restarted;
+  std::string stopped;
 };
 
 /*
@@ -284,6 +307,90 @@ TEST(PressureAbove, DetectsHighMemPressureWildcard) {
 
   OomdContext ctx;
   EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::CONTINUE);
+}
+
+TEST(MemoryAbove, DetectsHighMemUsage) {
+  auto plugin = createPlugin("memory_above");
+  ASSERT_NE(plugin, nullptr);
+
+  Engine::MonitoredResources resources;
+  Engine::PluginArgs args;
+  args["cgroup_fs"] = "oomd/fixtures/plugins/memory_above";
+  args["cgroup"] = "high_memory";
+  args["meminfo_location"] = "oomd/fixtures/plugins/memory_above/meminfo";
+  args["threshold"] = "1536"; // in MB
+  args["duration"] = "0";
+
+  ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+
+  OomdContext ctx;
+  ctx.setCgroupContext(
+      "oomd/fixtures/plugins/memory_above/high_memory",
+      CgroupContext{{}, {}, 0, 0, 0, 20, 2147483648});
+  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::CONTINUE);
+}
+
+TEST(MemoryAbove, NoDetectLowMemUsage) {
+  auto plugin = createPlugin("memory_above");
+  ASSERT_NE(plugin, nullptr);
+
+  Engine::MonitoredResources resources;
+  Engine::PluginArgs args;
+  args["cgroup_fs"] = "oomd/fixtures/plugins/memory_above";
+  args["cgroup"] = "low_memory";
+  args["meminfo_location"] = "oomd/fixtures/plugins/memory_above/meminfo";
+  args["threshold"] = "1536"; // in MB
+  args["duration"] = "0";
+
+  ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+
+  OomdContext ctx;
+  ctx.setCgroupContext(
+      "oomd/fixtures/plugins/memory_above/low_memory",
+      CgroupContext{{}, {}, 0, 0, 0, 20, 1073741824});
+  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
+}
+
+TEST(MemoryAbove, DetectsHighMemUsagePercent) {
+  auto plugin = createPlugin("memory_above");
+  ASSERT_NE(plugin, nullptr);
+
+  Engine::MonitoredResources resources;
+  Engine::PluginArgs args;
+  args["cgroup_fs"] = "oomd/fixtures/plugins/memory_above";
+  args["cgroup"] = "high_memory";
+  args["meminfo_location"] = "oomd/fixtures/plugins/memory_above/meminfo";
+  args["threshold"] = "10%"; // in MB
+  args["duration"] = "0";
+
+  ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+
+  OomdContext ctx;
+  ctx.setCgroupContext(
+      "oomd/fixtures/plugins/memory_above/high_memory",
+      CgroupContext{{}, {}, 0, 0, 0, 20, 2147483648});
+  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::CONTINUE);
+}
+
+TEST(MemoryAbove, NoDetectLowMemUsagePercent) {
+  auto plugin = createPlugin("memory_above");
+  ASSERT_NE(plugin, nullptr);
+
+  Engine::MonitoredResources resources;
+  Engine::PluginArgs args;
+  args["cgroup_fs"] = "oomd/fixtures/plugins/memory_above";
+  args["cgroup"] = "low_memory";
+  args["meminfo_location"] = "oomd/fixtures/plugins/memory_above/meminfo";
+  args["threshold"] = "80%"; // in MB
+  args["duration"] = "0";
+
+  ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+
+  OomdContext ctx;
+  ctx.setCgroupContext(
+      "oomd/fixtures/plugins/memory_above/low_memory",
+      CgroupContext{{}, {}, 0, 0, 0, 20, 1073741824});
+  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
 }
 
 TEST(MemoryReclaim, InstantPgscan) {
@@ -593,4 +700,38 @@ TEST(KillPressure, DoesntKillsHighestPressureDry) {
       CgroupContext{{}, {ResourcePressure{99, 99, 99}}, 0, 0, 0, 0});
   EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
   EXPECT_EQ(plugin->killed.size(), 0);
+}
+
+TEST(SystemdRestart, RestartService) {
+  auto plugin = std::make_shared<SystemdRestart<BaseSystemdPluginMock>>();
+  ASSERT_NE(plugin, nullptr);
+
+  Engine::MonitoredResources resources;
+  Engine::PluginArgs args;
+  args["service"] = "some.service";
+  args["post_action_delay"] = "0";
+  args["dry"] = "false";
+
+  ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+
+  OomdContext ctx;
+  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
+  EXPECT_EQ(plugin->restarted, "some.service");
+}
+
+TEST(SystemdRestart, RestartServiceDry) {
+  auto plugin = std::make_shared<SystemdRestart<BaseSystemdPluginMock>>();
+  ASSERT_NE(plugin, nullptr);
+
+  Engine::MonitoredResources resources;
+  Engine::PluginArgs args;
+  args["service"] = "some.service";
+  args["post_action_delay"] = "0";
+  args["dry"] = "true";
+
+  ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+
+  OomdContext ctx;
+  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
+  EXPECT_EQ(plugin->restarted.size(), 0);
 }

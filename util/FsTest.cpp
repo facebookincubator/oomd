@@ -266,6 +266,19 @@ TEST_F(FsTest, GetMeminfo) {
   EXPECT_EQ(meminfo["asdf"], 0);
 }
 
+TEST_F(FsTest, GetMemstat) {
+  std::string dir(kCgroupDataDir);
+  auto meminfo = Fs::getMemstat(dir);
+
+  EXPECT_EQ(meminfo.size(), 29);
+  EXPECT_EQ(meminfo["anon"], 1294168064);
+  EXPECT_EQ(meminfo["file"], 3870687232);
+  EXPECT_EQ(meminfo["pglazyfree"], 0);
+
+  // we expect the key is missing (ie default val = 0)
+  EXPECT_EQ(meminfo["asdf"], 0);
+}
+
 TEST_F(FsTest, ReadIoPressure) {
   std::string dir(kCgroupDataDir);
   auto pressure = Fs::readIopressure(dir);

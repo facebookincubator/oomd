@@ -15,50 +15,10 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#pragma once
+#include "oomd/plugins/SystemdRestart.h"
 
-#include <cstdint>
+#include "oomd/PluginRegistry.h"
 
 namespace Oomd {
-
-enum struct OomType {
-  NONE,
-  SWAP,
-  PRESSURE_10,
-  PRESSURE_60,
-  IO_PRESSURE_60,
-  KILL_LIST,
-};
-
-union OomStat {
-  int64_t swap_free; // in MB
-  int32_t pressure_10_duration; // in seconds
-};
-
-struct OomContext {
-  OomType type{OomType::NONE};
-  OomStat stat;
-};
-
-enum struct ResourceType {
-  MEMORY,
-  IO,
-};
-
-struct ResourcePressure {
-  float sec_10{0};
-  float sec_60{0};
-  float sec_600{0};
-};
-
-struct CgroupContext {
-  ResourcePressure pressure;
-  ResourcePressure io_pressure;
-  int64_t current_usage{0};
-  int64_t average_usage{0};
-  int64_t memory_low{0};
-  int64_t swap_usage{0};
-  int64_t anon_usage{0};
-};
-
-} // namespace Oomd
+REGISTER_PLUGIN(systemd_restart, SystemdRestart<>::create);
+}

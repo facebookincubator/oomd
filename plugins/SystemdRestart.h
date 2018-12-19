@@ -17,48 +17,31 @@
 
 #pragma once
 
-#include <cstdint>
+#include "oomd/plugins/BaseSystemdPlugin.h"
 
 namespace Oomd {
 
-enum struct OomType {
-  NONE,
-  SWAP,
-  PRESSURE_10,
-  PRESSURE_60,
-  IO_PRESSURE_60,
-  KILL_LIST,
-};
+template <typename Base = BaseSystemdPlugin>
+class SystemdRestart : public Base {
+ public:
+  int init(
+      Engine::MonitoredResources& resources,
+      const Engine::PluginArgs& args) override;
 
-union OomStat {
-  int64_t swap_free; // in MB
-  int32_t pressure_10_duration; // in seconds
-};
+  Engine::PluginRet run(OomdContext& /* unused */) override;
 
-struct OomContext {
-  OomType type{OomType::NONE};
-  OomStat stat;
-};
+  static SystemdRestart* create() {
+    return new SystemdRestart();
+  }
 
-enum struct ResourceType {
-  MEMORY,
-  IO,
-};
+  ~SystemdRestart() = default;
 
-struct ResourcePressure {
-  float sec_10{0};
-  float sec_60{0};
-  float sec_600{0};
-};
-
-struct CgroupContext {
-  ResourcePressure pressure;
-  ResourcePressure io_pressure;
-  int64_t current_usage{0};
-  int64_t average_usage{0};
-  int64_t memory_low{0};
-  int64_t swap_usage{0};
-  int64_t anon_usage{0};
+ private:
+  std::string service_;
+  int post_action_delay_{15};
+  bool dry_{false};
 };
 
 } // namespace Oomd
+
+#include "oomd/plugins/SystemdRestart-inl.h"

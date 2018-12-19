@@ -346,6 +346,23 @@ std::unordered_map<std::string, int64_t> Fs::getMeminfo(
   return map;
 }
 
+std::unordered_map<std::string, int64_t> Fs::getMemstat(
+    const std::string& path) {
+  char name[256] = {0};
+  unsigned long val;
+  std::unordered_map<std::string, int64_t> map;
+
+  auto lines = readFileByLine(path + "/" + kMemStatFile);
+  for (const auto& line : lines) {
+    int ret = sscanf(line.c_str(), "%255s %lu\n", name, &val);
+    if (ret == 2) {
+      map[name] = val;
+    }
+  }
+
+  return map;
+}
+
 ResourcePressure Fs::readIopressure(const std::string& path) {
   const std::string ioPressurePath = path + "/" + kIoPressureFile;
 

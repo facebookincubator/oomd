@@ -17,48 +17,37 @@
 
 #pragma once
 
-#include <cstdint>
+#include <chrono>
+#include <unordered_set>
+
+#include "oomd/engine/BasePlugin.h"
 
 namespace Oomd {
 
-enum struct OomType {
-  NONE,
-  SWAP,
-  PRESSURE_10,
-  PRESSURE_60,
-  IO_PRESSURE_60,
-  KILL_LIST,
-};
+class MemoryAbove : public Oomd::Engine::BasePlugin {
+ public:
+  int init(
+      Engine::MonitoredResources& resources,
+      const Engine::PluginArgs& args) override;
 
-union OomStat {
-  int64_t swap_free; // in MB
-  int32_t pressure_10_duration; // in seconds
-};
+  Engine::PluginRet run(OomdContext& /* unused */) override;
 
-struct OomContext {
-  OomType type{OomType::NONE};
-  OomStat stat;
-};
+  static MemoryAbove* create() {
+    return new MemoryAbove();
+  }
 
-enum struct ResourceType {
-  MEMORY,
-  IO,
-};
+  ~MemoryAbove() = default;
 
-struct ResourcePressure {
-  float sec_10{0};
-  float sec_60{0};
-  float sec_600{0};
-};
-
-struct CgroupContext {
-  ResourcePressure pressure;
-  ResourcePressure io_pressure;
-  int64_t current_usage{0};
-  int64_t average_usage{0};
-  int64_t memory_low{0};
-  int64_t swap_usage{0};
-  int64_t anon_usage{0};
+ private:
+  std::unordered_set<std::string> cgroups_;
+  std::string cgroup_fs_;
+  // Initialized to bogus values; init() will crash oomd if non-0 return
+  int threshold_;
+  int duration_;
+  bool relative_{false};
+  bool debug_{false};
+  std::string meminfo_location_;
+  std::chrono::steady_clock::time_point hit_thres_at_{};
 };
 
 } // namespace Oomd
