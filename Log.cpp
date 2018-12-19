@@ -80,17 +80,17 @@ Log::~Log() {
   }
 }
 
-void Log::init_or_die() {
+bool Log::init() {
   int kmsg_fd = ::open("/dev/kmsg", O_WRONLY);
   if (kmsg_fd < 0) {
-    const int errcode = errno; // prevent errno clobbering
     perror("open");
-    OLOG << "Unable to open outfile (default=/dev/kmsg), not logging";
-    throw std::system_error(errcode, std::generic_category());
+    std::cerr << "Unable to open outfile (default=/dev/kmsg), not logging\n";
+    return false;
   }
 
   bool inline_logging = std::getenv("INLINE_LOGGING") ? true : false;
   Log::get(kmsg_fd, std::cerr, inline_logging);
+  return true;
 }
 
 Log& Log::get(int kmsg_fd, std::ostream& debug_sink, bool inl) {

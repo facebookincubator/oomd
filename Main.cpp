@@ -137,7 +137,10 @@ int main(int argc, char** argv) {
   // kmsg logging (due to some weird setup code required to get unit testing
   // correct). Be careful not to make any oomd library calls before initing
   // logging.
-  Oomd::Log::init_or_die();
+  if (!Oomd::Log::init()) {
+    std::cerr << "Logging failed to initialize. Try running with sudo\n";
+    return 1;
+  }
 
   if (!system_reqs_met()) {
     std::cerr << "System requirements not met\n";
