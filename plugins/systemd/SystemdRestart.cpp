@@ -15,33 +15,10 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#pragma once
+#include "oomd/plugins/systemd/SystemdRestart.h"
 
-#include "oomd/plugins/BaseSystemdPlugin.h"
+#include "oomd/PluginRegistry.h"
 
 namespace Oomd {
-
-template <typename Base = BaseSystemdPlugin>
-class SystemdRestart : public Base {
- public:
-  int init(
-      Engine::MonitoredResources& resources,
-      const Engine::PluginArgs& args) override;
-
-  Engine::PluginRet run(OomdContext& /* unused */) override;
-
-  static SystemdRestart* create() {
-    return new SystemdRestart();
-  }
-
-  ~SystemdRestart() = default;
-
- private:
-  std::string service_;
-  int post_action_delay_{15};
-  bool dry_{false};
-};
-
-} // namespace Oomd
-
-#include "oomd/plugins/SystemdRestart-inl.h"
+REGISTER_PLUGIN(systemd_restart, SystemdRestart<>::create);
+}

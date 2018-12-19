@@ -15,7 +15,7 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#include "oomd/plugins/BaseSystemdPlugin.h"
+#include "oomd/plugins/systemd/BaseSystemdPlugin.h"
 
 #include <systemd/sd-bus.h>
 

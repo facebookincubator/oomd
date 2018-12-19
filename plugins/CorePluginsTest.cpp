@@ -26,11 +26,9 @@
 #include "oomd/PluginRegistry.h"
 #include "oomd/engine/BasePlugin.h"
 #include "oomd/plugins/BaseKillPlugin.h"
-#include "oomd/plugins/BaseSystemdPlugin.h"
 #include "oomd/plugins/KillMemoryGrowth.h"
 #include "oomd/plugins/KillPressure.h"
 #include "oomd/plugins/KillSwapUsage.h"
-#include "oomd/plugins/SystemdRestart.h"
 
 using namespace Oomd;
 using namespace testing;
@@ -60,27 +58,6 @@ class BaseKillPluginMock : public BaseKillPlugin {
   }
 
   std::unordered_set<int> killed;
-};
-
-class BaseSystemdPluginMock : public BaseSystemdPlugin {
- public:
-  bool restartService(const std::string& service) override {
-    restarted = service;
-    return true;
-  }
-  bool stopService(const std::string& service) override {
-    stopped = service;
-    return true;
-  }
-  bool talkToSystemdManager(
-      const std::string& /* unused */,
-      const std::string& /* unused */,
-      const std::string& /* unused */) override {
-    return true;
-  }
-
-  std::string restarted;
-  std::string stopped;
 };
 
 /*
@@ -700,38 +677,4 @@ TEST(KillPressure, DoesntKillsHighestPressureDry) {
       CgroupContext{{}, {ResourcePressure{99, 99, 99}}, 0, 0, 0, 0});
   EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
   EXPECT_EQ(plugin->killed.size(), 0);
-}
-
-TEST(SystemdRestart, RestartService) {
-  auto plugin = std::make_shared<SystemdRestart<BaseSystemdPluginMock>>();
-  ASSERT_NE(plugin, nullptr);
-
-  Engine::MonitoredResources resources;
-  Engine::PluginArgs args;
-  args["service"] = "some.service";
-  args["post_action_delay"] = "0";
-  args["dry"] = "false";
-
-  ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
-
-  OomdContext ctx;
-  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
-  EXPECT_EQ(plugin->restarted, "some.service");
-}
-
-TEST(SystemdRestart, RestartServiceDry) {
-  auto plugin = std::make_shared<SystemdRestart<BaseSystemdPluginMock>>();
-  ASSERT_NE(plugin, nullptr);
-
-  Engine::MonitoredResources resources;
-  Engine::PluginArgs args;
-  args["service"] = "some.service";
-  args["post_action_delay"] = "0";
-  args["dry"] = "true";
-
-  ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
-
-  OomdContext ctx;
-  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
-  EXPECT_EQ(plugin->restarted.size(), 0);
 }

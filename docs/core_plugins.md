@@ -34,6 +34,25 @@ CONTINUE if 1m pressure > `threshold` for longer than `duration` && trending
 above threshold (10s > `threshold`) && 10s not falling rapidly. STOP
 otherwise.
 
+## memory_above
+
+### Arguments
+
+    cgroup
+    threshold
+    duration
+
+### Description
+
+`cgroup` has the same semantics and features as `pressure_rising_beyond`.
+
+`threshold` takes both an absolute value (in MB) or a percentage of total
+memory used. A percentage threshold must be in the format `N%`, where
+`0 <= N <= 100`.
+
+CONTINUE if 10s anonymous memory usage > `threshold` longer than `duration`,
+STOP otherwise.
+
 ## pressure_above
 
 ### Arguments
@@ -42,6 +61,7 @@ otherwise.
     resource
     threshold
     duration
+    cgroup_fs=/sys/fs/cgroup (optional)
 
 ### Description
 
