@@ -24,3 +24,5 @@ __OCHECK_FAIL(const char* expr, const char* file, int line, const char* func);
   (static_cast<bool>(expr) \
        ? void(0)           \
        : __OCHECK_FAIL(#expr, __FILE__, __LINE__, __PRETTY_FUNCTION__))
+
+#define OCHECK_EXCEPT(expr, exc) (static_cast<bool>(expr)) ? void(0) : throw exc

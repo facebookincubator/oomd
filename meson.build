@@ -37,6 +37,7 @@ srcs = files('''
     engine/Ruleset.h
     include/Assert.cpp
     include/Assert.h
+    include/Defines.h
     include/Types.h
     plugins/BaseKillPlugin.cpp
     plugins/BaseKillPlugin.h

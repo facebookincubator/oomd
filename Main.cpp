@@ -149,12 +149,18 @@ int main(int argc, char** argv) {
 
   // Load config
   std::ifstream conf_file(flag_conf_file, std::ios::in);
-  OCHECK(conf_file.is_open());
+  if (!conf_file.is_open()) {
+    std::cerr << "Could not open confg_file=" << flag_conf_file << std::endl;
+    return EXIT_CANT_RECOVER;
+  }
   std::stringstream buf;
   buf << conf_file.rdbuf();
   Oomd::Config2::JsonConfigParser json_parser;
   auto ir = json_parser.parse(buf.str());
-  OCHECK(ir != nullptr);
+  if (!ir) {
+    std::cerr << "Could not parse conf_file=" << flag_conf_file << std::endl;
+    return EXIT_CANT_RECOVER;
+  }
   auto engine = Oomd::Config2::compile(*ir);
 
   Oomd::Oomd oomd(std::move(engine), interval);

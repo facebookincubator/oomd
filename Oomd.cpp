@@ -30,6 +30,7 @@
 
 #include "oomd/Log.h"
 #include "oomd/include/Assert.h"
+#include "oomd/include/Defines.h"
 #include "oomd/util/Fs.h"
 
 static constexpr auto kCgroupFsRoot = "/sys/fs/cgroup";
@@ -149,24 +150,35 @@ int Oomd::run() {
   OomdContext ctx;
 
   OLOG << "Running oomd";
-  OCHECK(engine_);
+  if (!engine_) {
+    OLOG << "Could not run engine. Your config file is probably invalid\n";
+    return EXIT_CANT_RECOVER;
+  }
 
   while (true) {
-    const auto before = std::chrono::steady_clock::now();
+    try {
+      const auto before = std::chrono::steady_clock::now();
 
-    updateContext(kCgroupFsRoot, engine_->getMonitoredResources(), ctx);
+      updateContext(kCgroupFsRoot, engine_->getMonitoredResources(), ctx);
 
-    // Run all the plugins
-    engine_->runOnce(ctx);
+      // Run all the plugins
+      engine_->runOnce(ctx);
 
-    // We may have slept already, so recalculate
-    const auto after = std::chrono::steady_clock::now();
-    auto to_sleep = interval_ - (after - before);
-    if (to_sleep < std::chrono::seconds(0)) {
-      to_sleep = std::chrono::seconds(0);
+      // We may have slept already, so recalculate
+      const auto after = std::chrono::steady_clock::now();
+      auto to_sleep = interval_ - (after - before);
+      if (to_sleep < std::chrono::seconds(0)) {
+        to_sleep = std::chrono::seconds(0);
+      }
+
+      std::this_thread::sleep_for(to_sleep);
+    } catch (const Fs::bad_control_file& ex) {
+      OLOG << "Caught bad_control_file: " << ex.what();
+      return 1;
+    } catch (const std::exception& ex) {
+      OLOG << "Caught exception: " << ex.what();
+      return 1;
     }
-
-    std::this_thread::sleep_for(to_sleep);
   }
 
   return 0;

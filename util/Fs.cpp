@@ -233,40 +233,47 @@ ResourcePressure Fs::readRespressure(const std::string& path) {
     // some avg10=0.22 avg60=0.17 avg300=1.11 total=58761459
     // full avg10=0.22 avg60=0.16 avg300=1.08 total=58464525
     std::vector<std::string> toks = split(lines[1], ' ');
-    OCHECK(toks[0] == "full");
+    OCHECK_EXCEPT(
+        toks[0] == "full", bad_control_file(path + ": invalid format"));
     std::vector<std::string> avg10 = split(toks[1], '=');
-    OCHECK(avg10[0] == "avg10");
+    OCHECK_EXCEPT(
+        avg10[0] == "avg10", bad_control_file(path + ": invalid format"));
     std::vector<std::string> avg60 = split(toks[2], '=');
-    OCHECK(avg60[0] == "avg60");
+    OCHECK_EXCEPT(
+        avg60[0] == "avg60", bad_control_file(path + ": invalid format"));
     std::vector<std::string> avg300 = split(toks[3], '=');
-    OCHECK(avg300[0] == "avg300");
+    OCHECK_EXCEPT(
+        avg300[0] == "avg300", bad_control_file(path + ": invalid format"));
 
     return ResourcePressure{
         std::stof(avg10[1]),
         std::stof(avg60[1]),
         std::stof(avg300[1]),
     };
-  } else {
+  } else if (lines.size() == 3) {
     // Old experimental format
     //
     // aggr 316016073
     // some 0.00 0.03 0.05
     // full 0.00 0.03 0.05
-    OCHECK(lines.size() == 3);
     std::vector<std::string> toks = split(lines[2], ' ');
-    OCHECK(toks[0] == "full");
+    OCHECK_EXCEPT(
+        toks[0] == "full", bad_control_file(path + ": invalid format"));
 
     return ResourcePressure{
         std::stof(toks[1]),
         std::stof(toks[2]),
         std::stof(toks[3]),
     };
+  } else {
+    // Missing the control file
+    throw bad_control_file(path + ": missing file");
   }
 }
 
 int64_t Fs::readMemcurrent(const std::string& path) {
   auto lines = readFileByLine(path + "/" + kMemCurrentFile);
-  OCHECK(lines.size() == 1);
+  OCHECK_EXCEPT(lines.size() == 1, bad_control_file(path + ": missing file"));
   return static_cast<int64_t>(std::stoll(lines[0]));
 }
 
@@ -276,7 +283,7 @@ int64_t Fs::readMemcurrentWildcard(const std::string& path) {
 
   for (const auto& path : resolved) {
     auto lines = readFileByLine(path);
-    OCHECK(lines.size() == 1);
+    OCHECK_EXCEPT(lines.size() == 1, bad_control_file(path + ": missing file"));
     total += static_cast<int64_t>(std::stoll(lines[0]));
   }
 
@@ -289,7 +296,7 @@ ResourcePressure Fs::readMempressure(const std::string& path) {
 
 int64_t Fs::readMemlow(const std::string& path) {
   auto lines = readFileByLine(path + "/" + kMemLowFile);
-  OCHECK(lines.size() == 1);
+  OCHECK_EXCEPT(lines.size() == 1, bad_control_file(path + ": missing file"));
   if (lines[0] == "max") {
     return std::numeric_limits<int64_t>::max();
   }
