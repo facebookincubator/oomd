@@ -29,7 +29,8 @@ Facebook, we've regularly seen 30 minute host lockups go away entirely.
 Note that oomd requires PSI to function. This kernel feature has been landed
 upstream and is staged for the 4.20 release.
 
-oomd currently depends on [meson][2] and [jsoncpp][4].
+oomd currently depends on [meson][2] and [jsoncpp][4]. [libsystemd][6] is an
+optional dependency.
 
     $ git clone https://github.com/facebookincubator/oomd
     $ cd oomd
@@ -77,3 +78,4 @@ oomd is GPL 2 licensed, as found in the LICENSE file.
 [2]: http://mesonbuild.com/
 [4]: https://github.com/open-source-parsers/jsoncpp
 [5]: https://github.com/google/googletest
+[6]: https://github.com/systemd/systemd/tree/master/src/libsystemd/

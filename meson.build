@@ -45,6 +45,8 @@ srcs = files('''
     plugins/DumpCgroupOverview.cpp
     plugins/DumpCgroupOverview.h
     util/Fs.cpp
+    plugins/MemoryAbove.cpp
+    plugins/MemoryAbove.h
     plugins/MemoryReclaim.cpp
     plugins/MemoryReclaim.h
     plugins/PressureAbove.cpp
@@ -68,6 +70,21 @@ srcs = files('''
 
 deps = [dependency('jsoncpp'),
         dependency('threads')]
+
+# Optional dependencies
+systemd_dep = dependency('libsystemd', required: false)
+if systemd_dep.found()
+  srcs += files('''
+      plugins/systemd/BaseSystemdPlugin.cpp
+      plugins/systemd/BaseSystemdPlugin.h
+      plugins/systemd/SystemdRestart-inl.h
+      plugins/systemd/SystemdRestart.cpp
+      plugins/systemd/SystemdRestart.h
+  '''.split())
+
+  deps += [systemd_dep]
+endif
+
 oomd_lib = library('oomd',
                    srcs,
                    include_directories : inc,
@@ -87,6 +104,8 @@ gtest_dep = dependency('gtest', main : true, required : false)
 gmock_dep = dependency('gmock', required : false)
 if gtest_dep.found() and gmock_dep.found()
     deps += [gtest_dep, gmock_dep]
+
+    # Core tests
     config_tests = executable('oomd_config_tests',
                               files('config/JsonConfigParserTest.cpp'),
                               include_directories : inc,
@@ -142,6 +161,16 @@ if gtest_dep.found() and gmock_dep.found()
     test('assert_tests', assert_tests)
     test('compiler_tests', compiler_tests)
     test('plugin_tests', plugin_tests)
+
+    # Optional tests
+    if systemd_dep.found()
+        systemd_plugin_tests = executable('oomd_systemd_plugin_tests',
+                                          'plugins/systemd/SystemdPluginsTest.cpp',
+                                          include_directories : inc,
+                                          dependencies : deps,
+                                          link_with : oomd_lib)
+        test('systemd_plugin_tests', systemd_plugin_tests)
+    endif
 
     # Copy over fixtures to build dir so 'ninja test' will work
     r = run_command('rm', '-r', meson.build_root() + '/oomd')
