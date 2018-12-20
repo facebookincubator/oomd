@@ -17,4 +17,4 @@ considered core or require optional dependencies.
 
 Restarts systemd service: `service`.
 
-CONTINUE on success, STOP otherwise.
+STOP on success, CONTINUE otherwise.
