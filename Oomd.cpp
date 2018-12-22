@@ -92,6 +92,17 @@ bool Oomd::updateContextCgroup(
   } catch (const std::exception& ex) {
     OLOG << ex.what();
   }
+<<<<<<< HEAD
+=======
+
+  auto current = Fs::readMemcurrent(absolute_cgroup_path);
+  auto pressures = Fs::readMempressure(absolute_cgroup_path);
+  auto memlow = Fs::readMemlow(absolute_cgroup_path);
+  auto swap_current = Fs::readSwapCurrent(absolute_cgroup_path);
+  auto memory_stats = Fs::getMemstat(absolute_cgroup_path);
+  auto anon_usage = memory_stats["anon"];
+  ResourcePressure io_pressure;
+>>>>>>> c9c0610202f60341303fef28ea3b134ad0a9ba08
   try {
     io_pressure = Fs::readIopressure(absolute_cgroup_path);
   } catch (const std::exception& ex) {
@@ -106,7 +117,7 @@ bool Oomd::updateContextCgroup(
 
   ctx.setCgroupContext(
       relative_cgroup_path,
-      {pressures, io_pressure, current, {}, memlow, swap_current});
+      {pressures, io_pressure, current, {}, memlow, swap_current, anon_usage});
 
   return true;
 }

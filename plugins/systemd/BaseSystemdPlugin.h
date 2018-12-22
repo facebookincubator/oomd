@@ -17,48 +17,25 @@
 
 #pragma once
 
-#include <cstdint>
+#include "oomd/engine/BasePlugin.h"
 
 namespace Oomd {
 
-enum struct OomType {
-  NONE,
-  SWAP,
-  PRESSURE_10,
-  PRESSURE_60,
-  IO_PRESSURE_60,
-  KILL_LIST,
-};
+/*
+ * This abstract base class provides an overridable set of methods that
+ * allow us to request some actions from systemd over DBUS.
+ * Main reason this exists is mocking things for unittests.
+ */
+class BaseSystemdPlugin : public Oomd::Engine::BasePlugin {
+ protected:
+  virtual bool talkToSystemdManager(
+      const std::string& method,
+      const std::string& service,
+      const std::string& mode = "replace");
 
-union OomStat {
-  int64_t swap_free; // in MB
-  int32_t pressure_10_duration; // in seconds
-};
+  virtual bool restartService(const std::string& service);
 
-struct OomContext {
-  OomType type{OomType::NONE};
-  OomStat stat;
-};
-
-enum struct ResourceType {
-  MEMORY,
-  IO,
-};
-
-struct ResourcePressure {
-  float sec_10{0};
-  float sec_60{0};
-  float sec_600{0};
-};
-
-struct CgroupContext {
-  ResourcePressure pressure;
-  ResourcePressure io_pressure;
-  int64_t current_usage{0};
-  int64_t average_usage{0};
-  int64_t memory_low{0};
-  int64_t swap_usage{0};
-  int64_t anon_usage{0};
+  virtual bool stopService(const std::string& service);
 };
 
 } // namespace Oomd

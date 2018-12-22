@@ -34,6 +34,7 @@ class Fs {
   static constexpr auto kMemCurrentFile = "memory.current";
   static constexpr auto kMemPressureFile = "memory.pressure";
   static constexpr auto kMemLowFile = "memory.low";
+  static constexpr auto kMemStatFile = "memory.stat";
   static constexpr auto kMemSwapCurrentFile = "memory.swap.current";
   static constexpr auto kIoPressureFile = "io.pressure";
 
@@ -95,6 +96,9 @@ class Fs {
 
   static std::unordered_map<std::string, int64_t> getMeminfo(
       const std::string& path = "/proc/meminfo");
+
+  static std::unordered_map<std::string, int64_t> getMemstat(
+      const std::string& path);
 
   /* Getters and setters to set xattr values */
   static bool setxattr(

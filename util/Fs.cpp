@@ -304,10 +304,20 @@ int64_t Fs::readMemlow(const std::string& path) {
 
 int64_t Fs::readSwapCurrent(const std::string& path) {
   auto lines = readFileByLine(path + "/" + kMemSwapCurrentFile);
+<<<<<<< HEAD
   if (lines.size() != 1) {
     throw std::runtime_error("cgroup is no longer valid:" + path);
   }
   return static_cast<int64_t>(std::stoll(lines[0]));
+=======
+
+  // The swap controller can be disabled via CONFIG_MEMCG_SWAP=n
+  if (lines.size() == 1) {
+    return static_cast<int64_t>(std::stoll(lines[0]));
+  } else {
+    return 0;
+  }
+>>>>>>> c9c0610202f60341303fef28ea3b134ad0a9ba08
 }
 
 std::unordered_map<std::string, int64_t> Fs::getVmstat(
@@ -343,6 +353,23 @@ std::unordered_map<std::string, int64_t> Fs::getMeminfo(
     int ret = sscanf(line.c_str(), "%255[^:]:%*[ \t]%lu%*s\n", name, &val);
     if (ret == 2) {
       map[name] = val * 1024;
+    }
+  }
+
+  return map;
+}
+
+std::unordered_map<std::string, int64_t> Fs::getMemstat(
+    const std::string& path) {
+  char name[256] = {0};
+  unsigned long val;
+  std::unordered_map<std::string, int64_t> map;
+
+  auto lines = readFileByLine(path + "/" + kMemStatFile);
+  for (const auto& line : lines) {
+    int ret = sscanf(line.c_str(), "%255s %lu\n", name, &val);
+    if (ret == 2) {
+      map[name] = val;
     }
   }
 

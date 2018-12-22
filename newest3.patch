@@ -1,0 +1,88 @@
+diff --git a/Oomd.cpp b/Oomd.cpp
+index b0200e5..c4757be 100644
+--- a/Oomd.cpp
++++ b/Oomd.cpp
+@@ -89,10 +89,12 @@ bool Oomd::updateContextCgroup(
+     pressures = Fs::readMempressure(absolute_cgroup_path);
+     memlow = Fs::readMemlow(absolute_cgroup_path);
+     swap_current = Fs::readSwapCurrent(absolute_cgroup_path);
+-    io_pressure = Fs::readIopressure(absolute_cgroup_path);
+-  } catch (short_lived_exception* exception_var) {
+-    OLOG << exception_var->exception_type;
+   } catch (const std::exception& ex) {
++    OLOG <<ex.what();
++  }
++  try {
++    io_pressure = Fs::readIopressure(absolute_cgroup_path);
++  }  catch (const std::exception& ex) {
+     if (!warned_io_pressure_.count(absolute_cgroup_path)) {
+       warned_io_pressure_.emplace(absolute_cgroup_path);
+       OLOG << "IO pressure unavailable on " << absolute_cgroup_path << ": "
+diff --git a/include/Types.h b/include/Types.h
+index 5e69214..77e988f 100644
+--- a/include/Types.h
++++ b/include/Types.h
+@@ -18,19 +18,9 @@
+ #pragma once
+ 
+ #include <cstdint>
+-#include <string.h>
+-//#include <exception.h>
+-#include <bits/stdc++.h>
+ 
+ namespace Oomd {
+ 
+-class short_lived_exception : public std::exception {
+-  public :
+-   std::string exception_type;
+-   short_lived_exception(const std::string except) {
+-     exception_type =except ;
+-  }
+-};
+ enum struct OomType {
+   NONE,
+   SWAP,
+diff --git a/util/Fs.cpp b/util/Fs.cpp
+index f98340f..4df51d6 100644
+--- a/util/Fs.cpp
++++ b/util/Fs.cpp
+@@ -253,8 +253,7 @@ ResourcePressure Fs::readRespressure(const std::string& path) {
+     // some 0.00 0.03 0.05
+     // full 0.00 0.03 0.05
+     if (lines.size() != 3) {
+-      short_lived_exception exception_var( "(short lived process ) read Mempressure");
+-      throw &exception_var;
++      throw std::runtime_error("(short lived process ) read Mempressure");
+     }
+     std::vector<std::string> toks = split(lines[2], ' ');
+     OCHECK(toks[0] == "full");
+@@ -270,8 +269,7 @@ ResourcePressure Fs::readRespressure(const std::string& path) {
+ int64_t Fs::readMemcurrent(const std::string& path) {
+   auto lines = readFileByLine(path + "/" + kMemCurrentFile);
+   if (lines.size()!=1){
+-    short_lived_exception exception_var("(short lived process ) read Memcurrent");
+-    throw &exception_var;
++    throw std::runtime_error("(short lived process ) read Memcurrent");
+   }
+   return static_cast<int64_t>(std::stoll(lines[0]));
+ }
+@@ -296,8 +294,7 @@ ResourcePressure Fs::readMempressure(const std::string& path) {
+ int64_t Fs::readMemlow(const std::string& path) {
+   auto lines = readFileByLine(path + "/" + kMemLowFile);
+   if (lines.size() != 1) {
+-    short_lived_exception exception_var("(short lived process ) read Memlow");
+-    throw &exception_var;
++    throw std::runtime_error("(short lived process ) read Memlow");
+   }
+   if (lines[0] == "max") {
+     return std::numeric_limits<int64_t>::max();
+@@ -308,8 +305,7 @@ int64_t Fs::readMemlow(const std::string& path) {
+ int64_t Fs::readSwapCurrent(const std::string& path) {
+   auto lines = readFileByLine(path + "/" + kMemSwapCurrentFile);
+   if (lines.size() != 1) {
+-    short_lived_exception exception_var("(short lived process ) read SwapCurrent");
+-    throw &exception_var;
++    throw std::runtime_error("(short lived process) read SwapCurrent");
+   }
+   return static_cast<int64_t>(std::stoll(lines[0]));
+ }
