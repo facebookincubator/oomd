@@ -253,12 +253,7 @@ ResourcePressure Fs::readRespressure(const std::string& path) {
     // some 0.00 0.03 0.05
     // full 0.00 0.03 0.05
     if (lines.size() != 3) {
-      std::string exception_error;
-      for(unsigned int i=0;i<lines.size();i++)
-      {
-        exception_error+="\n"+lines[i];
-      }
-      throw std::runtime_error("cgroups are not valid:"+exception_error);
+      throw std::runtime_error("cgroup is no longer valid:" + path);
     }
     std::vector<std::string> toks = split(lines[2], ' ');
     OCHECK(toks[0] == "full");
@@ -274,7 +269,7 @@ ResourcePressure Fs::readRespressure(const std::string& path) {
 int64_t Fs::readMemcurrent(const std::string& path) {
   auto lines = readFileByLine(path + "/" + kMemCurrentFile);
   if (lines.size() != 1) {
-    throw std::runtime_error("cgroups are not valid" + path);
+    throw std::runtime_error("cgroup is no longer valid:" + path);
   }
   return static_cast<int64_t>(std::stoll(lines[0]));
 }
@@ -299,7 +294,7 @@ ResourcePressure Fs::readMempressure(const std::string& path) {
 int64_t Fs::readMemlow(const std::string& path) {
   auto lines = readFileByLine(path + "/" + kMemLowFile);
   if (lines.size() != 1) {
-    throw std::runtime_error("cgroups are not valid:" + path);
+    throw std::runtime_error("cgroup is no longer valid:" + path);
   }
   if (lines[0] == "max") {
     return std::numeric_limits<int64_t>::max();
@@ -310,7 +305,7 @@ int64_t Fs::readMemlow(const std::string& path) {
 int64_t Fs::readSwapCurrent(const std::string& path) {
   auto lines = readFileByLine(path + "/" + kMemSwapCurrentFile);
   if (lines.size() != 1) {
-    throw std::runtime_error("cgroups are not valid:" + path);
+    throw std::runtime_error("cgroup is no longer valid:" + path);
   }
   return static_cast<int64_t>(std::stoll(lines[0]));
 }
