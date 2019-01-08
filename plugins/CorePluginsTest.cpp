@@ -302,8 +302,7 @@ TEST(MemoryAbove, DetectsHighMemUsage) {
 
   OomdContext ctx;
   ctx.setCgroupContext(
-      "oomd/fixtures/plugins/memory_above/high_memory",
-      CgroupContext{{}, {}, 0, 0, 0, 20, 2147483648});
+      "high_memory", CgroupContext{{}, {}, 0, 0, 0, 20, 2147483648});
   EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::CONTINUE);
 }
 
@@ -323,8 +322,7 @@ TEST(MemoryAbove, NoDetectLowMemUsage) {
 
   OomdContext ctx;
   ctx.setCgroupContext(
-      "oomd/fixtures/plugins/memory_above/low_memory",
-      CgroupContext{{}, {}, 0, 0, 0, 20, 1073741824});
+      "low_memory", CgroupContext{{}, {}, 0, 0, 0, 20, 1073741824});
   EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
 }
 
@@ -344,8 +342,53 @@ TEST(MemoryAbove, DetectsHighMemUsagePercent) {
 
   OomdContext ctx;
   ctx.setCgroupContext(
-      "oomd/fixtures/plugins/memory_above/high_memory",
-      CgroupContext{{}, {}, 0, 0, 0, 20, 2147483648});
+      "high_memory", CgroupContext{{}, {}, 0, 0, 0, 20, 2147483648});
+  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::CONTINUE);
+}
+
+TEST(MemoryAbove, NoDetectLowMemUsageMultiple) {
+  auto plugin = createPlugin("memory_above");
+  ASSERT_NE(plugin, nullptr);
+
+  Engine::MonitoredResources resources;
+  Engine::PluginArgs args;
+  args["cgroup_fs"] = "oomd/fixtures/plugins/memory_above";
+  args["cgroup"] = "low_memory";
+  args["meminfo_location"] = "oomd/fixtures/plugins/memory_above/meminfo";
+  args["threshold"] = "1536"; // in MB
+  args["duration"] = "0";
+  args["debug"] = "true";
+
+  ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+
+  OomdContext ctx;
+  ctx.setCgroupContext(
+      "low_memory", CgroupContext{{}, {}, 0, 0, 0, 20, 1073741824});
+  ctx.setCgroupContext(
+      "high_memory", CgroupContext{{}, {}, 0, 0, 0, 20, 2147483648});
+  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
+}
+
+TEST(MemoryAbove, DetectsHighMemUsageMultiple) {
+  auto plugin = createPlugin("memory_above");
+  ASSERT_NE(plugin, nullptr);
+
+  Engine::MonitoredResources resources;
+  Engine::PluginArgs args;
+  args["cgroup_fs"] = "oomd/fixtures/plugins/memory_above";
+  args["cgroup"] = "high_memory";
+  args["meminfo_location"] = "oomd/fixtures/plugins/memory_above/meminfo";
+  args["threshold"] = "1536"; // in MB
+  args["duration"] = "0";
+  args["debug"] = "true";
+
+  ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+
+  OomdContext ctx;
+  ctx.setCgroupContext(
+      "low_memory", CgroupContext{{}, {}, 0, 0, 0, 20, 1073741824});
+  ctx.setCgroupContext(
+      "high_memory", CgroupContext{{}, {}, 0, 0, 0, 20, 2147483648});
   EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::CONTINUE);
 }
 
@@ -365,8 +408,7 @@ TEST(MemoryAbove, NoDetectLowMemUsagePercent) {
 
   OomdContext ctx;
   ctx.setCgroupContext(
-      "oomd/fixtures/plugins/memory_above/low_memory",
-      CgroupContext{{}, {}, 0, 0, 0, 20, 1073741824});
+      "low_memory", CgroupContext{{}, {}, 0, 0, 0, 20, 1073741824});
   EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
 }
 

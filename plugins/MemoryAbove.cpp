@@ -87,18 +87,24 @@ int MemoryAbove::init(
 
 Engine::PluginRet MemoryAbove::run(OomdContext& ctx) {
   using std::chrono::steady_clock;
-
-  auto anon_sorted = ctx.reverseSort(
-      [](const CgroupContext& cgroup_ctx) { return cgroup_ctx.anon_usage; });
   int64_t current_memory_usage = 0;
-
-  if (anon_sorted.size() > 0) {
-    const auto& state_pair = anon_sorted.at(0);
-    if (debug_) {
-      OLOG << "cgroup \"" << state_pair.first
-           << "\" memory.stat (anon)=" << state_pair.second.anon_usage;
+  std::string current_cgroup;
+  for (const auto& cgroup : cgroups_) {
+    try {
+      auto cgroup_ctx = ctx.getCgroupContext(cgroup);
+      if (debug_) {
+        OLOG << "cgroup \"" << cgroup << "\" "
+             << "memory.stat (anon)=" << cgroup_ctx.anon_usage;
+      }
+      if (current_memory_usage < cgroup_ctx.anon_usage) {
+        current_memory_usage = cgroup_ctx.anon_usage;
+        current_cgroup = cgroup;
+      }
+    } catch (const std::exception& ex) {
+      OLOG << "Failed to get cgroup \"" << cgroup << "\" "
+           << "context: " << ex.what();
+      continue;
     }
-    current_memory_usage = state_pair.second.anon_usage;
   }
   auto meminfo = meminfo_location_.size() ? Fs::getMeminfo(meminfo_location_)
                                           : Fs::getMeminfo();
@@ -114,7 +120,8 @@ Engine::PluginRet MemoryAbove::run(OomdContext& ctx) {
     auto percent = current_memory_usage * 100 / memtotal;
     threshold_bytes = (threshold_ * memtotal) / 100;
     if (percent > threshold_) {
-      OLOG << "memory usage=" << current_memory_usage << " (" << percent
+      OLOG << "cgroup \"" << current_cgroup << "\" "
+           << "memory usage=" << current_memory_usage << " (" << percent
            << "%) "
            << "hit threshold=" << threshold_bytes << " (" << threshold_
            << "%) of MemTotal";
@@ -123,8 +130,9 @@ Engine::PluginRet MemoryAbove::run(OomdContext& ctx) {
   } else {
     threshold_bytes = threshold_ * 1024 * 1024;
     if (current_memory_usage > threshold_bytes) {
-      OLOG << "memory usage=" << current_memory_usage;
-      OLOG << "hit threshold=" << threshold_bytes;
+      OLOG << "cgroup \"" << current_cgroup << "\" "
+           << "memory usage=" << current_memory_usage << " "
+           << "hit threshold=" << threshold_bytes;
       threshold_broken = true;
     }
   }
@@ -143,7 +151,8 @@ Engine::PluginRet MemoryAbove::run(OomdContext& ctx) {
     if (diff >= duration_) {
       std::ostringstream oss;
       oss << std::setprecision(2) << std::fixed;
-      oss << "current memory usage " << current_memory_usage / 1024 / 1024
+      oss << "cgroup \"" << current_cgroup << "\" "
+          << "current memory usage " << current_memory_usage / 1024 / 1024
           << "MB is over the threshold of " << threshold_bytes / 1024 / 1024
           << "MB for " << duration_ << " seconds";
       OLOG << oss.str();
