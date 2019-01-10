@@ -2,7 +2,7 @@ project('oomd', 'cpp',
   version : '0.1.0',
   license : 'GPL2')
 
-cpp_args = ['-std=c++14', '-g']
+cpp_args = ['-std=c++14', '-g', '-rdynamic']
 
 # '..' is needed as an include directory b/c of how internal FB tooling
 # requires a specific header path
