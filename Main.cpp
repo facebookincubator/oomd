@@ -28,6 +28,8 @@
 #include "oomd/config/ConfigCompiler.h"
 #include "oomd/config/JsonConfigParser.h"
 #include "oomd/include/Assert.h"
+#include "oomd/include/Defines.h"
+#include "oomd/util/Fs.h"
 
 static constexpr auto kConfigFilePath = "/etc/oomd.json";
 
@@ -40,6 +42,24 @@ static void printUsage() {
          "                        Config file (default: /etc/oomd.json)\n"
          "  --interval, -i        Event loop polling interval (default: 5)\n"
       << std::endl;
+}
+
+static bool system_reqs_met() {
+  // 4.20 mempressure file
+  auto psi = Oomd::Fs::readFileByLine("/proc/pressure/memory");
+  if (psi.size()) {
+    return true;
+  }
+
+  // Experimental mempressure file
+  psi = Oomd::Fs::readFileByLine("/proc/mempressure");
+  if (psi.size()) {
+    return true;
+  }
+
+  std::cerr
+      << "PSI not detected. Is your system running a new enough kernel?\n";
+  return false;
 }
 
 int main(int argc, char** argv) {
@@ -118,6 +138,11 @@ int main(int argc, char** argv) {
   // correct). Be careful not to make any oomd library calls before initing
   // logging.
   Oomd::Log::init_or_die();
+
+  if (!system_reqs_met()) {
+    std::cerr << "System requirements not met\n";
+    return EXIT_CANT_RECOVER;
+  }
 
   std::cerr << "oomd running with conf_file=" << flag_conf_file
             << " interval=" << interval << std::endl;
