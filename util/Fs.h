@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include <exception>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
@@ -28,6 +29,13 @@ namespace Oomd {
 
 class Fs {
  public:
+  class bad_control_file : public std::runtime_error {
+   public:
+    explicit bad_control_file(const std::string& msg)
+        : std::runtime_error(msg) {}
+    explicit bad_control_file(const char* msg) : std::runtime_error(msg) {}
+  };
+
   static constexpr auto kControllersFile = "cgroup.controllers";
   static constexpr auto kSubtreeControlFile = "cgroup.subtree_control";
   static constexpr auto kProcsFile = "cgroup.procs";

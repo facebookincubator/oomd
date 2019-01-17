@@ -18,6 +18,8 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
+#include <exception>
+
 #include "oomd/include/Assert.h"
 
 using namespace testing;
@@ -36,4 +38,11 @@ TEST(OomdAssertTest, Death) {
 
 TEST(OomdAssertTest, ExprDeath) {
   ASSERT_DEATH(OCHECK(true == false), "Assertion.*failed");
+}
+
+TEST(OomdAssertExceptionTest, Throws) {
+  ASSERT_NO_THROW(OCHECK_EXCEPT(true, std::runtime_error("x")));
+  ASSERT_THROW(
+      OCHECK_EXCEPT(false, std::runtime_error("x")), std::runtime_error);
+  ASSERT_THROW(OCHECK_EXCEPT(false, std::exception()), std::exception);
 }

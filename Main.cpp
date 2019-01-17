@@ -137,7 +137,10 @@ int main(int argc, char** argv) {
   // kmsg logging (due to some weird setup code required to get unit testing
   // correct). Be careful not to make any oomd library calls before initing
   // logging.
-  Oomd::Log::init_or_die();
+  if (!Oomd::Log::init()) {
+    std::cerr << "Logging failed to initialize. Try running with sudo\n";
+    return 1;
+  }
 
   if (!system_reqs_met()) {
     std::cerr << "System requirements not met\n";
@@ -149,12 +152,18 @@ int main(int argc, char** argv) {
 
   // Load config
   std::ifstream conf_file(flag_conf_file, std::ios::in);
-  OCHECK(conf_file.is_open());
+  if (!conf_file.is_open()) {
+    std::cerr << "Could not open confg_file=" << flag_conf_file << std::endl;
+    return EXIT_CANT_RECOVER;
+  }
   std::stringstream buf;
   buf << conf_file.rdbuf();
   Oomd::Config2::JsonConfigParser json_parser;
   auto ir = json_parser.parse(buf.str());
-  OCHECK(ir != nullptr);
+  if (!ir) {
+    std::cerr << "Could not parse conf_file=" << flag_conf_file << std::endl;
+    return EXIT_CANT_RECOVER;
+  }
   auto engine = Oomd::Config2::compile(*ir);
 
   Oomd::Oomd oomd(std::move(engine), interval);
