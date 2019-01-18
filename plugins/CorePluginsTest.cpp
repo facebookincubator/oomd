@@ -61,9 +61,9 @@ class BaseKillPluginMock : public BaseKillPlugin {
 };
 
 /*
- * Use this class to shim protected BaseKillPlugin methods
+ * Use this concrete class to test BaseKillPlugin methods
  */
-class BaseKillPluginShim : public BaseKillPlugin {
+class BaseKillPluginShim : public BaseKillPluginMock {
  public:
   int init(
       Engine::MonitoredResources& /* unused */,
@@ -80,8 +80,56 @@ class BaseKillPluginShim : public BaseKillPlugin {
       std::vector<std::pair<std::string, Oomd::CgroupContext>>& vec) {
     removeSiblingCgroups(our_prefixes, vec);
   }
+
+  bool tryToKillCgroupShim(
+      const std::string& cgroup_path,
+      bool recursive,
+      bool dry) {
+    return BaseKillPluginMock::tryToKillCgroup(cgroup_path, recursive, dry);
+  }
 };
 } // namespace Oomd
+
+TEST(BaseKillPlugin, TryToKillCgroupKillsNonRecursive) {
+  BaseKillPluginShim plugin;
+  EXPECT_EQ(
+      plugin.tryToKillCgroupShim(
+          "oomd/fixtures/plugins/base_kill_plugin/one_big", false, false),
+      true);
+
+  int expected_total = 0;
+  for (int i = 1; i <= 30; ++i) {
+    expected_total += i;
+  }
+
+  int received_total = 0;
+  for (int i : plugin.killed) {
+    received_total += i;
+  }
+
+  EXPECT_EQ(expected_total, received_total);
+}
+
+TEST(BaseKillPlugin, TryToKillCgroupKillsRecursive) {
+  BaseKillPluginShim plugin;
+  EXPECT_EQ(
+      plugin.tryToKillCgroupShim(
+          "oomd/fixtures/plugins/base_kill_plugin/one_big", true, false),
+      true);
+
+  int expected_total = 0;
+  for (int i = 1; i <= 30; ++i) {
+    expected_total += i;
+  }
+  expected_total += 1234;
+
+  int received_total = 0;
+  for (int i : plugin.killed) {
+    received_total += i;
+  }
+
+  EXPECT_EQ(expected_total, received_total);
+}
 
 TEST(BaseKillPlugin, RemoveSiblingCgroups) {
   OomdContext ctx;

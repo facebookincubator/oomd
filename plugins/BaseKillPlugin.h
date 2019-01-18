@@ -75,6 +75,10 @@ class BaseKillPlugin : public Oomd::Engine::BasePlugin {
   virtual void removeSiblingCgroups(
       const std::unordered_set<std::string>& ours,
       std::vector<std::pair<std::string, Oomd::CgroupContext>>& vec);
+
+ private:
+  virtual int
+  getAndTryToKillPids(const std::string& path, bool recursive, int stream_size);
 };
 
 } // namespace Oomd

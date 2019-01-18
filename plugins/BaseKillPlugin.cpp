@@ -21,6 +21,7 @@
 
 #include <chrono>
 #include <csignal>
+#include <fstream>
 #include <iomanip>
 #include <unordered_set>
 
@@ -31,6 +32,44 @@ static auto constexpr kOomdKillXattr = "trusted.oomd_kill";
 
 namespace Oomd {
 
+int BaseKillPlugin::getAndTryToKillPids(
+    const std::string& path,
+    bool recursive,
+    int stream_size) {
+  int nr_killed = 0;
+  auto files = Fs::readDir(path, Fs::EntryType::REG_FILE);
+
+  std::ifstream f(path + "/" + Fs::kProcsFile, std::ios::in);
+  if (!f.is_open()) {
+    OLOG << "Unable to open " << path;
+    return 0;
+  }
+  while (!f.eof()) {
+    std::string s;
+    std::vector<int> pids;
+    while (std::getline(f, s)) {
+      pids.push_back(std::stoi(s));
+      if (pids.size() == stream_size) {
+        break;
+      }
+    }
+    if (f.bad()) {
+      OLOG << "Error while processing file " << path;
+    }
+    nr_killed += tryToKillPids(pids);
+    OLOG << "Killed " << nr_killed;
+    pids.clear();
+  }
+
+  if (recursive) {
+    auto dirs = Fs::readDir(path, Fs::EntryType::DIRECTORY);
+    for (const auto& dir : dirs) {
+      nr_killed += getAndTryToKillPids(path + "/" + dir, true, stream_size);
+    }
+  }
+  return nr_killed;
+}
+
 bool BaseKillPlugin::tryToKillCgroup(
     const std::string& cgroup_path,
     bool recursive,
@@ -40,6 +79,7 @@ bool BaseKillPlugin::tryToKillCgroup(
   int last_nr_killed = 0;
   int nr_killed = 0;
   int tries = 10;
+  int stream_size = 20;
 
   if (dry) {
     OLOG << "OOMD: In dry-run mode; would have tried to kill " << cgroup_path;
@@ -47,13 +87,9 @@ bool BaseKillPlugin::tryToKillCgroup(
   }
 
   OLOG << "Trying to kill " << cgroup_path;
-  if (Fs::getPids(cgroup_path, recursive).empty()) {
-    OLOG << "No processes to kill";
-    return true;
-  }
 
   while (tries--) {
-    nr_killed += tryToKillPids(Fs::getPids(cgroup_path, recursive));
+    nr_killed += getAndTryToKillPids(cgroup_path, recursive, stream_size);
 
     if (nr_killed == last_nr_killed) {
       break;
@@ -69,9 +105,7 @@ bool BaseKillPlugin::tryToKillCgroup(
 
     last_nr_killed = nr_killed;
   }
-
   reportToXattr(cgroup_path, nr_killed);
-
   return nr_killed > 0;
 }
 
