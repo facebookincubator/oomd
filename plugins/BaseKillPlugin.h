@@ -77,8 +77,10 @@ class BaseKillPlugin : public Oomd::Engine::BasePlugin {
       std::vector<std::pair<std::string, Oomd::CgroupContext>>& vec);
 
  private:
-  virtual int
-  getAndTryToKillPids(const std::string& path, bool recursive, int stream_size);
+  virtual int getAndTryToKillPids(
+      const std::string& path,
+      bool recursive,
+      size_t stream_size);
 };
 
 } // namespace Oomd

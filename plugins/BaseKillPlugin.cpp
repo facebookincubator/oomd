@@ -35,7 +35,7 @@ namespace Oomd {
 int BaseKillPlugin::getAndTryToKillPids(
     const std::string& path,
     bool recursive,
-    int stream_size) {
+    size_t stream_size) {
   int nr_killed = 0;
   auto files = Fs::readDir(path, Fs::EntryType::REG_FILE);
 
@@ -58,7 +58,6 @@ int BaseKillPlugin::getAndTryToKillPids(
     }
     nr_killed += tryToKillPids(pids);
     OLOG << "Killed " << nr_killed;
-    pids.clear();
   }
 
   if (recursive) {
@@ -79,7 +78,7 @@ bool BaseKillPlugin::tryToKillCgroup(
   int last_nr_killed = 0;
   int nr_killed = 0;
   int tries = 10;
-  int stream_size = 20;
+  static constexpr size_t stream_size = 20;
 
   if (dry) {
     OLOG << "OOMD: In dry-run mode; would have tried to kill " << cgroup_path;
