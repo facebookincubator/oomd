@@ -32,15 +32,17 @@
 #include "oomd/util/Fs.h"
 
 static constexpr auto kConfigFilePath = "/etc/oomd.json";
+static constexpr auto kCgroupFsRoot = "/sys/fs/cgroup";
 
 static void printUsage() {
   std::cerr
-      << "usage: oomd [-h] [--config CONFIG] [--interval INTERVAL]\n\n"
+      << "usage: oomd [-h] [--config CONFIG] [--interval INTERVAL] [--cgroup-fs MNTPT]\n\n"
          "optional arguments:\n"
          "  --help, -h            show this help message and exit\n"
          "  --config CONFIG, -C CONFIG\n"
          "                        Config file (default: /etc/oomd.json)\n"
          "  --interval, -i        Event loop polling interval (default: 5)\n"
+         "  --cgroup-fs, -f       cgroup2 filesystem mount point (default: /sys/fs/cgroup)\n"
       << std::endl;
 }
 
@@ -64,12 +66,13 @@ static bool system_reqs_met() {
 
 int main(int argc, char** argv) {
   std::string flag_conf_file = kConfigFilePath;
+  std::string cgroup_fs = kCgroupFsRoot;
   int interval = 5;
 
   int option_index = 0;
   int c = 0;
 
-  const char* const short_options = "hC:drv";
+  const char* const short_options = "hC:drvi:f:";
   option long_options[] = {option{"sandcastle_mode", no_argument, nullptr, 0},
                            option{"xattr_reporting", no_argument, nullptr, 0},
                            option{"help", no_argument, nullptr, 'h'},
@@ -78,6 +81,7 @@ int main(int argc, char** argv) {
                            option{"report", no_argument, nullptr, 'r'},
                            option{"verbose", no_argument, nullptr, 'v'},
                            option{"interval", required_argument, nullptr, 'i'},
+                           option{"cgroup-fs", required_argument, nullptr, 'f'},
                            option{nullptr, 0, nullptr, 0}};
 
   while ((c = getopt_long(
@@ -100,6 +104,9 @@ int main(int argc, char** argv) {
         break;
       case 'i':
         interval = std::stoi(optarg);
+        break;
+      case 'f':
+        cgroup_fs = std::string(optarg);
         break;
       case 0:
         if (long_options[option_index].flag != nullptr) {
@@ -166,6 +173,6 @@ int main(int argc, char** argv) {
   }
   auto engine = Oomd::Config2::compile(*ir);
 
-  Oomd::Oomd oomd(std::move(engine), interval);
+  Oomd::Oomd oomd(std::move(engine), interval, cgroup_fs);
   return oomd.run();
 }
