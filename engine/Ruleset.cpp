@@ -38,6 +38,7 @@ void Ruleset::runOnce(OomdContext& context) {
       OLOG << "DetectorGroup=" << dg->name()
            << " has fired for Ruleset=" << name_ << ". Running action chain.";
       run_actions = true;
+      context.setActionContext({name_, dg->name()});
       break;
     }
   }

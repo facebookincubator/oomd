@@ -24,13 +24,13 @@ namespace Oomd {
 
 OomdContext& OomdContext::operator=(OomdContext&& other) {
   memory_state_ = std::move(other.memory_state_);
-  oom_context_ = other.oom_context_;
+  action_context_ = other.action_context_;
   return *this;
 }
 
 OomdContext::OomdContext(OomdContext&& other) noexcept {
   memory_state_ = std::move(other.memory_state_);
-  oom_context_ = other.oom_context_;
+  action_context_ = other.action_context_;
 }
 
 bool OomdContext::hasCgroupContext(const std::string& name) const {
@@ -92,12 +92,12 @@ void OomdContext::reverseSort(
       });
 }
 
-const OomContext& OomdContext::getOomContext() const {
-  return oom_context_;
+const ActionContext& OomdContext::getActionContext() const {
+  return action_context_;
 }
 
-void OomdContext::setOomContext(OomContext context) {
-  oom_context_ = context;
+void OomdContext::setActionContext(ActionContext context) {
+  action_context_ = context;
 }
 
 void OomdContext::dump() {

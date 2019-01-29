@@ -137,12 +137,15 @@ void BaseKillPlugin::reportToXattr(
 void BaseKillPlugin::logKill(
     const std::string& killed_cgroup,
     const CgroupContext& context,
+    const ActionContext& action_context,
     bool dry) const {
   std::ostringstream oss;
   oss << std::setprecision(2) << std::fixed;
   oss << context.pressure.sec_10 << " " << context.pressure.sec_60 << " "
       << context.pressure.sec_600 << " " << killed_cgroup << " "
       << context.current_usage << " "
+      << "ruleset:[" << action_context.ruleset << "] "
+      << "detectorgroup:[" << action_context.detectorgroup << "] "
       << "killer:" << (dry ? "(dry)" : "") << getName() << " v2";
   OOMD_KMSG_LOG(oss.str(), "oomd kill");
 }

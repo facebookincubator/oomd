@@ -79,12 +79,16 @@ class OomdContext {
   static void dumpOomdContext(
       const std::vector<std::pair<std::string, CgroupContext>>& vec);
 
-  const OomContext& getOomContext() const;
-  void setOomContext(OomContext context);
+  /**
+   * Used to let action plugins know which ruleset and detector group
+   * triggered it
+   */
+  const ActionContext& getActionContext() const;
+  void setActionContext(ActionContext context);
 
  private:
   std::unordered_map<std::string, CgroupContext> memory_state_;
-  OomContext oom_context_;
+  ActionContext action_context_;
 };
 
 } // namespace Oomd

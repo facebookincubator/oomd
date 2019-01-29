@@ -135,7 +135,8 @@ bool KillPressure<Base>::tryToKillSomething(OomdContext& ctx) {
          << "10s=" << pressure10 << " 60s=" << pressure60;
     if (Base::tryToKillCgroup(
             cgroup_fs_ + "/" + state_pair.first, true, dry_)) {
-      Base::logKill(state_pair.first, state_pair.second, dry_);
+      Base::logKill(
+          state_pair.first, state_pair.second, ctx.getActionContext(), dry_);
       return true;
     }
   }

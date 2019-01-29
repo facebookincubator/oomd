@@ -100,7 +100,8 @@ bool KillSwapUsage<Base>::tryToKillSomething(OomdContext& ctx) {
          << state_pair.second.swap_usage / 1024 / 1024 << "MB";
     if (Base::tryToKillCgroup(
             cgroup_fs_ + "/" + state_pair.first, true, dry_)) {
-      Base::logKill(state_pair.first, state_pair.second, dry_);
+      Base::logKill(
+          state_pair.first, state_pair.second, ctx.getActionContext(), dry_);
       return true;
     }
   }

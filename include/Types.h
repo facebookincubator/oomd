@@ -21,7 +21,9 @@
 
 namespace Oomd {
 
-struct OomContext {
+struct ActionContext {
+  std::string ruleset;
+  std::string detectorgroup;
 };
 
 enum struct ResourceType {

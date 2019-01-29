@@ -139,7 +139,8 @@ bool KillMemoryGrowth<Base>::tryToKillSomething(OomdContext& ctx) {
 
     if (Base::tryToKillCgroup(
             cgroup_fs_ + "/" + state_pair.first, true, dry_)) {
-      Base::logKill(state_pair.first, state_pair.second, dry_);
+      Base::logKill(
+          state_pair.first, state_pair.second, ctx.getActionContext(), dry_);
       return true;
     }
   }
@@ -171,7 +172,8 @@ bool KillMemoryGrowth<Base>::tryToKillSomething(OomdContext& ctx) {
 
     if (Base::tryToKillCgroup(
             cgroup_fs_ + "/" + state_pair.first, true, dry_)) {
-      Base::logKill(state_pair.first, state_pair.second, dry_);
+      Base::logKill(
+          state_pair.first, state_pair.second, ctx.getActionContext(), dry_);
       return true;
     }
   }

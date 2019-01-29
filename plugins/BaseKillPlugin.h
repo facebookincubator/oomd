@@ -63,6 +63,7 @@ class BaseKillPlugin : public Oomd::Engine::BasePlugin {
   virtual void logKill(
       const std::string& killed_group,
       const CgroupContext& context,
+      const ActionContext& action_context,
       bool dry = false) const;
 
   /*
