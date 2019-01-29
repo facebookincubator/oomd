@@ -21,23 +21,7 @@
 
 namespace Oomd {
 
-enum struct OomType {
-  NONE,
-  SWAP,
-  PRESSURE_10,
-  PRESSURE_60,
-  IO_PRESSURE_60,
-  KILL_LIST,
-};
-
-union OomStat {
-  int64_t swap_free; // in MB
-  int32_t pressure_10_duration; // in seconds
-};
-
 struct OomContext {
-  OomType type{OomType::NONE};
-  OomStat stat;
 };
 
 enum struct ResourceType {

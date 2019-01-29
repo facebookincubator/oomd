@@ -88,15 +88,3 @@ TEST_F(OomdContextTest, SortContext) {
   EXPECT_EQ(sorted.at(0).first, "smallest");
   EXPECT_EQ(sorted.at(3).first, "biggest");
 }
-
-TEST_F(OomdContextTest, OomContext) {
-  EXPECT_EQ(ctx.getOomContext().type, OomType::NONE);
-
-  OomStat s;
-  s.pressure_10_duration = 22;
-  OomContext c{OomType::PRESSURE_10, s};
-  ctx.setOomContext(c);
-
-  EXPECT_EQ(ctx.getOomContext().type, OomType::PRESSURE_10);
-  EXPECT_EQ(ctx.getOomContext().stat.pressure_10_duration, 22);
-}
