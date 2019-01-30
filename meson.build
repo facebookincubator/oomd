@@ -4,10 +4,15 @@ project('oomd', 'cpp',
 
 cpp_args = ['-std=c++14', '-g', '-rdynamic']
 
+# The ".." include path is necessary if one
+# does not want to build via the "build-from-github.sh" script.
+# Even then, the repo must not be cloned under an alternate name;
+# the clone directory must be "oomd".
 inc = include_directories('''
     include
     util
     .
+    ..
 '''.split())
 
 srcs = files('''
