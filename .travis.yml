@@ -6,12 +6,18 @@ compiler:
 
 sudo: required
 
-dist: xenial
+services:
+  - docker
+
+env:
+  - SH="docker exec -t ubuntu-bionic bash -c"
 
 before_install:
-  - sudo apt-get update
-  - sudo apt-get install -y python3-pip python3-setuptools libjsoncpp-dev ninja-build
-  - pip3 install --user meson
+  - docker run -d --name ubuntu-bionic -v $(pwd):/travis -w /travis ubuntu:bionic tail -f /dev/null
+
+install:
+  - $SH "apt update"
+  - $SH "apt install -y pkg-config libsystemd-dev libjsoncpp-dev googletest meson"
 
 notifications:
   irc:
@@ -21,7 +27,4 @@ notifications:
     on_failure: always
 
 script:
-  - mkdir build
-  - meson build
-  - cd build
-  - ninja
+  - $SH ./build-from-github.sh
