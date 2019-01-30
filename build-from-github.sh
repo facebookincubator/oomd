@@ -9,6 +9,5 @@ rm -f $COMPATIBILITY_SYMLINK
 ln -s . $COMPATIBILITY_SYMLINK
 
 
-mkdir $OUTDIR
 meson $OUTDIR
 ninja -C $OUTDIR test
