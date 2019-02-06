@@ -57,7 +57,6 @@ int BaseKillPlugin::getAndTryToKillPids(
       OLOG << "Error while processing file " << path;
     }
     nr_killed += tryToKillPids(pids);
-    OLOG << "Killed " << nr_killed;
   }
 
   if (recursive) {
@@ -109,14 +108,27 @@ bool BaseKillPlugin::tryToKillCgroup(
 }
 
 int BaseKillPlugin::tryToKillPids(const std::vector<int>& pids) {
+  std::ostringstream buf;
   int nr_killed = 0;
+
   for (int pid : pids) {
+    auto comm_path = std::string("/proc/") + std::to_string(pid) + "/comm";
+    auto comm = Fs::readFileByLine(comm_path);
+
+    if (comm.size()) {
+      buf << " " << pid << "(" << comm[0] << ")";
+    } else {
+      buf << " " << pid;
+    }
+
     if (::kill(static_cast<pid_t>(pid), SIGKILL) == 0) {
-      OLOG << "Killed pid " << pid;
       nr_killed++;
     } else {
-      OLOG << "Failed to kill pid " << pid;
+      buf << "[E" << errno << "]";
     }
+  }
+  if (buf.tellp()) {
+    OLOG << "Killed " << nr_killed << ":" << buf.str();
   }
   return nr_killed;
 }
