@@ -63,6 +63,14 @@ int KillSwapUsage<Base>::init(
     }
   }
 
+  if (args.find("debug") != args.end()) {
+    const std::string& val = args.at("debug");
+
+    if (val == "true" || val == "True" || val == "1") {
+      debug_ = true;
+    }
+  }
+
   // Success
   return 0;
 }
@@ -83,10 +91,12 @@ template <typename Base>
 bool KillSwapUsage<Base>::tryToKillSomething(OomdContext& ctx) {
   auto swap_sorted = ctx.reverseSort(
       [](const CgroupContext& cgroup_ctx) { return cgroup_ctx.swap_usage; });
-  OomdContext::dumpOomdContext(swap_sorted);
+  if (debug_) {
+    OomdContext::dumpOomdContext(swap_sorted, !debug_);
+    OLOG << "Removed sibling cgroups";
+  }
   Base::removeSiblingCgroups(cgroups_, swap_sorted);
-  OLOG << "Removed sibling cgroups";
-  OomdContext::dumpOomdContext(swap_sorted);
+  OomdContext::dumpOomdContext(swap_sorted, !debug_);
 
   for (const auto& state_pair : swap_sorted) {
     // If our target isn't using any swap, killing it won't free up any either

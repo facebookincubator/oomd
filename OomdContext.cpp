@@ -17,6 +17,7 @@
 
 #include "oomd/OomdContext.h"
 #include "oomd/Log.h"
+#include "oomd/util/Fs.h"
 
 #include <exception>
 
@@ -105,9 +106,30 @@ void OomdContext::dump() {
 }
 
 void OomdContext::dumpOomdContext(
-    const std::vector<std::pair<std::string, CgroupContext>>& vec) {
+    const std::vector<std::pair<std::string, CgroupContext>>& vec,
+    const bool skip_negligible) {
   OLOG << "Dumping OomdContext: ";
   for (const auto& ms : vec) {
+    if (skip_negligible) {
+      // don't show if <1% pressure && <.1% usage
+      auto meminfo = Fs::getMeminfo();
+      const float press_min = 1;
+      const int64_t mem_min = meminfo["MemTotal"] / 1000;
+      const int64_t swap_min = meminfo["SwapTotal"] / 1000;
+
+      if (!(ms.second.pressure.sec_10 >= press_min ||
+            ms.second.pressure.sec_60 >= press_min ||
+            ms.second.pressure.sec_600 >= press_min ||
+            ms.second.io_pressure.sec_10 >= press_min ||
+            ms.second.io_pressure.sec_60 >= press_min ||
+            ms.second.io_pressure.sec_600 >= press_min ||
+            ms.second.current_usage > mem_min ||
+            ms.second.average_usage > mem_min ||
+            ms.second.swap_usage > swap_min)) {
+        continue;
+      }
+    }
+
     OLOG << "name=" << ms.first;
     OLOG << "  pressure=" << ms.second.pressure.sec_10 << ":"
          << ms.second.pressure.sec_60 << ":" << ms.second.pressure.sec_600

@@ -77,7 +77,8 @@ class OomdContext {
    */
   void dump();
   static void dumpOomdContext(
-      const std::vector<std::pair<std::string, CgroupContext>>& vec);
+      const std::vector<std::pair<std::string, CgroupContext>>& vec,
+      const bool skip_negligible = false);
 
   /**
    * Used to let action plugins know which ruleset and detector group

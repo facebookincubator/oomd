@@ -47,6 +47,7 @@ class KillPressure : public Base {
   ResourceType resource_;
   int post_action_delay_{15};
   bool dry_{false};
+  bool debug_{false};
 
  private:
   static auto constexpr kCgroupFs = "/sys/fs/cgroup";

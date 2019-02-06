@@ -76,6 +76,14 @@ int KillPressure<Base>::init(
     }
   }
 
+  if (args.find("debug") != args.end()) {
+    const std::string& val = args.at("debug");
+
+    if (val == "true" || val == "True" || val == "1") {
+      debug_ = true;
+    }
+  }
+
   // Success
   return 0;
 }
@@ -110,10 +118,12 @@ bool KillPressure<Base>::tryToKillSomething(OomdContext& ctx) {
 
         return average;
       });
-  OomdContext::dumpOomdContext(pressure_sorted);
+  if (debug_) {
+    OomdContext::dumpOomdContext(pressure_sorted, !debug_);
+    OLOG << "Removed sibling cgroups";
+  }
   Base::removeSiblingCgroups(cgroups_, pressure_sorted);
-  OLOG << "Removed sibling cgroups";
-  OomdContext::dumpOomdContext(pressure_sorted);
+  OomdContext::dumpOomdContext(pressure_sorted, !debug_);
 
   for (const auto& state_pair : pressure_sorted) {
     float pressure10 = 0;

@@ -48,6 +48,7 @@ class KillMemoryGrowth : public Base {
   int growing_size_percentile_{80};
   int post_action_delay_{15};
   bool dry_{false};
+  bool debug_{false};
 };
 
 } // namespace Oomd

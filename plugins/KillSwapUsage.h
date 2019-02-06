@@ -45,6 +45,7 @@ class KillSwapUsage : public Base {
   std::string cgroup_fs_;
   int post_action_delay_{15};
   bool dry_{false};
+  bool debug_{false};
 
  private:
   static constexpr auto kCgroupFs = "/sys/fs/cgroup";

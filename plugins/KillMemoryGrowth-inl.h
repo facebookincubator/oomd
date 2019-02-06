@@ -90,6 +90,14 @@ int KillMemoryGrowth<Base>::init(
     }
   }
 
+  if (args.find("debug") != args.end()) {
+    const std::string& val = args.at("debug");
+
+    if (val == "true" || val == "True" || val == "1") {
+      debug_ = true;
+    }
+  }
+
   // Success
   return 0;
 }
@@ -118,10 +126,12 @@ bool KillMemoryGrowth<Base>::tryToKillSomething(OomdContext& ctx) {
   auto size_sorted = ctx.reverseSort([](const CgroupContext& cgroup_ctx) {
     return cgroup_ctx.current_usage - cgroup_ctx.memory_low;
   });
-  OomdContext::dumpOomdContext(size_sorted);
-  OLOG << "Removed sibling cgroups";
+  if (debug_) {
+    OomdContext::dumpOomdContext(size_sorted, !debug_);
+    OLOG << "Removed sibling cgroups";
+  }
   Base::removeSiblingCgroups(cgroups_, size_sorted);
-  OomdContext::dumpOomdContext(size_sorted);
+  OomdContext::dumpOomdContext(size_sorted, !debug_);
 
   // First try to kill the biggest cgroup over it's assigned memory.low
   for (const auto& state_pair : size_sorted) {
