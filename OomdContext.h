@@ -28,6 +28,11 @@
 
 namespace Oomd {
 
+struct ActionContext {
+  std::string ruleset;
+  std::string detectorgroup;
+};
+
 class OomdContext {
  public:
   OomdContext() {} // = default warns about dynamic exceptions
