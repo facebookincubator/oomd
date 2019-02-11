@@ -119,6 +119,7 @@ Always returns CONTINUE.
 
     cgroup
     size_threshold=50 (optional)
+    min_growth_ratio=1.25 (optional)
     growing_size_percentile=80 (optional)
     post_action_delay=15 (optional)
     cgroup_fs=/sys/fs/cgroup (optional)
@@ -135,12 +136,12 @@ paths. Eg.
 
 Note that extra spaces are not permitted betwen ','s.
 
-Kill the biggest (memory.current - memory.low) child cgroup if larger
-than `size_threshold` or kill the fastest growing of the biggest
-`growing_size_percentile` by size.  True if killed something, which
-terminates actions. Sleeps for `post_action_delay` if a kill was performed.
-If `dry` is set to true, does not actually perform kill but prints via
-logs what kill it would have done.
+Kill the biggest (memory.current - memory.low) child cgroup if larger than
+`size_threshold` percent or kill the fastest growing over
+`min_growth_ratio` of the biggest `growing_size_percentile` by size.  True
+if killed something, which terminates actions. Sleeps for
+`post_action_delay` if a kill was performed.  If `dry` is set to true, does
+not actually perform kill but prints via logs what kill it would have done.
 
 Avoids killing cgroups which aren't experiencing memory pressure at all as
 they aren't contributing the pressure anyway.

@@ -71,6 +71,17 @@ int KillMemoryGrowth<Base>::init(
     growing_size_percentile_ = val;
   }
 
+  if (args.find("min_growth_ratio") != args.end()) {
+    int val = std::stof(args.at("min_growth_ratio"));
+
+    if (val < 0) {
+      OLOG << "Argument=min_growth_ratio must be non-negative";
+      return 1;
+    }
+
+    min_growth_ratio_ = val;
+  }
+
   if (args.find("post_action_delay") != args.end()) {
     int val = std::stoi(args.at("post_action_delay"));
 
@@ -104,7 +115,16 @@ int KillMemoryGrowth<Base>::init(
 
 template <typename Base>
 Engine::PluginRet KillMemoryGrowth<Base>::run(OomdContext& ctx) {
-  bool ret = tryToKillSomething(ctx);
+  // First try to kill by size, respecting size_threshold. Failing that,
+  // try to kill by growth. Failing that, try to kill by size, ignoring
+  // size_threshold.
+  bool ret = tryToKillBySize(ctx, false);
+  if (!ret) {
+    ret = tryToKillByGrowth(ctx);
+  }
+  if (!ret) {
+    ret = tryToKillBySize(ctx, true);
+  }
 
   if (ret) {
     std::this_thread::sleep_for(std::chrono::seconds(post_action_delay_));
@@ -115,7 +135,9 @@ Engine::PluginRet KillMemoryGrowth<Base>::run(OomdContext& ctx) {
 }
 
 template <typename Base>
-bool KillMemoryGrowth<Base>::tryToKillSomething(OomdContext& ctx) {
+bool KillMemoryGrowth<Base>::tryToKillBySize(
+    OomdContext& ctx,
+    bool ignore_threshold) {
   int64_t cur_memcurrent = 0;
   for (const auto& cgroup : cgroups_) {
     cur_memcurrent += Fs::readMemcurrentWildcard(cgroup_fs_ + "/" + cgroup);
@@ -126,17 +148,14 @@ bool KillMemoryGrowth<Base>::tryToKillSomething(OomdContext& ctx) {
   auto size_sorted = ctx.reverseSort([](const CgroupContext& cgroup_ctx) {
     return cgroup_ctx.current_usage - cgroup_ctx.memory_low;
   });
-  if (debug_) {
-    OomdContext::dumpOomdContext(size_sorted, !debug_);
-    OLOG << "Removed sibling cgroups";
-  }
   Base::removeSiblingCgroups(cgroups_, size_sorted);
   OomdContext::dumpOomdContext(size_sorted, !debug_);
 
   // First try to kill the biggest cgroup over it's assigned memory.low
   for (const auto& state_pair : size_sorted) {
-    if (state_pair.second.current_usage <
-        (cur_memcurrent * (static_cast<double>(size_threshold_) / 100))) {
+    if (!ignore_threshold &&
+        state_pair.second.current_usage <
+            (cur_memcurrent * (static_cast<double>(size_threshold_) / 100))) {
       OLOG << "Skipping size heuristic kill on " << state_pair.first
            << " b/c not big enough";
       break;
@@ -155,10 +174,16 @@ bool KillMemoryGrowth<Base>::tryToKillSomething(OomdContext& ctx) {
     }
   }
 
-  // Now try to kill by which cgroup grew the fastest. Pick the top
-  // P(growing_size_percentile_) and sort them by the growth rate
+  return false;
+}
+
+template <typename Base>
+bool KillMemoryGrowth<Base>::tryToKillByGrowth(OomdContext& ctx) {
+  // Pick the top P(growing_size_percentile_) and sort them by the growth rate
   // (current usage / avg usage) and try to kill the highest one.
-  auto growth_sorted = std::move(size_sorted); // save ourselves an allocation
+  auto growth_sorted = ctx.reverseSort([](const CgroupContext& cgroup_ctx) {
+    return cgroup_ctx.current_usage - cgroup_ctx.memory_low;
+  });
   const int nr = std::ceil(
       growth_sorted.size() *
       (100 - static_cast<double>(growing_size_percentile_)) / 100);
@@ -167,9 +192,17 @@ bool KillMemoryGrowth<Base>::tryToKillSomething(OomdContext& ctx) {
     return static_cast<double>(cgroup_ctx.current_usage) /
         cgroup_ctx.average_usage;
   });
-  OomdContext::dumpOomdContext(growth_sorted);
+  OomdContext::dumpOomdContext(growth_sorted, !debug_);
 
   for (const auto& state_pair : growth_sorted) {
+    float growth_ratio = static_cast<double>(state_pair.second.current_usage) /
+        state_pair.second.average_usage;
+    if (growth_ratio < min_growth_ratio_) {
+      OLOG << "Skipping growth heuristic kill on " << state_pair.first
+           << " b/c growth is less than " << min_growth_ratio_;
+      break;
+    }
+
     std::ostringstream oss;
     oss << std::setprecision(2) << std::fixed;
     oss << "Picked \"" << state_pair.first << "\" ("

@@ -533,6 +533,43 @@ TEST(KillMemoryGrowth, KillsBigCgroup) {
       plugin->killed, Not(Contains(888))); // make sure there's no siblings
 }
 
+TEST(KillMemoryGrowth, KillsBigCgroupGrowth) {
+  auto plugin = std::make_shared<KillMemoryGrowth<BaseKillPluginMock>>();
+  ASSERT_NE(plugin, nullptr);
+
+  Engine::MonitoredResources resources;
+  Engine::PluginArgs args;
+  args["cgroup_fs"] = "oomd/fixtures/plugins/kill_by_memory_size_or_growth";
+  args["cgroup"] = "growth_big/*";
+  args["post_action_delay"] = "0";
+
+  ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+
+  OomdContext ctx;
+
+  // First test that we do the last ditch size killing.
+  //
+  // cgroup3 should be killed even though (30 / (21+20+30) < .5)
+  ctx.setCgroupContext(
+      "growth_big/cgroup1", CgroupContext{{}, {}, 21, 20, 0, 0});
+  ctx.setCgroupContext(
+      "growth_big/cgroup2", CgroupContext{{}, {}, 20, 20, 0, 0});
+  ctx.setCgroupContext(
+      "growth_big/cgroup3", CgroupContext{{}, {}, 30, 30, 0, 0});
+  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
+  EXPECT_THAT(plugin->killed, Contains(111));
+  EXPECT_THAT(plugin->killed, Not(Contains(123)));
+  EXPECT_THAT(plugin->killed, Not(Contains(456)));
+
+  // Now lower average usage to artificially "boost" growth rate to trigger
+  // growth kill
+  ctx.setCgroupContext(
+      "growth_big/cgroup1", CgroupContext{{}, {}, 21, 5, 0, 0});
+  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
+  EXPECT_THAT(plugin->killed, Contains(123));
+  EXPECT_THAT(plugin->killed, Contains(456));
+}
+
 TEST(KillMemoryGrowth, KillsBigCgroupMultiCgroup) {
   auto plugin = std::make_shared<KillMemoryGrowth<BaseKillPluginMock>>();
   ASSERT_NE(plugin, nullptr);
