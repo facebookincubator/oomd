@@ -55,7 +55,7 @@ class ContinuePlugin : public BasePlugin {
     return new ContinuePlugin();
   }
 
-  ~ContinuePlugin() = default;
+  ~ContinuePlugin() override = default;
 };
 
 class StopPlugin : public BasePlugin {
@@ -74,7 +74,7 @@ class StopPlugin : public BasePlugin {
     return new StopPlugin();
   }
 
-  ~StopPlugin() = default;
+  ~StopPlugin() override = default;
 };
 
 class IncrementCountPlugin : public BasePlugin {
@@ -94,7 +94,7 @@ class IncrementCountPlugin : public BasePlugin {
     return new IncrementCountPlugin();
   }
 
-  ~IncrementCountPlugin() = default;
+  ~IncrementCountPlugin() override = default;
 };
 
 class RegistrationPlugin : public BasePlugin {
@@ -114,7 +114,7 @@ class RegistrationPlugin : public BasePlugin {
     return new RegistrationPlugin();
   }
 
-  ~RegistrationPlugin() = default;
+  ~RegistrationPlugin() override = default;
 };
 
 class NoInitPlugin : public BasePlugin {
@@ -133,7 +133,7 @@ class NoInitPlugin : public BasePlugin {
     return new NoInitPlugin();
   }
 
-  ~NoInitPlugin() = default;
+  ~NoInitPlugin() override = default;
 };
 
 REGISTER_PLUGIN(Continue, ContinuePlugin::create);
