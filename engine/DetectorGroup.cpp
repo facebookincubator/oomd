@@ -28,6 +28,10 @@ DetectorGroup::DetectorGroup(
     : name_(name), detectors_(std::move(detectors)) {}
 
 bool DetectorGroup::check(OomdContext& context) {
+  // Note we're running all Detectors so that any detectors keeping sliding
+  // windows can update their window
+  bool triggered = true;
+
   for (const auto& detector : detectors_) {
     PluginRet ret = detector->run(context);
 
@@ -35,12 +39,13 @@ bool DetectorGroup::check(OomdContext& context) {
       case PluginRet::CONTINUE:
         continue;
       case PluginRet::STOP:
-        return false;
+        triggered = false;
+        break;
         // missing default to protect against future PluginRet vals
     }
   }
 
-  return true;
+  return triggered;
 }
 
 const std::string& DetectorGroup::name() const {

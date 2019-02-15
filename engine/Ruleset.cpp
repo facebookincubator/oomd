@@ -33,13 +33,15 @@ void Ruleset::runOnce(OomdContext& context) {
   bool run_actions = false;
 
   // If any DetectorGroup fires, then begin running action chain
+  //
+  // Note we're still check()'ing the detector groups so that any detectors
+  // keeping sliding windows can update their window
   for (const auto& dg : detector_groups_) {
-    if (dg->check(context)) {
+    if (dg->check(context) && !run_actions) {
       OLOG << "DetectorGroup=" << dg->name()
            << " has fired for Ruleset=" << name_ << ". Running action chain.";
       run_actions = true;
       context.setActionContext({name_, dg->name()});
-      break;
     }
   }
 

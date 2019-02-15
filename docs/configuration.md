@@ -26,7 +26,6 @@ oomd configs have a loosely defined BNF:
       }
     }
 
-
     DETECTOR:
     PLUGIN
 
@@ -59,11 +58,11 @@ conforming config is evaulated at runtime are described in the next section.
 
 * Every plugin must return CONTINUE or STOP.
   * CONTINUE
-    * For DETECTORs, continue evaluating DETECTORs in the current DETECTOR_GROUP
+    * For DETECTORs, noop
       chain
     * For ACTIONs, continue executing the current ACTION chain
   * STOP
-    * For DETECTORs, abort evaluation of the current DETECTOR_GROUP chain
+    * For DETECTORs, evaluate the current DETECTOR_GROUP chain to false
     * For ACTIONs, abort execution of the current ACTION chain
 
 * DETECTOR_GROUPs evaluate true if and only if all DETECTORs in the chain
@@ -71,6 +70,12 @@ conforming config is evaulated at runtime are described in the next section.
 
 * For each RULESET, if _any_ DETECTOR_GROUP fires, the associated ACTION chain
   will begin execution
+
+### Notes
+
+* For each event loop tick, all DETECTORs and DETECTOR_GROUPs will be run. This
+  is to allow any detectors implementing sliding windows, if any, to update
+  their windows
 
 ## Example
 
