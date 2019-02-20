@@ -63,8 +63,6 @@ Engine::PluginRet MemoryReclaim::run(OomdContext& /* unused */) {
     last_reclaim_at_ = now;
   }
 
-  OLOG << "pgscan delta=" << pgscan - last_pgscan_;
-
   const auto diff =
       std::chrono::duration_cast<std::chrono::seconds>(now - last_reclaim_at_)
           .count();
