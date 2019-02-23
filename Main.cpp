@@ -64,7 +64,7 @@ static bool system_reqs_met() {
   return false;
 }
 
-static std::unique_ptr<Oomd::Engine::Engine> parseAndCompile(std::string flag_conf_file) {
+static std::unique_ptr<Oomd::Engine::Engine> parseAndCompile(const std::string& flag_conf_file) {
   std::ifstream conf_file(flag_conf_file, std::ios::in);
   if (!conf_file.is_open()) {
     std::cerr << "Could not open confg_file=" << flag_conf_file << std::endl;
