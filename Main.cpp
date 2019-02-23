@@ -115,6 +115,7 @@ int main(int argc, char** argv) {
       case 'c':
         should_check_config = true;
         flag_conf_file = std::string(optarg);
+        break;
       case 'd':
         std::cerr << "Noop for backwards compatible dry\n";
         break;
