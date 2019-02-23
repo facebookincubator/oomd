@@ -174,7 +174,7 @@ int main(int argc, char** argv) {
   if (should_check_config) {
     auto ret = parseAndCompile(flag_conf_file);
     if (!ret) {
-      std::cerr << "Logging failed to uncompilable config.\n";
+      OLOG << "Config is not valid";
     }
     return ret ? 0 : 1;
   }
