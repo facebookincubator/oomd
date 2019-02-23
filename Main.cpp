@@ -36,13 +36,15 @@ static constexpr auto kCgroupFsRoot = "/sys/fs/cgroup";
 
 static void printUsage() {
   std::cerr
-      << "usage: oomd [-h] [--config CONFIG] [--interval INTERVAL] [--cgroup-fs MNTPT]\n\n"
+      << "usage: oomd [-h] [--config CONFIG] [--interval INTERVAL] [--cgroup-fs MNTPT][--check-config CONFIG]\n\n"
          "optional arguments:\n"
          "  --help, -h            show this help message and exit\n"
          "  --config CONFIG, -C CONFIG\n"
          "                        Config file (default: /etc/oomd.json)\n"
          "  --interval, -i        Event loop polling interval (default: 5)\n"
          "  --cgroup-fs, -f       cgroup2 filesystem mount point (default: /sys/fs/cgroup)\n"
+         "  --check-config CONFIG, -c CONFIG\n"
+         "                        check config file (default: /etc/oomd.json)\n"
       << std::endl;
 }
 
@@ -64,15 +66,33 @@ static bool system_reqs_met() {
   return false;
 }
 
+static std::unique_ptr<Oomd::Engine::Engine> parseAndCompile(const std::string& flag_conf_file) {
+  std::ifstream conf_file(flag_conf_file, std::ios::in);
+  if (!conf_file.is_open()) {
+    std::cerr << "Could not open confg_file=" << flag_conf_file << std::endl;
+    return nullptr;
+  }
+  std::stringstream buf;
+  buf << conf_file.rdbuf();
+  Oomd::Config2::JsonConfigParser json_parser;
+  auto ir = json_parser.parse(buf.str());
+  if (!ir) {
+    std::cerr << "Could not parse conf_file=" << flag_conf_file << std::endl;
+    return nullptr;
+  }
+  return Oomd::Config2::compile(*ir);
+}
+
 int main(int argc, char** argv) {
   std::string flag_conf_file = kConfigFilePath;
   std::string cgroup_fs = kCgroupFsRoot;
   int interval = 5;
-
+  bool should_check_config = false;
+  
   int option_index = 0;
   int c = 0;
 
-  const char* const short_options = "hC:drvi:f:";
+  const char* const short_options = "hC:drvi:f:c:";
   option long_options[] = {option{"sandcastle_mode", no_argument, nullptr, 0},
                            option{"xattr_reporting", no_argument, nullptr, 0},
                            option{"help", no_argument, nullptr, 'h'},
@@ -82,6 +102,7 @@ int main(int argc, char** argv) {
                            option{"verbose", no_argument, nullptr, 'v'},
                            option{"interval", required_argument, nullptr, 'i'},
                            option{"cgroup-fs", required_argument, nullptr, 'f'},
+                           option{"check-config", required_argument, nullptr, 'c'},
                            option{nullptr, 0, nullptr, 0}};
 
   while ((c = getopt_long(
@@ -91,6 +112,10 @@ int main(int argc, char** argv) {
         printUsage();
         return 0;
       case 'C':
+        flag_conf_file = std::string(optarg);
+        break;
+      case 'c':
+        should_check_config = true;
         flag_conf_file = std::string(optarg);
         break;
       case 'd':
@@ -149,6 +174,14 @@ int main(int argc, char** argv) {
     return 1;
   }
 
+  if (should_check_config) {
+    auto ret = parseAndCompile(flag_conf_file);
+    if (!ret) {
+      OLOG << "Config is not valid";
+    }
+    return ret ? 0 : 1;
+  }
+
   if (!system_reqs_met()) {
     std::cerr << "System requirements not met\n";
     return EXIT_CANT_RECOVER;
@@ -170,6 +203,11 @@ int main(int argc, char** argv) {
   if (!ir) {
     std::cerr << "Could not parse conf_file=" << flag_conf_file << std::endl;
     return EXIT_CANT_RECOVER;
+  }
+  auto ret = parseAndCompile(flag_conf_file);
+  if (!ret) {
+    OLOG << "Config failed to compile";
+    return 1;
   }
   auto engine = Oomd::Config2::compile(*ir);
 
