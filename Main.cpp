@@ -36,13 +36,15 @@ static constexpr auto kCgroupFsRoot = "/sys/fs/cgroup";
 
 static void printUsage() {
   std::cerr
-      << "usage: oomd [-h] [--config CONFIG] [--interval INTERVAL] [--cgroup-fs MNTPT]\n\n"
+      << "usage: oomd [-h] [--config CONFIG] [--interval INTERVAL] [--cgroup-fs MNTPT][--check-config CONFIG]\n\n"
          "optional arguments:\n"
          "  --help, -h            show this help message and exit\n"
          "  --config CONFIG, -C CONFIG\n"
          "                        Config file (default: /etc/oomd.json)\n"
          "  --interval, -i        Event loop polling interval (default: 5)\n"
          "  --cgroup-fs, -f       cgroup2 filesystem mount point (default: /sys/fs/cgroup)\n"
+         "  --check-config CONFIG, -c CONFIG\n"
+         "                        check config file (default: /etc/oomd.json)\n"
       << std::endl;
 }
 
