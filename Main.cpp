@@ -85,10 +85,10 @@ int main(int argc, char** argv) {
   std::string flag_conf_file = kConfigFilePath;
   std::string cgroup_fs = kCgroupFsRoot;
   int interval = 5;
-
+  bool should_check_config = false;
+  
   int option_index = 0;
   int c = 0;
-  bool should_check_config = false;
 
   const char* const short_options = "hC:drvi:f:c:";
   option long_options[] = {option{"sandcastle_mode", no_argument, nullptr, 0},
