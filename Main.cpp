@@ -203,7 +203,7 @@ int main(int argc, char** argv) {
   }
   auto ret = parseAndCompile(flag_conf_file);
   if (!ret) {
-    std::cerr << "config failed to compile\n";
+    OLOG << "Config failed to compile";
     return 1;
   }
   auto engine = Oomd::Config2::compile(*ir);
