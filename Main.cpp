@@ -100,7 +100,7 @@ int main(int argc, char** argv) {
                            option{"verbose", no_argument, nullptr, 'v'},
                            option{"interval", required_argument, nullptr, 'i'},
                            option{"cgroup-fs", required_argument, nullptr, 'f'},
-                           option{"checkConfig", required_argument, nullptr, 'c'},
+                           option{"check-config", required_argument, nullptr, 'c'},
                            option{nullptr, 0, nullptr, 0}};
 
   while ((c = getopt_long(
