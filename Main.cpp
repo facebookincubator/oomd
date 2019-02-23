@@ -64,6 +64,23 @@ static bool system_reqs_met() {
   return false;
 }
 
+static std::unique_ptr<Oomd::Engine::Engine> parseAndCompile(std::string flag_conf_file) {
+  std::ifstream conf_file(flag_conf_file, std::ios::in);
+  if (!conf_file.is_open()) {
+    std::cerr << "Could not open confg_file=" << flag_conf_file << std::endl;
+    return nullptr;
+  }
+  std::stringstream buf;
+  buf << conf_file.rdbuf();
+  Oomd::Config2::JsonConfigParser json_parser;
+  auto ir = json_parser.parse(buf.str());
+  if (!ir) {
+    std::cerr << "Could not parse conf_file=" << flag_conf_file << std::endl;
+    return nullptr;
+  }
+  return Oomd::Config2::compile(*ir);
+}
+
 int main(int argc, char** argv) {
   std::string flag_conf_file = kConfigFilePath;
   std::string cgroup_fs = kCgroupFsRoot;
@@ -71,8 +88,9 @@ int main(int argc, char** argv) {
 
   int option_index = 0;
   int c = 0;
+  bool should_check_config = false;
 
-  const char* const short_options = "hC:drvi:f:";
+  const char* const short_options = "hC:drvi:f:c:";
   option long_options[] = {option{"sandcastle_mode", no_argument, nullptr, 0},
                            option{"xattr_reporting", no_argument, nullptr, 0},
                            option{"help", no_argument, nullptr, 'h'},
@@ -82,6 +100,7 @@ int main(int argc, char** argv) {
                            option{"verbose", no_argument, nullptr, 'v'},
                            option{"interval", required_argument, nullptr, 'i'},
                            option{"cgroup-fs", required_argument, nullptr, 'f'},
+                           option{"checkConfig", required_argument, nullptr, 'c'},
                            option{nullptr, 0, nullptr, 0}};
 
   while ((c = getopt_long(
@@ -93,6 +112,9 @@ int main(int argc, char** argv) {
       case 'C':
         flag_conf_file = std::string(optarg);
         break;
+      case 'c':
+        should_check_config = true;
+        flag_conf_file = std::string(optarg);
       case 'd':
         std::cerr << "Noop for backwards compatible dry\n";
         break;
@@ -149,6 +171,14 @@ int main(int argc, char** argv) {
     return 1;
   }
 
+  if (should_check_config) {
+    auto ret = parseAndCompile(flag_conf_file);
+    if (!ret) {
+      std::cerr << "Logging failed to uncompilable config.\n";
+    }
+    return ret ? 0 : 1;
+  }
+
   if (!system_reqs_met()) {
     std::cerr << "System requirements not met\n";
     return EXIT_CANT_RECOVER;
@@ -170,6 +200,11 @@ int main(int argc, char** argv) {
   if (!ir) {
     std::cerr << "Could not parse conf_file=" << flag_conf_file << std::endl;
     return EXIT_CANT_RECOVER;
+  }
+  auto ret = parseAndCompile(flag_conf_file);
+  if (!ret) {
+    std::cerr << "config failed to compile\n";
+    return 1;
   }
   auto engine = Oomd::Config2::compile(*ir);
 
