@@ -57,6 +57,11 @@ class Oomd {
       const std::string& relative_cgroup_path,
       const std::string& absolute_cgroup_path,
       OomdContext& ctx);
+  int prepEventLoop(const std::chrono::seconds& interval);
+  int processEventLoop();
+
+  int epollfd_{-1};
+  int timerfd_{-1};
 
   // runtime settings
   std::chrono::seconds interval_{0};

@@ -18,7 +18,10 @@
 #include "oomd/Oomd.h"
 
 #include <signal.h>
+#include <unistd.h>
 
+#include <sys/epoll.h>
+#include <sys/timerfd.h>
 #include <algorithm>
 #include <cmath>
 #include <cstdlib>
@@ -32,6 +35,8 @@
 #include "oomd/include/Assert.h"
 #include "oomd/include/Defines.h"
 #include "oomd/util/Fs.h"
+
+static constexpr auto kMaxEvents = 10;
 
 namespace {
 /*
@@ -147,8 +152,81 @@ void Oomd::updateContext(
   ctx = std::move(new_ctx);
 }
 
+int Oomd::prepEventLoop(const std::chrono::seconds& interval) {
+  char buf[1024];
+
+  timerfd_ = ::timerfd_create(CLOCK_MONOTONIC, TFD_CLOEXEC);
+  if (timerfd_ < 0) {
+    OLOG << "timerfd_create: " << ::strerror_r(errno, buf, sizeof(buf));
+    return 1;
+  }
+
+  struct itimerspec ts;
+  std::memset(&ts, 0, sizeof(ts));
+  ts.it_value.tv_sec = interval.count(); // initial expiration
+  ts.it_interval.tv_sec = interval.count(); // periodic expiration
+
+  if (::timerfd_settime(timerfd_, 0, &ts, nullptr) < 0) {
+    OLOG << "timerfd_settime: " << ::strerror_r(errno, buf, sizeof(buf));
+    return 1;
+  }
+
+  epollfd_ = ::epoll_create1(EPOLL_CLOEXEC);
+  if (epollfd_ < 0) {
+    OLOG << "epoll_create1: " << ::strerror_r(errno, buf, sizeof(buf));
+    return 1;
+  }
+
+  // Add timerfd to epoll set
+  struct epoll_event ev;
+  std::memset(&ev, 0, sizeof(ev));
+  ev.events = EPOLLIN;
+  ev.data.fd = timerfd_;
+  if (::epoll_ctl(epollfd_, EPOLL_CTL_ADD, timerfd_, &ev) < 0) {
+    OLOG << "epoll_ctl: " << ::strerror_r(errno, buf, sizeof(buf));
+    return 1;
+  }
+
+  return 0;
+}
+
+int Oomd::processEventLoop() {
+  struct epoll_event events[kMaxEvents];
+  char buf[1024];
+  int ret;
+
+  int n = ::epoll_wait(epollfd_, events, kMaxEvents, -1);
+  if (n < 0) {
+    OLOG << "epoll_wait: " << ::strerror_r(errno, buf, sizeof(buf));
+    return 1;
+  }
+
+  for (int i = 0; i < n; ++i) {
+    int fd = events[i].data.fd;
+    if (fd == timerfd_) {
+      uint64_t expired = 0;
+      ret = read(fd, &expired, sizeof(expired));
+      if (ret < 0) {
+        OLOG << "read: " << ::strerror_r(errno, buf, sizeof(buf));
+        return 1;
+      }
+    } else {
+      OLOG << "Unknown fd=" << fd << " in event loop";
+      return 1;
+    }
+  }
+
+  return 0;
+}
+
 int Oomd::run() {
   OomdContext ctx;
+  int ret;
+
+  ret = prepEventLoop(interval_);
+  if (ret) {
+    return ret;
+  }
 
   OLOG << "Running oomd";
   if (!engine_) {
@@ -158,21 +236,17 @@ int Oomd::run() {
 
   while (true) {
     try {
-      const auto before = std::chrono::steady_clock::now();
+      // Sleeps and handles events
+      ret = processEventLoop();
+      if (ret) {
+        return ret;
+      }
 
       updateContext(cgroup_fs_, engine_->getMonitoredResources(), ctx);
 
       // Run all the plugins
       engine_->runOnce(ctx);
 
-      // We may have slept already, so recalculate
-      const auto after = std::chrono::steady_clock::now();
-      auto to_sleep = interval_ - (after - before);
-      if (to_sleep < std::chrono::seconds(0)) {
-        to_sleep = std::chrono::seconds(0);
-      }
-
-      std::this_thread::sleep_for(to_sleep);
     } catch (const Fs::bad_control_file& ex) {
       OLOG << "Caught bad_control_file: " << ex.what();
       return 1;
