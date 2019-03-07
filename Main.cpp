@@ -190,26 +190,11 @@ int main(int argc, char** argv) {
   std::cerr << "oomd running with conf_file=" << flag_conf_file
             << " interval=" << interval << std::endl;
 
-  // Load config
-  std::ifstream conf_file(flag_conf_file, std::ios::in);
-  if (!conf_file.is_open()) {
-    std::cerr << "Could not open confg_file=" << flag_conf_file << std::endl;
-    return EXIT_CANT_RECOVER;
-  }
-  std::stringstream buf;
-  buf << conf_file.rdbuf();
-  Oomd::Config2::JsonConfigParser json_parser;
-  auto ir = json_parser.parse(buf.str());
-  if (!ir) {
-    std::cerr << "Could not parse conf_file=" << flag_conf_file << std::endl;
-    return EXIT_CANT_RECOVER;
-  }
-  auto ret = parseAndCompile(flag_conf_file);
-  if (!ret) {
+  auto engine = parseAndCompile(flag_conf_file);
+  if (!engine) {
     OLOG << "Config failed to compile";
-    return 1;
+    return EXIT_CANT_RECOVER;
   }
-  auto engine = Oomd::Config2::compile(*ir);
 
   Oomd::Oomd oomd(std::move(engine), interval, cgroup_fs);
   return oomd.run();
