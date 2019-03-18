@@ -18,6 +18,7 @@
 #pragma once
 
 #include <chrono>
+#include <unordered_set>
 
 #include "oomd/engine/BasePlugin.h"
 
@@ -38,8 +39,9 @@ class MemoryReclaim : public Oomd::Engine::BasePlugin {
   ~MemoryReclaim() = default;
 
  private:
+  std::unordered_set<std::string> cgroups_;
+  std::string cgroup_fs_;
   int duration_;
-  std::string vmstat_location_;
 
   int64_t last_pgscan_{0};
   std::chrono::steady_clock::time_point last_reclaim_at_{};

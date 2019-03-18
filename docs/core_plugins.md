@@ -76,11 +76,14 @@ otherwise.
 
 ### Arguments
 
+    cgroup
     duration
 
 ### Description
 
-CONTINUE if memory has been reclaimed in the past `duration` period.
+`cgroup` has the same semantics and features as `pressure_rising_beyond`.
+
+CONTINUE if `cgroup`'s memory has been reclaimed in the past `duration` period.
 STOP otherwise.
 
 ## swap_free

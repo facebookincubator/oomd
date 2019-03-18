@@ -460,13 +460,30 @@ TEST(MemoryAbove, NoDetectLowMemUsagePercent) {
   EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
 }
 
-TEST(MemoryReclaim, InstantPgscan) {
+TEST(MemoryReclaim, SingleCgroupReclaimSuccess) {
   auto plugin = createPlugin("memory_reclaim");
   ASSERT_NE(plugin, nullptr);
 
   Engine::MonitoredResources resources;
   Engine::PluginArgs args;
-  args["vmstat_location"] = "oomd/fixtures/plugins/memory_reclaim/vmstat";
+  args["cgroup_fs"] = "oomd/fixtures/plugins/memory_reclaim/single_cgroup";
+  args["cgroup"] = "cgroup1";
+  args["duration"] = "0";
+
+  ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+
+  OomdContext ctx;
+  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::CONTINUE);
+}
+
+TEST(MemoryReclaim, MultiCgroupReclaimSuccess) {
+  auto plugin = createPlugin("memory_reclaim");
+  ASSERT_NE(plugin, nullptr);
+
+  Engine::MonitoredResources resources;
+  Engine::PluginArgs args;
+  args["cgroup_fs"] = "oomd/fixtures/plugins/memory_reclaim/multi_cgroup";
+  args["cgroup"] = "cgroup1,cgroup2";
   args["duration"] = "0";
 
   ASSERT_EQ(plugin->init(resources, std::move(args)), 0);

@@ -22,8 +22,8 @@
 #include "oomd/util/Fs.h"
 #include "oomd/util/ScopeGuard.h"
 
-static auto constexpr kPgscanSwap = "pgscan_kswapd";
-static auto constexpr kPgscanDirect = "pgscan_direct";
+static constexpr auto kCgroupFs = "/sys/fs/cgroup/";
+static constexpr auto kPgscan = "pgscan";
 
 namespace Oomd {
 
@@ -32,15 +32,22 @@ REGISTER_PLUGIN(memory_reclaim, MemoryReclaim::create);
 int MemoryReclaim::init(
     Engine::MonitoredResources& /* unused */,
     const Engine::PluginArgs& args) {
+  if (args.find("cgroup") != args.end()) {
+    auto cgroups = Fs::split(args.at("cgroup"), ',');
+    cgroups_.insert(cgroups.begin(), cgroups.end());
+    cgroup_fs_ =
+        (args.find("cgroup_fs") != args.end() ? args.at("cgroup_fs")
+                                              : kCgroupFs);
+  } else {
+    OLOG << "Argument=cgroup not present";
+    return 1;
+  }
+
   if (args.find("duration") != args.end()) {
     duration_ = std::stoi(args.at("duration"));
   } else {
     OLOG << "Argument=duration not present";
     return 1;
-  }
-
-  if (args.find("vmstat_location") != args.end()) {
-    vmstat_location_ = args.at("vmstat_location");
   }
 
   // Success
@@ -50,9 +57,18 @@ int MemoryReclaim::init(
 Engine::PluginRet MemoryReclaim::run(OomdContext& /* unused */) {
   using std::chrono::steady_clock;
 
-  auto vmstat = vmstat_location_.size() ? Fs::getVmstat(vmstat_location_)
-                                        : Fs::getVmstat();
-  const int64_t pgscan = vmstat[kPgscanSwap] + vmstat[kPgscanDirect];
+  std::unordered_set<std::string> resolved_cgroups;
+  for (const auto& cgroup : cgroups_) {
+    auto resolved = Fs::resolveWildcardPath(cgroup_fs_ + "/" + cgroup);
+    resolved_cgroups.insert(resolved.begin(), resolved.end());
+  }
+
+  int64_t pgscan = 0;
+  for (const auto& abs_cgroup_path : resolved_cgroups) {
+    auto memstat = Fs::getMemstat(abs_cgroup_path);
+    pgscan += memstat[kPgscan];
+  }
+
   OOMD_SCOPE_EXIT {
     last_pgscan_ = pgscan;
   };
