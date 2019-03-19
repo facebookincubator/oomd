@@ -27,6 +27,7 @@ srcs = files('''
     engine/Engine.cpp
     engine/Ruleset.cpp
     include/Assert.cpp
+    include/CgroupPath.cpp
     plugins/BaseKillPlugin.cpp
     plugins/ContinuePlugin.cpp
     plugins/DumpCgroupOverview.cpp
@@ -81,6 +82,7 @@ core_tests = [
   ['context',  files('OomdContextTest.cpp')],
   ['log',      files('LogTest.cpp')],
   ['assert',   files('include/AssertTest.cpp')],
+  ['cpath',    files('include/CgroupPathTest.cpp')],
   ['compiler', files('config/ConfigCompilerTest.cpp')],
   ['plugin',   files('plugins/CorePluginsTest.cpp')],
 ]
