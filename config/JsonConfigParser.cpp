@@ -47,19 +47,23 @@ T parsePlugin(const Json::Value& plugin) {
   }
 
   const auto& name = plugin["name"];
-  const auto& json_args = plugin["args"];
-
-  if (!name.isString() || !json_args.isObject()) {
+  if (!name.isString()) {
     return {};
   }
 
   T ret;
   ret.name = name.asString();
 
+  const auto& json_args = plugin["args"];
+  if (!json_args.isObject()) {
+    return ret;
+  }
+
   for (const auto& key : json_args.getMemberNames()) {
     const auto& value = json_args[key];
-    if (!value.isString()) {
-      return {};
+    // Value has to be a string, number, or bool
+    if (!value.isString() && !value.isNumeric() && !value.isBool()) {
+      return ret;
     }
     ret.args[key] = value.asString();
   }
