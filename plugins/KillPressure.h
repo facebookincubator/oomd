@@ -42,7 +42,7 @@ class KillPressure : public Base {
  protected:
   virtual bool tryToKillSomething(OomdContext& ctx);
 
-  std::unordered_set<std::string> cgroups_;
+  std::unordered_set<CgroupPath> cgroups_;
   std::string cgroup_fs_;
   ResourceType resource_;
   int post_action_delay_{15};

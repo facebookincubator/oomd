@@ -147,14 +147,14 @@ void BaseKillPlugin::reportToXattr(
 }
 
 void BaseKillPlugin::logKill(
-    const std::string& killed_cgroup,
+    const CgroupPath& killed_cgroup,
     const CgroupContext& context,
     const ActionContext& action_context,
     bool dry) const {
   std::ostringstream oss;
   oss << std::setprecision(2) << std::fixed;
   oss << context.pressure.sec_10 << " " << context.pressure.sec_60 << " "
-      << context.pressure.sec_600 << " " << killed_cgroup << " "
+      << context.pressure.sec_600 << " " << killed_cgroup.relativePath() << " "
       << context.current_usage << " "
       << "ruleset:[" << action_context.ruleset << "] "
       << "detectorgroup:[" << action_context.detectorgroup << "] "
@@ -163,8 +163,8 @@ void BaseKillPlugin::logKill(
 }
 
 void BaseKillPlugin::removeSiblingCgroups(
-    const std::unordered_set<std::string>& ours,
-    std::vector<std::pair<std::string, Oomd::CgroupContext>>& vec) {
+    const std::unordered_set<CgroupPath>& ours,
+    std::vector<std::pair<CgroupPath, Oomd::CgroupContext>>& vec) {
   vec.erase(
       std::remove_if(
           vec.begin(),
@@ -173,7 +173,11 @@ void BaseKillPlugin::removeSiblingCgroups(
             // Remove this cgroup if does not match any of ours
             bool found = false;
             for (const auto& our : ours) {
-              if (!::fnmatch(our.c_str(), pair.first.c_str(), 0)) {
+              if (our.cgroupFs() == pair.first.cgroupFs() &&
+                  !::fnmatch(
+                      our.relativePath().c_str(),
+                      pair.first.relativePath().c_str(),
+                      0)) {
                 found = true;
               }
             }

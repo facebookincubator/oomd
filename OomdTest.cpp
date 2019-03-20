@@ -30,80 +30,83 @@ constexpr auto kCgroupDataDir = "oomd/fixtures/cgroup";
 class OomdTest : public ::testing::Test {
  public:
   OomdTest() {
-    oomd = std::make_unique<::Oomd::Oomd>(nullptr, 5, kCgroupDataDir);
+    oomd = std::make_unique<::Oomd::Oomd>(nullptr, 5);
   }
 
   std::string cgroup_path{kCgroupDataDir};
   OomdContext ctx;
   std::unique_ptr<::Oomd::Oomd> oomd{nullptr};
+  CgroupPath service1{cgroup_path, "system.slice/service1.service"};
+  CgroupPath service2{cgroup_path, "system.slice/service2.service"};
+  CgroupPath service3{cgroup_path, "system.slice/service3.service"};
+  CgroupPath service4{cgroup_path, "system.slice/service4.service"};
+  CgroupPath slice1{cgroup_path, "system.slice/slice1.slice"};
+  CgroupPath workload_service1{cgroup_path, "workload.slice/service1.service"};
 };
 
 TEST_F(OomdTest, OomdContextUpdate) {
   EXPECT_EQ(ctx.cgroups().size(), 0);
 
-  std::unordered_set<std::string> parent_cgroups;
-  parent_cgroups.emplace("system.slice/*");
-  oomd->updateContext(cgroup_path, parent_cgroups, ctx);
+  std::unordered_set<CgroupPath> cgroups;
+  cgroups.emplace(CgroupPath(cgroup_path, "system.slice/*"));
+  oomd->updateContext(cgroups, ctx);
 
   EXPECT_EQ(ctx.cgroups().size(), 5);
 
-  EXPECT_TRUE(ctx.hasCgroupContext("system.slice/service1.service"));
-  EXPECT_TRUE(ctx.hasCgroupContext("system.slice/service2.service"));
-  EXPECT_TRUE(ctx.hasCgroupContext("system.slice/service3.service"));
-  EXPECT_TRUE(ctx.hasCgroupContext("system.slice/service4.service"));
-  EXPECT_TRUE(ctx.hasCgroupContext("system.slice/slice1.slice"));
+  EXPECT_TRUE(ctx.hasCgroupContext(service1));
+  EXPECT_TRUE(ctx.hasCgroupContext(service2));
+  EXPECT_TRUE(ctx.hasCgroupContext(service3));
+  EXPECT_TRUE(ctx.hasCgroupContext(service4));
+  EXPECT_TRUE(ctx.hasCgroupContext(slice1));
 }
 
 TEST_F(OomdTest, OomdContextMultipleUpdates) {
-  std::unordered_set<std::string> parent_cgroups;
-  parent_cgroups.emplace("system.slice/*");
-  oomd->updateContext(cgroup_path, parent_cgroups, ctx);
+  std::unordered_set<CgroupPath> cgroups;
+  cgroups.emplace(CgroupPath(cgroup_path, "system.slice/*"));
+  oomd->updateContext(cgroups, ctx);
 
   for (int i = 0; i < 3; i++) {
-    int64_t average =
-        ctx.getCgroupContext("system.slice/service1.service").average_usage;
-    oomd->updateContext(cgroup_path, parent_cgroups, ctx);
+    int64_t average = ctx.getCgroupContext(service1).average_usage;
+    oomd->updateContext(cgroups, ctx);
 
     // We expect the avg usage to slowly converge from 0 -> true avg
     // b/c of AVERAGE_SIZE_DECAY
-    EXPECT_GT(
-        ctx.getCgroupContext("system.slice/service1.service").average_usage,
-        average);
+    EXPECT_GT(ctx.getCgroupContext(service1).average_usage, average);
   }
 }
 
 TEST_F(OomdTest, OomdContextUpdateMultiCgroup) {
   EXPECT_EQ(ctx.cgroups().size(), 0);
 
-  std::unordered_set<std::string> parent_cgroups;
-  parent_cgroups.emplace("system.slice/*");
-  parent_cgroups.emplace("workload.slice/*");
-  oomd->updateContext(cgroup_path, parent_cgroups, ctx);
+  std::unordered_set<CgroupPath> cgroups;
+  cgroups.emplace(CgroupPath(cgroup_path, "system.slice/*"));
+  cgroups.emplace(CgroupPath(cgroup_path, "workload.slice/*"));
+  oomd->updateContext(cgroups, ctx);
 
   EXPECT_EQ(ctx.cgroups().size(), 6);
 
-  EXPECT_TRUE(ctx.hasCgroupContext("system.slice/service1.service"));
-  EXPECT_TRUE(ctx.hasCgroupContext("system.slice/service2.service"));
-  EXPECT_TRUE(ctx.hasCgroupContext("system.slice/service3.service"));
-  EXPECT_TRUE(ctx.hasCgroupContext("system.slice/service4.service"));
-  EXPECT_TRUE(ctx.hasCgroupContext("system.slice/slice1.slice"));
-  EXPECT_TRUE(ctx.hasCgroupContext("workload.slice/service1.service"));
+  EXPECT_TRUE(ctx.hasCgroupContext(service1));
+  EXPECT_TRUE(ctx.hasCgroupContext(service2));
+  EXPECT_TRUE(ctx.hasCgroupContext(service3));
+  EXPECT_TRUE(ctx.hasCgroupContext(service4));
+  EXPECT_TRUE(ctx.hasCgroupContext(slice1));
+  EXPECT_TRUE(ctx.hasCgroupContext(workload_service1));
 }
 
 TEST_F(OomdTest, OomdContextUpdateMultiCgroupWildcard) {
   EXPECT_EQ(ctx.cgroups().size(), 0);
 
-  std::unordered_set<std::string> parent_cgroups;
-  parent_cgroups.emplace("*.slice/*");
-  oomd->updateContext(cgroup_path, parent_cgroups, ctx);
+  std::unordered_set<CgroupPath> cgroups;
+  cgroups.emplace(CgroupPath(cgroup_path, "*.slice/*"));
+  cgroups.emplace(CgroupPath(cgroup_path, "workload.slice/*"));
+  oomd->updateContext(cgroups, ctx);
 
   EXPECT_EQ(ctx.cgroups().size(), 6);
-  ctx.dump();
 
-  EXPECT_TRUE(ctx.hasCgroupContext("system.slice/service1.service"));
-  EXPECT_TRUE(ctx.hasCgroupContext("system.slice/service2.service"));
-  EXPECT_TRUE(ctx.hasCgroupContext("system.slice/service3.service"));
-  EXPECT_TRUE(ctx.hasCgroupContext("system.slice/service4.service"));
-  EXPECT_TRUE(ctx.hasCgroupContext("system.slice/slice1.slice"));
-  EXPECT_TRUE(ctx.hasCgroupContext("workload.slice/service1.service"));
+  EXPECT_TRUE(ctx.hasCgroupContext(service1));
+  EXPECT_TRUE(ctx.hasCgroupContext(service2));
+  EXPECT_TRUE(ctx.hasCgroupContext(service3));
+  EXPECT_TRUE(ctx.hasCgroupContext(service4));
+  EXPECT_TRUE(ctx.hasCgroupContext(slice1));
+  EXPECT_TRUE(ctx.hasCgroupContext(workload_service1));
 }

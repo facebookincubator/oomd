@@ -35,6 +35,7 @@ namespace {
 int count;
 } // namespace
 
+static constexpr auto kRandomCgroupFs = "/some/random/fs";
 static constexpr auto kRandomCgroupDependency = "/some/random/cgroup";
 
 namespace Oomd {
@@ -102,7 +103,7 @@ class RegistrationPlugin : public BasePlugin {
   int init(
       Engine::MonitoredResources& resources,
       const PluginArgs& /* unused */) override {
-    resources.emplace(kRandomCgroupDependency);
+    resources.emplace(kRandomCgroupFs, kRandomCgroupDependency);
     return 0;
   }
 
@@ -235,7 +236,8 @@ TEST_F(CompilerTest, MonitoredResources) {
   auto engine = compile();
   ASSERT_TRUE(engine);
   EXPECT_THAT(
-      engine->getMonitoredResources(), Contains(kRandomCgroupDependency));
+      engine->getMonitoredResources(),
+      Contains(CgroupPath(kRandomCgroupFs, kRandomCgroupDependency)));
 }
 
 TEST_F(CompilerTest, NoInitPlugin) {

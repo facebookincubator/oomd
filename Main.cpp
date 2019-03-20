@@ -28,6 +28,7 @@
 #include "oomd/config/ConfigCompiler.h"
 #include "oomd/config/JsonConfigParser.h"
 #include "oomd/include/Assert.h"
+#include "oomd/include/CgroupPath.h"
 #include "oomd/include/Defines.h"
 #include "oomd/util/Fs.h"
 
@@ -41,7 +42,6 @@ static void printUsage() {
          "  --help, -h                 Show this help message and exit\n"
          "  --config, -C CONFIG        Config file (default: /etc/oomd.json)\n"
          "  --interval, -i INTERVAL    Event loop polling interval (default: 5)\n"
-         "  --cgroup-fs, -f FS         Cgroup2 filesystem mount point (default: /sys/fs/cgroup)\n"
          "  --check-config, -c CONFIG  Check config file (default: /etc/oomd.json)\n"
       << std::endl;
 }
@@ -84,7 +84,6 @@ static std::unique_ptr<Oomd::Engine::Engine> parseAndCompile(
 
 int main(int argc, char** argv) {
   std::string flag_conf_file = kConfigFilePath;
-  std::string cgroup_fs = kCgroupFsRoot;
   int interval = 5;
   bool should_check_config = false;
 
@@ -129,9 +128,6 @@ int main(int argc, char** argv) {
         break;
       case 'i':
         interval = std::stoi(optarg);
-        break;
-      case 'f':
-        cgroup_fs = std::string(optarg);
         break;
       case 0:
         if (long_options[option_index].flag != nullptr) {
@@ -196,6 +192,6 @@ int main(int argc, char** argv) {
     return EXIT_CANT_RECOVER;
   }
 
-  Oomd::Oomd oomd(std::move(engine), interval, cgroup_fs);
+  Oomd::Oomd oomd(std::move(engine), interval);
   return oomd.run();
 }

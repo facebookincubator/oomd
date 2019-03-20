@@ -33,12 +33,15 @@ int KillPressure<Base>::init(
     Engine::MonitoredResources& resources,
     const Engine::PluginArgs& args) {
   if (args.find("cgroup") != args.end()) {
-    auto cgroups = Fs::split(args.at("cgroup"), ',');
-    resources.insert(cgroups.begin(), cgroups.end());
-    cgroups_.insert(cgroups.begin(), cgroups.end());
     cgroup_fs_ =
         (args.find("cgroup_fs") != args.end() ? args.at("cgroup_fs")
                                               : kCgroupFs);
+
+    auto cgroups = Fs::split(args.at("cgroup"), ',');
+    for (const auto& c : cgroups) {
+      resources.emplace(cgroup_fs_, c);
+      cgroups_.emplace(cgroup_fs_, c);
+    }
   } else {
     OLOG << "Argument=cgroup not present";
     return 1;
@@ -139,12 +142,11 @@ bool KillPressure<Base>::tryToKillSomething(OomdContext& ctx) {
         break;
     }
 
-    OLOG << "Picked \"" << state_pair.first << "\" ("
+    OLOG << "Picked \"" << state_pair.first.relativePath() << "\" ("
          << state_pair.second.current_usage / 1024 / 1024
          << "MB) based on pressure generation at "
          << "10s=" << pressure10 << " 60s=" << pressure60;
-    if (Base::tryToKillCgroup(
-            cgroup_fs_ + "/" + state_pair.first, true, dry_)) {
+    if (Base::tryToKillCgroup(state_pair.first.absolutePath(), true, dry_)) {
       Base::logKill(
           state_pair.first, state_pair.second, ctx.getActionContext(), dry_);
       return true;

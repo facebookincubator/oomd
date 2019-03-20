@@ -35,12 +35,15 @@ int MemoryAbove::init(
     Engine::MonitoredResources& resources,
     const Engine::PluginArgs& args) {
   if (args.find("cgroup") != args.end()) {
-    auto cgroups = Fs::split(args.at("cgroup"), ',');
-    resources.insert(cgroups.begin(), cgroups.end());
-    cgroups_.insert(cgroups.begin(), cgroups.end());
     cgroup_fs_ =
         (args.find("cgroup_fs") != args.end() ? args.at("cgroup_fs")
                                               : kCgroupFs);
+
+    auto cgroups = Fs::split(args.at("cgroup"), ',');
+    for (const auto& c : cgroups) {
+      resources.emplace(cgroup_fs_, c);
+      cgroups_.emplace(cgroup_fs_, c);
+    }
   } else {
     OLOG << "Argument=cgroup not present";
     return 1;
@@ -93,15 +96,15 @@ Engine::PluginRet MemoryAbove::run(OomdContext& ctx) {
     try {
       auto cgroup_ctx = ctx.getCgroupContext(cgroup);
       if (debug_) {
-        OLOG << "cgroup \"" << cgroup << "\" "
+        OLOG << "cgroup \"" << cgroup.relativePath() << "\" "
              << "memory.stat (anon)=" << cgroup_ctx.anon_usage;
       }
       if (current_memory_usage < cgroup_ctx.anon_usage) {
         current_memory_usage = cgroup_ctx.anon_usage;
-        current_cgroup = cgroup;
+        current_cgroup = cgroup.relativePath();
       }
     } catch (const std::exception& ex) {
-      OLOG << "Failed to get cgroup \"" << cgroup << "\" "
+      OLOG << "Failed to get cgroup \"" << cgroup.relativePath() << "\" "
            << "context: " << ex.what();
       continue;
     }

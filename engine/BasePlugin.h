@@ -22,6 +22,7 @@
 #include <unordered_set>
 
 #include "oomd/OomdContext.h"
+#include "oomd/include/CgroupPath.h"
 #include "oomd/include/Types.h"
 
 namespace Oomd {
@@ -32,7 +33,7 @@ enum class PluginRet {
   STOP,
 };
 
-using MonitoredResources = std::unordered_set<std::string>;
+using MonitoredResources = std::unordered_set<CgroupPath>;
 using PluginArgs = std::unordered_map<std::string, std::string>;
 
 class BasePlugin {

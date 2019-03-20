@@ -39,7 +39,7 @@ class MemoryAbove : public Oomd::Engine::BasePlugin {
   ~MemoryAbove() = default;
 
  private:
-  std::unordered_set<std::string> cgroups_;
+  std::unordered_set<CgroupPath> cgroups_;
   std::string cgroup_fs_;
   // Initialized to bogus values; init() will crash oomd if non-0 return
   int threshold_;
