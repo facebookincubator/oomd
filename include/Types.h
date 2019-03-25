@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include <chrono>
 #include <cstdint>
 
 namespace Oomd {
@@ -30,6 +31,7 @@ struct ResourcePressure {
   float sec_10{0};
   float sec_60{0};
   float sec_600{0};
+  std::chrono::microseconds total{0};
 };
 
 struct CgroupContext {

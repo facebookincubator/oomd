@@ -244,11 +244,15 @@ ResourcePressure Fs::readRespressure(const std::string& path) {
     std::vector<std::string> avg300 = split(toks[3], '=');
     OCHECK_EXCEPT(
         avg300[0] == "avg300", bad_control_file(path + ": invalid format"));
+    std::vector<std::string> total = split(toks[4], '=');
+    OCHECK_EXCEPT(
+        total[0] == "total", bad_control_file(path + ": invalid format"));
 
     return ResourcePressure{
         std::stof(avg10[1]),
         std::stof(avg60[1]),
         std::stof(avg300[1]),
+        std::chrono::microseconds(std::stoull(total[1])),
     };
   } else if (lines.size() == 3) {
     // Old experimental format
@@ -296,6 +300,15 @@ ResourcePressure Fs::readMempressure(const std::string& path) {
 
 int64_t Fs::readMemlow(const std::string& path) {
   auto lines = readFileByLine(path + "/" + kMemLowFile);
+  OCHECK_EXCEPT(lines.size() == 1, bad_control_file(path + ": missing file"));
+  if (lines[0] == "max") {
+    return std::numeric_limits<int64_t>::max();
+  }
+  return static_cast<int64_t>(std::stoll(lines[0]));
+}
+
+int64_t Fs::readMemhigh(const std::string& path) {
+  auto lines = readFileByLine(path + "/" + kMemHighFile);
   OCHECK_EXCEPT(lines.size() == 1, bad_control_file(path + ": missing file"));
   if (lines[0] == "max") {
     return std::numeric_limits<int64_t>::max();
@@ -379,6 +392,12 @@ ResourcePressure Fs::readIopressure(const std::string& path) {
     throw std::system_error(ENOENT, std::system_category());
   }
   return readRespressure(ioPressurePath);
+}
+
+void Fs::writeMemhigh(const std::string& path, int64_t value) {
+  std::ofstream f(path + "/" + kMemHighFile);
+  f << value;
+  f.flush();
 }
 
 bool Fs::setxattr(
