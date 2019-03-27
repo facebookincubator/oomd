@@ -26,6 +26,7 @@
 #include <vector>
 
 #include "oomd/engine/Engine.h"
+#include "oomd/include/CgroupPath.h"
 
 namespace Oomd {
 
@@ -39,24 +40,16 @@ class Oomd {
 
   /*
    * This method updates @param ctx with the status of all the cgroups
-   * in @param cgroups. @param cgroup_root_dir is the location the cgroup2
-   * filesystem is mounted.
-   *
-   * Every cgroup in @param cgroups will be treated relative to
-   * @param cgroup_root_dir.
+   * in @param cgroups.
    */
   void updateContext(
-      const std::string& cgroup_root_dir,
-      const std::unordered_set<std::string>& cgroups,
+      const std::unordered_set<CgroupPath>& cgroups,
       OomdContext& ctx);
 
   int run();
 
  private:
-  bool updateContextCgroup(
-      const std::string& relative_cgroup_path,
-      const std::string& absolute_cgroup_path,
-      OomdContext& ctx);
+  bool updateContextCgroup(const CgroupPath& path, OomdContext& ctx);
   int prepEventLoop(const std::chrono::seconds& interval);
   int processEventLoop();
 
@@ -70,6 +63,7 @@ class Oomd {
       4}; // TODO(dlxu): migrate to ring buffer for raw datapoints so plugins
           // can calculate weighted average themselves
   std::unique_ptr<Engine::Engine> engine_;
+  Engine::MonitoredResources resources_;
   std::unordered_set<std::string> warned_io_pressure_;
   std::unordered_set<std::string> warned_mem_controller_;
 };

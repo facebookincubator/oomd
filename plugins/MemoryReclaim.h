@@ -39,8 +39,7 @@ class MemoryReclaim : public Oomd::Engine::BasePlugin {
   ~MemoryReclaim() = default;
 
  private:
-  std::unordered_set<std::string> cgroups_;
-  std::string cgroup_fs_;
+  std::unordered_set<CgroupPath> cgroups_;
   int duration_;
 
   int64_t last_pgscan_{0};

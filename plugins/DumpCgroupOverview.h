@@ -39,8 +39,7 @@ class DumpCgroupOverview : public Engine::BasePlugin {
   ~DumpCgroupOverview() = default;
 
  private:
-  std::unordered_set<std::string> cgroups_;
-  std::string cgroup_fs_;
+  std::unordered_set<CgroupPath> cgroups_;
   bool always_{false};
 };
 

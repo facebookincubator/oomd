@@ -35,11 +35,13 @@ int PressureRisingBeyond::init(
     Engine::MonitoredResources& resources,
     const Engine::PluginArgs& args) {
   if (args.find("cgroup") != args.end()) {
-    auto cgroups = Fs::split(args.at("cgroup"), ',');
-    cgroups_.insert(cgroups.begin(), cgroups.end());
-    cgroup_fs_ =
+    auto cgroup_fs =
         (args.find("cgroup_fs") != args.end() ? args.at("cgroup_fs")
                                               : kCgroupFs);
+    auto cgroups = Fs::split(args.at("cgroup"), ',');
+    for (const auto& c : cgroups) {
+      cgroups_.emplace(cgroup_fs, c);
+    }
   } else {
     OLOG << "Argument=cgroup not present";
     return 1;
@@ -88,7 +90,7 @@ Engine::PluginRet PressureRisingBeyond::run(OomdContext& /* unused */) {
 
   std::unordered_set<std::string> resolved_cgroups;
   for (const auto& cgroup : cgroups_) {
-    auto resolved = Fs::resolveWildcardPath(cgroup_fs_ + "/" + cgroup);
+    auto resolved = Fs::resolveWildcardPath(cgroup.absolutePath());
     resolved_cgroups.insert(resolved.begin(), resolved.end());
   }
   ResourcePressure current_pressure;

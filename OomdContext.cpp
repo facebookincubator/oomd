@@ -34,12 +34,12 @@ OomdContext::OomdContext(OomdContext&& other) noexcept {
   action_context_ = other.action_context_;
 }
 
-bool OomdContext::hasCgroupContext(const std::string& name) const {
-  return memory_state_.find(name) != memory_state_.end();
+bool OomdContext::hasCgroupContext(const CgroupPath& path) const {
+  return memory_state_.find(path) != memory_state_.end();
 }
 
-std::vector<std::string> OomdContext::cgroups() const {
-  std::vector<std::string> keys;
+std::vector<CgroupPath> OomdContext::cgroups() const {
+  std::vector<CgroupPath> keys;
 
   for (const auto& pair : memory_state_) {
     keys.emplace_back(pair.first);
@@ -48,27 +48,27 @@ std::vector<std::string> OomdContext::cgroups() const {
   return keys;
 }
 
-const CgroupContext& OomdContext::getCgroupContext(const std::string& name) {
-  if (!hasCgroupContext(name)) {
+const CgroupContext& OomdContext::getCgroupContext(const CgroupPath& path) {
+  if (!hasCgroupContext(path)) {
     throw std::invalid_argument("Cgroup not present");
   }
 
-  return memory_state_[name];
+  return memory_state_[path];
 }
 
 void OomdContext::setCgroupContext(
-    const std::string& name,
+    const CgroupPath& path,
     CgroupContext context) {
-  memory_state_[name] = context;
+  memory_state_[path] = context;
 }
 
-std::vector<std::pair<std::string, CgroupContext>> OomdContext::reverseSort(
+std::vector<std::pair<CgroupPath, CgroupContext>> OomdContext::reverseSort(
     std::function<double(const CgroupContext& cc)> getKey) {
-  std::vector<std::pair<std::string, CgroupContext>> vec;
+  std::vector<std::pair<CgroupPath, CgroupContext>> vec;
 
   for (const auto& pair : memory_state_) {
     vec.emplace_back(
-        std::pair<std::string, CgroupContext>{pair.first, pair.second});
+        std::pair<CgroupPath, CgroupContext>{pair.first, pair.second});
   }
 
   if (getKey) {
@@ -79,14 +79,14 @@ std::vector<std::pair<std::string, CgroupContext>> OomdContext::reverseSort(
 }
 
 void OomdContext::reverseSort(
-    std::vector<std::pair<std::string, CgroupContext>>& vec,
+    std::vector<std::pair<CgroupPath, CgroupContext>>& vec,
     std::function<double(const CgroupContext& cc)> getKey) {
   std::sort(
       vec.begin(),
       vec.end(),
       [getKey](
-          std::pair<std::string, CgroupContext>& first,
-          std::pair<std::string, CgroupContext>& second) {
+          std::pair<CgroupPath, CgroupContext>& first,
+          std::pair<CgroupPath, CgroupContext>& second) {
         // Want to sort in reverse order (largest first), so return
         // true if first element is ordered before second element
         return getKey(first.second) > getKey(second.second);
@@ -106,7 +106,7 @@ void OomdContext::dump() {
 }
 
 void OomdContext::dumpOomdContext(
-    const std::vector<std::pair<std::string, CgroupContext>>& vec,
+    const std::vector<std::pair<CgroupPath, CgroupContext>>& vec,
     const bool skip_negligible) {
   OLOG << "Dumping OomdContext: ";
   for (const auto& ms : vec) {
@@ -130,7 +130,7 @@ void OomdContext::dumpOomdContext(
       }
     }
 
-    OLOG << "name=" << ms.first;
+    OLOG << "name=" << ms.first.relativePath();
     OLOG << "  pressure=" << ms.second.pressure.sec_10 << ":"
          << ms.second.pressure.sec_60 << ":" << ms.second.pressure.sec_600
          << "-" << ms.second.io_pressure.sec_10 << ":"

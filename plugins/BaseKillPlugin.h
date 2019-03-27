@@ -61,7 +61,7 @@ class BaseKillPlugin : public Oomd::Engine::BasePlugin {
    * Logs a structured kill message to kmsg and stderr
    */
   virtual void logKill(
-      const std::string& killed_group,
+      const CgroupPath& killed_group,
       const CgroupContext& context,
       const ActionContext& action_context,
       bool dry = false) const;
@@ -74,8 +74,8 @@ class BaseKillPlugin : public Oomd::Engine::BasePlugin {
    * was not assigned to kill.
    */
   virtual void removeSiblingCgroups(
-      const std::unordered_set<std::string>& ours,
-      std::vector<std::pair<std::string, Oomd::CgroupContext>>& vec);
+      const std::unordered_set<CgroupPath>& ours,
+      std::vector<std::pair<CgroupPath, Oomd::CgroupContext>>& vec);
 
  private:
   virtual int getAndTryToKillPids(

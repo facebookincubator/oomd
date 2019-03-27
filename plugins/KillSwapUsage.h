@@ -41,8 +41,7 @@ class KillSwapUsage : public Base {
  protected:
   virtual bool tryToKillSomething(OomdContext& ctx);
 
-  std::unordered_set<std::string> cgroups_;
-  std::string cgroup_fs_;
+  std::unordered_set<CgroupPath> cgroups_;
   int post_action_delay_{15};
   bool dry_{false};
   bool debug_{false};

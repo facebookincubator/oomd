@@ -42,21 +42,33 @@ namespace {
 /*
  * Helper function that resolves a set of wildcarded cgroup paths.
  *
- * @returns a set of resolved absolute paths
+ * @returns a set of resolved cgroup paths
  */
-std::unordered_set<std::string> resolveCgroupPaths(
-    const std::string& cgroup_root_dir,
-    const std::unordered_set<std::string>& parent_cgroups) {
-  std::unordered_set<std::string> ret;
+std::unordered_set<Oomd::CgroupPath> resolveCgroupPaths(
+    const std::unordered_set<Oomd::CgroupPath>& cgroups) {
+  std::unordered_set<Oomd::CgroupPath> ret;
 
-  for (const auto& parent_cgroup : parent_cgroups) {
-    std::string abs_unresolved_path = cgroup_root_dir + "/" + parent_cgroup;
+  for (const auto& cgroup : cgroups) {
     // TODO: see what the performance penalty of walking the FS
     // (in resolveWildcardPath) every time is. If it's a big penalty,
-    // we could search `abs_unresolved_path` for any fnmatch operators and
+    // we could search `absolutePath` for any fnmatch operators and
     // only resolve if we find symbols.
-    auto resolved_paths = Oomd::Fs::resolveWildcardPath(abs_unresolved_path);
-    ret.insert(resolved_paths.begin(), resolved_paths.end());
+    auto resolved_paths = Oomd::Fs::resolveWildcardPath(cgroup.absolutePath());
+
+    for (const auto& resolved_path : resolved_paths) {
+      size_t idx = 0;
+
+      // TODO: make Fs::resolveWildcardPath return a "cleaned" path
+      if (resolved_path.find("./", 0) != std::string::npos) {
+        idx += 2;
+      }
+      idx += cgroup.cgroupFs().size() + /* trailing slash */ +1;
+
+      if (idx < resolved_path.size()) {
+        std::string cgroup_relative = resolved_path.substr(idx);
+        ret.emplace(cgroup.cgroupFs(), std::move(cgroup_relative));
+      }
+    }
   }
 
   return ret;
@@ -69,12 +81,23 @@ Oomd::Oomd(
     std::unique_ptr<Engine::Engine> engine,
     int interval,
     const std::string& cgroup_fs)
-    : interval_(interval), cgroup_fs_(cgroup_fs), engine_(std::move(engine)) {}
+    : interval_(interval), cgroup_fs_(cgroup_fs), engine_(std::move(engine)) {
+  // Ensure that each monitored cgroup's cgroup fs is the same as the one
+  // passed in by the command line
+  if (engine_) { // Tests will pass in a nullptr
+    for (const auto& cgroup : engine_->getMonitoredResources()) {
+      if (cgroup.cgroupFs() != cgroup_fs_) {
+        resources_.emplace(cgroup_fs_, cgroup.relativePath());
+      } else {
+        resources_.emplace(cgroup);
+      }
+    }
+  }
+}
 
-bool Oomd::updateContextCgroup(
-    const std::string& relative_cgroup_path,
-    const std::string& absolute_cgroup_path,
-    OomdContext& ctx) {
+bool Oomd::updateContextCgroup(const CgroupPath& path, OomdContext& ctx) {
+  std::string absolute_cgroup_path = path.absolutePath();
+
   // Warn once if memory controller is not enabled on target cgroup
   auto controllers = Fs::readControllers(absolute_cgroup_path);
   if (!std::any_of(controllers.begin(), controllers.end(), [](std::string& s) {
@@ -110,28 +133,25 @@ bool Oomd::updateContextCgroup(
   }
 
   ctx.setCgroupContext(
-      relative_cgroup_path,
+      path,
       {pressures, io_pressure, current, {}, memlow, swap_current, anon_usage});
 
   return true;
 }
 
 void Oomd::updateContext(
-    const std::string& cgroup_root_dir,
-    const std::unordered_set<std::string>& cgroups,
+    const std::unordered_set<CgroupPath>& cgroups,
     OomdContext& ctx) {
   OomdContext new_ctx;
 
-  auto resolved = resolveCgroupPaths(cgroup_root_dir, cgroups);
+  auto resolved = resolveCgroupPaths(cgroups);
   for (const auto& resolved_cgroup : resolved) {
     // Only care about subtree cgroups, not the cgroup files
-    if (!Fs::isDir(resolved_cgroup)) {
+    if (!Fs::isDir(resolved_cgroup.absolutePath())) {
       continue;
     }
 
-    std::string relative_cgroup_path = resolved_cgroup;
-    Fs::removePrefix(relative_cgroup_path, cgroup_root_dir + "/");
-    updateContextCgroup(relative_cgroup_path, resolved_cgroup, new_ctx);
+    updateContextCgroup(resolved_cgroup, new_ctx);
   }
 
   // calculate running averages
@@ -242,7 +262,7 @@ int Oomd::run() {
         return ret;
       }
 
-      updateContext(cgroup_fs_, engine_->getMonitoredResources(), ctx);
+      updateContext(resources_, ctx);
 
       // Run all the plugins
       engine_->runOnce(ctx);

@@ -30,61 +30,73 @@ class OomdContextTest : public ::testing::Test {
 };
 
 TEST_F(OomdContextTest, MoveConstructor) {
-  EXPECT_FALSE(ctx.hasCgroupContext("asdf"));
+  CgroupPath path("/sys/fs/cgroup", "asdf");
+  EXPECT_FALSE(ctx.hasCgroupContext(path));
 
   OomdContext other;
-  other.setCgroupContext("asdf", CgroupContext{{}, {}, 1, 2, 3});
+  other.setCgroupContext(path, CgroupContext{{}, {}, 1, 2, 3});
 
   ctx = std::move(other);
 
-  ASSERT_TRUE(ctx.hasCgroupContext("asdf"));
-  auto moved_cgroup_ctx = ctx.getCgroupContext("asdf");
+  ASSERT_TRUE(ctx.hasCgroupContext(path));
+  auto moved_cgroup_ctx = ctx.getCgroupContext(path);
   EXPECT_EQ(moved_cgroup_ctx.current_usage, 1);
   EXPECT_EQ(moved_cgroup_ctx.average_usage, 2);
   EXPECT_EQ(moved_cgroup_ctx.memory_low, 3);
 }
 
 TEST_F(OomdContextTest, HasCgroupCheck) {
-  EXPECT_FALSE(ctx.hasCgroupContext("asdf"));
-  ctx.setCgroupContext("asdf", CgroupContext{});
-  EXPECT_TRUE(ctx.hasCgroupContext("asdf"));
+  CgroupPath path("/sys/fs/cgroup", "asdf");
+
+  EXPECT_FALSE(ctx.hasCgroupContext(path));
+  ctx.setCgroupContext(path, CgroupContext{});
+  EXPECT_TRUE(ctx.hasCgroupContext(path));
 }
 
 TEST_F(OomdContextTest, CgroupKeys) {
+  CgroupPath p1("/sys/fs/cgroup", "asdf");
+  CgroupPath p2("/sys/fs/cgroup", "wow");
+
   EXPECT_EQ(ctx.cgroups().size(), 0);
-  ctx.setCgroupContext("asdf", CgroupContext{});
-  ctx.setCgroupContext("wow", CgroupContext{});
+  ctx.setCgroupContext(p1, CgroupContext{});
+  ctx.setCgroupContext(p2, CgroupContext{});
   EXPECT_EQ(ctx.cgroups().size(), 2);
-  EXPECT_THAT(ctx.cgroups(), Contains("asdf"));
-  EXPECT_THAT(ctx.cgroups(), Contains("wow"));
+  EXPECT_THAT(ctx.cgroups(), Contains(p1));
+  EXPECT_THAT(ctx.cgroups(), Contains(p2));
 }
 
 TEST_F(OomdContextTest, SetCgroup) {
-  ctx.setCgroupContext("asdf", CgroupContext{});
-  EXPECT_EQ(ctx.getCgroupContext("asdf").memory_low, 0);
+  CgroupPath p1("/sys/fs/cgroup", "asdf");
+  ctx.setCgroupContext(p1, CgroupContext{});
+  EXPECT_EQ(ctx.getCgroupContext(p1).memory_low, 0);
 
-  ctx.setCgroupContext("asdf", CgroupContext{{}, {}, 0, 0, 222});
-  EXPECT_EQ(ctx.getCgroupContext("asdf").memory_low, 222);
+  ctx.setCgroupContext(p1, CgroupContext{{}, {}, 0, 0, 222});
+  EXPECT_EQ(ctx.getCgroupContext(p1).memory_low, 222);
 }
 
 TEST_F(OomdContextTest, SortContext) {
-  ctx.setCgroupContext("biggest", {{}, {}, 99999999, 0, 1});
-  ctx.setCgroupContext("smallest", {{}, {}, 1, 988888888888, 4});
-  ctx.setCgroupContext("asdf", {{}, {}, 88888888, 289349817823, 2});
-  ctx.setCgroupContext("fdsa", {{}, {}, 77777777, 6, 3});
+  CgroupPath p1("/sys/fs/cgroup", "biggest");
+  CgroupPath p2("/sys/fs/cgroup", "smallest");
+  CgroupPath p3("/sys/fs/cgroup", "asdf");
+  CgroupPath p4("/sys/fs/cgroup", "fdsa");
+
+  ctx.setCgroupContext(p1, {{}, {}, 99999999, 0, 1});
+  ctx.setCgroupContext(p2, {{}, {}, 1, 988888888888, 4});
+  ctx.setCgroupContext(p3, {{}, {}, 88888888, 289349817823, 2});
+  ctx.setCgroupContext(p4, {{}, {}, 77777777, 6, 3});
 
   auto sorted = ctx.reverseSort(
       [](const CgroupContext& cgroup_ctx) { return cgroup_ctx.current_usage; });
 
   ASSERT_EQ(sorted.size(), 4);
-  EXPECT_EQ(sorted.at(0).first, "biggest");
-  EXPECT_EQ(sorted.at(3).first, "smallest");
+  EXPECT_EQ(sorted.at(0).first, p1);
+  EXPECT_EQ(sorted.at(3).first, p2);
 
   OomdContext::reverseSort(sorted, [](const CgroupContext& cgroup_ctx) {
     return cgroup_ctx.memory_low;
   });
 
   ASSERT_EQ(sorted.size(), 4);
-  EXPECT_EQ(sorted.at(0).first, "smallest");
-  EXPECT_EQ(sorted.at(3).first, "biggest");
+  EXPECT_EQ(sorted.at(0).first, p2);
+  EXPECT_EQ(sorted.at(3).first, p1);
 }

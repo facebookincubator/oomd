@@ -76,8 +76,8 @@ class BaseKillPluginShim : public BaseKillPluginMock {
   }
 
   void removeSiblingCgroupsShim(
-      const std::unordered_set<std::string>& our_prefixes,
-      std::vector<std::pair<std::string, Oomd::CgroupContext>>& vec) {
+      const std::unordered_set<CgroupPath>& our_prefixes,
+      std::vector<std::pair<CgroupPath, Oomd::CgroupContext>>& vec) {
     removeSiblingCgroups(our_prefixes, vec);
   }
 
@@ -134,55 +134,67 @@ TEST(BaseKillPlugin, TryToKillCgroupKillsRecursive) {
 TEST(BaseKillPlugin, RemoveSiblingCgroups) {
   OomdContext ctx;
   ctx.setCgroupContext(
-      "some/made_up/cgroup/path/here", CgroupContext{{}, {}, 0, 0, 0, 0});
+      CgroupPath("/", "some/made_up/cgroup/path/here"),
+      CgroupContext{{}, {}, 0, 0, 0, 0});
   ctx.setCgroupContext(
-      "some/other/cgroup/path/here", CgroupContext{{}, {}, 0, 0, 0, 0});
+      CgroupPath("/", "some/other/cgroup/path/here"),
+      CgroupContext{{}, {}, 0, 0, 0, 0});
   ctx.setCgroupContext(
-      "notavalidcgrouppath/here", CgroupContext{{}, {}, 0, 0, 0, 0});
-  ctx.setCgroupContext("XXXXXXXX/here", CgroupContext{{}, {}, 0, 0, 0, 0});
+      CgroupPath("/", "notavalidcgrouppath/here"),
+      CgroupContext{{}, {}, 0, 0, 0, 0});
+  ctx.setCgroupContext(
+      CgroupPath("/", "XXXXXXXX/here"), CgroupContext{{}, {}, 0, 0, 0, 0});
   auto vec = ctx.reverseSort();
 
   auto plugin = std::make_shared<BaseKillPluginShim>();
   ASSERT_NE(plugin, nullptr);
 
   // Test wildcard support first
-  plugin->removeSiblingCgroupsShim({"some/*/cgroup/path/*"}, vec);
+  plugin->removeSiblingCgroupsShim(
+      {CgroupPath("/", "some/*/cgroup/path/*")}, vec);
   ASSERT_EQ(vec.size(), 2);
   EXPECT_TRUE(std::any_of(vec.begin(), vec.end(), [&](const auto& pair) {
-    return pair.first == "some/made_up/cgroup/path/here";
+    return pair.first.relativePath() == "some/made_up/cgroup/path/here";
   }));
   EXPECT_TRUE(std::any_of(vec.begin(), vec.end(), [&](const auto& pair) {
-    return pair.first == "some/other/cgroup/path/here";
+    return pair.first.relativePath() == "some/other/cgroup/path/here";
   }));
 
   // Now test non-wildcard
-  plugin->removeSiblingCgroupsShim({"some/other/cgroup/path/*"}, vec);
+  plugin->removeSiblingCgroupsShim(
+      {CgroupPath("/", "some/other/cgroup/path/*")}, vec);
   ASSERT_EQ(vec.size(), 1);
-  EXPECT_EQ(vec[0].first, "some/other/cgroup/path/here");
+  EXPECT_EQ(vec[0].first.relativePath(), "some/other/cgroup/path/here");
 }
 
 TEST(BaseKillPlugin, RemoveSiblingCgroupsMultiple) {
   OomdContext ctx;
   ctx.setCgroupContext(
-      "some/made_up/cgroup/path/here", CgroupContext{{}, {}, 0, 0, 0, 0});
+      CgroupPath("/", "some/made_up/cgroup/path/here"),
+      CgroupContext{{}, {}, 0, 0, 0, 0});
   ctx.setCgroupContext(
-      "some/other/cgroup/path/here", CgroupContext{{}, {}, 0, 0, 0, 0});
+      CgroupPath("/", "some/other/cgroup/path/here"),
+      CgroupContext{{}, {}, 0, 0, 0, 0});
   ctx.setCgroupContext(
-      "notavalidcgrouppath/here", CgroupContext{{}, {}, 0, 0, 0, 0});
-  ctx.setCgroupContext("XXXXXXXX/here", CgroupContext{{}, {}, 0, 0, 0, 0});
+      CgroupPath("/", "notavalidcgrouppath/here"),
+      CgroupContext{{}, {}, 0, 0, 0, 0});
+  ctx.setCgroupContext(
+      CgroupPath("/", "XXXXXXXX/here"), CgroupContext{{}, {}, 0, 0, 0, 0});
   auto vec = ctx.reverseSort();
 
   auto plugin = std::make_shared<BaseKillPluginShim>();
   ASSERT_NE(plugin, nullptr);
 
   plugin->removeSiblingCgroupsShim(
-      {"some/made_up/cgroup/path/*", "some/other/cgroup/path/*"}, vec);
+      {CgroupPath("/", "some/made_up/cgroup/path/*"),
+       CgroupPath("/", "some/other/cgroup/path/*")},
+      vec);
   ASSERT_EQ(vec.size(), 2);
   EXPECT_TRUE(std::any_of(vec.begin(), vec.end(), [&](const auto& pair) {
-    return pair.first == "some/made_up/cgroup/path/here";
+    return pair.first.relativePath() == "some/made_up/cgroup/path/here";
   }));
   EXPECT_TRUE(std::any_of(vec.begin(), vec.end(), [&](const auto& pair) {
-    return pair.first == "some/other/cgroup/path/here";
+    return pair.first.relativePath() == "some/other/cgroup/path/here";
   }));
 }
 
@@ -350,7 +362,8 @@ TEST(MemoryAbove, DetectsHighMemUsage) {
 
   OomdContext ctx;
   ctx.setCgroupContext(
-      "high_memory", CgroupContext{{}, {}, 0, 0, 0, 20, 2147483648});
+      CgroupPath(args["cgroup_fs"], "high_memory"),
+      CgroupContext{{}, {}, 0, 0, 0, 20, 2147483648});
   EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::CONTINUE);
 }
 
@@ -370,7 +383,8 @@ TEST(MemoryAbove, NoDetectLowMemUsage) {
 
   OomdContext ctx;
   ctx.setCgroupContext(
-      "low_memory", CgroupContext{{}, {}, 0, 0, 0, 20, 1073741824});
+      CgroupPath(args["cgroup_fs"], "low_memory"),
+      CgroupContext{{}, {}, 0, 0, 0, 20, 1073741824});
   EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
 }
 
@@ -390,7 +404,8 @@ TEST(MemoryAbove, DetectsHighMemUsagePercent) {
 
   OomdContext ctx;
   ctx.setCgroupContext(
-      "high_memory", CgroupContext{{}, {}, 0, 0, 0, 20, 2147483648});
+      CgroupPath(args["cgroup_fs"], "high_memory"),
+      CgroupContext{{}, {}, 0, 0, 0, 20, 2147483648});
   EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::CONTINUE);
 }
 
@@ -411,9 +426,11 @@ TEST(MemoryAbove, NoDetectLowMemUsageMultiple) {
 
   OomdContext ctx;
   ctx.setCgroupContext(
-      "low_memory", CgroupContext{{}, {}, 0, 0, 0, 20, 1073741824});
+      CgroupPath(args["cgroup_fs"], "low_memory"),
+      CgroupContext{{}, {}, 0, 0, 0, 20, 1073741824});
   ctx.setCgroupContext(
-      "high_memory", CgroupContext{{}, {}, 0, 0, 0, 20, 2147483648});
+      CgroupPath(args["cgroup_fs"], "high_memory"),
+      CgroupContext{{}, {}, 0, 0, 0, 20, 2147483648});
   EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
 }
 
@@ -434,9 +451,11 @@ TEST(MemoryAbove, DetectsHighMemUsageMultiple) {
 
   OomdContext ctx;
   ctx.setCgroupContext(
-      "low_memory", CgroupContext{{}, {}, 0, 0, 0, 20, 1073741824});
+      CgroupPath(args["cgroup_fs"], "low_memory"),
+      CgroupContext{{}, {}, 0, 0, 0, 20, 1073741824});
   ctx.setCgroupContext(
-      "high_memory", CgroupContext{{}, {}, 0, 0, 0, 20, 2147483648});
+      CgroupPath(args["cgroup_fs"], "high_memory"),
+      CgroupContext{{}, {}, 0, 0, 0, 20, 2147483648});
   EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::CONTINUE);
 }
 
@@ -456,7 +475,8 @@ TEST(MemoryAbove, NoDetectLowMemUsagePercent) {
 
   OomdContext ctx;
   ctx.setCgroupContext(
-      "low_memory", CgroupContext{{}, {}, 0, 0, 0, 20, 1073741824});
+      CgroupPath(args["cgroup_fs"], "low_memory"),
+      CgroupContext{{}, {}, 0, 0, 0, 20, 1073741824});
   EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
 }
 
@@ -537,10 +557,18 @@ TEST(KillMemoryGrowth, KillsBigCgroup) {
   ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
 
   OomdContext ctx;
-  ctx.setCgroupContext("one_big/cgroup1", CgroupContext{{}, {}, 60, 60, 0, 0});
-  ctx.setCgroupContext("one_big/cgroup2", CgroupContext{{}, {}, 20, 20, 0, 0});
-  ctx.setCgroupContext("one_big/cgroup3", CgroupContext{{}, {}, 20, 20, 0, 0});
-  ctx.setCgroupContext("sibling/cgroup1", CgroupContext{{}, {}, 20, 20, 0, 0});
+  ctx.setCgroupContext(
+      CgroupPath(args["cgroup_fs"], "one_big/cgroup1"),
+      CgroupContext{{}, {}, 60, 60, 0, 0});
+  ctx.setCgroupContext(
+      CgroupPath(args["cgroup_fs"], "one_big/cgroup2"),
+      CgroupContext{{}, {}, 20, 20, 0, 0});
+  ctx.setCgroupContext(
+      CgroupPath(args["cgroup_fs"], "one_big/cgroup3"),
+      CgroupContext{{}, {}, 20, 20, 0, 0});
+  ctx.setCgroupContext(
+      CgroupPath(args["cgroup_fs"], "sibling/cgroup1"),
+      CgroupContext{{}, {}, 20, 20, 0, 0});
   EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
   EXPECT_THAT(plugin->killed, Contains(123));
   EXPECT_THAT(plugin->killed, Contains(456));
@@ -568,11 +596,14 @@ TEST(KillMemoryGrowth, KillsBigCgroupGrowth) {
   //
   // cgroup3 should be killed even though (30 / (21+20+30) < .5)
   ctx.setCgroupContext(
-      "growth_big/cgroup1", CgroupContext{{}, {}, 21, 20, 0, 0});
+      CgroupPath(args["cgroup_fs"], "growth_big/cgroup1"),
+      CgroupContext{{}, {}, 21, 20, 0, 0});
   ctx.setCgroupContext(
-      "growth_big/cgroup2", CgroupContext{{}, {}, 20, 20, 0, 0});
+      CgroupPath(args["cgroup_fs"], "growth_big/cgroup2"),
+      CgroupContext{{}, {}, 20, 20, 0, 0});
   ctx.setCgroupContext(
-      "growth_big/cgroup3", CgroupContext{{}, {}, 30, 30, 0, 0});
+      CgroupPath(args["cgroup_fs"], "growth_big/cgroup3"),
+      CgroupContext{{}, {}, 30, 30, 0, 0});
   EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
   EXPECT_THAT(plugin->killed, Contains(111));
   EXPECT_THAT(plugin->killed, Not(Contains(123)));
@@ -581,7 +612,8 @@ TEST(KillMemoryGrowth, KillsBigCgroupGrowth) {
   // Now lower average usage to artificially "boost" growth rate to trigger
   // growth kill
   ctx.setCgroupContext(
-      "growth_big/cgroup1", CgroupContext{{}, {}, 21, 5, 0, 0});
+      CgroupPath(args["cgroup_fs"], "growth_big/cgroup1"),
+      CgroupContext{{}, {}, 21, 5, 0, 0});
   EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
   EXPECT_THAT(plugin->killed, Contains(123));
   EXPECT_THAT(plugin->killed, Contains(456));
@@ -600,11 +632,18 @@ TEST(KillMemoryGrowth, KillsBigCgroupMultiCgroup) {
   ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
 
   OomdContext ctx;
-  ctx.setCgroupContext("one_big/cgroup1", CgroupContext{{}, {}, 60, 60, 0, 0});
-  ctx.setCgroupContext("one_big/cgroup2", CgroupContext{{}, {}, 20, 20, 0, 0});
-  ctx.setCgroupContext("one_big/cgroup3", CgroupContext{{}, {}, 20, 20, 0, 0});
   ctx.setCgroupContext(
-      "sibling/cgroup1", CgroupContext{{}, {}, 100, 100, 0, 0});
+      CgroupPath(args["cgroup_fs"], "one_big/cgroup1"),
+      CgroupContext{{}, {}, 60, 60, 0, 0});
+  ctx.setCgroupContext(
+      CgroupPath(args["cgroup_fs"], "one_big/cgroup2"),
+      CgroupContext{{}, {}, 20, 20, 0, 0});
+  ctx.setCgroupContext(
+      CgroupPath(args["cgroup_fs"], "one_big/cgroup3"),
+      CgroupContext{{}, {}, 20, 20, 0, 0});
+  ctx.setCgroupContext(
+      CgroupPath(args["cgroup_fs"], "sibling/cgroup1"),
+      CgroupContext{{}, {}, 100, 100, 0, 0});
   EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
   EXPECT_THAT(plugin->killed, Contains(888));
   EXPECT_THAT(plugin->killed, Not(Contains(123)));
@@ -627,9 +666,15 @@ TEST(KillMemoryGrowth, DoesntKillBigCgroupInDry) {
   ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
 
   OomdContext ctx;
-  ctx.setCgroupContext("one_big/cgroup1", CgroupContext{{}, {}, 60, 60, 0, 0});
-  ctx.setCgroupContext("one_big/cgroup2", CgroupContext{{}, {}, 20, 20, 0, 0});
-  ctx.setCgroupContext("one_big/cgroup3", CgroupContext{{}, {}, 20, 20, 0, 0});
+  ctx.setCgroupContext(
+      CgroupPath(args["cgroup_fs"], "one_big/cgroup1"),
+      CgroupContext{{}, {}, 60, 60, 0, 0});
+  ctx.setCgroupContext(
+      CgroupPath(args["cgroup_fs"], "one_big/cgroup2"),
+      CgroupContext{{}, {}, 20, 20, 0, 0});
+  ctx.setCgroupContext(
+      CgroupPath(args["cgroup_fs"], "one_big/cgroup3"),
+      CgroupContext{{}, {}, 20, 20, 0, 0});
   EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
   EXPECT_EQ(plugin->killed.size(), 0);
 }
@@ -647,9 +692,15 @@ TEST(KillSwapUsage, KillsBigSwapCgroup) {
   ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
 
   OomdContext ctx;
-  ctx.setCgroupContext("one_big/cgroup1", CgroupContext{{}, {}, 0, 0, 0, 20});
-  ctx.setCgroupContext("one_big/cgroup2", CgroupContext{{}, {}, 0, 0, 0, 60});
-  ctx.setCgroupContext("one_big/cgroup3", CgroupContext{{}, {}, 0, 0, 0, 40});
+  ctx.setCgroupContext(
+      CgroupPath(args["cgroup_fs"], "one_big/cgroup1"),
+      CgroupContext{{}, {}, 0, 0, 0, 20});
+  ctx.setCgroupContext(
+      CgroupPath(args["cgroup_fs"], "one_big/cgroup2"),
+      CgroupContext{{}, {}, 0, 0, 0, 60});
+  ctx.setCgroupContext(
+      CgroupPath(args["cgroup_fs"], "one_big/cgroup3"),
+      CgroupContext{{}, {}, 0, 0, 0, 40});
   EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
   EXPECT_THAT(plugin->killed, Contains(789));
   EXPECT_THAT(plugin->killed, Not(Contains(123)));
@@ -670,10 +721,18 @@ TEST(KillSwapUsage, KillsBigSwapCgroupMultiCgroup) {
   ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
 
   OomdContext ctx;
-  ctx.setCgroupContext("one_big/cgroup1", CgroupContext{{}, {}, 0, 0, 0, 20});
-  ctx.setCgroupContext("one_big/cgroup2", CgroupContext{{}, {}, 0, 0, 0, 60});
-  ctx.setCgroupContext("one_big/cgroup3", CgroupContext{{}, {}, 0, 0, 0, 40});
-  ctx.setCgroupContext("sibling/cgroup1", CgroupContext{{}, {}, 0, 0, 0, 70});
+  ctx.setCgroupContext(
+      CgroupPath(args["cgroup_fs"], "one_big/cgroup1"),
+      CgroupContext{{}, {}, 0, 0, 0, 20});
+  ctx.setCgroupContext(
+      CgroupPath(args["cgroup_fs"], "one_big/cgroup2"),
+      CgroupContext{{}, {}, 0, 0, 0, 60});
+  ctx.setCgroupContext(
+      CgroupPath(args["cgroup_fs"], "one_big/cgroup3"),
+      CgroupContext{{}, {}, 0, 0, 0, 40});
+  ctx.setCgroupContext(
+      CgroupPath(args["cgroup_fs"], "sibling/cgroup1"),
+      CgroupContext{{}, {}, 0, 0, 0, 70});
   EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
   EXPECT_THAT(plugin->killed, Contains(555));
   EXPECT_THAT(plugin->killed, Not(Contains(123)));
@@ -696,9 +755,15 @@ TEST(KillSwapUsage, DoesntKillBigSwapCgroupDry) {
   ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
 
   OomdContext ctx;
-  ctx.setCgroupContext("one_big/cgroup1", CgroupContext{{}, {}, 0, 0, 0, 20});
-  ctx.setCgroupContext("one_big/cgroup2", CgroupContext{{}, {}, 0, 0, 0, 60});
-  ctx.setCgroupContext("one_big/cgroup3", CgroupContext{{}, {}, 0, 0, 0, 40});
+  ctx.setCgroupContext(
+      CgroupPath(args["cgroup_fs"], "one_big/cgroup1"),
+      CgroupContext{{}, {}, 0, 0, 0, 20});
+  ctx.setCgroupContext(
+      CgroupPath(args["cgroup_fs"], "one_big/cgroup2"),
+      CgroupContext{{}, {}, 0, 0, 0, 60});
+  ctx.setCgroupContext(
+      CgroupPath(args["cgroup_fs"], "one_big/cgroup3"),
+      CgroupContext{{}, {}, 0, 0, 0, 40});
   EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
   EXPECT_EQ(plugin->killed.size(), 0);
 }
@@ -717,9 +782,15 @@ TEST(KillSwapUsage, DoesntKillNoSwap) {
   ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
 
   OomdContext ctx;
-  ctx.setCgroupContext("one_big/cgroup1", CgroupContext{{}, {}, 0, 0, 0, 0});
-  ctx.setCgroupContext("one_big/cgroup2", CgroupContext{{}, {}, 0, 0, 0, 0});
-  ctx.setCgroupContext("one_big/cgroup3", CgroupContext{{}, {}, 0, 0, 0, 0});
+  ctx.setCgroupContext(
+      CgroupPath(args["cgroup_fs"], "one_big/cgroup1"),
+      CgroupContext{{}, {}, 0, 0, 0, 0});
+  ctx.setCgroupContext(
+      CgroupPath(args["cgroup_fs"], "one_big/cgroup2"),
+      CgroupContext{{}, {}, 0, 0, 0, 0});
+  ctx.setCgroupContext(
+      CgroupPath(args["cgroup_fs"], "one_big/cgroup3"),
+      CgroupContext{{}, {}, 0, 0, 0, 0});
   EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::CONTINUE);
   EXPECT_EQ(plugin->killed.size(), 0);
 }
@@ -739,16 +810,16 @@ TEST(KillPressure, KillsHighestPressure) {
 
   OomdContext ctx;
   ctx.setCgroupContext(
-      "one_high/cgroup1",
+      CgroupPath(args["cgroup_fs"], "one_high/cgroup1"),
       CgroupContext{{}, {ResourcePressure{60, 60, 0}}, 0, 0, 0, 0});
   ctx.setCgroupContext(
-      "one_high/cgroup2",
+      CgroupPath(args["cgroup_fs"], "one_high/cgroup2"),
       CgroupContext{{}, {ResourcePressure{50, 70, 0}}, 0, 0, 0, 0});
   ctx.setCgroupContext(
-      "one_high/cgroup3",
+      CgroupPath(args["cgroup_fs"], "one_high/cgroup3"),
       CgroupContext{{}, {ResourcePressure{80, 80, 0}}, 0, 0, 0, 0});
   ctx.setCgroupContext(
-      "sibling/cgroup1",
+      CgroupPath(args["cgroup_fs"], "sibling/cgroup1"),
       CgroupContext{{}, {ResourcePressure{99, 99, 99}}, 0, 0, 0, 0});
   EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
   EXPECT_THAT(plugin->killed, Contains(111));
@@ -773,16 +844,16 @@ TEST(KillPressure, KillsHighestPressureMultiCgroup) {
 
   OomdContext ctx;
   ctx.setCgroupContext(
-      "one_high/cgroup1",
+      CgroupPath(args["cgroup_fs"], "one_high/cgroup1"),
       CgroupContext{{}, {ResourcePressure{60, 60, 0}}, 0, 0, 0, 0});
   ctx.setCgroupContext(
-      "one_high/cgroup2",
+      CgroupPath(args["cgroup_fs"], "one_high/cgroup2"),
       CgroupContext{{}, {ResourcePressure{50, 70, 0}}, 0, 0, 0, 0});
   ctx.setCgroupContext(
-      "one_high/cgroup3",
+      CgroupPath(args["cgroup_fs"], "one_high/cgroup3"),
       CgroupContext{{}, {ResourcePressure{80, 80, 0}}, 0, 0, 0, 0});
   ctx.setCgroupContext(
-      "sibling/cgroup1",
+      CgroupPath(args["cgroup_fs"], "sibling/cgroup1"),
       CgroupContext{{}, {ResourcePressure{99, 99, 99}}, 0, 0, 0, 0});
   EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
   EXPECT_THAT(plugin->killed, Contains(888));
@@ -808,16 +879,16 @@ TEST(KillPressure, DoesntKillsHighestPressureDry) {
 
   OomdContext ctx;
   ctx.setCgroupContext(
-      "one_high/cgroup1",
+      CgroupPath(args["cgroup_fs"], "one_high/cgroup1"),
       CgroupContext{{}, {ResourcePressure{60, 60, 0}}, 0, 0, 0, 0});
   ctx.setCgroupContext(
-      "one_high/cgroup2",
+      CgroupPath(args["cgroup_fs"], "one_high/cgroup2"),
       CgroupContext{{}, {ResourcePressure{50, 70, 0}}, 0, 0, 0, 0});
   ctx.setCgroupContext(
-      "one_high/cgroup3",
+      CgroupPath(args["cgroup_fs"], "one_high/cgroup3"),
       CgroupContext{{}, {ResourcePressure{80, 80, 0}}, 0, 0, 0, 0});
   ctx.setCgroupContext(
-      "sibling/cgroup1",
+      CgroupPath(args["cgroup_fs"], "sibling/cgroup1"),
       CgroupContext{{}, {ResourcePressure{99, 99, 99}}, 0, 0, 0, 0});
   EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
   EXPECT_EQ(plugin->killed.size(), 0);

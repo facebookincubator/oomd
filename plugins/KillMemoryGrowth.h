@@ -43,8 +43,7 @@ class KillMemoryGrowth : public Base {
   virtual bool tryToKillBySize(OomdContext& ctx, bool ignore_threshold);
   virtual bool tryToKillByGrowth(OomdContext& ctx);
 
-  std::unordered_set<std::string> cgroups_;
-  std::string cgroup_fs_;
+  std::unordered_set<CgroupPath> cgroups_;
   int size_threshold_{50};
   int growing_size_percentile_{80};
   float min_growth_ratio_{1.25};

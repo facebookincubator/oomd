@@ -28,6 +28,7 @@
 #include "oomd/config/ConfigCompiler.h"
 #include "oomd/config/JsonConfigParser.h"
 #include "oomd/include/Assert.h"
+#include "oomd/include/CgroupPath.h"
 #include "oomd/include/Defines.h"
 #include "oomd/util/Fs.h"
 
