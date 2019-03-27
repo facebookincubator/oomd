@@ -34,12 +34,24 @@ struct ActionContext {
   std::string detectorgroup;
 };
 
+struct CgroupNode {
+  explicit CgroupNode(CgroupPath p);
+  ~CgroupNode() = default;
+
+  CgroupPath path;
+  CgroupContext ctx;
+  // Is this node holding actual data or are we simply a branch for a leaf
+  bool isEmptyBranch{false};
+  std::weak_ptr<CgroupNode> parent;
+  std::vector<std::shared_ptr<CgroupNode>> children;
+};
+
 class OomdContext {
  public:
   OomdContext() {} // = default warns about dynamic exceptions
   ~OomdContext() = default;
-  OomdContext(OomdContext&& other) noexcept;
-  OomdContext& operator=(OomdContext&& other);
+  OomdContext(OomdContext&& other) noexcept = default;
+  OomdContext& operator=(OomdContext&& other) = default;
 
   /**
    * @returns whether or not OomdContext holds a particular cgroup
@@ -55,7 +67,12 @@ class OomdContext {
    * @returns a CgroupContext reference associated with @param name
    * @throws std::invalid_argument for missing cgroup
    */
-  const CgroupContext& getCgroupContext(const CgroupPath& path);
+  const CgroupContext& getCgroupContext(const CgroupPath& path) const;
+
+  /**
+   * @returns a CgroupNode* if cgroup is present, nullptr otherwise
+   */
+  std::shared_ptr<CgroupNode> getCgroupNode(const CgroupPath& path) const;
 
   /**
    * Assigns a mapping of cgroup -> CgroupContext
@@ -94,7 +111,17 @@ class OomdContext {
   void setActionContext(ActionContext context);
 
  private:
-  std::unordered_map<CgroupPath, CgroupContext> memory_state_;
+  std::shared_ptr<CgroupNode> addToTree(
+      const CgroupPath& path,
+      CgroupContext ctx);
+  std::shared_ptr<CgroupNode> addToTreeHelper(
+      const CgroupPath& path,
+      CgroupContext ctx);
+  std::shared_ptr<CgroupNode> findInTree(const CgroupPath& path) const;
+
+  std::shared_ptr<CgroupNode> root_{nullptr};
+  // Read cache so we don't have to walk the tree for read ops
+  std::unordered_map<CgroupPath, std::shared_ptr<CgroupNode>> memory_state_;
   ActionContext action_context_;
 };
 

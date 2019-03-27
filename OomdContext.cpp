@@ -17,22 +17,14 @@
 
 #include "oomd/OomdContext.h"
 #include "oomd/Log.h"
+#include "oomd/include/Assert.h"
 #include "oomd/util/Fs.h"
 
 #include <exception>
 
 namespace Oomd {
 
-OomdContext& OomdContext::operator=(OomdContext&& other) {
-  memory_state_ = std::move(other.memory_state_);
-  action_context_ = other.action_context_;
-  return *this;
-}
-
-OomdContext::OomdContext(OomdContext&& other) noexcept {
-  memory_state_ = std::move(other.memory_state_);
-  action_context_ = other.action_context_;
-}
+CgroupNode::CgroupNode(CgroupPath p) : path(std::move(p)) {}
 
 bool OomdContext::hasCgroupContext(const CgroupPath& path) const {
   return memory_state_.find(path) != memory_state_.end();
@@ -48,18 +40,28 @@ std::vector<CgroupPath> OomdContext::cgroups() const {
   return keys;
 }
 
-const CgroupContext& OomdContext::getCgroupContext(const CgroupPath& path) {
+const CgroupContext& OomdContext::getCgroupContext(
+    const CgroupPath& path) const {
   if (!hasCgroupContext(path)) {
     throw std::invalid_argument("Cgroup not present");
   }
 
-  return memory_state_[path];
+  return memory_state_.at(path)->ctx;
+}
+
+std::shared_ptr<CgroupNode> OomdContext::getCgroupNode(
+    const CgroupPath& path) const {
+  if (!hasCgroupContext(path)) {
+    return nullptr;
+  }
+
+  return memory_state_.at(path);
 }
 
 void OomdContext::setCgroupContext(
     const CgroupPath& path,
     CgroupContext context) {
-  memory_state_[path] = context;
+  memory_state_[path] = addToTree(path, context);
 }
 
 std::vector<std::pair<CgroupPath, CgroupContext>> OomdContext::reverseSort(
@@ -68,7 +70,7 @@ std::vector<std::pair<CgroupPath, CgroupContext>> OomdContext::reverseSort(
 
   for (const auto& pair : memory_state_) {
     vec.emplace_back(
-        std::pair<CgroupPath, CgroupContext>{pair.first, pair.second});
+        std::pair<CgroupPath, CgroupContext>{pair.first, pair.second->ctx});
   }
 
   if (getKey) {
@@ -141,6 +143,90 @@ void OomdContext::dumpOomdContext(
          << " mem_low=" << (ms.second.memory_low >> 20) << "MB"
          << " swap=" << (ms.second.swap_usage >> 20) << "MB";
   }
+}
+
+std::shared_ptr<CgroupNode> OomdContext::addToTree(
+    const CgroupPath& path,
+    CgroupContext ctx) {
+  std::shared_ptr<CgroupNode> node = findInTree(path);
+  if (node) {
+    node->ctx = std::move(ctx);
+    node->isEmptyBranch = false;
+    return node;
+  }
+
+  // Didn't find the node; add it
+  return addToTreeHelper(path, std::move(ctx));
+}
+
+std::shared_ptr<CgroupNode> OomdContext::addToTreeHelper(
+    const CgroupPath& path,
+    CgroupContext ctx) {
+  // Base case: we're trying to add the root
+  if (path.isRoot()) {
+    if (!root_) {
+      root_ = std::make_shared<CgroupNode>(path);
+    } else {
+      // Only one cgroup root is allowed
+      OCHECK_EXCEPT(
+          path == root_->path,
+          std::invalid_argument("Multiple cgroup FS detected"));
+    }
+
+    return root_;
+  }
+
+  // First find our parent
+  CgroupPath p = path.getParent();
+  auto parent = findInTree(p);
+
+  // Create our parent if we need to
+  if (!parent) {
+    parent = addToTreeHelper(p, CgroupContext{});
+    parent->isEmptyBranch = true;
+  }
+
+  // Now add ourselves as a child
+  auto us = std::make_shared<CgroupNode>(path);
+  us->ctx = std::move(ctx);
+  us->parent = parent;
+  parent->children.emplace_back(us);
+  return us;
+}
+
+std::shared_ptr<CgroupNode> OomdContext::findInTree(
+    const CgroupPath& path) const {
+  if (!root_) {
+    return nullptr;
+  }
+
+  OCHECK_EXCEPT(
+      path.cgroupFs() == root_->path.cgroupFs(),
+      std::invalid_argument("Multiple cgroup FS detected"));
+  auto n = root_;
+  const auto& parts = path.relativePathParts();
+
+  // We walk down the tree one branch at a time trying to match each branch
+  // with any potential children
+  for (int i = 0; i < parts.size(); ++i) {
+    std::shared_ptr<CgroupNode> next = nullptr;
+
+    for (auto child : n->children) {
+      const auto& child_parts = child->path.relativePathParts();
+      if (parts.at(i) == child_parts.at(child_parts.size() - 1)) {
+        next = child;
+        break;
+      }
+    }
+
+    if (!next) {
+      return nullptr;
+    }
+
+    n = next;
+  }
+
+  return n;
 }
 
 } // namespace Oomd

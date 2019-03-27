@@ -74,6 +74,58 @@ TEST_F(OomdContextTest, SetCgroup) {
   EXPECT_EQ(ctx.getCgroupContext(p1).memory_low, 222);
 }
 
+TEST_F(OomdContextTest, DeepNesting) {
+  CgroupPath p1("/sys/fs/cgroup", "A");
+  CgroupPath p2("/sys/fs/cgroup", "A/B");
+  CgroupPath p3("/sys/fs/cgroup", "A/B/C");
+  CgroupPath p4("/sys/fs/cgroup", "A/B/D");
+  CgroupPath p5("/sys/fs/cgroup", "A/B/D/E");
+
+  ctx.setCgroupContext(p1, CgroupContext{{}, {}, 1});
+  ctx.setCgroupContext(p2, CgroupContext{{}, {}, 2});
+  ctx.setCgroupContext(p3, CgroupContext{{}, {}, 3});
+  ctx.setCgroupContext(p4, CgroupContext{{}, {}, 4});
+  ctx.setCgroupContext(p5, CgroupContext{{}, {}, 5});
+
+  EXPECT_TRUE(ctx.hasCgroupContext(p1));
+  EXPECT_TRUE(ctx.hasCgroupContext(p2));
+  EXPECT_TRUE(ctx.hasCgroupContext(p3));
+  EXPECT_TRUE(ctx.hasCgroupContext(p4));
+  EXPECT_TRUE(ctx.hasCgroupContext(p5));
+
+  EXPECT_EQ(ctx.getCgroupContext(p1).current_usage, 1);
+  EXPECT_EQ(ctx.getCgroupContext(p2).current_usage, 2);
+  EXPECT_EQ(ctx.getCgroupContext(p3).current_usage, 3);
+  EXPECT_EQ(ctx.getCgroupContext(p4).current_usage, 4);
+  EXPECT_EQ(ctx.getCgroupContext(p5).current_usage, 5);
+}
+
+TEST_F(OomdContextTest, TreeWalk) {
+  CgroupPath p1("/sys/fs/cgroup", "A");
+  CgroupPath p2("/sys/fs/cgroup", "A/B");
+  CgroupPath p3("/sys/fs/cgroup", "A/B/C");
+  CgroupPath p4("/sys/fs/cgroup", "A/B/C/D");
+
+  ctx.setCgroupContext(p1, CgroupContext{});
+  ctx.setCgroupContext(p2, CgroupContext{});
+  ctx.setCgroupContext(p3, CgroupContext{});
+  ctx.setCgroupContext(p4, CgroupContext{});
+
+  auto pp4 = ctx.getCgroupNode(p4);
+  ASSERT_TRUE(pp4->parent.lock());
+  EXPECT_EQ(pp4->parent.lock()->path, p3);
+  ASSERT_TRUE(pp4->parent.lock()->parent.lock());
+  EXPECT_EQ(pp4->parent.lock()->parent.lock()->path, p2);
+  ASSERT_TRUE(pp4->parent.lock()->parent.lock()->parent.lock());
+  EXPECT_EQ(pp4->parent.lock()->parent.lock()->parent.lock()->path, p1);
+  ASSERT_TRUE(pp4->parent.lock()->parent.lock()->parent.lock()->parent.lock());
+  EXPECT_TRUE(pp4->parent.lock()
+                  ->parent.lock()
+                  ->parent.lock()
+                  ->parent.lock()
+                  ->path.isRoot());
+}
+
 TEST_F(OomdContextTest, SortContext) {
   CgroupPath p1("/sys/fs/cgroup", "biggest");
   CgroupPath p2("/sys/fs/cgroup", "smallest");
