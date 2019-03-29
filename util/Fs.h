@@ -43,6 +43,7 @@ class Fs {
   static constexpr auto kMemPressureFile = "memory.pressure";
   static constexpr auto kMemLowFile = "memory.low";
   static constexpr auto kMemHighFile = "memory.high";
+  static constexpr auto kMemMinFile = "memory.min";
   static constexpr auto kMemStatFile = "memory.stat";
   static constexpr auto kMemSwapCurrentFile = "memory.swap.current";
   static constexpr auto kIoPressureFile = "io.pressure";
@@ -96,8 +97,12 @@ class Fs {
   static int64_t readMemcurrent(const std::string& path);
   static int64_t readMemcurrentWildcard(const std::string& path);
   static ResourcePressure readMempressure(const std::string& path);
+  static int64_t readMinMaxLowHigh(
+      const std::string& path,
+      const std::string& file);
   static int64_t readMemlow(const std::string& path);
   static int64_t readMemhigh(const std::string& path);
+  static int64_t readMemmin(const std::string& path);
   static int64_t readSwapCurrent(const std::string& path);
   static ResourcePressure readIopressure(const std::string& path);
 

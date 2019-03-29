@@ -298,8 +298,10 @@ ResourcePressure Fs::readMempressure(const std::string& path) {
   return readRespressure(path + "/" + kMemPressureFile);
 }
 
-int64_t Fs::readMemlow(const std::string& path) {
-  auto lines = readFileByLine(path + "/" + kMemLowFile);
+int64_t Fs::readMinMaxLowHigh(
+    const std::string& path,
+    const std::string& file) {
+  auto lines = readFileByLine(path + "/" + file);
   OCHECK_EXCEPT(lines.size() == 1, bad_control_file(path + ": missing file"));
   if (lines[0] == "max") {
     return std::numeric_limits<int64_t>::max();
@@ -307,13 +309,16 @@ int64_t Fs::readMemlow(const std::string& path) {
   return static_cast<int64_t>(std::stoll(lines[0]));
 }
 
+int64_t Fs::readMemlow(const std::string& path) {
+  return Fs::readMinMaxLowHigh(path, kMemLowFile);
+}
+
 int64_t Fs::readMemhigh(const std::string& path) {
-  auto lines = readFileByLine(path + "/" + kMemHighFile);
-  OCHECK_EXCEPT(lines.size() == 1, bad_control_file(path + ": missing file"));
-  if (lines[0] == "max") {
-    return std::numeric_limits<int64_t>::max();
-  }
-  return static_cast<int64_t>(std::stoll(lines[0]));
+  return Fs::readMinMaxLowHigh(path, kMemHighFile);
+}
+
+int64_t Fs::readMemmin(const std::string& path) {
+  return Fs::readMinMaxLowHigh(path, kMemMinFile);
 }
 
 int64_t Fs::readSwapCurrent(const std::string& path) {
