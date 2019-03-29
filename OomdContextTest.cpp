@@ -72,6 +72,14 @@ TEST_F(OomdContextTest, SetCgroup) {
 
   ctx.setCgroupContext(p1, CgroupContext{{}, {}, 0, 0, 222});
   EXPECT_EQ(ctx.getCgroupContext(p1).memory_low, 222);
+
+  CgroupPath p2("/sys/fs/cgroup", "A/B/C");
+  ctx.setCgroupContext(p2, CgroupContext{});
+  CgroupPath p2_parent = p2.getParent();
+  CgroupPath p2_parent_parent = p2_parent.getParent();
+  EXPECT_TRUE(ctx.hasCgroupContext(p2));
+  EXPECT_FALSE(ctx.hasCgroupContext(p2_parent));
+  EXPECT_FALSE(ctx.hasCgroupContext(p2_parent_parent));
 }
 
 TEST_F(OomdContextTest, DeepNesting) {

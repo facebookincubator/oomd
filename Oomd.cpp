@@ -85,11 +85,26 @@ Oomd::Oomd(
   // Ensure that each monitored cgroup's cgroup fs is the same as the one
   // passed in by the command line
   if (engine_) { // Tests will pass in a nullptr
+    // First ensure cgroup fs is uniform
     for (const auto& cgroup : engine_->getMonitoredResources()) {
       if (cgroup.cgroupFs() != cgroup_fs_) {
         resources_.emplace(cgroup_fs_, cgroup.relativePath());
       } else {
         resources_.emplace(cgroup);
+      }
+    }
+
+    // Then make sure all parent cgroups are pulled in as well. This is
+    // necessary so plugins can walk a prepopulated tree.
+    for (const auto& cgroup : resources_) {
+      if (cgroup.isRoot()) {
+        continue;
+      }
+
+      CgroupPath parent = cgroup.getParent();
+      while (!parent.isRoot()) {
+        resources_.emplace(parent);
+        parent = parent.getParent();
       }
     }
   }
