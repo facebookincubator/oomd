@@ -149,7 +149,7 @@ bool KillMemoryGrowth<Base>::tryToKillBySize(
   // Sort all the cgroups by (size - memory.low) and remove all the cgroups
   // we are not assigned to kill
   auto size_sorted = ctx.reverseSort([](const CgroupContext& cgroup_ctx) {
-    return cgroup_ctx.current_usage - cgroup_ctx.memory_low;
+    return cgroup_ctx.protection_overage;
   });
   Base::removeSiblingCgroups(cgroups_, size_sorted);
   OomdContext::dumpOomdContext(size_sorted, !debug_);

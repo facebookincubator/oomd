@@ -559,16 +559,32 @@ TEST(KillMemoryGrowth, KillsBigCgroup) {
   OomdContext ctx;
   ctx.setCgroupContext(
       CgroupPath(args["cgroup_fs"], "one_big/cgroup1"),
-      CgroupContext{{}, {}, 60, 60, 0, 0});
+      CgroupContext{
+          .current_usage = 60,
+          .average_usage = 60,
+          .protection_overage = 60,
+      });
   ctx.setCgroupContext(
       CgroupPath(args["cgroup_fs"], "one_big/cgroup2"),
-      CgroupContext{{}, {}, 20, 20, 0, 0});
+      CgroupContext{
+          .current_usage = 20,
+          .average_usage = 20,
+          .protection_overage = 20,
+      });
   ctx.setCgroupContext(
       CgroupPath(args["cgroup_fs"], "one_big/cgroup3"),
-      CgroupContext{{}, {}, 20, 20, 0, 0});
+      CgroupContext{
+          .current_usage = 20,
+          .average_usage = 20,
+          .protection_overage = 20,
+      });
   ctx.setCgroupContext(
       CgroupPath(args["cgroup_fs"], "sibling/cgroup1"),
-      CgroupContext{{}, {}, 20, 20, 0, 0});
+      CgroupContext{
+          .current_usage = 20,
+          .average_usage = 20,
+          .protection_overage = 20,
+      });
   EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
   EXPECT_THAT(plugin->killed, Contains(123));
   EXPECT_THAT(plugin->killed, Contains(456));
@@ -634,16 +650,32 @@ TEST(KillMemoryGrowth, KillsBigCgroupMultiCgroup) {
   OomdContext ctx;
   ctx.setCgroupContext(
       CgroupPath(args["cgroup_fs"], "one_big/cgroup1"),
-      CgroupContext{{}, {}, 60, 60, 0, 0});
+      CgroupContext{
+          .current_usage = 60,
+          .average_usage = 60,
+          .protection_overage = 60,
+      });
   ctx.setCgroupContext(
       CgroupPath(args["cgroup_fs"], "one_big/cgroup2"),
-      CgroupContext{{}, {}, 20, 20, 0, 0});
+      CgroupContext{
+          .current_usage = 20,
+          .average_usage = 20,
+          .protection_overage = 20,
+      });
   ctx.setCgroupContext(
       CgroupPath(args["cgroup_fs"], "one_big/cgroup3"),
-      CgroupContext{{}, {}, 20, 20, 0, 0});
+      CgroupContext{
+          .current_usage = 20,
+          .average_usage = 20,
+          .protection_overage = 20,
+      });
   ctx.setCgroupContext(
       CgroupPath(args["cgroup_fs"], "sibling/cgroup1"),
-      CgroupContext{{}, {}, 100, 100, 0, 0});
+      CgroupContext{
+          .current_usage = 100,
+          .average_usage = 100,
+          .protection_overage = 100,
+      });
   EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
   EXPECT_THAT(plugin->killed, Contains(888));
   EXPECT_THAT(plugin->killed, Not(Contains(123)));

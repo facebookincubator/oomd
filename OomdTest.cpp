@@ -110,3 +110,58 @@ TEST_F(OomdTest, OomdContextUpdateMultiCgroupWildcard) {
   EXPECT_TRUE(ctx.hasCgroupContext(slice1));
   EXPECT_TRUE(ctx.hasCgroupContext(workload_service1));
 }
+
+TEST_F(OomdTest, CalculateProtectionOverage) {
+  std::unordered_set<CgroupPath> cgroups;
+  cgroups.emplace(CgroupPath(cgroup_path, "system.slice/*"));
+  oomd->updateContext(cgroups, ctx);
+
+  auto s1_ctx = ctx.getCgroupContext(service1);
+  auto s2_ctx = ctx.getCgroupContext(service2);
+  auto s3_ctx = ctx.getCgroupContext(service3);
+  auto s4_ctx = ctx.getCgroupContext(service4);
+  auto sl1_ctx = ctx.getCgroupContext(slice1);
+
+  EXPECT_LT(s1_ctx.protection_overage, s2_ctx.protection_overage);
+  EXPECT_LT(s1_ctx.protection_overage, s3_ctx.protection_overage);
+  EXPECT_LT(s1_ctx.protection_overage, s4_ctx.protection_overage);
+  EXPECT_LT(s1_ctx.protection_overage, sl1_ctx.protection_overage);
+  EXPECT_EQ(s2_ctx.protection_overage, s3_ctx.protection_overage);
+  EXPECT_EQ(s2_ctx.protection_overage, s4_ctx.protection_overage);
+  EXPECT_EQ(s2_ctx.protection_overage, sl1_ctx.protection_overage);
+}
+
+TEST_F(OomdTest, CalculateProtectionOverageContrived) {
+  const std::string contrived_cgroup_path =
+      cgroup_path + "/protection_overage.fakeroot";
+
+  std::unordered_set<CgroupPath> cgroups;
+  cgroups.emplace(CgroupPath(contrived_cgroup_path, "*/*"));
+  // We're manually adding in ancestors here b/c Oomd::Oomd usually does
+  // this for us and we're not using the real constructor code path
+  cgroups.emplace(CgroupPath(contrived_cgroup_path, "*"));
+  oomd->updateContext(cgroups, ctx);
+
+  ctx.dump();
+
+  int64_t A = ctx.getCgroupContext(CgroupPath(contrived_cgroup_path, "A"))
+                  .protection_overage;
+  int64_t A1 = ctx.getCgroupContext(CgroupPath(contrived_cgroup_path, "A/A1"))
+                   .protection_overage;
+  int64_t A2 = ctx.getCgroupContext(CgroupPath(contrived_cgroup_path, "A/A2"))
+                   .protection_overage;
+  int64_t B = ctx.getCgroupContext(CgroupPath(contrived_cgroup_path, "B"))
+                  .protection_overage;
+  int64_t B1 = ctx.getCgroupContext(CgroupPath(contrived_cgroup_path, "B/B1"))
+                   .protection_overage;
+  int64_t B2 = ctx.getCgroupContext(CgroupPath(contrived_cgroup_path, "B/B2"))
+                   .protection_overage;
+
+  EXPECT_EQ(A, 2l << 30);
+  EXPECT_EQ(B, 3l << 30);
+
+  // Hierarchy is B1 > B2 >= A1 > A2
+  EXPECT_GT(A1, A2);
+  EXPECT_EQ(B2, A1);
+  EXPECT_GT(B1, B2);
+}

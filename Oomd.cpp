@@ -110,6 +110,49 @@ Oomd::Oomd(
   }
 }
 
+int64_t Oomd::calculateProtectionOverage(
+    const CgroupPath& cgroup,
+    OomdContext& ctx,
+    std::unordered_map<CgroupPath, int64_t>& cache) {
+  if (cache.find(cgroup) != cache.end()) {
+    return cache.at(cgroup);
+  }
+
+  auto node = ctx.getCgroupNode(cgroup);
+  OCHECK_EXCEPT(node, std::runtime_error("cgroup missing from OomdContext"));
+
+  auto l_func = [](const CgroupContext& c) -> int64_t {
+    return std::min(c.current_usage, std::max(c.memory_min, c.memory_low));
+  };
+
+  std::function<int64_t(const std::shared_ptr<CgroupNode>)> p_func =
+      [&](const std::shared_ptr<CgroupNode> node) -> int64_t {
+    auto parent = node->parent.lock();
+    if (parent->path.isRoot()) {
+      // We're at a top level cgroup where P(cgrp) == L(cgrp)
+      return l_func(node->ctx);
+    }
+
+    int64_t l_sum_children = 0;
+    for (const auto& child : parent->children) {
+      l_sum_children += l_func(child->ctx);
+    }
+
+    // If the cgroup isn't using any memory then it's trivially true it's
+    // not receiving any protection
+    if (l_sum_children == 0) {
+      return 0;
+    }
+
+    return p_func(parent) * l_func(node->ctx) / l_sum_children;
+  };
+
+  int64_t ret = node->ctx.current_usage - p_func(node);
+  cache[cgroup] = ret;
+
+  return ret;
+}
+
 bool Oomd::updateContextCgroup(const CgroupPath& path, OomdContext& ctx) {
   std::string absolute_cgroup_path = path.absolutePath();
 
@@ -165,6 +208,8 @@ void Oomd::updateContext(
     const std::unordered_set<CgroupPath>& cgroups,
     OomdContext& ctx) {
   OomdContext new_ctx;
+  // Caching results helps reduce tree walks
+  std::unordered_map<CgroupPath, int64_t> protection_overage_cache;
 
   auto resolved = resolveCgroupPaths(cgroups);
   for (const auto& resolved_cgroup : resolved) {
@@ -176,17 +221,23 @@ void Oomd::updateContext(
     updateContextCgroup(resolved_cgroup, new_ctx);
   }
 
-  // calculate running averages
+  // Update values that depend on the rest of OomdContext being up to date
   for (auto& key : new_ctx.cgroups()) {
+    auto new_cgroup_ctx = new_ctx.getCgroupContext(key); // copy
+
+    // Update running average
     float prev_avg = 0;
     if (ctx.hasCgroupContext(key)) {
       prev_avg = ctx.getCgroupContext(key).average_usage;
     }
-
-    auto new_cgroup_ctx = new_ctx.getCgroupContext(key); // copy
     new_cgroup_ctx.average_usage =
         prev_avg * ((average_size_decay_ - 1) / average_size_decay_) +
         (new_cgroup_ctx.current_usage / average_size_decay_);
+
+    // Update protection overage
+    new_cgroup_ctx.protection_overage =
+        calculateProtectionOverage(key, new_ctx, protection_overage_cache);
+
     new_ctx.setCgroupContext(key, new_cgroup_ctx);
   }
 

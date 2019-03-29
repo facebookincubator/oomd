@@ -43,6 +43,8 @@ struct CgroupContext {
   int64_t swap_usage{0};
   int64_t anon_usage{0};
   int64_t memory_min{0};
+  // Amount of memory over actual received protection
+  int64_t protection_overage{0};
 };
 
 } // namespace Oomd
