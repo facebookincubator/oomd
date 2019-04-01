@@ -17,7 +17,7 @@ before_install:
 
 install:
   - $SH "apt update"
-  - $SH "apt install -y pkg-config libsystemd-dev libjsoncpp-dev googletest meson clang-format"
+  - $SH "apt install -y pkg-config libsystemd-dev libjsoncpp-dev googletest meson clang-format g++-8"
 
 notifications:
   irc:
