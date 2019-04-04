@@ -39,19 +39,25 @@ otherwise.
 ### Arguments
 
     cgroup
-    threshold
+    threshold (optional)
+    threshold_anon (optional)
     duration
 
 ### Description
 
 `cgroup` has the same semantics and features as `pressure_rising_beyond`.
 
-`threshold` takes both an absolute value (in MB) or a percentage of total
-memory used. A percentage threshold must be in the format `N%`, where
-`0 <= N <= 100`.
+`threshold` and `threshold_anon` take both an absolute value (in MB) or
+a percentage of total memory used. A percentage threshold must be in the
+format `N%`, where `0 <= N <= 100`. Either one of these parameters must
+be specified. When both are specified, only `threshold_anon` is
+effective.
 
-CONTINUE if 10s anonymous memory usage > `threshold` longer than `duration`,
-STOP otherwise.
+If `threshold` is specified, CONTINUE if 10s total memory usage >
+`threshold` longer than `duration`, STOP otherwise.
+
+If `threshold_anon` is specified, CONTINUE if 10s anonymous memory
+usage > `threshold_anon` longer than `duration`, STOP otherwise.
 
 ## pressure_above
 

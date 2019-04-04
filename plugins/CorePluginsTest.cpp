@@ -363,7 +363,7 @@ TEST(MemoryAbove, DetectsHighMemUsage) {
   OomdContext ctx;
   ctx.setCgroupContext(
       CgroupPath(args["cgroup_fs"], "high_memory"),
-      CgroupContext{{}, {}, 0, 0, 0, 20, 2147483648});
+      CgroupContext{{}, {}, 2147483648});
   EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::CONTINUE);
 }
 
@@ -384,7 +384,7 @@ TEST(MemoryAbove, NoDetectLowMemUsage) {
   OomdContext ctx;
   ctx.setCgroupContext(
       CgroupPath(args["cgroup_fs"], "low_memory"),
-      CgroupContext{{}, {}, 0, 0, 0, 20, 1073741824});
+      CgroupContext{{}, {}, 1073741824});
   EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
 }
 
@@ -405,7 +405,7 @@ TEST(MemoryAbove, DetectsHighMemUsagePercent) {
   OomdContext ctx;
   ctx.setCgroupContext(
       CgroupPath(args["cgroup_fs"], "high_memory"),
-      CgroupContext{{}, {}, 0, 0, 0, 20, 2147483648});
+      CgroupContext{{}, {}, 2147483648});
   EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::CONTINUE);
 }
 
@@ -427,10 +427,10 @@ TEST(MemoryAbove, NoDetectLowMemUsageMultiple) {
   OomdContext ctx;
   ctx.setCgroupContext(
       CgroupPath(args["cgroup_fs"], "low_memory"),
-      CgroupContext{{}, {}, 0, 0, 0, 20, 1073741824});
+      CgroupContext{{}, {}, 1073741824});
   ctx.setCgroupContext(
       CgroupPath(args["cgroup_fs"], "high_memory"),
-      CgroupContext{{}, {}, 0, 0, 0, 20, 2147483648});
+      CgroupContext{{}, {}, 2147483648});
   EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
 }
 
@@ -452,10 +452,10 @@ TEST(MemoryAbove, DetectsHighMemUsageMultiple) {
   OomdContext ctx;
   ctx.setCgroupContext(
       CgroupPath(args["cgroup_fs"], "low_memory"),
-      CgroupContext{{}, {}, 0, 0, 0, 20, 1073741824});
+      CgroupContext{{}, {}, 1073741824});
   ctx.setCgroupContext(
       CgroupPath(args["cgroup_fs"], "high_memory"),
-      CgroupContext{{}, {}, 0, 0, 0, 20, 2147483648});
+      CgroupContext{{}, {}, 2147483648});
   EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::CONTINUE);
 }
 
@@ -476,7 +476,93 @@ TEST(MemoryAbove, NoDetectLowMemUsagePercent) {
   OomdContext ctx;
   ctx.setCgroupContext(
       CgroupPath(args["cgroup_fs"], "low_memory"),
+      CgroupContext{{}, {}, 1073741824});
+  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
+}
+
+TEST(MemoryAbove, DetectsHighAnonUsage) {
+  auto plugin = createPlugin("memory_above");
+  ASSERT_NE(plugin, nullptr);
+
+  Engine::MonitoredResources resources;
+  Engine::PluginArgs args;
+  args["cgroup_fs"] = "oomd/fixtures/plugins/memory_above";
+  args["cgroup"] = "high_memory";
+  args["meminfo_location"] = "oomd/fixtures/plugins/memory_above/meminfo";
+  args["threshold_anon"] = "1536"; // in MB
+  args["duration"] = "0";
+
+  ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+
+  OomdContext ctx;
+  ctx.setCgroupContext(
+      CgroupPath(args["cgroup_fs"], "high_memory"),
+      CgroupContext{{}, {}, 0, 0, 0, 20, 2147483648});
+  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::CONTINUE);
+}
+
+TEST(MemoryAbove, NoDetectLowAnonUsage) {
+  auto plugin = createPlugin("memory_above");
+  ASSERT_NE(plugin, nullptr);
+
+  Engine::MonitoredResources resources;
+  Engine::PluginArgs args;
+  args["cgroup_fs"] = "oomd/fixtures/plugins/memory_above";
+  args["cgroup"] = "low_memory";
+  args["meminfo_location"] = "oomd/fixtures/plugins/memory_above/meminfo";
+  args["threshold_anon"] = "1536"; // in MB
+  args["duration"] = "0";
+
+  ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+
+  OomdContext ctx;
+  ctx.setCgroupContext(
+      CgroupPath(args["cgroup_fs"], "low_memory"),
       CgroupContext{{}, {}, 0, 0, 0, 20, 1073741824});
+  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
+}
+
+TEST(MemoryAbove, DetectsHighAnonUsageIgnoreLowMemUsage) {
+  auto plugin = createPlugin("memory_above");
+  ASSERT_NE(plugin, nullptr);
+
+  Engine::MonitoredResources resources;
+  Engine::PluginArgs args;
+  args["cgroup_fs"] = "oomd/fixtures/plugins/memory_above";
+  args["cgroup"] = "high_memory";
+  args["meminfo_location"] = "oomd/fixtures/plugins/memory_above/meminfo";
+  args["threshold_anon"] = "1536"; // in MB
+  args["threshold"] = "1536"; // in MB
+  args["duration"] = "0";
+
+  ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+
+  OomdContext ctx;
+  ctx.setCgroupContext(
+      CgroupPath(args["cgroup_fs"], "high_memory"),
+      CgroupContext{{}, {}, 1073741824, 0, 0, 20, 2147483648});
+  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::CONTINUE);
+}
+
+TEST(MemoryAbove, NoDetectLowAnonUsageIgnoreHighMemUsage) {
+  auto plugin = createPlugin("memory_above");
+  ASSERT_NE(plugin, nullptr);
+
+  Engine::MonitoredResources resources;
+  Engine::PluginArgs args;
+  args["cgroup_fs"] = "oomd/fixtures/plugins/memory_above";
+  args["cgroup"] = "low_memory";
+  args["meminfo_location"] = "oomd/fixtures/plugins/memory_above/meminfo";
+  args["threshold_anon"] = "1536"; // in MB
+  args["threshold"] = "1536"; // in MB
+  args["duration"] = "0";
+
+  ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+
+  OomdContext ctx;
+  ctx.setCgroupContext(
+      CgroupPath(args["cgroup_fs"], "low_memory"),
+      CgroupContext{{}, {}, 2147483648, 0, 0, 20, 1073741824});
   EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
 }
 

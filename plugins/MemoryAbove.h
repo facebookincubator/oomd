@@ -41,11 +41,10 @@ class MemoryAbove : public Oomd::Engine::BasePlugin {
  private:
   std::unordered_set<CgroupPath> cgroups_;
   // Initialized to bogus values; init() will crash oomd if non-0 return
-  int threshold_;
+  int64_t threshold_;
   int duration_;
-  bool relative_{false};
+  bool is_anon_{false};
   bool debug_{false};
-  std::string meminfo_location_;
   std::chrono::steady_clock::time_point hit_thres_at_{};
 };
 

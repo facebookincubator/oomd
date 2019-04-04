@@ -31,6 +31,21 @@ namespace Oomd {
 
 REGISTER_PLUGIN(memory_above, MemoryAbove::create);
 
+namespace {
+int64_t parse_threshold(const std::string& str, int64_t memtotal) {
+  if (str.size() > 0 && str.at(str.size() - 1) == '%') {
+    double pct = std::stod(str.substr(0, str.size() - 1));
+    if (pct < 0 || pct > 100) {
+      OLOG << str << " is an illegal percentage value";
+      return -1;
+    }
+    return memtotal * pct / 100;
+  } else {
+    return std::stoll(str) * 1024 * 1024;
+  }
+}
+} // namespace
+
 int MemoryAbove::init(
     Engine::MonitoredResources& resources,
     const Engine::PluginArgs& args) {
@@ -49,20 +64,24 @@ int MemoryAbove::init(
     return 1;
   }
 
-  if (args.find("threshold") != args.end()) {
-    auto threshold_str = args.at("threshold");
-    if (threshold_str.size() > 0) {
-      if (threshold_str.compare(threshold_str.size() - 1, 1, "%") == 0) {
-        relative_ = true;
-      }
+  auto meminfo = args.find("meminfo_location") != args.end()
+      ? Fs::getMeminfo(args.at("meminfo_location"))
+      : Fs::getMeminfo();
+
+  if (args.find("threshold_anon") != args.end()) {
+    threshold_ =
+        parse_threshold(args.at("threshold_anon"), meminfo["MemTotal"]);
+    if (threshold_ < 0) {
+      return 1;
     }
-    if (relative_) {
-      threshold_ = std::stoi(threshold_str.substr(0, threshold_str.size() - 1));
-    } else {
-      threshold_ = std::stoi(threshold_str);
+    is_anon_ = true;
+  } else if (args.find("threshold") != args.end()) {
+    threshold_ = parse_threshold(args.at("threshold"), meminfo["MemTotal"]);
+    if (threshold_ < 0) {
+      return 1;
     }
   } else {
-    OLOG << "Argument=threshold not present";
+    OLOG << "Argument=[anon_]threshold not present";
     return 1;
   }
 
@@ -81,9 +100,6 @@ int MemoryAbove::init(
     }
   }
 
-  if (args.find("meminfo_location") != args.end()) {
-    meminfo_location_ = args.at("meminfo_location");
-  }
   // Success
   return 0;
 }
@@ -97,10 +113,12 @@ Engine::PluginRet MemoryAbove::run(OomdContext& ctx) {
       auto cgroup_ctx = ctx.getCgroupContext(cgroup);
       if (debug_) {
         OLOG << "cgroup \"" << cgroup.relativePath() << "\" "
+             << "memory.current=" << cgroup_ctx.current_usage
              << "memory.stat (anon)=" << cgroup_ctx.anon_usage;
       }
-      if (current_memory_usage < cgroup_ctx.anon_usage) {
-        current_memory_usage = cgroup_ctx.anon_usage;
+      auto usage = is_anon_ ? cgroup_ctx.anon_usage : cgroup_ctx.current_usage;
+      if (current_memory_usage < usage) {
+        current_memory_usage = usage;
         current_cgroup = cgroup.relativePath();
       }
     } catch (const std::exception& ex) {
@@ -109,40 +127,14 @@ Engine::PluginRet MemoryAbove::run(OomdContext& ctx) {
       continue;
     }
   }
-  auto meminfo = meminfo_location_.size() ? Fs::getMeminfo(meminfo_location_)
-                                          : Fs::getMeminfo();
-  const int64_t memtotal = meminfo["MemTotal"];
-  if (debug_) {
-    OLOG << "MemTotal=" << memtotal;
-  }
-
-  bool threshold_broken{false};
-  int64_t threshold_bytes;
-
-  if (relative_) {
-    auto percent = current_memory_usage * 100 / memtotal;
-    threshold_bytes = (threshold_ * memtotal) / 100;
-    if (percent > threshold_) {
-      OLOG << "cgroup \"" << current_cgroup << "\" "
-           << "memory usage=" << current_memory_usage << " (" << percent
-           << "%) "
-           << "hit threshold=" << threshold_bytes << " (" << threshold_
-           << "%) of MemTotal";
-      threshold_broken = true;
-    }
-  } else {
-    threshold_bytes = threshold_ * 1024 * 1024;
-    if (current_memory_usage > threshold_bytes) {
-      OLOG << "cgroup \"" << current_cgroup << "\" "
-           << "memory usage=" << current_memory_usage << " "
-           << "hit threshold=" << threshold_bytes;
-      threshold_broken = true;
-    }
-  }
 
   const auto now = steady_clock::now();
 
-  if (threshold_broken) {
+  if (current_memory_usage > threshold_) {
+    OLOG << "cgroup \"" << current_cgroup << "\" "
+         << (is_anon_ ? "anon usage=" : "memory usage=") << current_memory_usage
+         << " hit threshold=" << threshold_;
+
     if (hit_thres_at_ == steady_clock::time_point()) {
       hit_thres_at_ = now;
     }
@@ -156,7 +148,7 @@ Engine::PluginRet MemoryAbove::run(OomdContext& ctx) {
       oss << std::setprecision(2) << std::fixed;
       oss << "cgroup \"" << current_cgroup << "\" "
           << "current memory usage " << current_memory_usage / 1024 / 1024
-          << "MB is over the threshold of " << threshold_bytes / 1024 / 1024
+          << "MB is over the threshold of " << threshold_ / 1024 / 1024
           << "MB for " << duration_ << " seconds";
       OLOG << oss.str();
 
