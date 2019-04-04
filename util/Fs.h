@@ -53,6 +53,11 @@ class Fs {
     DIRECTORY,
   };
 
+  enum class PressureType {
+    SOME = 0,
+    FULL,
+  };
+
   /*
    * Reads a directory and returns the names of the requested entry types
    * Won't return any dotfiles (including ./ and ../)
@@ -92,11 +97,16 @@ class Fs {
       const std::string& path,
       bool recursive = false);
 
+  static std::string pressureTypeToString(PressureType type);
   /* Helpers to read PSI files */
-  static ResourcePressure readRespressure(const std::string& path);
+  static ResourcePressure readRespressure(
+      const std::string& path,
+      PressureType type = PressureType::FULL);
   static int64_t readMemcurrent(const std::string& path);
   static int64_t readMemcurrentWildcard(const std::string& path);
-  static ResourcePressure readMempressure(const std::string& path);
+  static ResourcePressure readMempressure(
+      const std::string& path,
+      PressureType type = PressureType::FULL);
   static int64_t readMinMaxLowHigh(
       const std::string& path,
       const std::string& file);
@@ -104,7 +114,9 @@ class Fs {
   static int64_t readMemhigh(const std::string& path);
   static int64_t readMemmin(const std::string& path);
   static int64_t readSwapCurrent(const std::string& path);
-  static ResourcePressure readIopressure(const std::string& path);
+  static ResourcePressure readIopressure(
+      const std::string& path,
+      PressureType type = PressureType::FULL);
 
   static void writeMemhigh(const std::string& path, int64_t value);
 

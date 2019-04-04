@@ -224,17 +224,38 @@ std::vector<int> Fs::getPids(const std::string& path, bool recursive) {
   return pids;
 }
 
-ResourcePressure Fs::readRespressure(const std::string& path) {
+std::string Fs::pressureTypeToString(PressureType type) {
+  switch (type) {
+    case PressureType::SOME:
+      return "some";
+    case PressureType::FULL:
+      return "full";
+  }
+}
+
+ResourcePressure Fs::readRespressure(
+    const std::string& path,
+    PressureType type) {
   auto lines = readFileByLine(path);
 
+  auto type_name = pressureTypeToString(type);
+  size_t pressure_line_index = 0;
+  switch (type) {
+    case PressureType::SOME:
+      pressure_line_index = 0;
+      break;
+    case PressureType::FULL:
+      pressure_line_index = 1;
+      break;
+  }
   if (lines.size() == 2) {
     // Upstream v4.16+ format
     //
     // some avg10=0.22 avg60=0.17 avg300=1.11 total=58761459
     // full avg10=0.22 avg60=0.16 avg300=1.08 total=58464525
-    std::vector<std::string> toks = split(lines[1], ' ');
+    std::vector<std::string> toks = split(lines[pressure_line_index], ' ');
     OCHECK_EXCEPT(
-        toks[0] == "full", bad_control_file(path + ": invalid format"));
+        toks[0] == type_name, bad_control_file(path + ": invalid format"));
     std::vector<std::string> avg10 = split(toks[1], '=');
     OCHECK_EXCEPT(
         avg10[0] == "avg10", bad_control_file(path + ": invalid format"));
@@ -260,9 +281,9 @@ ResourcePressure Fs::readRespressure(const std::string& path) {
     // aggr 316016073
     // some 0.00 0.03 0.05
     // full 0.00 0.03 0.05
-    std::vector<std::string> toks = split(lines[2], ' ');
+    std::vector<std::string> toks = split(lines[pressure_line_index + 1], ' ');
     OCHECK_EXCEPT(
-        toks[0] == "full", bad_control_file(path + ": invalid format"));
+        toks[0] == type_name, bad_control_file(path + ": invalid format"));
 
     return ResourcePressure{
         std::stof(toks[1]),
@@ -294,8 +315,10 @@ int64_t Fs::readMemcurrentWildcard(const std::string& path) {
   return total;
 }
 
-ResourcePressure Fs::readMempressure(const std::string& path) {
-  return readRespressure(path + "/" + kMemPressureFile);
+ResourcePressure Fs::readMempressure(
+    const std::string& path,
+    PressureType type) {
+  return readRespressure(path + "/" + kMemPressureFile, type);
 }
 
 int64_t Fs::readMinMaxLowHigh(
@@ -388,7 +411,9 @@ std::unordered_map<std::string, int64_t> Fs::getMemstat(
   return map;
 }
 
-ResourcePressure Fs::readIopressure(const std::string& path) {
+ResourcePressure Fs::readIopressure(
+    const std::string& path,
+    PressureType type) {
   const std::string ioPressurePath = path + "/" + kIoPressureFile;
 
   // earlier kernels had only mempressure, throw an exception if missing
@@ -396,7 +421,7 @@ ResourcePressure Fs::readIopressure(const std::string& path) {
   if (!f.is_open()) {
     throw std::system_error(ENOENT, std::system_category());
   }
-  return readRespressure(ioPressurePath);
+  return readRespressure(ioPressurePath, type);
 }
 
 void Fs::writeMemhigh(const std::string& path, int64_t value) {

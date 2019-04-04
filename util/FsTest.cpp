@@ -246,6 +246,24 @@ TEST_F(FsTest, ReadMemoryPressure) {
   EXPECT_FLOAT_EQ(pressure2.sec_600, 6.66);
 }
 
+TEST_F(FsTest, ReadMemoryPressureSome) {
+  // v4.16+ upstream format
+  std::string dir(kCgroupDataDir);
+  auto pressure = Fs::readMempressure(dir, Fs::PressureType::SOME);
+
+  EXPECT_FLOAT_EQ(pressure.sec_10, 1.11);
+  EXPECT_FLOAT_EQ(pressure.sec_60, 2.22);
+  EXPECT_FLOAT_EQ(pressure.sec_600, 3.33);
+
+  // old experimental format
+  auto dir2 = dir + "/service2.service";
+  auto pressure2 = Fs::readMempressure(dir2, Fs::PressureType::SOME);
+
+  EXPECT_FLOAT_EQ(pressure2.sec_10, 1.11);
+  EXPECT_FLOAT_EQ(pressure2.sec_60, 2.22);
+  EXPECT_FLOAT_EQ(pressure2.sec_600, 3.33);
+}
+
 TEST_F(FsTest, GetVmstat) {
   std::string vmstatfile(kFsVmstatFile);
   auto vmstat = Fs::getVmstat(vmstatfile);
@@ -291,4 +309,13 @@ TEST_F(FsTest, ReadIoPressure) {
   EXPECT_FLOAT_EQ(pressure.sec_10, 4.45);
   EXPECT_FLOAT_EQ(pressure.sec_60, 5.56);
   EXPECT_FLOAT_EQ(pressure.sec_600, 6.67);
+}
+
+TEST_F(FsTest, ReadIoPressureSome) {
+  std::string dir(kCgroupDataDir);
+  auto pressure = Fs::readIopressure(dir, Fs::PressureType::SOME);
+
+  EXPECT_FLOAT_EQ(pressure.sec_10, 1.12);
+  EXPECT_FLOAT_EQ(pressure.sec_60, 2.23);
+  EXPECT_FLOAT_EQ(pressure.sec_600, 3.34);
 }
