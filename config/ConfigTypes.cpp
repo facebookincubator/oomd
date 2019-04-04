@@ -78,8 +78,6 @@ void dumpIR(const Root& root) {
     --indent;
   }
   --indent;
-
-  OLOG << getIndentSpaces(indent) << "Version=" << root.version;
 }
 
 } // namespace IR

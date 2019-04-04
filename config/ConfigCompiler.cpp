@@ -130,11 +130,6 @@ std::unique_ptr<Engine::Engine> compile(const IR::Root& root) {
   Engine::MonitoredResources resources;
   std::vector<std::unique_ptr<Engine::Ruleset>> rulesets;
 
-  if (root.version.empty()) {
-    OLOG << "No version string specified";
-    return nullptr;
-  }
-
   for (const auto& ruleset : root.rulesets) {
     auto compiled_ruleset = compileRuleset(resources, ruleset);
     if (!compiled_ruleset) {

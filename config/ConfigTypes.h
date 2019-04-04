@@ -64,7 +64,6 @@ struct Ruleset {
 
 struct Root {
   std::vector<Ruleset> rulesets;
-  std::string version;
 };
 
 void dumpIR(const Root& root);

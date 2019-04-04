@@ -26,7 +26,7 @@
 using namespace Oomd::Config2;
 using namespace testing;
 
-constexpr auto kConfig_1_0_0 = "oomd/fixtures/oomd_1_0_0.json";
+constexpr auto kConfig_1_0_0 = "oomd/fixtures/oomd.json";
 
 TEST(JsonConfigParserTest, LoadIR) {
   std::ifstream file(kConfig_1_0_0, std::ios::in);
@@ -41,7 +41,6 @@ TEST(JsonConfigParserTest, LoadIR) {
 
   // Check root values
   ASSERT_EQ(root->rulesets.size(), 2);
-  EXPECT_EQ(root->version, "1.0.0");
 
   // Check first ruleset
   const auto& first = root->rulesets[0];

@@ -124,8 +124,6 @@ std::unique_ptr<IR::Root> JsonConfigParser::parse(const std::string& input) {
     ir_root->rulesets.emplace_back(parseRuleset(ruleset));
   }
 
-  ir_root->version = json_root.get("version", "").asString();
-
   IR::dumpIR(*ir_root);
   return ir_root;
 }

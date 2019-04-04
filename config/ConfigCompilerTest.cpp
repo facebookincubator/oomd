@@ -149,7 +149,6 @@ class CompilerTest : public ::testing::Test {
  public:
   CompilerTest() {
     count = 0;
-    root.version = "1.0.0";
   }
 
   std::unique_ptr<::Oomd::Engine::Engine> compile() {
