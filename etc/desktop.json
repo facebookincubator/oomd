@@ -28,6 +28,7 @@
                     {
                         "name": "memory_reclaim",
                         "args": {
+                            "cgroup": "user.slice/user-*.slice/session-*.scope,user.slice/user-*.slice/user@*.service/*,system.slice/*",
                             "duration": "10"
                         }
                     }
