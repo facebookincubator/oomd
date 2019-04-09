@@ -210,7 +210,7 @@ std::shared_ptr<CgroupNode> OomdContext::findInTree(
 
   // We walk down the tree one branch at a time trying to match each branch
   // with any potential children
-  for (int i = 0; i < parts.size(); ++i) {
+  for (size_t i = 0; i < parts.size(); ++i) {
     std::shared_ptr<CgroupNode> next = nullptr;
 
     for (auto child : n->children) {
