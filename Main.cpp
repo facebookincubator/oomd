@@ -25,6 +25,7 @@
 
 #include "oomd/Log.h"
 #include "oomd/Oomd.h"
+#include "oomd/PluginRegistry.h"
 #include "oomd/config/ConfigCompiler.h"
 #include "oomd/config/JsonConfigParser.h"
 #include "oomd/include/Assert.h"
@@ -44,6 +45,7 @@ static void printUsage() {
          "  --interval, -i INTERVAL    Event loop polling interval (default: 5)\n"
          "  --cgroup-fs, -f FS         Cgroup2 filesystem mount point (default: /sys/fs/cgroup)\n"
          "  --check-config, -c CONFIG  Check config file (default: /etc/oomd.json)\n"
+         "  --list-plugins, -l         List all available plugins\n"
       << std::endl;
 }
 
@@ -92,7 +94,7 @@ int main(int argc, char** argv) {
   int option_index = 0;
   int c = 0;
 
-  const char* const short_options = "hC:drvi:f:c:";
+  const char* const short_options = "hC:drvi:f:c:l";
   option long_options[] = {
       option{"sandcastle_mode", no_argument, nullptr, 0},
       option{"xattr_reporting", no_argument, nullptr, 0},
@@ -104,6 +106,7 @@ int main(int argc, char** argv) {
       option{"interval", required_argument, nullptr, 'i'},
       option{"cgroup-fs", required_argument, nullptr, 'f'},
       option{"check-config", required_argument, nullptr, 'c'},
+      option{"list-plugins", no_argument, nullptr, 'l'},
       option{nullptr, 0, nullptr, 0}};
 
   while ((c = getopt_long(
@@ -122,6 +125,13 @@ int main(int argc, char** argv) {
       case 'd':
         std::cerr << "Noop for backwards compatible dry\n";
         break;
+      case 'l':
+        std::cerr << "List of plugins oomd was compiled with:\n";
+        for (const auto& plugin_name :
+             Oomd::getPluginRegistry().getRegistered()) {
+          std::cerr << " " << plugin_name << "\n";
+        }
+        return 0;
       case 'r':
         std::cerr << "Noop for backwards compatible report\n";
         break;

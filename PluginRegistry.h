@@ -48,6 +48,14 @@ class PluginRegistry {
     return map_[name]();
   }
 
+  std::vector<std::string> getRegistered() const {
+    std::vector<std::string> list_plugins;
+    for (auto const& data : map_) {
+      list_plugins.push_back(data.first);
+    }
+    return list_plugins;
+  }
+
  private:
   FactoryMap map_;
 };
