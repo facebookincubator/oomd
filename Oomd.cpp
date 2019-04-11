@@ -288,7 +288,10 @@ int Oomd::processEventLoop() {
   char buf[1024];
   int ret;
 
-  int n = ::epoll_wait(epollfd_, events, kMaxEvents, -1);
+  int n;
+  do {
+    n = ::epoll_wait(epollfd_, events, kMaxEvents, -1);
+  } while (n < 0 && errno == EINTR);
   if (n < 0) {
     OLOG << "epoll_wait: " << ::strerror_r(errno, buf, sizeof(buf));
     return 1;
