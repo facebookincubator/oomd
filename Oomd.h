@@ -50,8 +50,8 @@ class Oomd {
 
  private:
   /*
-   * Calculate @param cgroup memory usage overage over protection, taking into
-   * account actual distribution of memory protection.
+   * Calculate @param cgroup memory protection, taking into account actual
+   * distribution of memory protection.
    *
    * Let's say L(cgrp) is the protection amount a cgroup has according to its
    * own config, P(cgrp) is the amount of actual protection it gets.
@@ -59,12 +59,10 @@ class Oomd {
    * Let L(cgrp) = min(cgrp.memory.current, max(cgrp.memory.min,
    * cgrp.memory.low))
    *
-   * Let P(cgpr) = P(parent) * L(cgrp) / (Sum of L(child) for
+   * Then, P(cgpr) = P(parent) * L(cgrp) / (Sum of L(child) for
    * each child of parent)
-   *
-   * We define overage as (cgrp.memory.current - P(cgrp))
    */
-  int64_t calculateProtectionOverage(
+  int64_t calculateProtection(
       const CgroupPath& cgroup,
       OomdContext& ctx,
       std::unordered_map<CgroupPath, int64_t>& cache);

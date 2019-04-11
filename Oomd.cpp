@@ -110,7 +110,7 @@ Oomd::Oomd(
   }
 }
 
-int64_t Oomd::calculateProtectionOverage(
+int64_t Oomd::calculateProtection(
     const CgroupPath& cgroup,
     OomdContext& ctx,
     std::unordered_map<CgroupPath, int64_t>& cache) {
@@ -147,7 +147,7 @@ int64_t Oomd::calculateProtectionOverage(
     return p_func(parent) * l_func(node->ctx) / l_sum_children;
   };
 
-  int64_t ret = node->ctx.current_usage - p_func(node);
+  int64_t ret = p_func(node);
   cache[cgroup] = ret;
 
   return ret;
@@ -209,7 +209,7 @@ void Oomd::updateContext(
     OomdContext& ctx) {
   OomdContext new_ctx;
   // Caching results helps reduce tree walks
-  std::unordered_map<CgroupPath, int64_t> protection_overage_cache;
+  std::unordered_map<CgroupPath, int64_t> protection_cache;
 
   auto resolved = resolveCgroupPaths(cgroups);
   for (const auto& resolved_cgroup : resolved) {
@@ -235,8 +235,8 @@ void Oomd::updateContext(
         (new_cgroup_ctx.current_usage / average_size_decay_);
 
     // Update protection overage
-    new_cgroup_ctx.protection_overage =
-        calculateProtectionOverage(key, new_ctx, protection_overage_cache);
+    new_cgroup_ctx.memory_protection =
+        calculateProtection(key, new_ctx, protection_cache);
 
     new_ctx.setCgroupContext(key, new_cgroup_ctx);
   }

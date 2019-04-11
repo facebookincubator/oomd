@@ -34,17 +34,21 @@ struct ResourcePressure {
   std::chrono::microseconds total{0};
 };
 
-struct CgroupContext {
+class CgroupContext {
+ public:
   ResourcePressure pressure;
   ResourcePressure io_pressure;
   int64_t current_usage{0};
   int64_t average_usage{0};
   int64_t memory_low{0};
+  int64_t memory_protection{0};
   int64_t swap_usage{0};
   int64_t anon_usage{0};
   int64_t memory_min{0};
-  // Amount of memory over actual received protection
-  int64_t protection_overage{0};
+
+  int64_t effective_usage() const {
+    return current_usage - memory_protection;
+  }
 };
 
 } // namespace Oomd

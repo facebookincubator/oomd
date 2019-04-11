@@ -654,28 +654,24 @@ TEST(KillMemoryGrowth, KillsBigCgroup) {
       CgroupContext{
           .current_usage = 60,
           .average_usage = 60,
-          .protection_overage = 60,
       });
   ctx.setCgroupContext(
       CgroupPath(args["cgroup_fs"], "one_big/cgroup2"),
       CgroupContext{
           .current_usage = 20,
           .average_usage = 20,
-          .protection_overage = 20,
       });
   ctx.setCgroupContext(
       CgroupPath(args["cgroup_fs"], "one_big/cgroup3"),
       CgroupContext{
           .current_usage = 20,
           .average_usage = 20,
-          .protection_overage = 20,
       });
   ctx.setCgroupContext(
       CgroupPath(args["cgroup_fs"], "sibling/cgroup1"),
       CgroupContext{
           .current_usage = 20,
           .average_usage = 20,
-          .protection_overage = 20,
       });
   EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
   EXPECT_THAT(plugin->killed, Contains(123));
@@ -757,28 +753,24 @@ TEST(KillMemoryGrowth, KillsBigCgroupMultiCgroup) {
       CgroupContext{
           .current_usage = 60,
           .average_usage = 60,
-          .protection_overage = 60,
       });
   ctx.setCgroupContext(
       CgroupPath(args["cgroup_fs"], "one_big/cgroup2"),
       CgroupContext{
           .current_usage = 20,
           .average_usage = 20,
-          .protection_overage = 20,
       });
   ctx.setCgroupContext(
       CgroupPath(args["cgroup_fs"], "one_big/cgroup3"),
       CgroupContext{
           .current_usage = 20,
           .average_usage = 20,
-          .protection_overage = 20,
       });
   ctx.setCgroupContext(
       CgroupPath(args["cgroup_fs"], "sibling/cgroup1"),
       CgroupContext{
           .current_usage = 100,
           .average_usage = 100,
-          .protection_overage = 100,
       });
   EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
   EXPECT_THAT(plugin->killed, Contains(888));

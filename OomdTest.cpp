@@ -122,13 +122,13 @@ TEST_F(OomdTest, CalculateProtectionOverage) {
   auto s4_ctx = ctx.getCgroupContext(service4);
   auto sl1_ctx = ctx.getCgroupContext(slice1);
 
-  EXPECT_LT(s1_ctx.protection_overage, s2_ctx.protection_overage);
-  EXPECT_LT(s1_ctx.protection_overage, s3_ctx.protection_overage);
-  EXPECT_LT(s1_ctx.protection_overage, s4_ctx.protection_overage);
-  EXPECT_LT(s1_ctx.protection_overage, sl1_ctx.protection_overage);
-  EXPECT_EQ(s2_ctx.protection_overage, s3_ctx.protection_overage);
-  EXPECT_EQ(s2_ctx.protection_overage, s4_ctx.protection_overage);
-  EXPECT_EQ(s2_ctx.protection_overage, sl1_ctx.protection_overage);
+  EXPECT_LT(s1_ctx.effective_usage(), s2_ctx.effective_usage());
+  EXPECT_LT(s1_ctx.effective_usage(), s3_ctx.effective_usage());
+  EXPECT_LT(s1_ctx.effective_usage(), s4_ctx.effective_usage());
+  EXPECT_LT(s1_ctx.effective_usage(), sl1_ctx.effective_usage());
+  EXPECT_EQ(s2_ctx.effective_usage(), s3_ctx.effective_usage());
+  EXPECT_EQ(s2_ctx.effective_usage(), s4_ctx.effective_usage());
+  EXPECT_EQ(s2_ctx.effective_usage(), sl1_ctx.effective_usage());
 }
 
 TEST_F(OomdTest, CalculateProtectionOverageContrived) {
@@ -145,17 +145,17 @@ TEST_F(OomdTest, CalculateProtectionOverageContrived) {
   ctx.dump();
 
   int64_t A = ctx.getCgroupContext(CgroupPath(contrived_cgroup_path, "A"))
-                  .protection_overage;
+                  .effective_usage();
   int64_t A1 = ctx.getCgroupContext(CgroupPath(contrived_cgroup_path, "A/A1"))
-                   .protection_overage;
+                   .effective_usage();
   int64_t A2 = ctx.getCgroupContext(CgroupPath(contrived_cgroup_path, "A/A2"))
-                   .protection_overage;
+                   .effective_usage();
   int64_t B = ctx.getCgroupContext(CgroupPath(contrived_cgroup_path, "B"))
-                  .protection_overage;
+                  .effective_usage();
   int64_t B1 = ctx.getCgroupContext(CgroupPath(contrived_cgroup_path, "B/B1"))
-                   .protection_overage;
+                   .effective_usage();
   int64_t B2 = ctx.getCgroupContext(CgroupPath(contrived_cgroup_path, "B/B2"))
-                   .protection_overage;
+                   .effective_usage();
 
   EXPECT_EQ(A, 2l << 30);
   EXPECT_EQ(B, 3l << 30);
