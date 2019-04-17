@@ -49,11 +49,12 @@ class BaseKillPlugin : public Oomd::Engine::BasePlugin {
    */
   virtual int tryToKillPids(const std::vector<int>& procs);
 
+  virtual void reportKillInitiationToXattr(const std::string& cgroup_path);
   /*
    * Sets the "trusted.oomd_kill" extended attribute key to @param
    * num_procs_killed on @param cgroup_path
    */
-  virtual void reportToXattr(
+  virtual void reportKillCompletionToXattr(
       const std::string& cgroup_path,
       int num_procs_killed);
 

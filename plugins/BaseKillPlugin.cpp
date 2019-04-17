@@ -28,7 +28,8 @@
 #include "oomd/Log.h"
 #include "oomd/util/Fs.h"
 
-static auto constexpr kOomdKillXattr = "trusted.oomd_kill";
+static auto constexpr kOomdKillInitiationXattr = "trusted.oomd_ooms";
+static auto constexpr kOomdKillCompletionXattr = "trusted.oomd_kill";
 
 namespace Oomd {
 
@@ -86,6 +87,7 @@ bool BaseKillPlugin::tryToKillCgroup(
 
   OLOG << "Trying to kill " << cgroup_path;
 
+  reportKillInitiationToXattr(cgroup_path);
   while (tries--) {
     nr_killed += getAndTryToKillPids(cgroup_path, recursive, stream_size);
 
@@ -103,7 +105,7 @@ bool BaseKillPlugin::tryToKillCgroup(
 
     last_nr_killed = nr_killed;
   }
-  reportToXattr(cgroup_path, nr_killed);
+  reportKillCompletionToXattr(cgroup_path, nr_killed);
   return nr_killed > 0;
 }
 
@@ -133,16 +135,28 @@ int BaseKillPlugin::tryToKillPids(const std::vector<int>& pids) {
   return nr_killed;
 }
 
-void BaseKillPlugin::reportToXattr(
+void BaseKillPlugin::reportKillInitiationToXattr(
+    const std::string& cgroup_path) {
+  auto prev_xattr_str = Fs::getxattr(cgroup_path, kOomdKillInitiationXattr);
+  const int prev_xattr = std::stoi(prev_xattr_str != "" ? prev_xattr_str : "0");
+  std::string new_xattr_str = std::to_string(prev_xattr + 1);
+
+  if (Fs::setxattr(cgroup_path, kOomdKillInitiationXattr, new_xattr_str)) {
+    OLOG << "Set xattr " << kOomdKillInitiationXattr << "=" << new_xattr_str
+         << " on " << cgroup_path;
+  }
+}
+
+void BaseKillPlugin::reportKillCompletionToXattr(
     const std::string& cgroup_path,
     int num_procs_killed) {
-  auto prev_xattr_str = Fs::getxattr(cgroup_path, kOomdKillXattr);
+  auto prev_xattr_str = Fs::getxattr(cgroup_path, kOomdKillCompletionXattr);
   const int prev_xattr = std::stoi(prev_xattr_str != "" ? prev_xattr_str : "0");
   std::string new_xattr_str = std::to_string(prev_xattr + num_procs_killed);
 
-  if (Fs::setxattr(cgroup_path, kOomdKillXattr, new_xattr_str)) {
-    OLOG << "Set xattr " << kOomdKillXattr << "=" << new_xattr_str << " on "
-         << cgroup_path;
+  if (Fs::setxattr(cgroup_path, kOomdKillCompletionXattr, new_xattr_str)) {
+    OLOG << "Set xattr " << kOomdKillCompletionXattr << "=" << new_xattr_str
+         << " on " << cgroup_path;
   }
 }
 
