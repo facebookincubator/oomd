@@ -231,6 +231,7 @@ std::string Fs::pressureTypeToString(PressureType type) {
     case PressureType::FULL:
       return "full";
   }
+  throw std::runtime_error("Invalid PressureType. Code should not be reached");
 }
 
 ResourcePressure Fs::readRespressure(
