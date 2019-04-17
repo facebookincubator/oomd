@@ -24,6 +24,7 @@
 #include "oomd/PluginRegistry.h"
 #include "oomd/util/Fs.h"
 #include "oomd/util/ScopeGuard.h"
+#include "oomd/util/Util.h"
 
 static constexpr auto kCgroupFs = "/sys/fs/cgroup/";
 
@@ -41,7 +42,18 @@ int64_t parse_threshold(const std::string& str, int64_t memtotal) {
     }
     return memtotal * pct / 100;
   } else {
-    return std::stoll(str) * 1024 * 1024;
+    int64_t v;
+    size_t end_pos;
+
+    // compat - a bare number is interpreted as megabytes
+    v = std::stoll(str, &end_pos);
+    if (end_pos == str.length()) {
+      return v << 20;
+    }
+    if (Util::parseSize(str, &v) == 0) {
+      return v;
+    }
+    return -1;
   }
 }
 } // namespace

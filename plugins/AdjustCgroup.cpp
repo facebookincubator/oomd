@@ -24,6 +24,7 @@
 #include "oomd/PluginRegistry.h"
 #include "oomd/util/Fs.h"
 #include "oomd/util/ScopeGuard.h"
+#include "oomd/util/Util.h"
 
 static constexpr auto kCgroupFs = "/sys/fs/cgroup/";
 
@@ -51,7 +52,10 @@ int AdjustCgroup::init(
 
   if (args.find("memory") != args.end()) {
     memory_adj_set_ = true;
-    memory_adj_ = std::stoll(args.at("memory"));
+    if (Util::parseSize(args.at("memory"), &memory_adj_) < 0) {
+      OLOG << "Invalid size '" << args.at("memory") << "'";
+      return 1;
+    }
   }
 
   if (args.find("debug") != args.end()) {

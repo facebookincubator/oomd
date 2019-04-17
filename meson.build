@@ -33,6 +33,7 @@ srcs = files('''
     plugins/ContinuePlugin.cpp
     plugins/DumpCgroupOverview.cpp
     util/Fs.cpp
+    util/Util.cpp
     plugins/MemoryAbove.cpp
     plugins/MemoryReclaim.cpp
     plugins/PressureAbove.cpp
@@ -79,7 +80,8 @@ executable('oomd_bin',
 core_tests = [
   ['config',   files('config/JsonConfigParserTest.cpp')],
   ['oomd',     files('OomdTest.cpp')],
-  ['util',     files('util/FsTest.cpp', 'util/ScopeGuardTest.cpp')],
+  ['util',     files('util/FsTest.cpp', 'util/ScopeGuardTest.cpp',
+                     'util/UtilTest.cpp')],
   ['context',  files('OomdContextTest.cpp')],
   ['log',      files('LogTest.cpp')],
   ['assert',   files('include/AssertTest.cpp')],

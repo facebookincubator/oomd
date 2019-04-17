@@ -98,7 +98,7 @@ TEST(AdjustCgroupPlugin, AdjustCgroupMemory) {
   Engine::PluginArgs args;
   args["cgroup_fs"] = "oomd/fixtures/cgroup";
   args["cgroup"] = "adjust_cgroup";
-  args["memory"] = "-32768";
+  args["memory"] = "-8M";
   args["debug"] = "1";
 
   ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
@@ -107,12 +107,12 @@ TEST(AdjustCgroupPlugin, AdjustCgroupMemory) {
   auto cgroup_path = CgroupPath(args["cgroup_fs"], "adjust_cgroup");
   ctx.setCgroupContext(
       cgroup_path,
-      CgroupContext{.current_usage = 65536, .memory_protection = 16384});
+      CgroupContext{.current_usage = 64 << 20, .memory_protection = 16 << 20});
   auto& cgroup_ctx = ctx.getCgroupContext(cgroup_path);
 
-  EXPECT_EQ(cgroup_ctx.effective_usage(), 65536 - 16384);
+  EXPECT_EQ(cgroup_ctx.effective_usage(), (64 << 20) - (16 << 20));
   EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::CONTINUE);
-  EXPECT_EQ(cgroup_ctx.effective_usage(), 65536 - 32768 - 16384);
+  EXPECT_EQ(cgroup_ctx.effective_usage(), (64 << 20) - (16 << 20) - (8 << 20));
 }
 
 TEST(BaseKillPlugin, TryToKillCgroupKillsNonRecursive) {
@@ -372,7 +372,7 @@ TEST(MemoryAbove, DetectsHighMemUsage) {
   args["cgroup_fs"] = "oomd/fixtures/plugins/memory_above";
   args["cgroup"] = "high_memory";
   args["meminfo_location"] = "oomd/fixtures/plugins/memory_above/meminfo";
-  args["threshold"] = "1536"; // in MB
+  args["threshold"] = "1536M";
   args["duration"] = "0";
 
   ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
@@ -393,7 +393,49 @@ TEST(MemoryAbove, NoDetectLowMemUsage) {
   args["cgroup_fs"] = "oomd/fixtures/plugins/memory_above";
   args["cgroup"] = "low_memory";
   args["meminfo_location"] = "oomd/fixtures/plugins/memory_above/meminfo";
-  args["threshold"] = "1536"; // in MB
+  args["threshold"] = "1536M";
+  args["duration"] = "0";
+
+  ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+
+  OomdContext ctx;
+  ctx.setCgroupContext(
+      CgroupPath(args["cgroup_fs"], "low_memory"),
+      CgroupContext{.current_usage = 1073741824});
+  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
+}
+
+TEST(MemoryAbove, DetectsHighMemUsageCompat) {
+  auto plugin = createPlugin("memory_above");
+  ASSERT_NE(plugin, nullptr);
+
+  Engine::MonitoredResources resources;
+  Engine::PluginArgs args;
+  args["cgroup_fs"] = "oomd/fixtures/plugins/memory_above";
+  args["cgroup"] = "high_memory";
+  args["meminfo_location"] = "oomd/fixtures/plugins/memory_above/meminfo";
+  args["threshold"] = "1536"; // Should be interpreted as MB
+  args["duration"] = "0";
+
+  ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+
+  OomdContext ctx;
+  ctx.setCgroupContext(
+      CgroupPath(args["cgroup_fs"], "high_memory"),
+      CgroupContext{.current_usage = 2147483648});
+  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::CONTINUE);
+}
+
+TEST(MemoryAbove, NoDetectLowMemUsageCompat) {
+  auto plugin = createPlugin("memory_above");
+  ASSERT_NE(plugin, nullptr);
+
+  Engine::MonitoredResources resources;
+  Engine::PluginArgs args;
+  args["cgroup_fs"] = "oomd/fixtures/plugins/memory_above";
+  args["cgroup"] = "low_memory";
+  args["meminfo_location"] = "oomd/fixtures/plugins/memory_above/meminfo";
+  args["threshold"] = "1536"; // Should be interpreted as MB
   args["duration"] = "0";
 
   ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
@@ -414,7 +456,7 @@ TEST(MemoryAbove, DetectsHighMemUsagePercent) {
   args["cgroup_fs"] = "oomd/fixtures/plugins/memory_above";
   args["cgroup"] = "high_memory";
   args["meminfo_location"] = "oomd/fixtures/plugins/memory_above/meminfo";
-  args["threshold"] = "10%"; // in MB
+  args["threshold"] = "10%";
   args["duration"] = "0";
 
   ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
@@ -435,7 +477,7 @@ TEST(MemoryAbove, NoDetectLowMemUsageMultiple) {
   args["cgroup_fs"] = "oomd/fixtures/plugins/memory_above";
   args["cgroup"] = "low_memory";
   args["meminfo_location"] = "oomd/fixtures/plugins/memory_above/meminfo";
-  args["threshold"] = "1536"; // in MB
+  args["threshold"] = "1536M";
   args["duration"] = "0";
   args["debug"] = "true";
 
@@ -460,7 +502,7 @@ TEST(MemoryAbove, DetectsHighMemUsageMultiple) {
   args["cgroup_fs"] = "oomd/fixtures/plugins/memory_above";
   args["cgroup"] = "high_memory";
   args["meminfo_location"] = "oomd/fixtures/plugins/memory_above/meminfo";
-  args["threshold"] = "1536"; // in MB
+  args["threshold"] = "1536M";
   args["duration"] = "0";
   args["debug"] = "true";
 
@@ -485,7 +527,7 @@ TEST(MemoryAbove, NoDetectLowMemUsagePercent) {
   args["cgroup_fs"] = "oomd/fixtures/plugins/memory_above";
   args["cgroup"] = "low_memory";
   args["meminfo_location"] = "oomd/fixtures/plugins/memory_above/meminfo";
-  args["threshold"] = "80%"; // in MB
+  args["threshold"] = "80%";
   args["duration"] = "0";
 
   ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
@@ -506,7 +548,7 @@ TEST(MemoryAbove, DetectsHighAnonUsage) {
   args["cgroup_fs"] = "oomd/fixtures/plugins/memory_above";
   args["cgroup"] = "high_memory";
   args["meminfo_location"] = "oomd/fixtures/plugins/memory_above/meminfo";
-  args["threshold_anon"] = "1536"; // in MB
+  args["threshold_anon"] = "1536M";
   args["duration"] = "0";
 
   ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
@@ -530,7 +572,7 @@ TEST(MemoryAbove, NoDetectLowAnonUsage) {
   args["cgroup_fs"] = "oomd/fixtures/plugins/memory_above";
   args["cgroup"] = "low_memory";
   args["meminfo_location"] = "oomd/fixtures/plugins/memory_above/meminfo";
-  args["threshold_anon"] = "1536"; // in MB
+  args["threshold_anon"] = "1536M";
   args["duration"] = "0";
 
   ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
@@ -554,8 +596,8 @@ TEST(MemoryAbove, DetectsHighAnonUsageIgnoreLowMemUsage) {
   args["cgroup_fs"] = "oomd/fixtures/plugins/memory_above";
   args["cgroup"] = "high_memory";
   args["meminfo_location"] = "oomd/fixtures/plugins/memory_above/meminfo";
-  args["threshold_anon"] = "1536"; // in MB
-  args["threshold"] = "1536"; // in MB
+  args["threshold_anon"] = "1536M";
+  args["threshold"] = "1536M";
   args["duration"] = "0";
 
   ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
@@ -580,8 +622,8 @@ TEST(MemoryAbove, NoDetectLowAnonUsageIgnoreHighMemUsage) {
   args["cgroup_fs"] = "oomd/fixtures/plugins/memory_above";
   args["cgroup"] = "low_memory";
   args["meminfo_location"] = "oomd/fixtures/plugins/memory_above/meminfo";
-  args["threshold_anon"] = "1536"; // in MB
-  args["threshold"] = "1536"; // in MB
+  args["threshold_anon"] = "1536M";
+  args["threshold"] = "1536M";
   args["duration"] = "0";
 
   ASSERT_EQ(plugin->init(resources, std::move(args)), 0);

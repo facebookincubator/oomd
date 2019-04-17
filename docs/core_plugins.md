@@ -47,11 +47,17 @@ otherwise.
 
 `cgroup` has the same semantics and features as `pressure_rising_beyond`.
 
-`threshold` and `threshold_anon` take both an absolute value (in MB) or
-a percentage of total memory used. A percentage threshold must be in the
-format `N%`, where `0 <= N <= 100`. Either one of these parameters must
-be specified. When both are specified, only `threshold_anon` is
-effective.
+`threshold` and `threshold_anon` take either an absolute memory amount or a
+percentage of total memory used. Either one of these parameters must be
+specified. When both are specified, only `threshold_anon` is effective.
+
+An absolute memory amount threshold accepts combinations of K|M|G|T
+suffixed components. For example, `1.5M 32K 512` is interpreted as
+`1.5 * 2^20 + 32 * 2^10 + 512` bytes. NOTE: FOR BACKWARD COMPATIBILITY, A
+BARE NUMBER IS INTERPRETED AS MEGABYTES.
+
+A percentage threshold must be in the format `N%`, where
+`0 <= N <= 100`.
 
 If `threshold` is specified, CONTINUE if 10s total memory usage >
 `threshold` longer than `duration`, STOP otherwise.
@@ -132,7 +138,9 @@ Always returns CONTINUE.
 but specifies the target cgroups directly rather than the parents.
 
 `memory` is the number of bytes to be added to memory usage of the
-cgroup. It can be negative, 0 or positive.
+cgroup. It can be negative, 0 or positive. It accepts combinations of
+K|M|G|T suffixed components. For example, `1.5M 32K 512` is
+interpreted as 1.5 * 2^20 + 32 * 2^10 + 512 bytes.
 
 Adjustments are applied to the shared context at the time when the
 plugin is invoked and can be updated by later invocations.

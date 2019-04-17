@@ -1,0 +1,41 @@
+/*
+ * Copyright (C) 2019-present, Facebook, Inc.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; version 2 of the License.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along
+ * with this program; if not, write to the Free Software Foundation, Inc.,
+ * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+ */
+
+#include <gmock/gmock.h>
+#include <gtest/gtest.h>
+
+#include "oomd/util/Util.h"
+
+using namespace Oomd;
+using namespace testing;
+
+TEST(ParseSizeTest, ParseSizeTest) {
+  int64_t v;
+
+  EXPECT_EQ(Util::parseSize("8192", &v), 0);
+  EXPECT_EQ(v, 8192);
+
+  EXPECT_EQ(Util::parseSize("8K", &v), 0);
+  EXPECT_EQ(v, 8192);
+
+  EXPECT_EQ(Util::parseSize("1.5M 32K 512", &v), 0);
+  EXPECT_EQ(v, (1 << 20) * 3 / 2 + (1 << 10) * 32 + 512);
+
+  EXPECT_EQ(Util::parseSize("1.5MK", &v), -1);
+  EXPECT_EQ(Util::parseSize("??", &v), -1);
+  EXPECT_EQ(Util::parseSize("+-123M", &v), -1);
+}
