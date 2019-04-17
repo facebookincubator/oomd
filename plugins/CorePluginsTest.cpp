@@ -90,6 +90,31 @@ class BaseKillPluginShim : public BaseKillPluginMock {
 };
 } // namespace Oomd
 
+TEST(AdjustCgroupPlugin, AdjustCgroupMemory) {
+  auto plugin = createPlugin("adjust_cgroup");
+  ASSERT_NE(plugin, nullptr);
+
+  Engine::MonitoredResources resources;
+  Engine::PluginArgs args;
+  args["cgroup_fs"] = "oomd/fixtures/cgroup";
+  args["cgroup"] = "adjust_cgroup";
+  args["memory"] = "-32768";
+  args["debug"] = "1";
+
+  ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+
+  OomdContext ctx;
+  auto cgroup_path = CgroupPath(args["cgroup_fs"], "adjust_cgroup");
+  ctx.setCgroupContext(
+      cgroup_path,
+      CgroupContext{.current_usage = 65536, .memory_protection = 16384});
+  auto& cgroup_ctx = ctx.getCgroupContext(cgroup_path);
+
+  EXPECT_EQ(cgroup_ctx.effective_usage(), 65536 - 16384);
+  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::CONTINUE);
+  EXPECT_EQ(cgroup_ctx.effective_usage(), 65536 - 32768 - 16384);
+}
+
 TEST(BaseKillPlugin, TryToKillCgroupKillsNonRecursive) {
   BaseKillPluginShim plugin;
   EXPECT_EQ(

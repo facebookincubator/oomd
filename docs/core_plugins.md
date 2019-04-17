@@ -119,6 +119,26 @@ If `always` is set to `true`, then cgroup overviews will always be printed.
 
 Always returns CONTINUE.
 
+## adjust_cgroup
+
+### Arguments
+
+    cgroup
+    memory
+
+### Description
+
+`cgroup` has the same format and features as `pressure_rising_beyond`
+but specifies the target cgroups directly rather than the parents.
+
+`memory` is the number of bytes to be added to memory usage of the
+cgroup. It can be negative, 0 or positive.
+
+Adjustments are applied to the shared context at the time when the
+plugin is invoked and can be updated by later invocations.
+
+Always returns CONTINUE.
+
 
 # Actions
 

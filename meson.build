@@ -28,6 +28,7 @@ srcs = files('''
     engine/Ruleset.cpp
     include/Assert.cpp
     include/CgroupPath.cpp
+    plugins/AdjustCgroup.cpp
     plugins/BaseKillPlugin.cpp
     plugins/ContinuePlugin.cpp
     plugins/DumpCgroupOverview.cpp

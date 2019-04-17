@@ -70,6 +70,11 @@ class OomdContext {
   const CgroupContext& getCgroupContext(const CgroupPath& path) const;
 
   /**
+   * Mutable variant of getCgroupContext(). Use only when necessary.
+   */
+  CgroupContext& getMutableCgroupContext(const CgroupPath& path) const;
+
+  /**
    * @returns a CgroupNode* if cgroup is present, nullptr otherwise
    */
   std::shared_ptr<CgroupNode> getCgroupNode(const CgroupPath& path) const;

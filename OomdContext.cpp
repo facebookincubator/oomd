@@ -40,13 +40,18 @@ std::vector<CgroupPath> OomdContext::cgroups() const {
   return keys;
 }
 
-const CgroupContext& OomdContext::getCgroupContext(
+CgroupContext& OomdContext::getMutableCgroupContext(
     const CgroupPath& path) const {
   if (!hasCgroupContext(path)) {
     throw std::invalid_argument("Cgroup not present");
   }
 
   return memory_state_.at(path)->ctx;
+}
+
+const CgroupContext& OomdContext::getCgroupContext(
+    const CgroupPath& path) const {
+  return getMutableCgroupContext(path);
 }
 
 std::shared_ptr<CgroupNode> OomdContext::getCgroupNode(

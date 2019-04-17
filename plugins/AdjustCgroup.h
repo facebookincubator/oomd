@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018-present, Facebook, Inc.
+ * Copyright (C) 2019-present, Facebook, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -17,39 +17,30 @@
 
 #pragma once
 
-#include <chrono>
-#include <cstdint>
+#include "oomd/engine/BasePlugin.h"
+
+#include <string>
+#include <unordered_set>
 
 namespace Oomd {
 
-enum struct ResourceType {
-  MEMORY,
-  IO,
-};
-
-struct ResourcePressure {
-  float sec_10{0};
-  float sec_60{0};
-  float sec_600{0};
-  std::chrono::microseconds total{0};
-};
-
-class CgroupContext {
+class AdjustCgroup : public Engine::BasePlugin {
  public:
-  ResourcePressure pressure;
-  ResourcePressure io_pressure;
-  int64_t current_usage{0};
-  int64_t average_usage{0};
-  int64_t memory_low{0};
-  int64_t memory_protection{0};
-  int64_t swap_usage{0};
-  int64_t anon_usage{0};
-  int64_t memory_min{0};
-  int64_t memory_adj{0};
+  int init(
+      Engine::MonitoredResources& resources,
+      const Engine::PluginArgs& args) override;
 
-  int64_t effective_usage() const {
-    return current_usage - memory_protection + memory_adj;
+  Engine::PluginRet run(OomdContext& /* unused */) override;
+
+  static AdjustCgroup* create() {
+    return new AdjustCgroup();
   }
+
+ private:
+  std::unordered_set<CgroupPath> cgroups_;
+  bool memory_adj_set_{false};
+  int64_t memory_adj_;
+  bool debug_{false};
 };
 
 } // namespace Oomd
