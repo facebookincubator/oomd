@@ -121,19 +121,19 @@ int64_t Oomd::calculateProtection(
   auto node = ctx.getCgroupNode(cgroup);
   OCHECK_EXCEPT(node, std::runtime_error("cgroup missing from OomdContext"));
 
-  auto l_func = [](const CgroupContext& c) -> int64_t {
+  auto l_func = [](const CgroupContext& c) -> double {
     return std::min(c.current_usage, std::max(c.memory_min, c.memory_low));
   };
 
-  std::function<int64_t(const std::shared_ptr<CgroupNode>)> p_func =
-      [&](const std::shared_ptr<CgroupNode> node) -> int64_t {
+  std::function<double(const std::shared_ptr<CgroupNode>)> p_func =
+      [&](const std::shared_ptr<CgroupNode> node) -> double {
     auto parent = node->parent.lock();
     if (parent->path.isRoot()) {
       // We're at a top level cgroup where P(cgrp) == L(cgrp)
       return l_func(node->ctx);
     }
 
-    int64_t l_sum_children = 0;
+    double l_sum_children = 0;
     for (const auto& child : parent->children) {
       l_sum_children += l_func(child->ctx);
     }
