@@ -21,6 +21,8 @@
 #include "oomd/PluginRegistry.h"
 #include "oomd/util/Fs.h"
 
+static auto constexpr kProcSwapsFile = "/proc/swaps";
+
 namespace Oomd {
 
 REGISTER_PLUGIN(swap_free, SwapFree::create);
@@ -39,6 +41,12 @@ int SwapFree::init(
     meminfo_location_ = args.at("meminfo_location");
   }
 
+  if (args.find("swaps_location") != args.end()) {
+    swaps_location_ = args.at("swaps_location");
+  } else {
+    swaps_location_ = kProcSwapsFile;
+  }
+
   // Success
   return 0;
 }
@@ -48,11 +56,12 @@ Engine::PluginRet SwapFree::run(OomdContext& /* unused */) {
 
   auto meminfo = meminfo_location_.size() ? Fs::getMeminfo(meminfo_location_)
                                           : Fs::getMeminfo();
+  bool swapon = Fs::readFileByLine(swaps_location_).size() > 1;
   const int64_t swapfree = meminfo["SwapFree"];
   const int64_t swaptotal = meminfo["SwapTotal"];
 
   const int64_t swapthres = swaptotal * threshold_pct_ / 100;
-  if (swaptotal > 0 && swapfree < swapthres) {
+  if (swapon && swapfree < swapthres) {
     OLOG << "SwapFree " << swapfree / 1024 / 1024
          << "MB is smaller than the threshold of " << swapthres / 1024 / 1024
          << "MB, total swap is " << swaptotal / 1024 / 1024 << "MB";

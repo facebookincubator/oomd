@@ -678,6 +678,7 @@ TEST(SwapFree, LowSwap) {
   Engine::MonitoredResources resources;
   Engine::PluginArgs args;
   args["meminfo_location"] = "oomd/fixtures/plugins/swap_free/meminfo_low";
+  args["swaps_location"] = "oomd/fixtures/plugins/swap_free/swapon";
   args["threshold_pct"] = "20";
   args["duration"] = "0";
 
@@ -694,6 +695,24 @@ TEST(SwapFree, EnoughSwap) {
   Engine::MonitoredResources resources;
   Engine::PluginArgs args;
   args["meminfo_location"] = "oomd/fixtures/plugins/swap_free/meminfo_enough";
+  args["swaps_location"] = "oomd/fixtures/plugins/swap_free/swapon";
+  args["threshold_pct"] = "20";
+  args["duration"] = "0";
+
+  ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+
+  OomdContext ctx;
+  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
+}
+
+TEST(SwapFree, SwapOff) {
+  auto plugin = createPlugin("swap_free");
+  ASSERT_NE(plugin, nullptr);
+
+  Engine::MonitoredResources resources;
+  Engine::PluginArgs args;
+  args["meminfo_location"] = "oomd/fixtures/plugins/swap_free/meminfo_low";
+  args["swaps_location"] = "oomd/fixtures/plugins/swap_free/swapoff";
   args["threshold_pct"] = "20";
   args["duration"] = "0";
 
