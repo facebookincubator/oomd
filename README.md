@@ -26,11 +26,13 @@ Facebook, we've regularly seen 30 minute host lockups go away entirely.
 
 ## Building and installing
 
-Note that oomd requires PSI to function. This kernel feature has been landed
-upstream and is staged for the 4.20 release.
+Note that oomd requires PSI to function. This kernel feature has been merged
+into the 4.20 release.
 
 oomd currently depends on [meson][2] and [jsoncpp][4]. [libsystemd][6] is an
 optional dependency.
+
+oomd also requires GCC 8+ or clang 6+. Other compilers have not been tested.
 
     $ git clone https://github.com/facebookincubator/oomd
     $ cd oomd
