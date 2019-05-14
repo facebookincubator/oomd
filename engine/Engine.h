@@ -17,6 +17,8 @@
 
 #pragma once
 
+#include <cstdint>
+#include <deque>
 #include <memory>
 #include <vector>
 
@@ -35,6 +37,21 @@ class Engine {
   ~Engine() = default;
 
   /*
+   * Adds a drop in config to the running engine.
+   *
+   * @param tag is a unique tag to be associated with the drop
+   * in config. Removing the dropped in config requires the original tag.
+   *
+   * @returns false if @param ruleset's target is not found. true otherwise.
+   */
+  bool addDropInConfig(size_t tag, std::unique_ptr<Ruleset> ruleset);
+
+  /*
+   * Removes drop in configs associated with @param tag
+   */
+  void removeDropInConfig(size_t tag);
+
+  /*
    * Runs every @class Ruleset once.
    */
   void runOnce(OomdContext& context);
@@ -48,8 +65,18 @@ class Engine {
   const MonitoredResources& getMonitoredResources() const;
 
  private:
+  struct DropInRuleset {
+    size_t tag{0}; // required field
+    std::unique_ptr<Ruleset> ruleset;
+  };
+
+  struct BaseRuleset {
+    std::unique_ptr<Ruleset> ruleset;
+    std::deque<DropInRuleset> dropins;
+  };
+
   MonitoredResources resources_;
-  std::vector<std::unique_ptr<Ruleset>> rulesets_;
+  std::vector<BaseRuleset> rulesets_;
 };
 
 } // namespace Engine

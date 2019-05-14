@@ -17,17 +17,86 @@
 
 #include "oomd/engine/Engine.h"
 
+#include <algorithm>
+
+#include "oomd/Log.h"
+#include "oomd/include/Assert.h"
+
 namespace Oomd {
 namespace Engine {
 
 Engine::Engine(
     MonitoredResources resources,
     std::vector<std::unique_ptr<Ruleset>> rulesets)
-    : resources_(std::move(resources)), rulesets_(std::move(rulesets)) {}
+    : resources_(std::move(resources)) {
+  for (auto& rs : rulesets) {
+    if (rs) {
+      rulesets_.emplace_back(BaseRuleset{.ruleset = std::move(rs)});
+    }
+  }
+}
+
+bool Engine::addDropInConfig(size_t tag, std::unique_ptr<Ruleset> ruleset) {
+  if (!ruleset) {
+    return false;
+  }
+
+  // First located the targeted ruleset
+  auto it = std::find_if(
+      rulesets_.begin(), rulesets_.end(), [&](const BaseRuleset& b) {
+        return b.ruleset->getName() == ruleset->getName();
+      });
+  if (it == rulesets_.end()) {
+    OLOG << "Error: could not locate targeted ruleset: " << ruleset->getName();
+    return false;
+  }
+
+  // Add drop in ruleset
+  DropInRuleset dir;
+  dir.tag = tag;
+  dir.ruleset = std::move(ruleset);
+  // NB: the drop in rulesets must be added/executed LIFO order.
+  it->dropins.emplace_front(std::move(dir));
+
+  // Mark base ruleset at targeted
+  it->ruleset->markDropInTargeted();
+
+  return true;
+}
+
+void Engine::removeDropInConfig(size_t tag) {
+  auto pred = [&](const DropInRuleset& dir) { return dir.tag == tag; };
+
+  for (auto& base : rulesets_) {
+    auto new_end =
+        std::remove_if(base.dropins.begin(), base.dropins.end(), pred);
+
+    int n = base.dropins.cend() - new_end;
+    if (!n) {
+      continue;
+    }
+
+    // Delete properly tagged drop in rulesets as requested
+    base.dropins.erase(new_end, base.dropins.end());
+
+    // Mark base ruleset as untargeted
+    for (int i = 0; i < n; ++i) {
+      base.ruleset->markDropInUntargeted();
+    }
+  }
+}
 
 void Engine::runOnce(OomdContext& context) {
-  for (const auto& ruleset : rulesets_) {
-    ruleset->runOnce(context);
+  for (const auto& base : rulesets_) {
+    // Run all the drop in rulesets first
+    for (const auto& dropin : base.dropins) {
+      if (dropin.ruleset) {
+        dropin.ruleset->runOnce(context);
+      }
+    }
+
+    // Now run the base ruleset
+    base.ruleset->runOnce(context);
   }
 }
 

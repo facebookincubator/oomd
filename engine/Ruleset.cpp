@@ -24,18 +24,70 @@ namespace Engine {
 Ruleset::Ruleset(
     const std::string& name,
     std::vector<std::unique_ptr<DetectorGroup>> detector_groups,
-    std::vector<std::unique_ptr<BasePlugin>> action_group)
+    std::vector<std::unique_ptr<BasePlugin>> action_group,
+    bool disable_on_drop_in,
+    bool detectorgroups_dropin_enabled,
+    bool actiongroup_dropin_enabled)
     : name_(name),
       detector_groups_(std::move(detector_groups)),
-      action_group_(std::move(action_group)) {}
+      action_group_(std::move(action_group)),
+      disable_on_drop_in_(disable_on_drop_in),
+      detectorgroups_dropin_enabled_(detectorgroups_dropin_enabled),
+      actiongroup_dropin_enabled_(actiongroup_dropin_enabled) {}
+
+bool Ruleset::mergeWithDropIn(std::unique_ptr<Ruleset> ruleset) {
+  if (!ruleset) {
+    OLOG << "Error: merging with null ruleset";
+    return false;
+  }
+
+  if (ruleset->detector_groups_.size()) {
+    if (!detectorgroups_dropin_enabled_) {
+      OLOG << "Error: DetectorGroup drop-in configs disabled";
+      return false;
+    }
+
+    detector_groups_ = std::move(ruleset->detector_groups_);
+  }
+
+  if (ruleset->action_group_.size()) {
+    if (!actiongroup_dropin_enabled_) {
+      OLOG << "Error: Action drop-in configs disabled";
+      return false;
+    }
+
+    action_group_ = std::move(ruleset->action_group_);
+  }
+
+  return true;
+}
+
+void Ruleset::markDropInTargeted() {
+  ++numTargeted_;
+
+  if (disable_on_drop_in_ && numTargeted_) {
+    enabled_ = false;
+  }
+}
+
+void Ruleset::markDropInUntargeted() {
+  --numTargeted_;
+
+  if (numTargeted_ <= 0) {
+    enabled_ = true;
+  }
+}
 
 void Ruleset::runOnce(OomdContext& context) {
-  bool run_actions = false;
+  if (!enabled_) {
+    return;
+  }
 
   // If any DetectorGroup fires, then begin running action chain
   //
   // Note we're still check()'ing the detector groups so that any detectors
   // keeping sliding windows can update their window
+  bool run_actions = false;
   for (const auto& dg : detector_groups_) {
     if (dg->check(context) && !run_actions) {
       OLOG << "DetectorGroup=" << dg->name()

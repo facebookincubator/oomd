@@ -29,8 +29,26 @@ class Ruleset {
   Ruleset(
       const std::string& name,
       std::vector<std::unique_ptr<DetectorGroup>> detector_groups,
-      std::vector<std::unique_ptr<BasePlugin>> action_group);
+      std::vector<std::unique_ptr<BasePlugin>> action_group,
+      bool disable_on_drop_in = false,
+      bool detectorgroups_dropin_enabled = false,
+      bool actiongroup_dropin_enabled = false);
   ~Ruleset() = default;
+
+  /*
+   * Merges this ruleset with @param ruleset with priority given to @param
+   * ruleset.
+   *
+   * @returns false if @param ruleset tries to override configs to ruleset
+   * members which do not have drop in turned on. true otherwise.
+   */
+  [[nodiscard]] bool mergeWithDropIn(std::unique_ptr<Ruleset> ruleset);
+
+  /*
+   * Mark/unmark this ruleset as being targeted by an active drop in.
+   */
+  void markDropInTargeted();
+  void markDropInUntargeted();
 
   /*
    * Runs the all the DetectorGroup's. If any of them fires, then begin
@@ -38,10 +56,19 @@ class Ruleset {
    */
   void runOnce(OomdContext& context);
 
+  const std::string& getName() const {
+    return name_;
+  }
+
  private:
   std::string name_;
   std::vector<std::unique_ptr<DetectorGroup>> detector_groups_;
   std::vector<std::unique_ptr<BasePlugin>> action_group_;
+  bool enabled_{true};
+  bool disable_on_drop_in_{false};
+  bool detectorgroups_dropin_enabled_{false};
+  bool actiongroup_dropin_enabled_{false};
+  int32_t numTargeted_{0};
 };
 
 } // namespace Engine
