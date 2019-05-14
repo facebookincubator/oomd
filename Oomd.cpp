@@ -78,10 +78,14 @@ std::unordered_set<Oomd::CgroupPath> resolveCgroupPaths(
 namespace Oomd {
 
 Oomd::Oomd(
+    std::unique_ptr<Config2::IR::Root> ir_root,
     std::unique_ptr<Engine::Engine> engine,
     int interval,
     const std::string& cgroup_fs)
-    : interval_(interval), cgroup_fs_(cgroup_fs), engine_(std::move(engine)) {
+    : interval_(interval),
+      cgroup_fs_(cgroup_fs),
+      ir_root_(std::move(ir_root)),
+      engine_(std::move(engine)) {
   // Ensure that each monitored cgroup's cgroup fs is the same as the one
   // passed in by the command line
   if (engine_) { // Tests will pass in a nullptr

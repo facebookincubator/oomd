@@ -25,6 +25,7 @@
 #include <utility>
 #include <vector>
 
+#include "oomd/config/ConfigTypes.h"
 #include "oomd/engine/Engine.h"
 #include "oomd/include/CgroupPath.h"
 
@@ -33,6 +34,7 @@ namespace Oomd {
 class Oomd {
  public:
   Oomd(
+      std::unique_ptr<Config2::IR::Root> ir_root,
       std::unique_ptr<Engine::Engine> engine,
       int interval,
       const std::string& cgroup_fs);
@@ -79,6 +81,7 @@ class Oomd {
   const double average_size_decay_{
       4}; // TODO(dlxu): migrate to ring buffer for raw datapoints so plugins
           // can calculate weighted average themselves
+  std::unique_ptr<Config2::IR::Root> ir_root_;
   std::unique_ptr<Engine::Engine> engine_;
   Engine::MonitoredResources resources_;
   std::unordered_set<std::string> warned_io_pressure_;

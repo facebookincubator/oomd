@@ -67,13 +67,14 @@ static bool system_reqs_met() {
   return false;
 }
 
-static std::unique_ptr<Oomd::Engine::Engine> parseAndCompile(
+static std::unique_ptr<Oomd::Config2::IR::Root> parseConfig(
     const std::string& flag_conf_file) {
   std::ifstream conf_file(flag_conf_file, std::ios::in);
   if (!conf_file.is_open()) {
     std::cerr << "Could not open confg_file=" << flag_conf_file << std::endl;
     return nullptr;
   }
+
   std::stringstream buf;
   buf << conf_file.rdbuf();
   Oomd::Config2::JsonConfigParser json_parser;
@@ -82,7 +83,8 @@ static std::unique_ptr<Oomd::Engine::Engine> parseAndCompile(
     std::cerr << "Could not parse conf_file=" << flag_conf_file << std::endl;
     return nullptr;
   }
-  return Oomd::Config2::compile(*ir);
+
+  return ir;
 }
 
 int main(int argc, char** argv) {
@@ -186,11 +188,18 @@ int main(int argc, char** argv) {
   }
 
   if (should_check_config) {
-    auto ret = parseAndCompile(flag_conf_file);
-    if (!ret) {
-      OLOG << "Config is not valid";
+    auto ir = parseConfig(flag_conf_file);
+    if (!ir) {
+      return 1;
     }
-    return ret ? 0 : 1;
+
+    auto engine = Oomd::Config2::compile(*ir);
+    if (!engine) {
+      OLOG << "Config is not valid";
+      return 1;
+    }
+
+    return 0;
   }
 
   if (!system_reqs_met()) {
@@ -201,12 +210,17 @@ int main(int argc, char** argv) {
   std::cerr << "oomd running with conf_file=" << flag_conf_file
             << " interval=" << interval << std::endl;
 
-  auto engine = parseAndCompile(flag_conf_file);
+  auto ir = parseConfig(flag_conf_file);
+  if (!ir) {
+    return EXIT_CANT_RECOVER;
+  }
+
+  auto engine = Oomd::Config2::compile(*ir);
   if (!engine) {
     OLOG << "Config failed to compile";
     return EXIT_CANT_RECOVER;
   }
 
-  Oomd::Oomd oomd(std::move(engine), interval, cgroup_fs);
+  Oomd::Oomd oomd(std::move(ir), std::move(engine), interval, cgroup_fs);
   return oomd.run();
 }
