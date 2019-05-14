@@ -17,11 +17,18 @@
 
 #pragma once
 
+#include <optional>
+
 #include "oomd/config/ConfigTypes.h"
 #include "oomd/engine/Engine.h"
 
 namespace Oomd {
 namespace Config2 {
+
+struct DropInUnit {
+  Engine::MonitoredResources resources;
+  std::vector<std::unique_ptr<Engine::Ruleset>> rulesets;
+};
 
 /*
  * Compiles IR into Oomd::Engine data structures. Also performs full
@@ -29,6 +36,16 @@ namespace Config2 {
  * print error messages and return a nullptr.
  */
 std::unique_ptr<Engine::Engine> compile(const IR::Root& root);
+
+/*
+ * Compiles a drop in ruleset against a @class IR::Root config. Has
+ * the same semantics as @method compile. The compiled ruleset and
+ * @class Engine::MonitoredResources must be injected into an
+ * existing @class Engine::Engine.
+ */
+std::optional<DropInUnit> compileDropIn(
+    const IR::Root& root,
+    const IR::Root& dropin);
 
 } // namespace Config2
 } // namespace Oomd

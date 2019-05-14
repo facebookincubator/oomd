@@ -56,10 +56,17 @@ struct DetectorGroup {
   std::vector<Detector> detectors;
 };
 
+struct DropIn {
+  bool disable_on_drop_in{false};
+  bool detectorgroups_enabled{false};
+  bool actiongroup_enabled{false};
+};
+
 struct Ruleset {
   std::string name;
   std::vector<DetectorGroup> dgs;
   std::vector<Action> acts;
+  DropIn dropin;
 };
 
 struct Root {

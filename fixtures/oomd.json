@@ -2,6 +2,11 @@
     "rulesets": [
         {
             "name": "my first ruleset",
+            "drop-in": {
+                "detectors": true,
+                "actions": false,
+                "disable-on-drop-in": true
+            },
             "detectors": [
                 [
                     "group1",

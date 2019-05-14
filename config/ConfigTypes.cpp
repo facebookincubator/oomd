@@ -40,6 +40,17 @@ void dumpIR(const Root& root) {
     OLOG << getIndentSpaces(indent) << "Ruleset=" << ruleset.name;
     ++indent;
 
+    // Print DropIn config
+    OLOG << getIndentSpaces(indent) << "DropIn=";
+    ++indent;
+    OLOG << getIndentSpaces(indent)
+         << "Detectors=" << ruleset.dropin.detectorgroups_enabled;
+    OLOG << getIndentSpaces(indent)
+         << "Actions=" << ruleset.dropin.actiongroup_enabled;
+    OLOG << getIndentSpaces(indent)
+         << "DisableOnDrop=" << ruleset.dropin.disable_on_drop_in;
+    --indent;
+
     // Print DetectorGroup's
     for (const auto& dg : ruleset.dgs) {
       OLOG << getIndentSpaces(indent) << "DetectorGroup=" << dg.name;

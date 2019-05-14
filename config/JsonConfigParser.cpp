@@ -93,10 +93,23 @@ Oomd::Config2::IR::DetectorGroup parseDetectorGroup(
   return ir_detectorgroup;
 }
 
+Oomd::Config2::IR::DropIn parseDropIn(const Json::Value& dropin) {
+  Oomd::Config2::IR::DropIn ir_dropin;
+
+  ir_dropin.disable_on_drop_in =
+      dropin.get("disable-on-drop-in", false).asBool();
+  ir_dropin.detectorgroups_enabled = dropin.get("detectors", false).asBool();
+  ir_dropin.actiongroup_enabled = dropin.get("actions", false).asBool();
+
+  return ir_dropin;
+}
+
 Oomd::Config2::IR::Ruleset parseRuleset(const Json::Value& ruleset) {
   Oomd::Config2::IR::Ruleset ir_ruleset;
 
   ir_ruleset.name = ruleset.get("name", "").asString();
+
+  ir_ruleset.dropin = parseDropIn(ruleset.get("drop-in", {}));
 
   for (const auto& detector_group : ruleset.get("detectors", {})) {
     ir_ruleset.dgs.emplace_back(parseDetectorGroup(detector_group));

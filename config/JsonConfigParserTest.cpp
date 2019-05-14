@@ -47,6 +47,11 @@ TEST(JsonConfigParserTest, LoadIR) {
   EXPECT_EQ(first.name, "my first ruleset");
   ASSERT_EQ(first.dgs.size(), 1);
 
+  // Check first ruleset drop in config
+  EXPECT_TRUE(first.dropin.detectorgroups_enabled);
+  EXPECT_FALSE(first.dropin.actiongroup_enabled);
+  EXPECT_TRUE(first.dropin.disable_on_drop_in);
+
   // Check first ruleset's first DetectorGroup
   const auto& first_dg = first.dgs[0];
   EXPECT_EQ(first_dg.name, "group1");

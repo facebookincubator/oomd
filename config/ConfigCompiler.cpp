@@ -84,7 +84,8 @@ std::unique_ptr<Oomd::Engine::DetectorGroup> compileDetectorGroup(
 
 std::unique_ptr<Oomd::Engine::Ruleset> compileRuleset(
     Oomd::Engine::MonitoredResources& resources,
-    const Oomd::Config2::IR::Ruleset& ruleset) {
+    const Oomd::Config2::IR::Ruleset& ruleset,
+    bool dropin) {
   std::vector<std::unique_ptr<Oomd::Engine::DetectorGroup>> detector_groups;
   std::vector<std::unique_ptr<Oomd::Engine::BasePlugin>> actions;
 
@@ -93,7 +94,7 @@ std::unique_ptr<Oomd::Engine::Ruleset> compileRuleset(
     return nullptr;
   }
 
-  if (ruleset.dgs.empty() || ruleset.acts.empty()) {
+  if (!dropin && (ruleset.dgs.empty() || ruleset.acts.empty())) {
     OLOG << "Ruleset is missing DetectorGroups or missing Actions";
     return nullptr;
   }
@@ -118,7 +119,12 @@ std::unique_ptr<Oomd::Engine::Ruleset> compileRuleset(
   }
 
   return std::make_unique<Oomd::Engine::Ruleset>(
-      ruleset.name, std::move(detector_groups), std::move(actions));
+      ruleset.name,
+      std::move(detector_groups),
+      std::move(actions),
+      ruleset.dropin.disable_on_drop_in,
+      ruleset.dropin.detectorgroups_enabled,
+      ruleset.dropin.actiongroup_enabled);
 }
 
 } // namespace
@@ -131,7 +137,7 @@ std::unique_ptr<Engine::Engine> compile(const IR::Root& root) {
   std::vector<std::unique_ptr<Engine::Ruleset>> rulesets;
 
   for (const auto& ruleset : root.rulesets) {
-    auto compiled_ruleset = compileRuleset(resources, ruleset);
+    auto compiled_ruleset = compileRuleset(resources, ruleset, false);
     if (!compiled_ruleset) {
       return nullptr;
     }
@@ -141,6 +147,48 @@ std::unique_ptr<Engine::Engine> compile(const IR::Root& root) {
 
   return std::make_unique<Engine::Engine>(
       std::move(resources), std::move(rulesets));
+}
+
+std::optional<DropInUnit> compileDropIn(
+    const IR::Root& root,
+    const IR::Root& dropin) {
+  DropInUnit ret;
+
+  for (const auto& dropin_rs : dropin.rulesets) {
+    bool found_target = false;
+
+    for (const auto& rs : root.rulesets) {
+      if (rs.name == dropin_rs.name) {
+        found_target = true;
+
+        Engine::MonitoredResources dummy;
+        auto target = compileRuleset(dummy, rs, false);
+        if (!target) {
+          return std::nullopt;
+        }
+
+        auto compiled_drop = compileRuleset(ret.resources, dropin_rs, true);
+        if (!compiled_drop) {
+          return std::nullopt;
+        }
+
+        if (!target->mergeWithDropIn(std::move(compiled_drop))) {
+          OLOG << "Could not merge drop in ruleset=" << dropin_rs.name;
+          return std::nullopt;
+        }
+
+        ret.rulesets.emplace_back(std::move(target));
+        break;
+      }
+    }
+
+    if (!found_target) {
+      OLOG << "Could not locate targeted ruleset=" << dropin_rs.name;
+      return std::nullopt;
+    }
+  }
+
+  return ret;
 }
 
 } // namespace Config2
