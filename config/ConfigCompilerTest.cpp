@@ -378,11 +378,13 @@ TEST_F(DropInCompilerTest, DisablesBase) {
   IR::Action increment;
   increment.name = "IncrementCount";
   IR::DetectorGroup dg{"dg", {cont}};
-  IR::Ruleset rs{
-      "rs",
-      {dg},
-      {increment},
-      IR::DropIn{.actiongroup_enabled = true, .disable_on_drop_in = true}};
+  IR::Ruleset rs{"rs",
+                 {dg},
+                 {increment},
+                 IR::DropIn{
+                     .disable_on_drop_in = true,
+                     .actiongroup_enabled = true,
+                 }};
   root.rulesets.emplace_back(std::move(rs));
 
   IR::Ruleset dropin_rs;
@@ -415,9 +417,11 @@ TEST_F(DropInCompilerTest, PermissionDenied) {
   IR::Ruleset rs{"rs",
                  {dg},
                  {increment},
-                 IR::DropIn{.detectorgroups_enabled = false,
-                            .actiongroup_enabled = false,
-                            .disable_on_drop_in = false}};
+                 IR::DropIn{
+                     .disable_on_drop_in = false,
+                     .detectorgroups_enabled = false,
+                     .actiongroup_enabled = false,
+                 }};
   root.rulesets.emplace_back(std::move(rs));
 
   IR::Ruleset dropin_rs;
@@ -480,16 +484,20 @@ TEST_F(DropInCompilerTest, MultipleRulesetDropin) {
   IR::Action noop;
   noop.name = "Continue";
   IR::DetectorGroup dg{"dg", {cont}};
-  IR::Ruleset rs{
-      "rs",
-      {dg},
-      {noop},
-      IR::DropIn{.actiongroup_enabled = true, .disable_on_drop_in = true}};
-  IR::Ruleset rs2{
-      "rs2",
-      {dg},
-      {noop},
-      IR::DropIn{.actiongroup_enabled = true, .disable_on_drop_in = true}};
+  IR::Ruleset rs{"rs",
+                 {dg},
+                 {noop},
+                 IR::DropIn{
+                     .disable_on_drop_in = true,
+                     .actiongroup_enabled = true,
+                 }};
+  IR::Ruleset rs2{"rs2",
+                  {dg},
+                  {noop},
+                  IR::DropIn{
+                      .disable_on_drop_in = true,
+                      .actiongroup_enabled = true,
+                  }};
   root.rulesets.emplace_back(std::move(rs));
   root.rulesets.emplace_back(std::move(rs2));
 

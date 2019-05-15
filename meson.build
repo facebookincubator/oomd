@@ -2,7 +2,7 @@ project('oomd', 'cpp',
   version : '0.1.0',
   license : 'GPL2')
 
-cpp_args = ['-std=c++14', '-g', '-rdynamic']
+cpp_args = ['-std=c++17', '-g', '-rdynamic']
 
 # The ".." include path is necessary if one
 # does not want to build via the "build-from-github.sh" script.
@@ -110,6 +110,7 @@ if gtest_dep.found() and gmock_dep.found()
         test_executable = executable('oomd_' + executable_name_suffix,
             sources,
             include_directories : inc,
+            cpp_args : cpp_args,
             dependencies : deps,
             link_with : oomd_lib)
         test(executable_name_suffix, test_executable)
