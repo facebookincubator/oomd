@@ -37,7 +37,8 @@ class Oomd {
       std::unique_ptr<Config2::IR::Root> ir_root,
       std::unique_ptr<Engine::Engine> engine,
       int interval,
-      const std::string& cgroup_fs);
+      const std::string& cgroup_fs,
+      const std::string& drop_in_dir);
   virtual ~Oomd() = default;
 
   /*
@@ -69,11 +70,16 @@ class Oomd {
       OomdContext& ctx,
       std::unordered_map<CgroupPath, int64_t>& cache);
   bool updateContextCgroup(const CgroupPath& path, OomdContext& ctx);
+  int prepDropInWatcher(const std::string& dir);
   int prepEventLoop(const std::chrono::seconds& interval);
+  void processDropInRemove(const std::string& file);
+  void processDropInAdd(const std::string& file);
+  int processDropInWatcher(int fd);
   int processEventLoop();
 
   int epollfd_{-1};
   int timerfd_{-1};
+  int inotifyfd_{-1};
 
   // runtime settings
   std::chrono::seconds interval_{0};
@@ -86,6 +92,7 @@ class Oomd {
   Engine::MonitoredResources resources_;
   std::unordered_set<std::string> warned_io_pressure_;
   std::unordered_set<std::string> warned_mem_controller_;
+  std::string drop_in_dir_;
 };
 
 } // namespace Oomd

@@ -21,17 +21,22 @@
 #include <unistd.h>
 
 #include <sys/epoll.h>
+#include <sys/inotify.h>
 #include <sys/timerfd.h>
 #include <algorithm>
 #include <cmath>
 #include <cstdlib>
 #include <cstring>
+#include <fstream>
+#include <functional>
 #include <iomanip>
 #include <sstream>
 #include <thread>
 #include <unordered_set>
 
 #include "oomd/Log.h"
+#include "oomd/config/ConfigCompiler.h"
+#include "oomd/config/JsonConfigParser.h"
 #include "oomd/include/Assert.h"
 #include "oomd/include/Defines.h"
 #include "oomd/util/Fs.h"
@@ -81,11 +86,13 @@ Oomd::Oomd(
     std::unique_ptr<Config2::IR::Root> ir_root,
     std::unique_ptr<Engine::Engine> engine,
     int interval,
-    const std::string& cgroup_fs)
+    const std::string& cgroup_fs,
+    const std::string& drop_in_dir)
     : interval_(interval),
       cgroup_fs_(cgroup_fs),
       ir_root_(std::move(ir_root)),
-      engine_(std::move(engine)) {
+      engine_(std::move(engine)),
+      drop_in_dir_(drop_in_dir) {
   // Ensure that each monitored cgroup's cgroup fs is the same as the one
   // passed in by the command line
   if (engine_) { // Tests will pass in a nullptr
@@ -111,6 +118,12 @@ Oomd::Oomd(
         parent = parent.getParent();
       }
     }
+  }
+
+  // Sanitize the drop in dir a little
+  if (drop_in_dir_.size() && drop_in_dir_.at(drop_in_dir_.size() - 1) == '/') {
+    // Delete the trailing '/'
+    drop_in_dir_.erase(drop_in_dir.size() - 1);
   }
 }
 
@@ -249,6 +262,47 @@ void Oomd::updateContext(
   ctx = std::move(new_ctx);
 }
 
+int Oomd::prepDropInWatcher(const std::string& dir) {
+  char buf[1024];
+
+  if (!Fs::isDir(dir)) {
+    OLOG << "Error: " << dir << " is not a directory";
+    return 1;
+  }
+
+  // Load existing drop in configs before setting up inotify hooks
+  // so we don't race with configs dropping in
+  auto configs = Fs::readDir(dir, Fs::EntryType::REG_FILE);
+  std::sort(configs.begin(), configs.end()); // Provide some determinism
+  for (const auto& config : configs) {
+    processDropInAdd(config);
+  }
+
+  inotifyfd_ = ::inotify_init1(IN_NONBLOCK | IN_CLOEXEC);
+  if (inotifyfd_ < 0) {
+    OLOG << "inotify_init1: " << ::strerror_r(errno, buf, sizeof(buf));
+    return 1;
+  }
+
+  uint32_t mask = IN_DELETE | IN_MODIFY | IN_MOVE | IN_ONLYDIR;
+  if (::inotify_add_watch(inotifyfd_, dir.c_str(), mask) < 0) {
+    OLOG << "inotify_add_watch: " << ::strerror_r(errno, buf, sizeof(buf));
+    return 1;
+  }
+
+  // Add inotifyfd to epoll set
+  struct epoll_event ev;
+  std::memset(&ev, 0, sizeof(ev));
+  ev.events = EPOLLIN;
+  ev.data.fd = inotifyfd_;
+  if (::epoll_ctl(epollfd_, EPOLL_CTL_ADD, inotifyfd_, &ev) < 0) {
+    OLOG << "epoll_ctl: " << ::strerror_r(errno, buf, sizeof(buf));
+    return 1;
+  }
+
+  return 0;
+}
+
 int Oomd::prepEventLoop(const std::chrono::seconds& interval) {
   char buf[1024];
 
@@ -284,6 +338,113 @@ int Oomd::prepEventLoop(const std::chrono::seconds& interval) {
     return 1;
   }
 
+  // Set up drop in config watcher if necessary
+  if (drop_in_dir_.size()) {
+    int ret = prepDropInWatcher(drop_in_dir_);
+    if (ret) {
+      return ret;
+    }
+  }
+
+  return 0;
+}
+
+void Oomd::processDropInRemove(const std::string& file) {
+  // Ignore dot files
+  if (file.empty() || (file.size() && file.at(0) == '.')) {
+    return;
+  }
+
+  OLOG << "Removing drop in config=" << file;
+  size_t tag = std::hash<std::string>{}(file);
+  engine_->removeDropInConfig(tag);
+}
+
+void Oomd::processDropInAdd(const std::string& file) {
+  // Ignore dot files
+  if (file.empty() || (file.size() && file.at(0) == '.')) {
+    return;
+  }
+
+  // First remove then re-add. We don't do in place modifications as it'll
+  // be complicated for the code and it probably wouldn't be what the user
+  // expects. The user probably expects the entire drop in config is reset
+  // and added to the front of the LIFO queue.
+  processDropInRemove(file);
+
+  OLOG << "Adding drop in config=" << file;
+
+  std::ifstream dropin_file(drop_in_dir_ + '/' + file, std::ios::in);
+  if (!dropin_file.is_open()) {
+    OLOG << "Could not open drop in config=" << file;
+    return;
+  }
+  std::stringstream buf;
+  buf << dropin_file.rdbuf();
+  Config2::JsonConfigParser json_parser;
+  std::unique_ptr<Config2::IR::Root> dropin_root;
+  try {
+    dropin_root = json_parser.parse(buf.str());
+  } catch (const std::exception& e) {
+    OLOG << "Caught: " << e.what();
+    OLOG << "Failed to inject drop in config into engine";
+    return;
+  }
+  if (!dropin_root) {
+    OLOG << "Could not parse drop in config=" << file;
+    OLOG << "Failed to inject drop in config into engine";
+    return;
+  }
+
+  auto unit = Config2::compileDropIn(*ir_root_, *dropin_root);
+  if (!unit.has_value()) {
+    OLOG << "Could not compile drop in config";
+    OLOG << "Failed to inject drop in config into engine";
+    return;
+  }
+
+  size_t tag = std::hash<std::string>{}(file);
+  for (int i = 0; i < unit->rulesets.size(); ++i) {
+    if (engine_->addDropInConfig(tag, std::move(unit->rulesets.at(i)))) {
+      resources_.insert(unit->resources.cbegin(), unit->resources.cend());
+    } else {
+      OLOG << "Failed to inject drop in config into engine";
+      return;
+    }
+  }
+}
+
+int Oomd::processDropInWatcher(int fd) {
+  const struct inotify_event* event;
+  char buf[4096] __attribute__((aligned(__alignof__(struct inotify_event))));
+
+  while (true) {
+    int len = ::read(fd, buf, sizeof(buf));
+    if (len < 0 && errno != EAGAIN) {
+      OLOG << "epoll_wait: " << ::strerror_r(errno, buf, sizeof(buf));
+      return 1;
+    }
+
+    if (len <= 0) {
+      break;
+    }
+
+    for (char* ptr = buf; ptr < (buf + len);
+         ptr += sizeof(struct inotify_event) + event->len) {
+      event = reinterpret_cast<const struct inotify_event*>(ptr);
+
+      if (event->mask & (IN_MOVED_TO | IN_MODIFY)) {
+        // Remove and re-add drop in if a file has been added to the
+        // watched directory
+        processDropInAdd(event->name);
+      } else if (event->mask & (IN_DELETE | IN_MOVED_FROM)) {
+        // Remove drop in if file has been moved from or removed from
+        // the watched directory
+        processDropInRemove(event->name);
+      }
+    }
+  }
+
   return 0;
 }
 
@@ -305,10 +466,15 @@ int Oomd::processEventLoop() {
     int fd = events[i].data.fd;
     if (fd == timerfd_) {
       uint64_t expired = 0;
-      ret = read(fd, &expired, sizeof(expired));
+      ret = ::read(fd, &expired, sizeof(expired));
       if (ret < 0) {
         OLOG << "read: " << ::strerror_r(errno, buf, sizeof(buf));
         return 1;
+      }
+    } else if (fd == inotifyfd_) {
+      ret = processDropInWatcher(fd);
+      if (ret) {
+        return ret;
       }
     } else {
       OLOG << "Unknown fd=" << fd << " in event loop";
@@ -323,16 +489,17 @@ int Oomd::run() {
   OomdContext ctx;
   int ret;
 
+  if (!engine_) {
+    OLOG << "Could not run engine. Your config file is probably invalid\n";
+    return EXIT_CANT_RECOVER;
+  }
+
   ret = prepEventLoop(interval_);
   if (ret) {
     return ret;
   }
 
   OLOG << "Running oomd";
-  if (!engine_) {
-    OLOG << "Could not run engine. Your config file is probably invalid\n";
-    return EXIT_CANT_RECOVER;
-  }
 
   while (true) {
     try {

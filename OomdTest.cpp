@@ -30,7 +30,8 @@ constexpr auto kCgroupDataDir = "oomd/fixtures/cgroup";
 class OomdTest : public ::testing::Test {
  public:
   OomdTest() {
-    oomd = std::make_unique<::Oomd::Oomd>(nullptr, nullptr, 5, kCgroupDataDir);
+    oomd =
+        std::make_unique<::Oomd::Oomd>(nullptr, nullptr, 5, kCgroupDataDir, "");
   }
 
   std::string cgroup_path{kCgroupDataDir};

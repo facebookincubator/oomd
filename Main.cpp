@@ -46,6 +46,7 @@ static void printUsage() {
          "  --cgroup-fs, -f FS         Cgroup2 filesystem mount point (default: /sys/fs/cgroup)\n"
          "  --check-config, -c CONFIG  Check config file (default: /etc/oomd.json)\n"
          "  --list-plugins, -l         List all available plugins\n"
+         "  --drop-in-dir, -w DIR      Directory to watch for drop in configs\n"
       << std::endl;
 }
 
@@ -90,25 +91,22 @@ static std::unique_ptr<Oomd::Config2::IR::Root> parseConfig(
 int main(int argc, char** argv) {
   std::string flag_conf_file = kConfigFilePath;
   std::string cgroup_fs = kCgroupFsRoot;
+  std::string drop_in_dir;
   int interval = 5;
   bool should_check_config = false;
 
   int option_index = 0;
   int c = 0;
 
-  const char* const short_options = "hC:drvi:f:c:l";
+  const char* const short_options = "hC:w:i:f:c:l";
   option long_options[] = {
-      option{"sandcastle_mode", no_argument, nullptr, 0},
-      option{"xattr_reporting", no_argument, nullptr, 0},
       option{"help", no_argument, nullptr, 'h'},
       option{"config", required_argument, nullptr, 'C'},
-      option{"dry", no_argument, nullptr, 'd'},
-      option{"report", no_argument, nullptr, 'r'},
-      option{"verbose", no_argument, nullptr, 'v'},
       option{"interval", required_argument, nullptr, 'i'},
       option{"cgroup-fs", required_argument, nullptr, 'f'},
       option{"check-config", required_argument, nullptr, 'c'},
       option{"list-plugins", no_argument, nullptr, 'l'},
+      option{"drop-in-dir", required_argument, nullptr, 'w'},
       option{nullptr, 0, nullptr, 0}};
 
   while ((c = getopt_long(
@@ -124,8 +122,8 @@ int main(int argc, char** argv) {
         should_check_config = true;
         flag_conf_file = std::string(optarg);
         break;
-      case 'd':
-        std::cerr << "Noop for backwards compatible dry\n";
+      case 'w':
+        drop_in_dir = std::string(optarg);
         break;
       case 'l':
         std::cerr << "List of plugins oomd was compiled with:\n";
@@ -134,12 +132,6 @@ int main(int argc, char** argv) {
           std::cerr << " " << plugin_name << "\n";
         }
         return 0;
-      case 'r':
-        std::cerr << "Noop for backwards compatible report\n";
-        break;
-      case 'v':
-        std::cerr << "Noop for backwards compatible verbose\n";
-        break;
       case 'i':
         interval = std::stoi(optarg);
         break;
@@ -147,15 +139,6 @@ int main(int argc, char** argv) {
         cgroup_fs = std::string(optarg);
         break;
       case 0:
-        if (long_options[option_index].flag != nullptr) {
-          break;
-        }
-        if (strcmp(long_options[option_index].name, "sandcastle_mode") == 0) {
-          std::cerr << "Noop for backwards compatible sandcastle_mode\n";
-        } else if (
-            strcmp(long_options[option_index].name, "xattr_reporting") == 0) {
-          std::cerr << "Noop for backwards compatible xattr_reporting\n";
-        }
         break;
       case '?':
         std::cerr << "Unknown option or missing argument\n";
@@ -221,6 +204,7 @@ int main(int argc, char** argv) {
     return EXIT_CANT_RECOVER;
   }
 
-  Oomd::Oomd oomd(std::move(ir), std::move(engine), interval, cgroup_fs);
+  Oomd::Oomd oomd(
+      std::move(ir), std::move(engine), interval, cgroup_fs, drop_in_dir);
   return oomd.run();
 }
