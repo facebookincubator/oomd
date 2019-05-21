@@ -35,9 +35,15 @@ oomd configs have a loosely defined BNF:
     ACTION:
     PLUGIN
 
+    DROPIN:
+    "disable-on-drop-in": <bool>,
+    "detectors": <bool>,
+    "actions": <bool>
+
     RULESET:
     [
         NAME,
+        DROPIN,
         "detectors": [ [DETECTOR_GROUP[,DETECTOR_GROUP[,...]]] ],
         "actions": [ [ACTION[,ACTION[,...]]] ],
     ]
