@@ -28,6 +28,7 @@ constexpr auto kCgroupDataDir = "oomd/fixtures/cgroup/system.slice";
 constexpr auto kFsDataDir = "oomd/fixtures/fs_data";
 constexpr auto kFsVmstatFile = "oomd/fixtures/proc/vmstat";
 constexpr auto kFsMeminfoFile = "oomd/fixtures/proc/meminfo";
+constexpr auto kFsMountsFile = "oomd/fixtures/proc/mounts";
 
 class FsTest : public ::testing::Test {
  public:
@@ -318,4 +319,22 @@ TEST_F(FsTest, ReadIoPressureSome) {
   EXPECT_FLOAT_EQ(pressure.sec_10, 1.12);
   EXPECT_FLOAT_EQ(pressure.sec_60, 2.23);
   EXPECT_FLOAT_EQ(pressure.sec_600, 3.34);
+}
+
+TEST_F(FsTest, IsUnderParentPath) {
+  EXPECT_TRUE(Fs::isUnderParentPath("/sys/fs/cgroup/", "/sys/fs/cgroup/"));
+  EXPECT_TRUE(Fs::isUnderParentPath("/sys/fs/cgroup/", "/sys/fs/cgroup/blkio"));
+  EXPECT_FALSE(Fs::isUnderParentPath("/sys/fs/cgroup/", "/sys/fs/"));
+  EXPECT_TRUE(Fs::isUnderParentPath("/", "/sys/"));
+  EXPECT_FALSE(Fs::isUnderParentPath("/sys/", "/"));
+  EXPECT_FALSE(Fs::isUnderParentPath("", "/sys/"));
+  EXPECT_FALSE(Fs::isUnderParentPath("/sys/", ""));
+  EXPECT_FALSE(Fs::isUnderParentPath("", ""));
+}
+
+TEST_F(FsTest, GetCgroup2MountPoint) {
+  std::string mountsfile(kFsMountsFile);
+  auto cgrouppath = Fs::getCgroup2MountPoint(mountsfile);
+
+  EXPECT_EQ(cgrouppath, std::string("/sys/fs/cgroup/"));
 }

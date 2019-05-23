@@ -457,4 +457,41 @@ std::string Fs::getxattr(const std::string& path, const std::string& attr) {
   return val;
 }
 
+bool Fs::isUnderParentPath(
+    const std::string& parent_path,
+    const std::string& path) {
+  if (parent_path.empty() || path.empty()) {
+    return false;
+  }
+
+  auto parent_parts = split(parent_path, '/');
+  auto path_parts = split(path, '/');
+  int i = 0;
+
+  if (path_parts.size() < parent_parts.size()) {
+    return false;
+  }
+
+  for (const auto& parts : parent_parts) {
+    if (path_parts[i] != parts) {
+      return false;
+    }
+    i++;
+  }
+  return true;
+}
+
+std::string Fs::getCgroup2MountPoint(const std::string& path) {
+  auto lines = readFileByLine(path);
+  for (auto& line : lines) {
+    auto parts = split(line, ' ');
+    if (parts.size() > 1) {
+      if (parts[0] == "cgroup2") {
+        return parts[1] + '/';
+      }
+    }
+  }
+  return "";
+}
+
 } // namespace Oomd

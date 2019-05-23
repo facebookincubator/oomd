@@ -129,6 +129,15 @@ class Fs {
   static std::unordered_map<std::string, int64_t> getMemstat(
       const std::string& path);
 
+  // Return root part of cgroup2 from /proc/mounts/
+  static std::string getCgroup2MountPoint(
+      const std::string& path = "/proc/mounts");
+
+  // Check if path point to parent path or somewhere inside parent path
+  static bool isUnderParentPath(
+      const std::string& parent_path,
+      const std::string& path);
+
   /* Getters and setters to set xattr values */
   static bool setxattr(
       const std::string& path,

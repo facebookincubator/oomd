@@ -68,6 +68,11 @@ static bool system_reqs_met() {
   return false;
 }
 
+static bool cgroup_fs_valid(std::string& path) {
+  std::string cgroup2ParentPath = Oomd::Fs::getCgroup2MountPoint();
+  return Oomd::Fs::isUnderParentPath(cgroup2ParentPath, path);
+}
+
 static std::unique_ptr<Oomd::Config2::IR::Root> parseConfig(
     const std::string& flag_conf_file) {
   std::ifstream conf_file(flag_conf_file, std::ios::in);
@@ -187,6 +192,11 @@ int main(int argc, char** argv) {
 
   if (!system_reqs_met()) {
     std::cerr << "System requirements not met\n";
+    return EXIT_CANT_RECOVER;
+  }
+
+  if (!cgroup_fs_valid(cgroup_fs)) {
+    std::cerr << "cgroup path not valid\n";
     return EXIT_CANT_RECOVER;
   }
 
