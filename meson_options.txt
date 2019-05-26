@@ -1,0 +1,2 @@
+option('systemd', type: 'feature', description: 'Include support for systemd')
+option('test', type: 'feature', description: 'Enable the test suite')

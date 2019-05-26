@@ -48,7 +48,7 @@ deps = [dependency('jsoncpp'),
         dependency('threads')]
 
 # Optional dependencies
-systemd_dep = dependency('libsystemd', required: false)
+systemd_dep = dependency('libsystemd', required: get_option('systemd'))
 if systemd_dep.found()
   srcs += files('''
       plugins/systemd/BaseSystemdPlugin.cpp
@@ -96,8 +96,8 @@ if systemd_dep.found()
 endif
 
 
-gtest_dep = dependency('gtest', main : true, required : false)
-gmock_dep = dependency('gmock', required : false)
+gtest_dep = dependency('gtest', main : true, required : get_option('test'))
+gmock_dep = dependency('gmock', required : get_option('test'))
 if gtest_dep.found() and gmock_dep.found()
     deps += [gtest_dep, gmock_dep]
 
