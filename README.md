@@ -30,13 +30,14 @@ Note that oomd requires PSI to function. This kernel feature has been merged
 into the 4.20 release.
 
 oomd currently depends on [meson][2] and [jsoncpp][4]. [libsystemd][6] is an
-optional dependency.
+optional dependency. It can be forcibly enabled by passing `-Dsystemd=enabled`
+to meson, or disabled with `-Dsystemd=disabled`.
 
 oomd also requires GCC 8+ or clang 6+. Other compilers have not been tested.
 
     $ git clone https://github.com/facebookincubator/oomd
     $ cd oomd
-    $ meson build && ninja -C build
+    $ meson build -Dsystemd=enabled && ninja -C build
     $ cd build && sudo ninja install
 
 ## Configuration
@@ -53,10 +54,12 @@ oomd depends on [gtest/gmock][5] to run tests. Installing gtest/gmock from maste
 is preferred.
 
 If meson detects gtest/gmock is installed, meson will generate build rules for tests.
+They can also be forcibly enabled by passing `-Dtest=enabled` to meson, or disabled
+with `-Dtest=disabled`.
 
     $ cd oomd
     $ rm -rf build
-    $ meson build && ninja test -C build
+    $ meson build -Dtest=enabled && ninja test -C build
 
 ## Writing custom plugins
 
