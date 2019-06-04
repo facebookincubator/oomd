@@ -54,7 +54,7 @@ Engine::PluginRet SwapFree::run(OomdContext& /* unused */) {
   auto swaps = Fs::readFileByLine(swaps_location_);
 
   // For each swap, tally up used and total
-  for (int i = 1; i < swaps.size(); ++i) {
+  for (size_t i = 1; i < swaps.size(); ++i) {
     auto parts = Fs::split(swaps[i], '\t');
     // The /proc/swaps format is pretty bad. The first field is padded by
     // spaces but the rest of the fields are padded by '\t'. Since we don't
@@ -65,7 +65,7 @@ Engine::PluginRet SwapFree::run(OomdContext& /* unused */) {
     swapused += std::stoll(parts[2]) * 1024; // Values are in KB
   }
 
-  const int64_t swapthres = swaptotal * threshold_pct_ / 100;
+  const uint64_t swapthres = swaptotal * threshold_pct_ / 100;
   if ((swaptotal - swapused) < swapthres) {
     OLOG << "SwapFree " << (swaptotal - swapused) / 1024 / 1024
          << "MB is smaller than the threshold of " << swapthres / 1024 / 1024
