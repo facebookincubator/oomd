@@ -106,4 +106,13 @@ std::vector<std::string> Util::split(const std::string& line, char delim) {
   return ret;
 }
 
+void Util::strip(std::string& str) {
+  str.erase(0, str.find_first_not_of(kWhitespace));
+  str.erase(str.find_last_not_of(kWhitespace) + 1);
+}
+
+bool Util::isBlank(const std::string& str) {
+  return str.find_first_not_of(kWhitespace) == std::string::npos;
+}
+
 } // namespace Oomd

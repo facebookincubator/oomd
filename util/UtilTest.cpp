@@ -61,3 +61,26 @@ TEST(UtilTest, Split) {
   ASSERT_EQ(toks.size(), 1);
   EXPECT_EQ(toks[0], "one two three");
 }
+
+TEST(StripTest, StripTest) {
+  std::string s = "   123   \t";
+  std::string s1 = "\t\t   123   ";
+  std::string s2 = "123";
+  std::string s3 = "";
+
+  Util::strip(s);
+  EXPECT_EQ(s, "123");
+  Util::strip(s1);
+  EXPECT_EQ(s1, "123");
+  Util::strip(s2);
+  EXPECT_EQ(s2, "123");
+  Util::strip(s3);
+  EXPECT_EQ(s3, "");
+}
+
+TEST(BlankTest, BlankTest) {
+  EXPECT_TRUE(Util::isBlank(""));
+  EXPECT_TRUE(Util::isBlank("        "));
+  EXPECT_FALSE(Util::isBlank("             d"));
+  EXPECT_TRUE(Util::isBlank("             \t\n"));
+}
