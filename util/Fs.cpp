@@ -475,8 +475,8 @@ std::string Fs::getCgroup2MountPoint(const std::string& path) {
   auto lines = readFileByLine(path);
   for (auto& line : lines) {
     auto parts = Util::split(line, ' ');
-    if (parts.size() > 1) {
-      if (parts[0] == "cgroup2") {
+    if (parts.size() > 2) {
+      if (parts[2] == "cgroup2") {
         return parts[1] + '/';
       }
     }
