@@ -26,6 +26,7 @@
 #include "oomd/PluginRegistry.h"
 #include "oomd/include/Types.h"
 #include "oomd/util/Fs.h"
+#include "oomd/util/Util.h"
 
 namespace {
 auto constexpr kCgroupFs = "/sys/fs/cgroup";
@@ -42,7 +43,7 @@ int KillMemoryGrowth<Base>::init(
         (args.find("cgroup_fs") != args.end() ? args.at("cgroup_fs")
                                               : kCgroupFs);
 
-    auto cgroups = Fs::split(args.at("cgroup"), ',');
+    auto cgroups = Util::split(args.at("cgroup"), ',');
     for (const auto& c : cgroups) {
       resources.emplace(cgroup_fs, c);
       cgroups_.emplace(cgroup_fs, c);

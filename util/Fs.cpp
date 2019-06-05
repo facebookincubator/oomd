@@ -26,11 +26,11 @@
 
 #include <deque>
 #include <fstream>
-#include <sstream>
 #include <utility>
 
 #include "oomd/Log.h"
 #include "oomd/include/Assert.h"
+#include "oomd/util/Util.h"
 
 namespace Oomd {
 
@@ -94,7 +94,7 @@ std::unordered_set<std::string> Fs::resolveWildcardPath(
     return ret;
   }
 
-  auto parts = split(path, '/');
+  auto parts = Util::split(path, '/');
   std::deque<std::pair<std::string, size_t>> queue;
   // Add initial path piece to begin search on. Start at root
   // if provided path is absolute, else go with relative dir.
@@ -143,18 +143,6 @@ std::unordered_set<std::string> Fs::resolveWildcardPath(
   return ret;
 }
 
-std::vector<std::string> Fs::split(const std::string& line, char delim) {
-  std::istringstream iss(line);
-  std::string item;
-  std::vector<std::string> ret;
-  while (std::getline(iss, item, delim)) {
-    if (item.size()) {
-      ret.push_back(std::move(item));
-    }
-  }
-  return ret;
-}
-
 void Fs::removePrefix(std::string& str, const std::string& prefix) {
   if (str.find(prefix) != std::string::npos) {
     // Strip the leading './' if it exists and we haven't been explicitly
@@ -195,7 +183,7 @@ std::vector<std::string> Fs::readControllers(const std::string& path) {
     return controllers;
   }
 
-  controllers = split(lines[0], ' ');
+  controllers = Util::split(lines[0], ' ');
 
   return controllers;
 }
@@ -254,19 +242,20 @@ ResourcePressure Fs::readRespressure(
     //
     // some avg10=0.22 avg60=0.17 avg300=1.11 total=58761459
     // full avg10=0.22 avg60=0.16 avg300=1.08 total=58464525
-    std::vector<std::string> toks = split(lines[pressure_line_index], ' ');
+    std::vector<std::string> toks =
+        Util::split(lines[pressure_line_index], ' ');
     OCHECK_EXCEPT(
         toks[0] == type_name, bad_control_file(path + ": invalid format"));
-    std::vector<std::string> avg10 = split(toks[1], '=');
+    std::vector<std::string> avg10 = Util::split(toks[1], '=');
     OCHECK_EXCEPT(
         avg10[0] == "avg10", bad_control_file(path + ": invalid format"));
-    std::vector<std::string> avg60 = split(toks[2], '=');
+    std::vector<std::string> avg60 = Util::split(toks[2], '=');
     OCHECK_EXCEPT(
         avg60[0] == "avg60", bad_control_file(path + ": invalid format"));
-    std::vector<std::string> avg300 = split(toks[3], '=');
+    std::vector<std::string> avg300 = Util::split(toks[3], '=');
     OCHECK_EXCEPT(
         avg300[0] == "avg300", bad_control_file(path + ": invalid format"));
-    std::vector<std::string> total = split(toks[4], '=');
+    std::vector<std::string> total = Util::split(toks[4], '=');
     OCHECK_EXCEPT(
         total[0] == "total", bad_control_file(path + ": invalid format"));
 
@@ -282,7 +271,8 @@ ResourcePressure Fs::readRespressure(
     // aggr 316016073
     // some 0.00 0.03 0.05
     // full 0.00 0.03 0.05
-    std::vector<std::string> toks = split(lines[pressure_line_index + 1], ' ');
+    std::vector<std::string> toks =
+        Util::split(lines[pressure_line_index + 1], ' ');
     OCHECK_EXCEPT(
         toks[0] == type_name, bad_control_file(path + ": invalid format"));
 
@@ -464,8 +454,8 @@ bool Fs::isUnderParentPath(
     return false;
   }
 
-  auto parent_parts = split(parent_path, '/');
-  auto path_parts = split(path, '/');
+  auto parent_parts = Util::split(parent_path, '/');
+  auto path_parts = Util::split(path, '/');
   int i = 0;
 
   if (path_parts.size() < parent_parts.size()) {
@@ -484,7 +474,7 @@ bool Fs::isUnderParentPath(
 std::string Fs::getCgroup2MountPoint(const std::string& path) {
   auto lines = readFileByLine(path);
   for (auto& line : lines) {
-    auto parts = split(line, ' ');
+    auto parts = Util::split(line, ' ');
     if (parts.size() > 1) {
       if (parts[0] == "cgroup2") {
         return parts[1] + '/';

@@ -19,12 +19,16 @@
 
 #include <cstdint>
 #include <string>
+#include <vector>
 
 namespace Oomd {
 
 class Util {
  public:
   static int parseSize(const std::string& input, int64_t* output);
+
+  /* Split string into tokens by delim */
+  static std::vector<std::string> split(const std::string& line, char delim);
 };
 
 } // namespace Oomd

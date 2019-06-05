@@ -23,7 +23,7 @@
 using namespace Oomd;
 using namespace testing;
 
-TEST(ParseSizeTest, ParseSizeTest) {
+TEST(UtilTest, ParseSizeTest) {
   int64_t v;
 
   EXPECT_EQ(Util::parseSize("8192", &v), 0);
@@ -38,4 +38,26 @@ TEST(ParseSizeTest, ParseSizeTest) {
   EXPECT_EQ(Util::parseSize("1.5MK", &v), -1);
   EXPECT_EQ(Util::parseSize("??", &v), -1);
   EXPECT_EQ(Util::parseSize("+-123M", &v), -1);
+}
+
+TEST(UtilTest, Split) {
+  auto toks = Util::split("one by two", ' ');
+  ASSERT_EQ(toks.size(), 3);
+  EXPECT_THAT(toks, Contains("one"));
+  EXPECT_THAT(toks, Contains("by"));
+  EXPECT_THAT(toks, Contains("two"));
+
+  toks = Util::split(" by two", ' ');
+  ASSERT_EQ(toks.size(), 2);
+  EXPECT_THAT(toks, Contains("by"));
+  EXPECT_THAT(toks, Contains("two"));
+
+  toks = Util::split("     by        two", ' ');
+  ASSERT_EQ(toks.size(), 2);
+  EXPECT_THAT(toks, Contains("by"));
+  EXPECT_THAT(toks, Contains("two"));
+
+  toks = Util::split("one two three", ',');
+  ASSERT_EQ(toks.size(), 1);
+  EXPECT_EQ(toks[0], "one two three");
 }

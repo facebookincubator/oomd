@@ -67,28 +67,6 @@ TEST_F(FsTest, IsDir) {
   EXPECT_FALSE(Fs::isDir(dir + "/NOTINFS"));
 }
 
-TEST_F(FsTest, Split) {
-  auto toks = Fs::split("one by two", ' ');
-  ASSERT_EQ(toks.size(), 3);
-  EXPECT_TRUE(existsInVec(toks, "one"));
-  EXPECT_TRUE(existsInVec(toks, "by"));
-  EXPECT_TRUE(existsInVec(toks, "two"));
-
-  toks = Fs::split(" by two", ' ');
-  ASSERT_EQ(toks.size(), 2);
-  EXPECT_TRUE(existsInVec(toks, "by"));
-  EXPECT_TRUE(existsInVec(toks, "two"));
-
-  toks = Fs::split("     by        two", ' ');
-  ASSERT_EQ(toks.size(), 2);
-  EXPECT_TRUE(existsInVec(toks, "by"));
-  EXPECT_TRUE(existsInVec(toks, "two"));
-
-  toks = Fs::split("one two three", ',');
-  ASSERT_EQ(toks.size(), 1);
-  EXPECT_EQ(toks[0], "one two three");
-}
-
 TEST_F(FsTest, RemovePrefix) {
   std::string s = "long string like this";
   Fs::removePrefix(s, "long string ");

@@ -78,9 +78,6 @@ class Fs {
   static std::unordered_set<std::string> resolveWildcardPath(
       const std::string& path);
 
-  /* Split string into tokens by delim */
-  static std::vector<std::string> split(const std::string& line, char delim);
-
   /*
    * Path aware prefix removal.
    *
