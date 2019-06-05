@@ -23,6 +23,7 @@
 #include "oomd/Log.h"
 #include "oomd/PluginRegistry.h"
 #include "oomd/util/Fs.h"
+#include "oomd/util/Util.h"
 
 namespace {
 auto constexpr kCgroupFs = "/sys/fs/cgroup";
@@ -65,7 +66,7 @@ int DumpCgroupOverview::init(
     auto cgroup_fs =
         (args.find("cgroup_fs") != args.end() ? args.at("cgroup_fs")
                                               : kCgroupFs);
-    auto cgroups = Fs::split(args.at("cgroup"), ',');
+    auto cgroups = Util::split(args.at("cgroup"), ',');
     for (const auto& c : cgroups) {
       cgroups_.emplace(cgroup_fs, c);
     }

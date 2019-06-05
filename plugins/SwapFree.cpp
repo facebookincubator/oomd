@@ -21,6 +21,7 @@
 #include "oomd/PluginRegistry.h"
 #include "oomd/include/Assert.h"
 #include "oomd/util/Fs.h"
+#include "oomd/util/Util.h"
 
 static auto constexpr kProcSwapsFile = "/proc/swaps";
 
@@ -55,7 +56,7 @@ Engine::PluginRet SwapFree::run(OomdContext& /* unused */) {
 
   // For each swap, tally up used and total
   for (size_t i = 1; i < swaps.size(); ++i) {
-    auto parts = Fs::split(swaps[i], '\t');
+    auto parts = Util::split(swaps[i], '\t');
     // The /proc/swaps format is pretty bad. The first field is padded by
     // spaces but the rest of the fields are padded by '\t'. Since we don't
     // really care about the first field, we'll just split by '\t'.

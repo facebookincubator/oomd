@@ -20,6 +20,7 @@
 #include <exception>
 
 #include "oomd/util/Fs.h"
+#include "oomd/util/Util.h"
 
 namespace Oomd {
 
@@ -32,7 +33,7 @@ CgroupPath::CgroupPath(
     cgroup_fs_.pop_back();
   }
 
-  cgroup_path_ = Fs::split(cgroup_path, '/');
+  cgroup_path_ = Util::split(cgroup_path, '/');
   recomputeReadCache();
 }
 
@@ -67,7 +68,7 @@ CgroupPath CgroupPath::getParent() const {
 CgroupPath CgroupPath::getChild(const std::string& path) const {
   CgroupPath child(*this);
 
-  auto pieces = Fs::split(path, '/');
+  auto pieces = Util::split(path, '/');
   child.cgroup_path_.reserve(child.cgroup_path_.size() + pieces.size());
   for (auto& piece : pieces) {
     child.cgroup_path_.emplace_back(std::move(piece));

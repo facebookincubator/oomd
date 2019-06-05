@@ -15,9 +15,10 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#include <algorithm>
-
 #include "oomd/util/Util.h"
+
+#include <algorithm>
+#include <sstream>
 
 namespace Oomd {
 
@@ -91,6 +92,18 @@ int Util::parseSize(const std::string& input, int64_t* output) {
   }
   *output = is_neg ? -size : size;
   return 0;
+}
+
+std::vector<std::string> Util::split(const std::string& line, char delim) {
+  std::istringstream iss(line);
+  std::string item;
+  std::vector<std::string> ret;
+  while (std::getline(iss, item, delim)) {
+    if (item.size()) {
+      ret.push_back(std::move(item));
+    }
+  }
+  return ret;
 }
 
 } // namespace Oomd
