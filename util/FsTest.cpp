@@ -30,44 +30,27 @@ constexpr auto kFsVmstatFile = "oomd/fixtures/proc/vmstat";
 constexpr auto kFsMeminfoFile = "oomd/fixtures/proc/meminfo";
 constexpr auto kFsMountsFile = "oomd/fixtures/proc/mounts";
 
-class FsTest : public ::testing::Test {
- public:
-  bool existsInVec(const std::vector<std::string>& hay, std::string needle) {
-    return std::any_of(hay.begin(), hay.end(), [&](const std::string& fname) {
-      return fname == needle;
-    });
-  }
-
-  bool existsInSet(
-      const std::unordered_set<std::string>& hay,
-      std::string needle) {
-    return std::any_of(hay.begin(), hay.end(), [&](const std::string& fname) {
-      return fname == needle;
-    });
-  }
-};
-
-TEST_F(FsTest, FindDirectories) {
+TEST(FsTest, FindDirectories) {
   std::string dir(kFsDataDir);
   auto dirs = Fs::readDir(dir, Fs::EntryType::DIRECTORY);
 
   ASSERT_EQ(dirs.size(), 4);
-  EXPECT_TRUE(existsInVec(dirs, std::string("dir1")));
-  EXPECT_TRUE(existsInVec(dirs, std::string("dir2")));
-  EXPECT_TRUE(existsInVec(dirs, std::string("dir3")));
-  EXPECT_TRUE(existsInVec(dirs, std::string("wildcard")));
-  EXPECT_FALSE(existsInVec(dirs, std::string("dir21")));
-  EXPECT_FALSE(existsInVec(dirs, std::string("dir22")));
+  EXPECT_THAT(dirs, Contains(std::string("dir1")));
+  EXPECT_THAT(dirs, Contains(std::string("dir2")));
+  EXPECT_THAT(dirs, Contains(std::string("dir3")));
+  EXPECT_THAT(dirs, Contains(std::string("wildcard")));
+  EXPECT_THAT(dirs, Not(Contains(std::string("dir21"))));
+  EXPECT_THAT(dirs, Not(Contains(std::string("dir22"))));
 }
 
-TEST_F(FsTest, IsDir) {
+TEST(FsTest, IsDir) {
   std::string dir(kFsDataDir);
   EXPECT_TRUE(Fs::isDir(dir + "/dir1"));
   EXPECT_FALSE(Fs::isDir(dir + "/dir1/stuff"));
   EXPECT_FALSE(Fs::isDir(dir + "/NOTINFS"));
 }
 
-TEST_F(FsTest, RemovePrefix) {
+TEST(FsTest, RemovePrefix) {
   std::string s = "long string like this";
   Fs::removePrefix(s, "long string ");
   EXPECT_EQ(s, "like this");
@@ -89,52 +72,54 @@ TEST_F(FsTest, RemovePrefix) {
   EXPECT_EQ(path2, "messages");
 }
 
-TEST_F(FsTest, FindFiles) {
+TEST(FsTest, FindFiles) {
   std::string dir(kFsDataDir);
   auto files = Fs::readDir(dir, Fs::EntryType::REG_FILE);
 
   ASSERT_EQ(files.size(), 4);
-  EXPECT_TRUE(existsInVec(files, std::string("file1")));
-  EXPECT_TRUE(existsInVec(files, std::string("file2")));
-  EXPECT_TRUE(existsInVec(files, std::string("file3")));
-  EXPECT_TRUE(existsInVec(files, std::string("file4")));
-  EXPECT_FALSE(existsInVec(files, std::string("file5")));
+  EXPECT_THAT(files, Contains(std::string("file1")));
+  EXPECT_THAT(files, Contains(std::string("file2")));
+  EXPECT_THAT(files, Contains(std::string("file3")));
+  EXPECT_THAT(files, Contains(std::string("file4")));
+  EXPECT_THAT(files, Not(Contains(std::string("file5"))));
 }
 
-TEST_F(FsTest, ResolveWildcardedPathRelative) {
+TEST(FsTest, ResolveWildcardedPathRelative) {
   std::string dir(kFsDataDir);
   dir += "/wildcard";
 
   std::string wildcarded_path_some = "/this/path/is*/going/to/be/long/file";
   auto resolved = Fs::resolveWildcardPath(dir + wildcarded_path_some);
   ASSERT_EQ(resolved.size(), 2);
-  EXPECT_TRUE(existsInSet(
-      resolved, "./" + dir + "/this/path/is/going/to/be/long/file"));
-  EXPECT_TRUE(existsInSet(
-      resolved, "./" + dir + "/this/path/isNOT/going/to/be/long/file"));
+  EXPECT_THAT(
+      resolved, Contains("./" + dir + "/this/path/is/going/to/be/long/file"));
+  EXPECT_THAT(
+      resolved,
+      Contains("./" + dir + "/this/path/isNOT/going/to/be/long/file"));
 
   std::string wildcarded_path_all = "/this/path/*/going/to/be/long/file";
   resolved = Fs::resolveWildcardPath(dir + wildcarded_path_all);
   ASSERT_EQ(resolved.size(), 3);
-  EXPECT_TRUE(existsInSet(
-      resolved, "./" + dir + "/this/path/is/going/to/be/long/file"));
-  EXPECT_TRUE(existsInSet(
-      resolved, "./" + dir + "/this/path/isNOT/going/to/be/long/file"));
-  EXPECT_TRUE(existsInSet(
-      resolved, "./" + dir + "/this/path/WAH/going/to/be/long/file"));
+  EXPECT_THAT(
+      resolved, Contains("./" + dir + "/this/path/is/going/to/be/long/file"));
+  EXPECT_THAT(
+      resolved,
+      Contains("./" + dir + "/this/path/isNOT/going/to/be/long/file"));
+  EXPECT_THAT(
+      resolved, Contains("./" + dir + "/this/path/WAH/going/to/be/long/file"));
 
   resolved = Fs::resolveWildcardPath(dir + "/not/a/valid/dir");
   ASSERT_EQ(resolved.size(), 0);
 }
 
-TEST_F(FsTest, ResolveWildcardedPathAbsolute) {
+TEST(FsTest, ResolveWildcardedPathAbsolute) {
   auto resolved = Fs::resolveWildcardPath("/proc/vm*");
   ASSERT_EQ(resolved.size(), 2);
-  EXPECT_TRUE(existsInSet(resolved, "/proc/vmstat"));
-  EXPECT_TRUE(existsInSet(resolved, "/proc/vmallocinfo"));
+  EXPECT_THAT(resolved, Contains("/proc/vmstat"));
+  EXPECT_THAT(resolved, Contains("/proc/vmallocinfo"));
 }
 
-TEST_F(FsTest, ReadFile) {
+TEST(FsTest, ReadFile) {
   auto file = std::string(kFsDataDir) + "/dir1/stuff";
   auto lines = Fs::readFileByLine(file);
 
@@ -145,13 +130,13 @@ TEST_F(FsTest, ReadFile) {
   EXPECT_EQ(lines[3], "1");
 }
 
-TEST_F(FsTest, ReadFileBad) {
+TEST(FsTest, ReadFileBad) {
   auto file = std::string(kFsDataDir) + "/ksldjfksdlfdsjf";
   auto lines = Fs::readFileByLine(file);
   ASSERT_EQ(lines.size(), 0);
 }
 
-TEST_F(FsTest, GetPids) {
+TEST(FsTest, GetPids) {
   std::string dir(kCgroupDataDir);
   auto pids = Fs::getPids(dir);
   EXPECT_EQ(pids.size(), 1);
@@ -170,44 +155,44 @@ TEST_F(FsTest, GetPids) {
   EXPECT_THAT(pids_r, Contains(789));
 }
 
-TEST_F(FsTest, ReadMemoryCurrent) {
+TEST(FsTest, ReadMemoryCurrent) {
   std::string dir(kCgroupDataDir);
   EXPECT_EQ(Fs::readMemcurrent(dir), 987654321);
 }
 
-TEST_F(FsTest, ReadMemoryCurrentWildcard) {
+TEST(FsTest, ReadMemoryCurrentWildcard) {
   std::string dir(kCgroupRootDir);
   EXPECT_EQ(Fs::readMemcurrentWildcard(dir + "/*"), 1975308642);
 }
 
-TEST_F(FsTest, ReadMemoryLow) {
+TEST(FsTest, ReadMemoryLow) {
   std::string dir(kCgroupDataDir);
   EXPECT_EQ(Fs::readMemlow(dir), 333333);
 }
 
-TEST_F(FsTest, ReadMemoryMin) {
+TEST(FsTest, ReadMemoryMin) {
   std::string dir(kCgroupDataDir);
   EXPECT_EQ(Fs::readMemmin(dir), 666);
 }
 
-TEST_F(FsTest, ReadSwapCurrent) {
+TEST(FsTest, ReadSwapCurrent) {
   std::string dir(kCgroupDataDir);
   EXPECT_EQ(Fs::readSwapCurrent(dir), 321321);
 }
 
-TEST_F(FsTest, ReadControllers) {
+TEST(FsTest, ReadControllers) {
   std::string dir(kCgroupDataDir);
   auto controllers = Fs::readControllers(dir);
 
   ASSERT_EQ(controllers.size(), 4);
-  EXPECT_TRUE(existsInVec(controllers, std::string("cpu")));
-  EXPECT_TRUE(existsInVec(controllers, std::string("io")));
-  EXPECT_TRUE(existsInVec(controllers, std::string("memory")));
-  EXPECT_TRUE(existsInVec(controllers, std::string("pids")));
-  EXPECT_FALSE(existsInVec(controllers, std::string("block")));
+  EXPECT_THAT(controllers, Contains(std::string("cpu")));
+  EXPECT_THAT(controllers, Contains(std::string("io")));
+  EXPECT_THAT(controllers, Contains(std::string("memory")));
+  EXPECT_THAT(controllers, Contains(std::string("pids")));
+  EXPECT_THAT(controllers, Not(Contains(std::string("block"))));
 }
 
-TEST_F(FsTest, ReadMemoryPressure) {
+TEST(FsTest, ReadMemoryPressure) {
   // v4.16+ upstream format
   std::string dir(kCgroupDataDir);
   auto pressure = Fs::readMempressure(dir);
@@ -225,7 +210,7 @@ TEST_F(FsTest, ReadMemoryPressure) {
   EXPECT_FLOAT_EQ(pressure2.sec_600, 6.66);
 }
 
-TEST_F(FsTest, ReadMemoryPressureSome) {
+TEST(FsTest, ReadMemoryPressureSome) {
   // v4.16+ upstream format
   std::string dir(kCgroupDataDir);
   auto pressure = Fs::readMempressure(dir, Fs::PressureType::SOME);
@@ -243,7 +228,7 @@ TEST_F(FsTest, ReadMemoryPressureSome) {
   EXPECT_FLOAT_EQ(pressure2.sec_600, 3.33);
 }
 
-TEST_F(FsTest, GetVmstat) {
+TEST(FsTest, GetVmstat) {
   std::string vmstatfile(kFsVmstatFile);
   auto vmstat = Fs::getVmstat(vmstatfile);
 
@@ -255,7 +240,7 @@ TEST_F(FsTest, GetVmstat) {
   EXPECT_EQ(vmstat["asdf"], 0);
 }
 
-TEST_F(FsTest, GetMeminfo) {
+TEST(FsTest, GetMeminfo) {
   std::string meminfofile(kFsMeminfoFile);
   auto meminfo = Fs::getMeminfo(meminfofile);
 
@@ -268,7 +253,7 @@ TEST_F(FsTest, GetMeminfo) {
   EXPECT_EQ(meminfo["asdf"], 0);
 }
 
-TEST_F(FsTest, GetMemstat) {
+TEST(FsTest, GetMemstat) {
   std::string dir(kCgroupDataDir);
   auto meminfo = Fs::getMemstat(dir);
 
@@ -281,7 +266,7 @@ TEST_F(FsTest, GetMemstat) {
   EXPECT_EQ(meminfo["asdf"], 0);
 }
 
-TEST_F(FsTest, ReadIoPressure) {
+TEST(FsTest, ReadIoPressure) {
   std::string dir(kCgroupDataDir);
   auto pressure = Fs::readIopressure(dir);
 
@@ -290,7 +275,7 @@ TEST_F(FsTest, ReadIoPressure) {
   EXPECT_FLOAT_EQ(pressure.sec_600, 6.67);
 }
 
-TEST_F(FsTest, ReadIoPressureSome) {
+TEST(FsTest, ReadIoPressureSome) {
   std::string dir(kCgroupDataDir);
   auto pressure = Fs::readIopressure(dir, Fs::PressureType::SOME);
 
@@ -299,7 +284,7 @@ TEST_F(FsTest, ReadIoPressureSome) {
   EXPECT_FLOAT_EQ(pressure.sec_600, 3.34);
 }
 
-TEST_F(FsTest, IsUnderParentPath) {
+TEST(FsTest, IsUnderParentPath) {
   EXPECT_TRUE(Fs::isUnderParentPath("/sys/fs/cgroup/", "/sys/fs/cgroup/"));
   EXPECT_TRUE(Fs::isUnderParentPath("/sys/fs/cgroup/", "/sys/fs/cgroup/blkio"));
   EXPECT_FALSE(Fs::isUnderParentPath("/sys/fs/cgroup/", "/sys/fs/"));
@@ -310,7 +295,7 @@ TEST_F(FsTest, IsUnderParentPath) {
   EXPECT_FALSE(Fs::isUnderParentPath("", ""));
 }
 
-TEST_F(FsTest, GetCgroup2MountPoint) {
+TEST(FsTest, GetCgroup2MountPoint) {
   std::string mountsfile(kFsMountsFile);
   auto cgrouppath = Fs::getCgroup2MountPoint(mountsfile);
 
