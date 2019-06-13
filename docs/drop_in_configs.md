@@ -49,9 +49,8 @@ off.
 ### Drop-in config
 
 Drop-in configs use the exact same format as base configs with the following
-caveats:
+caveat:
 
-* Drop-in configs may only contain one ruleset
 * Both detector groups and actions may be omitted
 
 ## Usage
