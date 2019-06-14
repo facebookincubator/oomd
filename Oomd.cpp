@@ -180,7 +180,7 @@ bool Oomd::updateContextCgroup(const CgroupPath& path, OomdContext& ctx) {
       })) {
     if (!warned_mem_controller_.count(absolute_cgroup_path)) {
       OLOG << "WARNING: cgroup memory controller not enabled on "
-           << absolute_cgroup_path;
+           << absolute_cgroup_path << ". oomd will ignore it.";
       warned_mem_controller_.emplace(absolute_cgroup_path);
     }
 
