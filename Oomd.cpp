@@ -235,7 +235,16 @@ void Oomd::updateContext(
       continue;
     }
 
-    updateContextCgroup(resolved_cgroup, new_ctx);
+    // Despite checking just above if the cgroup directory is valid,
+    // we can still race with a cgroup disappearing. When that happens,
+    // simply abort updating the cgroup.
+    try {
+      updateContextCgroup(resolved_cgroup, new_ctx);
+    } catch (const Fs::bad_control_file& ex) {
+      OLOG << "Caught bad_control_file: " << ex.what() << ". This is OK -- "
+           << "cgroups can disappear when a managed process exits";
+      continue;
+    }
   }
 
   // Update values that depend on the rest of OomdContext being up to date
@@ -514,9 +523,6 @@ int Oomd::run() {
       // Run all the plugins
       engine_->runOnce(ctx);
 
-    } catch (const Fs::bad_control_file& ex) {
-      OLOG << "Caught bad_control_file: " << ex.what();
-      return 1;
     } catch (const std::exception& ex) {
       OLOG << "Caught exception: " << ex.what();
       return 1;

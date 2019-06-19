@@ -166,3 +166,11 @@ TEST_F(OomdTest, CalculateProtectionOverageContrived) {
   EXPECT_EQ(B2, A1);
   EXPECT_GT(B1, B2);
 }
+
+TEST_F(OomdTest, MissingControlFiles) {
+  std::unordered_set<CgroupPath> cgroups;
+  cgroups.emplace(CgroupPath(cgroup_path, "missing_control_files.slice"));
+
+  ASSERT_NO_THROW(oomd->updateContext(cgroups, ctx));
+  EXPECT_EQ(ctx.cgroups().size(), 0);
+}
