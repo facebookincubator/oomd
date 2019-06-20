@@ -47,6 +47,9 @@ and some examples.
 See [docs/core_plugins.md](docs/core_plugins.md) for a quick reference on
 core plugin capabilities.
 
+See [docs/production_setup.md] for guidelines on how oomd should be set up
+in a production environment.
+
 ## Running tests
 
 oomd depends on [gtest/gmock][5] to run tests. Installing gtest/gmock from master
