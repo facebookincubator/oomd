@@ -100,7 +100,6 @@ class Fs {
       const std::string& path,
       PressureType type = PressureType::FULL);
   static int64_t readMemcurrent(const std::string& path);
-  static int64_t readMemcurrentWildcard(const std::string& path);
   static ResourcePressure readMempressure(
       const std::string& path,
       PressureType type = PressureType::FULL);

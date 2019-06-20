@@ -160,11 +160,6 @@ TEST(FsTest, ReadMemoryCurrent) {
   EXPECT_EQ(Fs::readMemcurrent(dir), 987654321);
 }
 
-TEST(FsTest, ReadMemoryCurrentWildcard) {
-  std::string dir(kCgroupRootDir);
-  EXPECT_EQ(Fs::readMemcurrentWildcard(dir + "/*"), 1975308642);
-}
-
 TEST(FsTest, ReadMemoryLow) {
   std::string dir(kCgroupDataDir);
   EXPECT_EQ(Fs::readMemlow(dir), 333333);

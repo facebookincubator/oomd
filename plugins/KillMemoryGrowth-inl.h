@@ -142,11 +142,6 @@ template <typename Base>
 bool KillMemoryGrowth<Base>::tryToKillBySize(
     OomdContext& ctx,
     bool ignore_threshold) {
-  int64_t cur_memcurrent = 0;
-  for (const auto& cgroup : cgroups_) {
-    cur_memcurrent += Fs::readMemcurrentWildcard(cgroup.absolutePath());
-  }
-
   // Sort all the cgroups by (size - memory.low) and remove all the cgroups
   // we are not assigned to kill
   auto size_sorted = ctx.reverseSort([](const CgroupContext& cgroup_ctx) {
@@ -154,6 +149,11 @@ bool KillMemoryGrowth<Base>::tryToKillBySize(
   });
   Base::removeSiblingCgroups(cgroups_, size_sorted);
   OomdContext::dumpOomdContext(size_sorted, !debug_);
+
+  int64_t cur_memcurrent = 0;
+  for (const auto& state_pair : size_sorted) {
+    cur_memcurrent += state_pair.second.current_usage;
+  }
 
   // First try to kill the biggest cgroup over it's assigned memory.low
   for (const auto& state_pair : size_sorted) {
