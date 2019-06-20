@@ -26,15 +26,22 @@
 #include "oomd/Log.h"
 #include "oomd/Oomd.h"
 #include "oomd/PluginRegistry.h"
+#include "oomd/config/CompactConfigParser.h"
 #include "oomd/config/ConfigCompiler.h"
 #include "oomd/config/JsonConfigParser.h"
 #include "oomd/include/Assert.h"
 #include "oomd/include/CgroupPath.h"
 #include "oomd/include/Defines.h"
 #include "oomd/util/Fs.h"
+#include "oomd/util/Util.h"
 
 static constexpr auto kConfigFilePath = "/etc/oomd.json";
 static constexpr auto kCgroupFsRoot = "/sys/fs/cgroup";
+
+enum class ConfigFormat {
+  JSON = 0,
+  COMPACT,
+};
 
 static void printUsage() {
   std::cerr
@@ -47,6 +54,10 @@ static void printUsage() {
          "  --check-config, -c CONFIG  Check config file (default: /etc/oomd.json)\n"
          "  --list-plugins, -l         List all available plugins\n"
          "  --drop-in-dir, -w DIR      Directory to watch for drop in configs\n"
+         "  -Xoption=value             Additional options\n"
+         "\n"
+         "additional options:\n"
+         "  -Xconfig=[json|compact]\n"
       << std::endl;
 }
 
@@ -74,17 +85,29 @@ static bool cgroup_fs_valid(std::string& path) {
 }
 
 static std::unique_ptr<Oomd::Config2::IR::Root> parseConfig(
+    ConfigFormat format,
     const std::string& flag_conf_file) {
+  std::unique_ptr<Oomd::Config2::IR::Root> ir;
+
   std::ifstream conf_file(flag_conf_file, std::ios::in);
   if (!conf_file.is_open()) {
-    std::cerr << "Could not open confg_file=" << flag_conf_file << std::endl;
+    std::cerr << "Could not open config_file=" << flag_conf_file << std::endl;
     return nullptr;
   }
 
   std::stringstream buf;
   buf << conf_file.rdbuf();
-  Oomd::Config2::JsonConfigParser json_parser;
-  auto ir = json_parser.parse(buf.str());
+
+  if (format == ConfigFormat::JSON) {
+    Oomd::Config2::JsonConfigParser json_parser;
+    ir = json_parser.parse(buf.str());
+  } else if (format == ConfigFormat::COMPACT) {
+    Oomd::Config2::CompactConfigParser compact_parser;
+    ir = compact_parser.parse(buf.str());
+  } else {
+    std::cerr << "Unhandled config parser format" << std::endl;
+  }
+
   if (!ir) {
     std::cerr << "Could not parse conf_file=" << flag_conf_file << std::endl;
     return nullptr;
@@ -93,17 +116,45 @@ static std::unique_ptr<Oomd::Config2::IR::Root> parseConfig(
   return ir;
 }
 
+static int processAdditionalOptions(
+    const std::string& opt_pair,
+    ConfigFormat& config_format) {
+  auto parts = Oomd::Util::split(opt_pair, '=');
+  if (parts.size() != 2) {
+    std::cerr << "Invalid option=\"" << opt_pair << "\"" << std::endl;
+    return 1;
+  }
+
+  for (auto& p : parts) {
+    Oomd::Util::strip(p);
+  }
+
+  if (parts[0] == "config") {
+    if (parts[1] == "json") {
+      config_format = ConfigFormat::JSON;
+    } else if (parts[1] == "compact") {
+      config_format = ConfigFormat::COMPACT;
+    } else {
+      std::cerr << "Unrecognized config format=" << parts[1] << std::endl;
+      return 1;
+    }
+  }
+
+  return 0;
+}
+
 int main(int argc, char** argv) {
   std::string flag_conf_file = kConfigFilePath;
   std::string cgroup_fs = kCgroupFsRoot;
   std::string drop_in_dir;
   int interval = 5;
   bool should_check_config = false;
+  ConfigFormat config_format = ConfigFormat::JSON;
 
   int option_index = 0;
   int c = 0;
 
-  const char* const short_options = "hC:w:i:f:c:l";
+  const char* const short_options = "hC:w:i:f:c:lX:";
   option long_options[] = {
       option{"help", no_argument, nullptr, 'h'},
       option{"config", required_argument, nullptr, 'C'},
@@ -112,6 +163,7 @@ int main(int argc, char** argv) {
       option{"check-config", required_argument, nullptr, 'c'},
       option{"list-plugins", no_argument, nullptr, 'l'},
       option{"drop-in-dir", required_argument, nullptr, 'w'},
+      option{"", required_argument, nullptr, 'X'},
       option{nullptr, 0, nullptr, 0}};
 
   while ((c = getopt_long(
@@ -142,6 +194,11 @@ int main(int argc, char** argv) {
         break;
       case 'f':
         cgroup_fs = std::string(optarg);
+        break;
+      case 'X':
+        if (processAdditionalOptions(std::string(optarg), config_format)) {
+          return 1;
+        }
         break;
       case 0:
         break;
@@ -176,7 +233,7 @@ int main(int argc, char** argv) {
   }
 
   if (should_check_config) {
-    auto ir = parseConfig(flag_conf_file);
+    auto ir = parseConfig(config_format, flag_conf_file);
     if (!ir) {
       return 1;
     }
@@ -203,7 +260,7 @@ int main(int argc, char** argv) {
   std::cerr << "oomd running with conf_file=" << flag_conf_file
             << " interval=" << interval << std::endl;
 
-  auto ir = parseConfig(flag_conf_file);
+  auto ir = parseConfig(config_format, flag_conf_file);
   if (!ir) {
     return EXIT_CANT_RECOVER;
   }

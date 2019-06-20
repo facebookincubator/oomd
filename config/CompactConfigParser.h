@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019-present, Facebook, Inc.
+ * Copyright (C) 2018-present, Facebook, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -17,23 +17,17 @@
 
 #pragma once
 
-#include <cstdint>
-#include <string>
-#include <vector>
+#include <memory>
+
+#include "oomd/config/ConfigTypes.h"
 
 namespace Oomd {
+namespace Config2 {
 
-class Util {
+class CompactConfigParser {
  public:
-  static constexpr auto kWhitespace = " \t\n";
-
-  static int parseSize(const std::string& input, int64_t* output);
-
-  /* Split string into tokens by delim */
-  static std::vector<std::string> split(const std::string& line, char delim);
-
-  static void strip(std::string& str);
-  static bool isBlank(const std::string& str);
+  std::unique_ptr<IR::Root> parse(const std::string& input);
 };
 
+} // namespace Config2
 } // namespace Oomd

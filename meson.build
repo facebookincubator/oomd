@@ -23,6 +23,7 @@ srcs = files('''
     config/ConfigCompiler.cpp
     config/ConfigTypes.cpp
     config/JsonConfigParser.cpp
+    config/CompactConfigParser.cpp
     engine/DetectorGroup.cpp
     engine/Engine.cpp
     engine/Ruleset.cpp
