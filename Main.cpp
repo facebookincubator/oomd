@@ -68,7 +68,7 @@ static bool system_reqs_met() {
   return false;
 }
 
-static bool cgroup_fs_valid(std::string& path) {
+static bool cgroup_fs_valid(const std::string& path) {
   std::string cgroup2ParentPath = Oomd::Fs::getCgroup2MountPoint();
   return Oomd::Fs::isUnderParentPath(cgroup2ParentPath, path);
 }
@@ -196,7 +196,7 @@ int main(int argc, char** argv) {
   }
 
   if (!cgroup_fs_valid(cgroup_fs)) {
-    std::cerr << "cgroup path not valid\n";
+    std::cerr << cgroup_fs << " is not a valid cgroup2 filesystem" << std::endl;
     return EXIT_CANT_RECOVER;
   }
 
