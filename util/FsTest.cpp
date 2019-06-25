@@ -91,22 +91,17 @@ TEST(FsTest, ResolveWildcardedPathRelative) {
   std::string wildcarded_path_some = "/this/path/is*/going/to/be/long/file";
   auto resolved = Fs::resolveWildcardPath(dir + wildcarded_path_some);
   ASSERT_EQ(resolved.size(), 2);
+  EXPECT_THAT(resolved, Contains(dir + "/this/path/is/going/to/be/long/file"));
   EXPECT_THAT(
-      resolved, Contains("./" + dir + "/this/path/is/going/to/be/long/file"));
-  EXPECT_THAT(
-      resolved,
-      Contains("./" + dir + "/this/path/isNOT/going/to/be/long/file"));
+      resolved, Contains(dir + "/this/path/isNOT/going/to/be/long/file"));
 
   std::string wildcarded_path_all = "/this/path/*/going/to/be/long/file";
   resolved = Fs::resolveWildcardPath(dir + wildcarded_path_all);
   ASSERT_EQ(resolved.size(), 3);
+  EXPECT_THAT(resolved, Contains(dir + "/this/path/is/going/to/be/long/file"));
   EXPECT_THAT(
-      resolved, Contains("./" + dir + "/this/path/is/going/to/be/long/file"));
-  EXPECT_THAT(
-      resolved,
-      Contains("./" + dir + "/this/path/isNOT/going/to/be/long/file"));
-  EXPECT_THAT(
-      resolved, Contains("./" + dir + "/this/path/WAH/going/to/be/long/file"));
+      resolved, Contains(dir + "/this/path/isNOT/going/to/be/long/file"));
+  EXPECT_THAT(resolved, Contains(dir + "/this/path/WAH/going/to/be/long/file"));
 
   resolved = Fs::resolveWildcardPath(dir + "/not/a/valid/dir");
   ASSERT_EQ(resolved.size(), 0);
@@ -117,6 +112,32 @@ TEST(FsTest, ResolveWildcardedPathAbsolute) {
   ASSERT_EQ(resolved.size(), 2);
   EXPECT_THAT(resolved, Contains("/proc/vmstat"));
   EXPECT_THAT(resolved, Contains("/proc/vmallocinfo"));
+}
+
+TEST(FsTest, ResolveCgroupWildcardPath) {
+  std::string root_fs(kFsDataDir);
+  root_fs += "/wildcard";
+
+  auto resolved = Fs::resolveCgroupWildcardPath(
+      CgroupPath{root_fs, "/this/path/is*/going/to/be/long/file"});
+  ASSERT_EQ(resolved.size(), 2);
+
+  EXPECT_THAT(
+      resolved,
+      Contains(CgroupPath(root_fs, "/this/path/is/going/to/be/long/file")));
+  EXPECT_THAT(
+      resolved,
+      Contains(CgroupPath(root_fs, "/this/path/isNOT/going/to/be/long/file")));
+
+  // Verify root_fs is correctly separated from relative path
+  auto it_one =
+      resolved.find(CgroupPath(root_fs, "/this/path/is/going/to/be/long/file"));
+  ASSERT_NE(it_one, resolved.end());
+  EXPECT_EQ(it_one->cgroupFs(), root_fs);
+  auto it_two = resolved.find(
+      CgroupPath(root_fs, "/this/path/isNOT/going/to/be/long/file"));
+  ASSERT_NE(it_two, resolved.end());
+  EXPECT_EQ(it_two->cgroupFs(), root_fs);
 }
 
 TEST(FsTest, ReadFile) {

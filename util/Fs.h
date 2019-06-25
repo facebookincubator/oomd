@@ -23,6 +23,7 @@
 #include <unordered_set>
 #include <vector>
 
+#include "oomd/include/CgroupPath.h"
 #include "oomd/include/Types.h"
 
 namespace Oomd {
@@ -77,6 +78,8 @@ class Fs {
    */
   static std::unordered_set<std::string> resolveWildcardPath(
       const std::string& path);
+  static std::unordered_set<CgroupPath> resolveCgroupWildcardPath(
+      const CgroupPath& path);
 
   /*
    * Path aware prefix removal.
