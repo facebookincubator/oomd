@@ -50,8 +50,7 @@ oomd configs have a loosely defined BNF:
 
     ROOT:
     {
-        "rulesets": [ RULESET[,RULESET[,...]]  ],
-        "version": "1.0.0"
+        "rulesets": [ RULESET[,RULESET[,...]]  ]
     }
 
 In plain english, the general idea is that each oomd config one or more
@@ -160,8 +159,7 @@ config front end.
                     }
                 ]
             }
-        ],
-        "version": "1.0.0"
+        ]
     }
 
 This config, in english, says the following:
