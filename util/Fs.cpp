@@ -140,6 +140,42 @@ std::unordered_set<std::string> Fs::resolveWildcardPath(
     }
   }
 
+  // Clean up paths a little
+  //
+  // Note we can't do an in-place modification b/c std::unordered_set needs
+  // to hash elements and disallows any modifications to while iterating. We
+  // must instead batch deletes and inserts.
+  std::unordered_set<std::string> to_remove;
+  std::unordered_set<std::string> to_add;
+  for (const auto& p : ret) {
+    // Remove leading "./"
+    if (p.size() >= 2 && p.at(0) == '.' && p.at(1) == '/') {
+      to_remove.emplace(p);
+      to_add.emplace(p.substr(2));
+    }
+  }
+  for (const auto& p : to_remove) {
+    ret.erase(p);
+  }
+  ret.insert(to_add.begin(), to_add.end());
+
+  return ret;
+}
+
+std::unordered_set<CgroupPath> Fs::resolveCgroupWildcardPath(
+    const CgroupPath& path) {
+  std::unordered_set<CgroupPath> ret;
+  auto resolved_raw_paths = resolveWildcardPath(path.absolutePath());
+  for (const auto& raw : resolved_raw_paths) {
+    // The fully resolved path being shorter than the cgroup fs path
+    // should never really happen but we error check anyways
+    if (raw.size() < path.cgroupFs().size()) {
+      continue;
+    }
+
+    ret.emplace(path.cgroupFs(), raw.substr(path.cgroupFs().size()));
+  }
+
   return ret;
 }
 

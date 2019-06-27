@@ -17,11 +17,13 @@
 
 #include "oomd/plugins/DumpCgroupOverview.h"
 
+#include <exception>
 #include <iomanip>
 #include <sstream>
 
 #include "oomd/Log.h"
 #include "oomd/PluginRegistry.h"
+#include "oomd/include/CgroupPath.h"
 #include "oomd/util/Fs.h"
 #include "oomd/util/Util.h"
 
@@ -30,15 +32,18 @@ auto constexpr kCgroupFs = "/sys/fs/cgroup";
 auto constexpr kPgscanSwap = "pgscan_kswapd";
 auto constexpr kPgscanDirect = "pgscan_direct";
 
-void dumpCgroupOverview(const std::string& absolute_cgroup_path, bool always) {
+void dumpCgroupOverview(
+    const Oomd::CgroupPath& path,
+    const Oomd::CgroupContext& cgroup_ctx,
+    bool always) {
   // Only log on exceptional cases
-  const auto pressure = Oomd::Fs::readMempressure(absolute_cgroup_path);
+  const auto& pressure = cgroup_ctx.pressure;
   bool should_dump = (always || (pressure.sec_10 >= 1 && pressure.sec_60 > 0));
   if (!should_dump) {
     return;
   }
 
-  const int64_t current = Oomd::Fs::readMemcurrent(absolute_cgroup_path);
+  const int64_t current = cgroup_ctx.current_usage;
   auto meminfo = Oomd::Fs::getMeminfo();
   const int64_t swapfree = meminfo["SwapFree"];
   const int64_t swaptotal = meminfo["SwapTotal"];
@@ -47,7 +52,7 @@ void dumpCgroupOverview(const std::string& absolute_cgroup_path, bool always) {
 
   std::ostringstream oss;
   oss << std::setprecision(2) << std::fixed;
-  oss << "cgroup=" << absolute_cgroup_path << " total=" << current / 1024 / 1024
+  oss << "cgroup=" << path.relativePath() << " total=" << current / 1024 / 1024
       << "MB pressure=" << pressure.sec_10 << ":" << pressure.sec_60 << ":"
       << pressure.sec_600 << " swapfree=" << swapfree / 1024 / 1024 << "MB/"
       << swaptotal / 1024 / 1024 << "MB pgscan=" << pgscan;
@@ -85,15 +90,21 @@ int DumpCgroupOverview::init(
   return 0;
 }
 
-Engine::PluginRet DumpCgroupOverview::run(OomdContext& /* unused */) {
-  std::unordered_set<std::string> resolved_cgroups;
+Engine::PluginRet DumpCgroupOverview::run(OomdContext& ctx) {
+  std::unordered_set<CgroupPath> resolved_cgroups;
   for (const auto& cgroup : cgroups_) {
-    auto resolved = Fs::resolveWildcardPath(cgroup.absolutePath());
+    auto resolved = Fs::resolveCgroupWildcardPath(cgroup);
     resolved_cgroups.insert(resolved.begin(), resolved.end());
   }
 
   for (const auto& resolved : resolved_cgroups) {
-    dumpCgroupOverview(resolved, always_);
+    try {
+      const CgroupContext& cgroup_ctx = ctx.getCgroupContext(resolved);
+      dumpCgroupOverview(resolved, cgroup_ctx, always_);
+    } catch (const std::invalid_argument& ex) {
+      // cgroup is ignored or omitted
+      continue;
+    }
   }
 
   return Engine::PluginRet::CONTINUE;
