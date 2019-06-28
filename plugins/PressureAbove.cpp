@@ -84,8 +84,12 @@ Engine::PluginRet PressureAbove::run(OomdContext& /* unused */) {
 
   std::unordered_set<std::string> resolved_cgroups;
   for (const auto& cgroup : cgroups_) {
-    auto resolved = Fs::resolveWildcardPath(cgroup.absolutePath());
-    resolved_cgroups.insert(resolved.begin(), resolved.end());
+    if (cgroup.isRoot()) {
+      resolved_cgroups.insert("/");
+    } else {
+      auto resolved = Fs::resolveWildcardPath(cgroup.absolutePath());
+      resolved_cgroups.insert(resolved.begin(), resolved.end());
+    }
   }
   ResourcePressure current_pressure;
   int64_t current_memory_usage = 0;

@@ -324,15 +324,28 @@ ResourcePressure Fs::readRespressure(
 }
 
 int64_t Fs::readMemcurrent(const std::string& path) {
-  auto lines = readFileByLine(path + "/" + kMemCurrentFile);
-  OCHECK_EXCEPT(lines.size() == 1, bad_control_file(path + ": missing file"));
-  return static_cast<int64_t>(std::stoll(lines[0]));
+  if (path == "/") {
+    auto meminfo = getMeminfo("/proc/meminfo");
+    return meminfo["MemTotal"] - meminfo["MemFree"];
+  } else {
+    auto lines = readFileByLine(path + "/" + kMemCurrentFile);
+    OCHECK_EXCEPT(lines.size() == 1, bad_control_file(path + ": missing file"));
+    return static_cast<int64_t>(std::stoll(lines[0]));
+  }
 }
 
 ResourcePressure Fs::readMempressure(
     const std::string& path,
     PressureType type) {
-  return readRespressure(path + "/" + kMemPressureFile, type);
+  if (path == "/") {
+    try {
+      return readRespressure("/proc/pressure/memory", type);
+    } catch (const bad_control_file& e) {
+      return readRespressure("/proc/mempressure", type);
+    }
+  } else {
+    return readRespressure(path + "/" + kMemPressureFile, type);
+  }
 }
 
 int64_t Fs::readMinMaxLowHigh(
@@ -428,14 +441,11 @@ std::unordered_map<std::string, int64_t> Fs::getMemstat(
 ResourcePressure Fs::readIopressure(
     const std::string& path,
     PressureType type) {
-  const std::string ioPressurePath = path + "/" + kIoPressureFile;
-
-  // earlier kernels had only mempressure, throw an exception if missing
-  std::ifstream f(ioPressurePath, std::ios::in);
-  if (!f.is_open()) {
-    throw std::system_error(ENOENT, std::system_category());
+  if (path == "/") {
+    return readRespressure("/proc/pressure/io", type);
+  } else {
+    return readRespressure(path + "/" + kIoPressureFile, type);
   }
-  return readRespressure(ioPressurePath, type);
 }
 
 void Fs::writeMemhigh(const std::string& path, int64_t value) {

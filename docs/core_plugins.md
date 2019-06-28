@@ -28,6 +28,8 @@ cgroup=system.slice, we would be monitoring everything inside system.slice.
 
 Note that extra spaces are not permitted betwen ','s.
 
+The root host can be encoded as "/".
+
 `resource` is io|memory
 
 CONTINUE if 1m pressure > `threshold` for longer than `duration` && trending
@@ -117,6 +119,7 @@ STOP otherwise.
 
 ### Description
 `cgroup` has the same semantics and features as `pressure_rising_beyond`.
+However, this detector cannot monitor the root host.
 
 Dumps the system overview for `cgroup` to stderr if memory pressure is
 non-negligible.
