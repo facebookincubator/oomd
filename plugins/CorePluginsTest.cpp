@@ -677,13 +677,16 @@ TEST(SwapFree, LowSwap) {
 
   Engine::MonitoredResources resources;
   Engine::PluginArgs args;
-  args["swaps_location"] = "oomd/fixtures/plugins/swap_free/low_swap";
   args["threshold_pct"] = "20";
   args["duration"] = "0";
 
   ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
 
   OomdContext ctx;
+  SystemContext system_ctx;
+  system_ctx.swaptotal = static_cast<uint64_t>(20971512) * 1024;
+  system_ctx.swapused = static_cast<uint64_t>(20971440) * 1024;
+  ctx.setSystemContext(system_ctx);
   EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::CONTINUE);
 }
 
@@ -693,13 +696,16 @@ TEST(SwapFree, EnoughSwap) {
 
   Engine::MonitoredResources resources;
   Engine::PluginArgs args;
-  args["swaps_location"] = "oomd/fixtures/plugins/swap_free/enough_swap";
   args["threshold_pct"] = "20";
   args["duration"] = "0";
 
   ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
 
   OomdContext ctx;
+  SystemContext system_ctx;
+  system_ctx.swaptotal = static_cast<uint64_t>(20971512) * 1024;
+  system_ctx.swapused = static_cast<uint64_t>(3310136) * 1024;
+  ctx.setSystemContext(system_ctx);
   EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
 }
 
@@ -709,7 +715,6 @@ TEST(SwapFree, SwapOff) {
 
   Engine::MonitoredResources resources;
   Engine::PluginArgs args;
-  args["swaps_location"] = "oomd/fixtures/plugins/swap_free/no_swap";
   args["threshold_pct"] = "20";
   args["duration"] = "0";
 

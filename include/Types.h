@@ -52,4 +52,9 @@ class CgroupContext {
   }
 };
 
+struct SystemContext {
+  uint64_t swaptotal{0};
+  uint64_t swapused{0};
+};
+
 } // namespace Oomd

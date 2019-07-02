@@ -113,7 +113,13 @@ class OomdContext {
    * triggered it
    */
   const ActionContext& getActionContext() const;
-  void setActionContext(ActionContext context);
+  void setActionContext(const ActionContext& context);
+
+  /**
+   * Used to let action plugins retrieve and set info stored in struct
+   */
+  const SystemContext& getSystemContext() const;
+  void setSystemContext(const SystemContext& context);
 
  private:
   std::shared_ptr<CgroupNode> addToTree(
@@ -128,6 +134,7 @@ class OomdContext {
   // Read cache so we don't have to walk the tree for read ops
   std::unordered_map<CgroupPath, std::shared_ptr<CgroupNode>> memory_state_;
   ActionContext action_context_;
+  SystemContext system_ctx_;
 };
 
 } // namespace Oomd

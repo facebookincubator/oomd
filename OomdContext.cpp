@@ -104,8 +104,16 @@ const ActionContext& OomdContext::getActionContext() const {
   return action_context_;
 }
 
-void OomdContext::setActionContext(ActionContext context) {
+void OomdContext::setActionContext(const ActionContext& context) {
   action_context_ = context;
+}
+
+const SystemContext& OomdContext::getSystemContext() const {
+  return system_ctx_;
+}
+
+void OomdContext::setSystemContext(const SystemContext& context) {
+  system_ctx_ = context;
 }
 
 void OomdContext::dump() {

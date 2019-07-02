@@ -40,6 +40,7 @@
 #include "oomd/include/Assert.h"
 #include "oomd/include/Defines.h"
 #include "oomd/util/Fs.h"
+#include "oomd/util/Util.h"
 
 static constexpr auto kMaxEvents = 10;
 
@@ -267,6 +268,23 @@ void Oomd::updateContext(
     new_ctx.setCgroupContext(key, new_cgroup_ctx);
   }
 
+  // Update information about swapfree
+  SystemContext system_ctx;
+  auto swaps = Fs::readFileByLine("/proc/swaps");
+
+  // For each swap, tally up used and total
+  for (size_t i = 1; i < swaps.size(); ++i) {
+    auto parts = Util::split(swaps[i], '\t');
+    // The /proc/swaps format is pretty bad. The first field is padded by
+    // spaces but the rest of the fields are padded by '\t'. Since we don't
+    // really care about the first field, we'll just split by '\t'.
+    OCHECK_EXCEPT(
+        parts.size() == 4, std::runtime_error("/proc/swaps malformed"));
+    system_ctx.swaptotal += std::stoll(parts[1]) * 1024; // Values are in KB
+    system_ctx.swapused += std::stoll(parts[2]) * 1024; // Values are in KB
+  }
+
+  new_ctx.setSystemContext(system_ctx);
   // update object state
   ctx = std::move(new_ctx);
 }

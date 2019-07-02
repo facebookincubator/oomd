@@ -20,10 +20,6 @@
 #include "oomd/Log.h"
 #include "oomd/PluginRegistry.h"
 #include "oomd/include/Assert.h"
-#include "oomd/util/Fs.h"
-#include "oomd/util/Util.h"
-
-static auto constexpr kProcSwapsFile = "/proc/swaps";
 
 namespace Oomd {
 
@@ -39,33 +35,14 @@ int SwapFree::init(
     return 1;
   }
 
-  if (args.find("swaps_location") != args.end()) {
-    swaps_location_ = args.at("swaps_location");
-  } else {
-    swaps_location_ = kProcSwapsFile;
-  }
-
   // Success
   return 0;
 }
 
-Engine::PluginRet SwapFree::run(OomdContext& /* unused */) {
-  uint64_t swaptotal = 0;
-  uint64_t swapused = 0;
-  auto swaps = Fs::readFileByLine(swaps_location_);
-
-  // For each swap, tally up used and total
-  for (size_t i = 1; i < swaps.size(); ++i) {
-    auto parts = Util::split(swaps[i], '\t');
-    // The /proc/swaps format is pretty bad. The first field is padded by
-    // spaces but the rest of the fields are padded by '\t'. Since we don't
-    // really care about the first field, we'll just split by '\t'.
-    OCHECK_EXCEPT(
-        parts.size() == 4, std::runtime_error("/proc/swaps malformed"));
-    swaptotal += std::stoll(parts[1]) * 1024; // Values are in KB
-    swapused += std::stoll(parts[2]) * 1024; // Values are in KB
-  }
-
+Engine::PluginRet SwapFree::run(OomdContext& ctx) {
+  auto& system_ctx = ctx.getSystemContext();
+  uint64_t swaptotal = system_ctx.swaptotal;
+  uint64_t swapused = system_ctx.swapused;
   const uint64_t swapthres = swaptotal * threshold_pct_ / 100;
   if ((swaptotal - swapused) < swapthres) {
     OLOG << "SwapFree " << (swaptotal - swapused) / 1024 / 1024
