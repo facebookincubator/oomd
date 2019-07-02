@@ -29,6 +29,10 @@ class Util {
 
   /* Split string into tokens by delim */
   static std::vector<std::string> split(const std::string& line, char delim);
+
+  static bool startsWith(
+      const std::string& prefix,
+      const std::string& to_search);
 };
 
 } // namespace Oomd

@@ -224,6 +224,14 @@ TEST(FsTest, ReadMemoryPressure) {
   EXPECT_FLOAT_EQ(pressure2.sec_10, 4.44);
   EXPECT_FLOAT_EQ(pressure2.sec_60, 5.55);
   EXPECT_FLOAT_EQ(pressure2.sec_600, 6.66);
+
+  // old experimental format w/ debug info on
+  auto dir3 = dir + "/service3.service";
+  auto pressure3 = Fs::readMempressure(dir3);
+
+  EXPECT_FLOAT_EQ(pressure3.sec_10, 4.44);
+  EXPECT_FLOAT_EQ(pressure3.sec_60, 5.55);
+  EXPECT_FLOAT_EQ(pressure3.sec_600, 6.66);
 }
 
 TEST(FsTest, ReadMemoryPressureSome) {

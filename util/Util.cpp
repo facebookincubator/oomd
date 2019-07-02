@@ -106,4 +106,18 @@ std::vector<std::string> Util::split(const std::string& line, char delim) {
   return ret;
 }
 
+bool Util::startsWith(const std::string& prefix, const std::string& to_search) {
+  if (prefix.size() > to_search.size()) {
+    return false;
+  }
+
+  for (size_t i = 0; i < prefix.size(); ++i) {
+    if (prefix[i] != to_search[i]) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
 } // namespace Oomd

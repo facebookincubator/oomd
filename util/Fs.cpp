@@ -32,6 +32,32 @@
 #include "oomd/include/Assert.h"
 #include "oomd/util/Util.h"
 
+namespace {
+
+enum class PsiFormat {
+  MISSING = 0, // File is missing
+  INVALID, // Don't recognize
+  EXPERIMENTAL, // Experimental format
+  UPSTREAM, // Upstream kernel format
+};
+
+PsiFormat getPsiFormat(const std::vector<std::string>& lines) {
+  if (lines.size() == 0) {
+    return PsiFormat::MISSING;
+  }
+
+  const auto& first = lines[0];
+  if (Oomd::Util::startsWith("some", first) && lines.size() >= 2) {
+    return PsiFormat::UPSTREAM;
+  } else if (Oomd::Util::startsWith("aggr", first) && lines.size() >= 3) {
+    return PsiFormat::EXPERIMENTAL;
+  } else {
+    return PsiFormat::INVALID;
+  }
+}
+
+}; // namespace
+
 namespace Oomd {
 
 std::vector<std::string> Fs::readDir(const std::string& path, EntryType type) {
@@ -273,53 +299,59 @@ ResourcePressure Fs::readRespressure(
       pressure_line_index = 1;
       break;
   }
-  if (lines.size() == 2) {
-    // Upstream v4.16+ format
-    //
-    // some avg10=0.22 avg60=0.17 avg300=1.11 total=58761459
-    // full avg10=0.22 avg60=0.16 avg300=1.08 total=58464525
-    std::vector<std::string> toks =
-        Util::split(lines[pressure_line_index], ' ');
-    OCHECK_EXCEPT(
-        toks[0] == type_name, bad_control_file(path + ": invalid format"));
-    std::vector<std::string> avg10 = Util::split(toks[1], '=');
-    OCHECK_EXCEPT(
-        avg10[0] == "avg10", bad_control_file(path + ": invalid format"));
-    std::vector<std::string> avg60 = Util::split(toks[2], '=');
-    OCHECK_EXCEPT(
-        avg60[0] == "avg60", bad_control_file(path + ": invalid format"));
-    std::vector<std::string> avg300 = Util::split(toks[3], '=');
-    OCHECK_EXCEPT(
-        avg300[0] == "avg300", bad_control_file(path + ": invalid format"));
-    std::vector<std::string> total = Util::split(toks[4], '=');
-    OCHECK_EXCEPT(
-        total[0] == "total", bad_control_file(path + ": invalid format"));
 
-    return ResourcePressure{
-        std::stof(avg10[1]),
-        std::stof(avg60[1]),
-        std::stof(avg300[1]),
-        std::chrono::microseconds(std::stoull(total[1])),
-    };
-  } else if (lines.size() == 3) {
-    // Old experimental format
-    //
-    // aggr 316016073
-    // some 0.00 0.03 0.05
-    // full 0.00 0.03 0.05
-    std::vector<std::string> toks =
-        Util::split(lines[pressure_line_index + 1], ' ');
-    OCHECK_EXCEPT(
-        toks[0] == type_name, bad_control_file(path + ": invalid format"));
+  switch (getPsiFormat(lines)) {
+    case PsiFormat::UPSTREAM: {
+      // Upstream v4.16+ format
+      //
+      // some avg10=0.22 avg60=0.17 avg300=1.11 total=58761459
+      // full avg10=0.22 avg60=0.16 avg300=1.08 total=58464525
+      std::vector<std::string> toks =
+          Util::split(lines[pressure_line_index], ' ');
+      OCHECK_EXCEPT(
+          toks[0] == type_name, bad_control_file(path + ": invalid format"));
+      std::vector<std::string> avg10 = Util::split(toks[1], '=');
+      OCHECK_EXCEPT(
+          avg10[0] == "avg10", bad_control_file(path + ": invalid format"));
+      std::vector<std::string> avg60 = Util::split(toks[2], '=');
+      OCHECK_EXCEPT(
+          avg60[0] == "avg60", bad_control_file(path + ": invalid format"));
+      std::vector<std::string> avg300 = Util::split(toks[3], '=');
+      OCHECK_EXCEPT(
+          avg300[0] == "avg300", bad_control_file(path + ": invalid format"));
+      std::vector<std::string> total = Util::split(toks[4], '=');
+      OCHECK_EXCEPT(
+          total[0] == "total", bad_control_file(path + ": invalid format"));
 
-    return ResourcePressure{
-        std::stof(toks[1]),
-        std::stof(toks[2]),
-        std::stof(toks[3]),
-    };
-  } else {
-    // Missing the control file
-    throw bad_control_file(path + ": missing file");
+      return ResourcePressure{
+          std::stof(avg10[1]),
+          std::stof(avg60[1]),
+          std::stof(avg300[1]),
+          std::chrono::microseconds(std::stoull(total[1])),
+      };
+    }
+    case PsiFormat::EXPERIMENTAL: {
+      // Old experimental format
+      //
+      // aggr 316016073
+      // some 0.00 0.03 0.05
+      // full 0.00 0.03 0.05
+      std::vector<std::string> toks =
+          Util::split(lines[pressure_line_index + 1], ' ');
+      OCHECK_EXCEPT(
+          toks[0] == type_name, bad_control_file(path + ": invalid format"));
+
+      return ResourcePressure{
+          std::stof(toks[1]),
+          std::stof(toks[2]),
+          std::stof(toks[3]),
+      };
+    }
+    case PsiFormat::MISSING:
+      // Missing the control file
+      throw bad_control_file(path + ": missing file");
+    case PsiFormat::INVALID:
+      throw bad_control_file(path + ": invalid format");
   }
 }
 

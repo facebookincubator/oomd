@@ -61,3 +61,14 @@ TEST(UtilTest, Split) {
   ASSERT_EQ(toks.size(), 1);
   EXPECT_EQ(toks[0], "one two three");
 }
+
+TEST(UtilTest, StartsWith) {
+  EXPECT_TRUE(Util::startsWith("prefix", "prefixThis!"));
+  EXPECT_TRUE(Util::startsWith("x", "xx"));
+  EXPECT_TRUE(Util::startsWith("", "xx"));
+  EXPECT_TRUE(Util::startsWith("", ""));
+
+  EXPECT_FALSE(Util::startsWith("prefix", "prefiyThat!"));
+  EXPECT_FALSE(Util::startsWith("xx", "x"));
+  EXPECT_FALSE(Util::startsWith("x", ""));
+}
