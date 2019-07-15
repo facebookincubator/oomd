@@ -134,16 +134,24 @@ Always returns CONTINUE.
 
     cgroup
     memory
+    memory_scale=1 (optional)
 
 ### Description
 
 `cgroup` has the same format and features as `pressure_rising_beyond`
 but specifies the target cgroups directly rather than the parents.
 
+`memory_scale` is the scale factor to be multipled to memory usage of
+the cgroup. It can be zero or a positive floating point number. For
+example, `1.5` makes the cgroup's memory usage to be scaled up by 50%.
+
 `memory` is the number of bytes to be added to memory usage of the
 cgroup. It can be negative, 0 or positive. It accepts combinations of
 K|M|G|T suffixed components. For example, `1.5M 32K 512` is
 interpreted as 1.5 * 2^20 + 32 * 2^10 + 512 bytes.
+
+When both `memory_scale` and `memory` are specified, `memory_scale` is
+applied first.
 
 Adjustments are applied to the shared context at the time when the
 plugin is invoked and can be updated by later invocations.

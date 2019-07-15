@@ -45,10 +45,11 @@ class CgroupContext {
   int64_t swap_usage{0};
   int64_t anon_usage{0};
   int64_t memory_min{0};
+  float memory_scale{1};
   int64_t memory_adj{0};
 
   int64_t effective_usage() const {
-    return current_usage - memory_protection + memory_adj;
+    return current_usage * memory_scale - memory_protection + memory_adj;
   }
 };
 

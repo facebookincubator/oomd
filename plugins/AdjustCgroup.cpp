@@ -50,6 +50,11 @@ int AdjustCgroup::init(
     return 1;
   }
 
+  if (args.find("memory_scale") != args.end()) {
+    memory_scale_set_ = true;
+    memory_scale_ = std::stof(args.at("memory_scale"));
+  }
+
   if (args.find("memory") != args.end()) {
     memory_adj_set_ = true;
     if (Util::parseSize(args.at("memory"), &memory_adj_) < 0) {
@@ -75,6 +80,14 @@ Engine::PluginRet AdjustCgroup::run(OomdContext& ctx) {
   for (const auto& cgroup : cgroups_) {
     try {
       auto& cgroup_ctx = ctx.getMutableCgroupContext(cgroup);
+
+      if (memory_scale_set_) {
+        cgroup_ctx.memory_scale = memory_scale_;
+        if (debug_) {
+          OLOG << "cgroup \"" << cgroup.relativePath() << "\" "
+               << "memory_scale=" << cgroup_ctx.memory_scale;
+        }
+      }
 
       if (memory_adj_set_) {
         cgroup_ctx.memory_adj = memory_adj_;

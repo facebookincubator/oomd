@@ -38,6 +38,8 @@ class AdjustCgroup : public Engine::BasePlugin {
 
  private:
   std::unordered_set<CgroupPath> cgroups_;
+  bool memory_scale_set_{false};
+  float memory_scale_;
   bool memory_adj_set_{false};
   int64_t memory_adj_;
   bool debug_{false};

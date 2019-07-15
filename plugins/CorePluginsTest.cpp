@@ -98,6 +98,7 @@ TEST(AdjustCgroupPlugin, AdjustCgroupMemory) {
   Engine::PluginArgs args;
   args["cgroup_fs"] = "oomd/fixtures/cgroup";
   args["cgroup"] = "adjust_cgroup";
+  args["memory_scale"] = "1.5";
   args["memory"] = "-8M";
   args["debug"] = "1";
 
@@ -112,7 +113,9 @@ TEST(AdjustCgroupPlugin, AdjustCgroupMemory) {
 
   EXPECT_EQ(cgroup_ctx.effective_usage(), (64 << 20) - (16 << 20));
   EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::CONTINUE);
-  EXPECT_EQ(cgroup_ctx.effective_usage(), (64 << 20) - (16 << 20) - (8 << 20));
+  EXPECT_EQ(
+      cgroup_ctx.effective_usage(),
+      (int64_t)((64 << 20) * 1.5 - (16 << 20) - (8 << 20)));
 }
 
 TEST(BaseKillPlugin, TryToKillCgroupKillsNonRecursive) {
