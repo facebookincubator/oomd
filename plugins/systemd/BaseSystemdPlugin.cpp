@@ -44,6 +44,7 @@ bool BaseSystemdPlugin::talkToSystemdManager(
   OOMD_SCOPE_EXIT {
     sd_bus_error_free(&error);
     sd_bus_message_unref(m);
+    sd_bus_close(bus);
     sd_bus_unref(bus);
   };
 
