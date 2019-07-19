@@ -35,21 +35,21 @@ bool BaseSystemdPlugin::talkToSystemdManager(
     const std::string& method,
     const std::string& service,
     const std::string& mode) {
-  sd_bus_error error = SD_BUS_ERROR_NULL;
-  sd_bus_message* m = nullptr;
-  sd_bus* bus = nullptr;
+  ::sd_bus_error error = SD_BUS_ERROR_NULL;
+  ::sd_bus_message* m = nullptr;
+  ::sd_bus* bus = nullptr;
   const char* path;
   int r;
 
   OOMD_SCOPE_EXIT {
-    sd_bus_error_free(&error);
-    sd_bus_message_unref(m);
-    sd_bus_close(bus);
-    sd_bus_unref(bus);
+    ::sd_bus_error_free(&error);
+    ::sd_bus_message_unref(m);
+    ::sd_bus_close(bus);
+    ::sd_bus_unref(bus);
   };
 
   /* Connect to the system bus */
-  r = sd_bus_open_system(&bus);
+  r = ::sd_bus_open_system(&bus);
   if (r < 0) {
     OLOG << "Failed to connect to system bus: " << strerror(-r);
     return false;
@@ -61,7 +61,7 @@ bool BaseSystemdPlugin::talkToSystemdManager(
   };
 
   /* Issue the method call and store the respons message in m */
-  r = sd_bus_call_method(
+  r = ::sd_bus_call_method(
       bus,
       "org.freedesktop.systemd1", /* service to contact */
       "/org/freedesktop/systemd1", /* object path */
@@ -83,7 +83,7 @@ bool BaseSystemdPlugin::talkToSystemdManager(
   }
 
   /* Parse the response message */
-  r = sd_bus_message_read(m, "o", &path);
+  r = ::sd_bus_message_read(m, "o", &path);
   if (r < 0) {
     OLOG << "Failed to parse response message: " << strerror(-r);
     return false;
