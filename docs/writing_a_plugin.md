@@ -81,6 +81,12 @@ Plugins are required to register themselves to the plugin registry via the
 register your plugin and try to use it in a config, the compilation process
 will fail and oomd will not start up.
 
+Note that `REGISTER_PLUGIN` must be a static factory method that returns
+a pointer to an instance of your plugin allocated on the heap. There is
+not currently support to register custom deleter functions. This means
+you may not use custom allocators (by overloading `new`/`delete` or
+otherwise) to create instances of your plugin.
+
 ## Logging
 
 Plugins are encouraged to use the oomd logging facilities.
