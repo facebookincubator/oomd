@@ -110,6 +110,21 @@ STOP otherwise.
 CONTINUE if percentage of free:total swap drops below `threshold_pct` %.
 STOP otherwise.
 
+## exists
+
+### Arguments
+
+    cgroup
+    negate=false (optional)
+
+### Description
+
+When `negate` is `false`, if `cgroup` exists, CONTINUE. STOP
+otherwise.
+
+When `negate` is `true`, if `cgroup` doesn't exist, CONTINUE. STOP
+otherwise.
+
 ## dump_cgroup_overview
 
 ### Arguments

@@ -727,6 +727,51 @@ TEST(SwapFree, SwapOff) {
   EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
 }
 
+TEST(Exists, Exists) {
+  auto plugin = createPlugin("exists");
+  ASSERT_NE(plugin, nullptr);
+
+  Engine::MonitoredResources resources;
+  Engine::PluginArgs args;
+  args["cgroup_fs"] = "oomd/fixtures/cgroup";
+  args["cgroup"] = "cgroup_A,cgroup_B,cgroup_C";
+
+  ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+
+  OomdContext ctx;
+  auto cgroup_path_C = CgroupPath(args["cgroup_fs"], "cgroup_C");
+  auto cgroup_path_D = CgroupPath(args["cgroup_fs"], "cgroup_D");
+
+  ctx.setCgroupContext(cgroup_path_D, CgroupContext{});
+  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
+
+  ctx.setCgroupContext(cgroup_path_C, CgroupContext{});
+  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::CONTINUE);
+}
+
+TEST(Exists, NotExists) {
+  auto plugin = createPlugin("exists");
+  ASSERT_NE(plugin, nullptr);
+
+  Engine::MonitoredResources resources;
+  Engine::PluginArgs args;
+  args["cgroup_fs"] = "oomd/fixtures/cgroup";
+  args["cgroup"] = "cgroup_A,cgroup_B,cgroup_C";
+  args["negate"] = "true";
+
+  ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+
+  OomdContext ctx;
+  auto cgroup_path_C = CgroupPath(args["cgroup_fs"], "cgroup_C");
+  auto cgroup_path_D = CgroupPath(args["cgroup_fs"], "cgroup_D");
+
+  ctx.setCgroupContext(cgroup_path_D, CgroupContext{});
+  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::CONTINUE);
+
+  ctx.setCgroupContext(cgroup_path_C, CgroupContext{});
+  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
+}
+
 TEST(KillMemoryGrowth, KillsBigCgroup) {
   auto plugin = std::make_shared<KillMemoryGrowth<BaseKillPluginMock>>();
   ASSERT_NE(plugin, nullptr);
