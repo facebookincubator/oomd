@@ -866,7 +866,18 @@ TEST(KillMemoryGrowth, KillsBigCgroupGrowth) {
           .current_usage = 21,
           .average_usage = 5,
       });
+
+  // Do the same thing for a sibling cgroup, but set the growth higher. This
+  // tests that sibling removal occurs for growth kills too.
+  ctx.setCgroupContext(
+      CgroupPath(args["cgroup_fs"], "sibling/cgroup1"),
+      CgroupContext{
+          .current_usage = 99,
+          .average_usage = 5,
+      });
+
   EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
+  EXPECT_THAT(plugin->killed, Not(Contains(888)));
   EXPECT_THAT(plugin->killed, Contains(123));
   EXPECT_THAT(plugin->killed, Contains(456));
 }

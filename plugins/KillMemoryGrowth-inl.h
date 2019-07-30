@@ -187,6 +187,7 @@ bool KillMemoryGrowth<Base>::tryToKillByGrowth(OomdContext& ctx) {
   auto growth_sorted = ctx.reverseSort([](const CgroupContext& cgroup_ctx) {
     return cgroup_ctx.effective_usage();
   });
+  Base::removeSiblingCgroups(cgroups_, growth_sorted);
   const size_t nr = std::ceil(
       growth_sorted.size() *
       (100 - static_cast<double>(growing_size_percentile_)) / 100);
