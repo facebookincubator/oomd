@@ -72,3 +72,33 @@ TEST(UtilTest, StartsWith) {
   EXPECT_FALSE(Util::startsWith("xx", "x"));
   EXPECT_FALSE(Util::startsWith("x", ""));
 }
+
+TEST(UtilTest, Trim) {
+  std::string s = "  sdf  ";
+  Util::trim(s);
+  EXPECT_EQ(s, "sdf");
+
+  std::string s1 = "  as df  ";
+  Util::trim(s1);
+  EXPECT_EQ(s1, "as df");
+
+  std::string s2 = "  asdf";
+  Util::trim(s2);
+  EXPECT_EQ(s2, "asdf");
+
+  std::string s3 = "asdf ";
+  Util::trim(s3);
+  EXPECT_EQ(s3, "asdf");
+
+  std::string s4 = "asdf";
+  Util::trim(s4);
+  EXPECT_EQ(s4, "asdf");
+
+  std::string s5 = "";
+  Util::trim(s5);
+  EXPECT_EQ(s5, "");
+
+  std::string s6 = " \t   \n";
+  Util::trim(s6);
+  EXPECT_EQ(s6, "");
+}

@@ -20,6 +20,18 @@
 #include <algorithm>
 #include <sstream>
 
+static constexpr auto kWhitespaceChars = " \t\n\r";
+
+namespace {
+void ltrim(std::string& s) {
+  s.erase(0, s.find_first_not_of(kWhitespaceChars));
+}
+
+void rtrim(std::string& s) {
+  s.erase(s.find_last_not_of(kWhitespaceChars) + 1);
+}
+} // namespace
+
 namespace Oomd {
 
 // "1.5G"    : 1.5 gigabytes - 1610612736 bytes
@@ -118,6 +130,11 @@ bool Util::startsWith(const std::string& prefix, const std::string& to_search) {
   }
 
   return true;
+}
+
+void Util::trim(std::string& s) {
+  rtrim(s);
+  ltrim(s);
 }
 
 } // namespace Oomd

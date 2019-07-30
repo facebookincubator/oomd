@@ -33,6 +33,9 @@ class Util {
   static bool startsWith(
       const std::string& prefix,
       const std::string& to_search);
+
+  /* Trim spaces from a string */
+  static void trim(std::string& s);
 };
 
 } // namespace Oomd
