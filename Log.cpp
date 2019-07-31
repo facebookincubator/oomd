@@ -27,27 +27,7 @@
 #include <iostream>
 #include <system_error>
 
-namespace {
-ssize_t writeFull(int fd, const char* msg_buf, size_t count) {
-  ssize_t totalBytes = 0;
-  ssize_t r;
-  do {
-    r = ::write(fd, msg_buf, count);
-    if (r == -1) {
-      if (errno == EINTR) {
-        continue;
-      }
-      return r;
-    }
-
-    totalBytes += r;
-    msg_buf += r;
-    count -= r;
-  } while (r != 0 && count); // 0 means EOF
-
-  return totalBytes;
-}
-}; // namespace
+#include "oomd/util/Util.h"
 
 namespace Oomd {
 
@@ -118,7 +98,7 @@ void Log::kmsgLog(const std::string& buf, const std::string& prefix) const {
     if (prefix.size() > 0) {
       message.insert(0, prefix + ": ");
     }
-    auto ret = writeFull(kmsg_fd_, message.data(), message.size());
+    auto ret = Util::writeFull(kmsg_fd_, message.data(), message.size());
     if (ret == -1) {
       perror("error writing");
       OLOG << "Unable to write log to output file";

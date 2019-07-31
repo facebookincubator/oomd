@@ -18,6 +18,12 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
+#include <linux/memfd.h>
+#include <sys/syscall.h>
+#include <unistd.h>
+
+#include <cstring>
+
 #include "oomd/util/Util.h"
 
 using namespace Oomd;
@@ -101,4 +107,21 @@ TEST(UtilTest, Trim) {
   std::string s6 = " \t   \n";
   Util::trim(s6);
   EXPECT_EQ(s6, "");
+}
+
+TEST(UtilTest, ReadWriteFull) {
+  int fd = ::syscall(SYS_memfd_create, "myfile", MFD_CLOEXEC);
+  ASSERT_GE(fd, 0);
+
+  // Write a bunch of data in
+  std::string start(1234567, 'z');
+  EXPECT_EQ(Util::writeFull(fd, start.data(), start.size()), start.size());
+
+  // Seek back to beginning
+  ::lseek(fd, 0, SEEK_SET);
+
+  // Read data back out
+  std::string end(12345678, 'x'); // Note the extra 8
+  EXPECT_EQ(Util::readFull(fd, end.data(), start.size()), start.size());
+  EXPECT_EQ(std::memcmp(start.data(), end.data(), start.size()), 0);
 }

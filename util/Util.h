@@ -23,6 +23,12 @@
 
 namespace Oomd {
 
+/*
+ * Class to hold various utility functions.
+ *
+ * NB: This file *cannot* take any dependency other than standard library
+ * otherwise you will cause circular dependencies elsewhere in the codebase.
+ */
 class Util {
  public:
   static int parseSize(const std::string& input, int64_t* output);
@@ -36,6 +42,19 @@ class Util {
 
   /* Trim spaces from a string */
   static void trim(std::string& s);
+
+  /*
+   * Read and write helpers
+   *
+   * Note that this is not an atomic operation. Multiple syscalls may be
+   * issued to complete this request, and if any syscall fails, the API
+   * will return -1.
+   *
+   * @returns @param count on success, -1 on failure. Will never return
+   * any values other than those two.
+   */
+  static ssize_t readFull(int fd, char* msg_buf, size_t count);
+  static ssize_t writeFull(int fd, const char* msg_buf, size_t count);
 };
 
 } // namespace Oomd

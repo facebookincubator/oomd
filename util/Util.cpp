@@ -17,6 +17,8 @@
 
 #include "oomd/util/Util.h"
 
+#include <unistd.h>
+
 #include <algorithm>
 #include <sstream>
 
@@ -29,6 +31,27 @@ void ltrim(std::string& s) {
 
 void rtrim(std::string& s) {
   s.erase(s.find_last_not_of(kWhitespaceChars) + 1);
+}
+
+template <class F, class T>
+ssize_t wrapFull(F f, int fd, T buf, size_t count) {
+  ssize_t totalBytes = 0;
+  ssize_t r;
+  do {
+    r = f(fd, buf, count);
+    if (r == -1) {
+      if (errno == EINTR) {
+        continue;
+      }
+      return r;
+    }
+
+    totalBytes += r;
+    buf += r;
+    count -= r;
+  } while (r != 0 && count); // 0 means EOF
+
+  return totalBytes;
 }
 } // namespace
 
@@ -135,6 +158,14 @@ bool Util::startsWith(const std::string& prefix, const std::string& to_search) {
 void Util::trim(std::string& s) {
   rtrim(s);
   ltrim(s);
+}
+
+ssize_t Util::readFull(int fd, char* msg_buf, size_t count) {
+  return wrapFull(::read, fd, msg_buf, count);
+}
+
+ssize_t Util::writeFull(int fd, const char* msg_buf, size_t count) {
+  return wrapFull(::write, fd, msg_buf, count);
 }
 
 } // namespace Oomd
