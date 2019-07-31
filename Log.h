@@ -102,29 +102,17 @@ class LogStream {
     return *this;
   }
 
-  template <>
-  LogStream& operator<<<Control>(const Control& ctrl) {
-    switch (ctrl) {
-      case Control::DISABLE:
-        enabled() = false;
-        break;
-      case Control::ENABLE:
-        skip_ = true;
-        enabled() = true;
-        break;
-
-        // Missing default to protect against future enum vals
-    }
-
-    return *this;
-  }
-
  private:
   static bool& enabled();
   // Set this flag to skip processing this log message
   bool skip_{false};
   std::ostringstream stream_;
 };
+
+// Must declare explicit specialization in *namespace* scope (class scope
+// doesn't count) for some weird reason according to the C++ spec.
+template <>
+LogStream& LogStream::operator<<<LogStream::Control>(const Control& ctrl);
 
 template <typename... Args>
 static void OOMD_KMSG_LOG(Args&&... args) {

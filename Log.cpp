@@ -170,4 +170,20 @@ void Log::ioThread(std::ostream& debug_sink) {
   }
 }
 
+template <>
+LogStream& LogStream::operator<<<LogStream::Control>(const Control& ctrl) {
+  switch (ctrl) {
+    case Control::DISABLE:
+      enabled() = false;
+      break;
+    case Control::ENABLE:
+      skip_ = true;
+      enabled() = true;
+      break;
+
+      // Missing default to protect against future enum vals
+  }
+
+  return *this;
+}
 } // namespace Oomd
