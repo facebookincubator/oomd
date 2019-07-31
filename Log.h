@@ -27,21 +27,6 @@
 
 namespace Oomd {
 
-class LogStream {
- public:
-  LogStream() = default;
-  ~LogStream();
-
-  template <typename T>
-  LogStream& operator<<(const T& v) {
-    stream_ << v;
-    return *this;
-  }
-
- private:
-  std::ostringstream stream_;
-};
-
 class Log {
  public:
   Log(const Log& other) = delete;
@@ -88,6 +73,57 @@ class Log {
   bool inline_{true};
   std::thread io_thread_;
   AsyncLogState state_;
+};
+
+class LogStream {
+ public:
+  enum class Control {
+    DISABLE,
+    ENABLE,
+  };
+
+  LogStream() = default;
+  ~LogStream();
+
+  template <typename T>
+  LogStream& operator<<(const T& v) {
+    // If we've previously received a control token to enable the logs,
+    // skip_ should be set b/c we didn't want to print an empty log line.
+    // However, in the event that a user follows the control token with
+    // actual log messages, we should make sure to process the entire log.
+    //
+    // Eg
+    //    OLOG << LogStream::Control::ENABLE << "we should print this";
+    if (skip_) {
+      skip_ = false;
+    }
+
+    stream_ << v;
+    return *this;
+  }
+
+  template <>
+  LogStream& operator<<<Control>(const Control& ctrl) {
+    switch (ctrl) {
+      case Control::DISABLE:
+        enabled() = false;
+        break;
+      case Control::ENABLE:
+        skip_ = true;
+        enabled() = true;
+        break;
+
+        // Missing default to protect against future enum vals
+    }
+
+    return *this;
+  }
+
+ private:
+  static bool& enabled();
+  // Set this flag to skip processing this log message
+  bool skip_{false};
+  std::ostringstream stream_;
 };
 
 template <typename... Args>

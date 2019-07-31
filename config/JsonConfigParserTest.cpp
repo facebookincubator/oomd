@@ -46,6 +46,7 @@ TEST(JsonConfigParserTest, LoadIR) {
   const auto& first = root->rulesets[0];
   EXPECT_EQ(first.name, "my first ruleset");
   ASSERT_EQ(first.dgs.size(), 1);
+  EXPECT_EQ(first.silence_logs, "engine,plugins");
 
   // Check first ruleset drop in config
   EXPECT_TRUE(first.dropin.detectorgroups_enabled);

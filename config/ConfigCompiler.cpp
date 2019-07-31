@@ -22,7 +22,9 @@
 #include "oomd/PluginRegistry.h"
 #include "oomd/engine/BasePlugin.h"
 #include "oomd/engine/DetectorGroup.h"
+#include "oomd/engine/EngineTypes.h"
 #include "oomd/engine/Ruleset.h"
+#include "oomd/util/Util.h"
 
 namespace {
 
@@ -86,12 +88,33 @@ std::unique_ptr<Oomd::Engine::Ruleset> compileRuleset(
     Oomd::Engine::MonitoredResources& resources,
     const Oomd::Config2::IR::Ruleset& ruleset,
     bool dropin) {
+  uint32_t silenced_logs = 0;
   std::vector<std::unique_ptr<Oomd::Engine::DetectorGroup>> detector_groups;
   std::vector<std::unique_ptr<Oomd::Engine::BasePlugin>> actions;
 
   if (ruleset.name.empty()) {
     OLOG << "Ruleset is missing name";
     return nullptr;
+  }
+
+  // Log silencing field is optional
+  if (ruleset.silence_logs.size()) {
+    auto copy = ruleset.silence_logs;
+    Oomd::Util::trim(copy);
+    auto parts = Oomd::Util::split(copy, ',');
+
+    for (auto& part : parts) {
+      Oomd::Util::trim(part);
+
+      if (part == "engine") {
+        silenced_logs |= Oomd::Engine::LogSources::ENGINE;
+      } else if (part == "plugins") {
+        silenced_logs |= Oomd::Engine::LogSources::PLUGINS;
+      } else {
+        OLOG << "Unrecognized log source=" << part;
+        return nullptr;
+      }
+    }
   }
 
   if (!dropin && (ruleset.dgs.empty() || ruleset.acts.empty())) {
@@ -124,7 +147,8 @@ std::unique_ptr<Oomd::Engine::Ruleset> compileRuleset(
       std::move(actions),
       ruleset.dropin.disable_on_drop_in,
       ruleset.dropin.detectorgroups_enabled,
-      ruleset.dropin.actiongroup_enabled);
+      ruleset.dropin.actiongroup_enabled,
+      silenced_logs);
 }
 
 } // namespace

@@ -32,7 +32,8 @@ class Ruleset {
       std::vector<std::unique_ptr<BasePlugin>> action_group,
       bool disable_on_drop_in = false,
       bool detectorgroups_dropin_enabled = false,
-      bool actiongroup_dropin_enabled = false);
+      bool actiongroup_dropin_enabled = false,
+      uint32_t silenced_logs = 0);
   ~Ruleset() = default;
 
   /*
@@ -68,6 +69,7 @@ class Ruleset {
   bool disable_on_drop_in_{false};
   bool detectorgroups_dropin_enabled_{false};
   bool actiongroup_dropin_enabled_{false};
+  uint32_t silenced_logs_{0};
   int32_t numTargeted_{0};
 };
 

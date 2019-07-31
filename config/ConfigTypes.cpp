@@ -51,6 +51,8 @@ void dumpIR(const Root& root) {
          << "DisableOnDrop=" << ruleset.dropin.disable_on_drop_in;
     --indent;
 
+    OLOG << getIndentSpaces(indent) << "SilenceLogs=" << ruleset.silence_logs;
+
     // Print DetectorGroup's
     for (const auto& dg : ruleset.dgs) {
       OLOG << getIndentSpaces(indent) << "DetectorGroup=" << dg.name;

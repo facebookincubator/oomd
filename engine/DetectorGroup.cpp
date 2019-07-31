@@ -18,6 +18,7 @@
 #include "oomd/engine/DetectorGroup.h"
 #include "oomd/Log.h"
 #include "oomd/OomdContext.h"
+#include "oomd/engine/EngineTypes.h"
 
 namespace Oomd {
 namespace Engine {
@@ -27,13 +28,21 @@ DetectorGroup::DetectorGroup(
     std::vector<std::unique_ptr<BasePlugin>> detectors)
     : name_(name), detectors_(std::move(detectors)) {}
 
-bool DetectorGroup::check(OomdContext& context) {
+bool DetectorGroup::check(OomdContext& context, uint32_t silenced_logs) {
   // Note we're running all Detectors so that any detectors keeping sliding
   // windows can update their window
   bool triggered = true;
 
   for (const auto& detector : detectors_) {
+    if (silenced_logs & LogSources::PLUGINS) {
+      OLOG << LogStream::Control::DISABLE;
+    }
+
     PluginRet ret = detector->run(context);
+
+    if (silenced_logs & LogSources::PLUGINS) {
+      OLOG << LogStream::Control::ENABLE;
+    }
 
     switch (ret) {
       case PluginRet::CONTINUE:

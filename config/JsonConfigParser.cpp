@@ -111,6 +111,8 @@ Oomd::Config2::IR::Ruleset parseRuleset(const Json::Value& ruleset) {
 
   ir_ruleset.dropin = parseDropIn(ruleset.get("drop-in", {}));
 
+  ir_ruleset.silence_logs = ruleset.get("silence-logs", {}).asString();
+
   for (const auto& detector_group : ruleset.get("detectors", {})) {
     ir_ruleset.dgs.emplace_back(parseDetectorGroup(detector_group));
   }

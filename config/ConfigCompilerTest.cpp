@@ -295,6 +295,32 @@ TEST_F(CompilerTest, NoInitPlugin) {
   EXPECT_FALSE(engine);
 }
 
+TEST_F(CompilerTest, SilenceLogsParse) {
+  IR::Detector cont;
+  cont.name = "Continue";
+  IR::Action cont_act;
+  cont_act.name = "Continue";
+  IR::DetectorGroup dgroup{.name = "group1", .detectors = {cont}};
+  IR::Ruleset ruleset{
+      .name = "ruleset1",
+      .dgs = {std::move(dgroup)},
+      .acts = {cont_act},
+      .silence_logs = "engine,plugins",
+  };
+  root.rulesets.emplace_back(std::move(ruleset));
+
+  auto engine = compile();
+  EXPECT_TRUE(engine);
+
+  root.rulesets[0].silence_logs = "  engine, plugins \n";
+  engine = compile();
+  EXPECT_TRUE(engine);
+
+  root.rulesets[0].silence_logs = "engine,asdf";
+  engine = compile();
+  EXPECT_FALSE(engine);
+}
+
 TEST_F(DropInCompilerTest, DropInConfig) {
   IR::Detector cont;
   cont.name = "Continue";

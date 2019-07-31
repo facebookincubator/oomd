@@ -17,33 +17,12 @@
 
 #pragma once
 
-#include <memory>
-#include <string>
-#include <vector>
-
-#include "oomd/OomdContext.h"
-#include "oomd/engine/BasePlugin.h"
-
 namespace Oomd {
 namespace Engine {
 
-class DetectorGroup {
- public:
-  DetectorGroup(
-      const std::string& name,
-      std::vector<std::unique_ptr<BasePlugin>> detectors);
-  ~DetectorGroup() = default;
-
-  /*
-   * @return true if no @class Detector returns PluginRet::STOP.
-   */
-  bool check(OomdContext& context, uint32_t silenced_logs);
-
-  const std::string& name() const;
-
- private:
-  std::string name_;
-  std::vector<std::unique_ptr<BasePlugin>> detectors_;
+enum LogSources {
+  ENGINE = 1 << 0,
+  PLUGINS = 1 << 1,
 };
 
 } // namespace Engine

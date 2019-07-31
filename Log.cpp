@@ -51,7 +51,16 @@ ssize_t writeFull(int fd, const char* msg_buf, size_t count) {
 
 namespace Oomd {
 
+bool& LogStream::enabled() {
+  static thread_local bool enabled = true;
+  return enabled;
+}
+
 LogStream::~LogStream() {
+  if (!enabled() || skip_) {
+    return;
+  }
+
   stream_ << std::endl;
   Log::get().debugLog(stream_.str());
 }

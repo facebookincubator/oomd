@@ -67,6 +67,7 @@ struct Ruleset {
   std::vector<DetectorGroup> dgs;
   std::vector<Action> acts;
   DropIn dropin;
+  std::string silence_logs;
 };
 
 struct Root {

@@ -17,6 +17,7 @@
 
 #include "oomd/engine/Ruleset.h"
 #include "oomd/Log.h"
+#include "oomd/engine/EngineTypes.h"
 
 namespace Oomd {
 namespace Engine {
@@ -27,13 +28,15 @@ Ruleset::Ruleset(
     std::vector<std::unique_ptr<BasePlugin>> action_group,
     bool disable_on_drop_in,
     bool detectorgroups_dropin_enabled,
-    bool actiongroup_dropin_enabled)
+    bool actiongroup_dropin_enabled,
+    uint32_t silence_logs)
     : name_(name),
       detector_groups_(std::move(detector_groups)),
       action_group_(std::move(action_group)),
       disable_on_drop_in_(disable_on_drop_in),
       detectorgroups_dropin_enabled_(detectorgroups_dropin_enabled),
-      actiongroup_dropin_enabled_(actiongroup_dropin_enabled) {}
+      actiongroup_dropin_enabled_(actiongroup_dropin_enabled),
+      silenced_logs_(silence_logs) {}
 
 bool Ruleset::mergeWithDropIn(std::unique_ptr<Ruleset> ruleset) {
   if (!ruleset) {
@@ -89,9 +92,11 @@ void Ruleset::runOnce(OomdContext& context) {
   // keeping sliding windows can update their window
   bool run_actions = false;
   for (const auto& dg : detector_groups_) {
-    if (dg->check(context) && !run_actions) {
-      OLOG << "DetectorGroup=" << dg->name()
-           << " has fired for Ruleset=" << name_ << ". Running action chain.";
+    if (dg->check(context, silenced_logs_) && !run_actions) {
+      if (!(silenced_logs_ & LogSources::ENGINE)) {
+        OLOG << "DetectorGroup=" << dg->name()
+             << " has fired for Ruleset=" << name_ << ". Running action chain.";
+      }
       run_actions = true;
       context.setActionContext({name_, dg->name()});
     }
@@ -103,17 +108,32 @@ void Ruleset::runOnce(OomdContext& context) {
 
   // Begin running action chain
   for (const auto& action : action_group_) {
-    OLOG << "Running Action=" << action->getName();
+    if (!(silenced_logs_ & LogSources::ENGINE)) {
+      OLOG << "Running Action=" << action->getName();
+    }
+
+    if (silenced_logs_ & LogSources::PLUGINS) {
+      OLOG << LogStream::Control::DISABLE;
+    }
+
     PluginRet ret = action->run(context);
+
+    if (silenced_logs_ & LogSources::PLUGINS) {
+      OLOG << LogStream::Control::ENABLE;
+    }
 
     switch (ret) {
       case PluginRet::CONTINUE:
-        OLOG << "Action=" << action->getName()
-             << " returned CONTINUE. Continuing action chain.";
+        if (!(silenced_logs_ & LogSources::ENGINE)) {
+          OLOG << "Action=" << action->getName()
+               << " returned CONTINUE. Continuing action chain.";
+        }
         continue;
       case PluginRet::STOP:
-        OLOG << "Action=" << action->getName()
-             << " returned STOP. Terminating action chain.";
+        if (!(silenced_logs_ & LogSources::ENGINE)) {
+          OLOG << "Action=" << action->getName()
+               << " returned STOP. Terminating action chain.";
+        }
         break; // break out of switch
         // missing default to protect against future PluginRet vals
     }

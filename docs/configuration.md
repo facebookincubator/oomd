@@ -40,10 +40,14 @@ oomd configs have a loosely defined BNF:
     "detectors": <bool>,
     "actions": <bool>
 
+    SILENCE_LOGS:
+    "silence-logs": "NAME[,NAME[,...]]"
+
     RULESET:
     [
         NAME,
         DROPIN,
+        SILENCE_LOGS,
         "detectors": [ [DETECTOR_GROUP[,DETECTOR_GROUP[,...]]] ],
         "actions": [ [ACTION[,ACTION[,...]]] ],
     ]
@@ -58,6 +62,12 @@ RULESETs.  Each RULESET has a set of DETECTOR_GROUPs and a set of ACTIONs. Each
 DETECTOR_GROUP has a set of DETECTORs. Both DETECTORs and ACTIONs are PLUGIN
 types. That means _everything_ is a plugin in oomd. The rules on how a
 conforming config is evaulated at runtime are described in the next section.
+
+### Notes
+
+* For `SILENCE_LOGS`, the currently supported log entities are
+  * `engine`: oomd engine logs
+  * `plugins`: logs written by plugins
 
 ## Runtime evaulation rules
 
