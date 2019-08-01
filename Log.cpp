@@ -31,6 +31,10 @@
 
 namespace Oomd {
 
+LogStream::LogStream() : sink_(Log::get()) {}
+
+LogStream::LogStream(LogBase& sink) : sink_(sink) {}
+
 bool& LogStream::enabled() {
   static thread_local bool enabled = true;
   return enabled;
@@ -42,7 +46,7 @@ LogStream::~LogStream() {
   }
 
   stream_ << std::endl;
-  Log::get().debugLog(stream_.str());
+  sink_.debugLog(stream_.str());
 }
 
 Log::Log(int kmsg_fd, std::ostream& debug_sink, bool inl)

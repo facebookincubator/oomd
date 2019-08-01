@@ -29,6 +29,22 @@
 using namespace Oomd;
 using namespace testing;
 
+class MockLog : public LogBase {
+ public:
+  ~MockLog() override = default;
+
+  void kmsgLog(const std::string& /* unused */, const std::string& /* unused */)
+      const override {
+    return;
+  }
+
+  void debugLog(std::string&& buf) override {
+    lines.emplace_back(std::move(buf));
+  }
+
+  std::vector<std::string> lines;
+};
+
 class LogTestKmsg : public ::testing::Test {
  public:
   std::string test_string{"Testing basic logger output!"};
@@ -102,4 +118,68 @@ TEST(LogTestAsyncDebug, LotsOfLines) {
 
     EXPECT_EQ(sstr.str(), expected.str());
   }
+}
+
+TEST(LogStream, Basic) {
+  MockLog log;
+  LogStream(log) << "hello world!";
+  LogStream(log) << "hello world 2!";
+  ASSERT_EQ(log.lines.size(), 2);
+  EXPECT_EQ(log.lines[0], "hello world!\n");
+  EXPECT_EQ(log.lines[1], "hello world 2!\n");
+}
+
+TEST(LogStream, ControlDisable) {
+  MockLog log;
+  LogStream(log) << "one";
+  LogStream(log) << LogStream::Control::DISABLE;
+  LogStream(log) << "two";
+  LogStream(log) << "three";
+  LogStream(log) << LogStream::Control::ENABLE;
+  LogStream(log) << "four";
+  LogStream(log) << "five";
+
+  ASSERT_EQ(log.lines.size(), 3);
+  EXPECT_EQ(log.lines[0], "one\n");
+  EXPECT_EQ(log.lines[1], "four\n");
+  EXPECT_EQ(log.lines[2], "five\n");
+}
+
+TEST(LogStream, ControlDisableEnableAdvanced) {
+  MockLog log;
+  LogStream(log) << "one";
+  LogStream(log) << LogStream::Control::DISABLE << "after disable";
+  LogStream(log) << "two";
+  LogStream(log) << "three";
+  LogStream(log) << LogStream::Control::ENABLE << "after enable";
+
+  ASSERT_EQ(log.lines.size(), 2);
+  EXPECT_EQ(log.lines[0], "one\n");
+  EXPECT_EQ(log.lines[1], "after enable\n");
+
+  log.lines.clear();
+
+  LogStream(log) << LogStream::Control::DISABLE << "after disable"
+                 << LogStream::Control::ENABLE << "after enable";
+  ASSERT_EQ(log.lines.size(), 1);
+  EXPECT_EQ(log.lines[0], "after enable\n");
+}
+
+TEST(LogStream, ControlMany) {
+  MockLog log;
+  LogStream(log) << LogStream::Control::DISABLE << LogStream::Control::ENABLE
+                 << LogStream::Control::DISABLE << LogStream::Control::ENABLE
+                 << LogStream::Control::DISABLE << LogStream::Control::ENABLE
+                 << LogStream::Control::DISABLE << LogStream::Control::ENABLE
+                 << LogStream::Control::DISABLE << LogStream::Control::ENABLE
+                 << LogStream::Control::DISABLE << LogStream::Control::ENABLE
+                 << LogStream::Control::DISABLE << LogStream::Control::ENABLE
+                 << LogStream::Control::DISABLE << LogStream::Control::ENABLE
+                 << LogStream::Control::DISABLE << LogStream::Control::ENABLE
+                 << LogStream::Control::DISABLE << LogStream::Control::ENABLE
+                 << LogStream::Control::DISABLE << LogStream::Control::ENABLE
+                 << "hello world";
+
+  ASSERT_EQ(log.lines.size(), 1);
+  EXPECT_EQ(log.lines[0], "hello world\n");
 }

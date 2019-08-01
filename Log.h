@@ -27,19 +27,28 @@
 
 namespace Oomd {
 
-class Log {
+class LogBase {
+ public:
+  virtual ~LogBase() = default;
+  virtual void kmsgLog(const std::string& buf, const std::string& prefix)
+      const = 0;
+  virtual void debugLog(std::string&& buf) = 0;
+};
+
+class Log : public LogBase {
  public:
   Log(const Log& other) = delete;
   Log& operator=(const Log& other) = delete;
-  ~Log();
+  ~Log() override;
   static bool init();
   static Log&
   get(int kmsg_fd = -1, std::ostream& debug_sink = std::cerr, bool inl = true);
   static std::unique_ptr<Log>
   get_for_unittest(int kmsg_fd, std::ostream& debug_sink, bool inl);
 
-  void kmsgLog(const std::string& buf, const std::string& prefix) const;
-  void debugLog(std::string&& buf);
+  void kmsgLog(const std::string& buf, const std::string& prefix)
+      const override;
+  void debugLog(std::string&& buf) override;
 
  private:
   struct AsyncLogState {
@@ -82,7 +91,8 @@ class LogStream {
     ENABLE,
   };
 
-  LogStream() = default;
+  LogStream();
+  explicit LogStream(LogBase& sink);
   ~LogStream();
 
   template <typename T>
@@ -98,7 +108,18 @@ class LogStream {
       skip_ = false;
     }
 
-    stream_ << v;
+    // Don't store logs unless we're enabled. This helps with interleaved
+    // disabled and enabled states. Eg
+    //    OLOG << LogStream::Control::DISABLE << "blah"
+    //      << LogStream::Control::ENABLE << "asdf";
+    //
+    // Only "asdf" should be printed.
+    //
+    // Without this check, we'd get "blahasdf".
+    if (enabled()) {
+      stream_ << v;
+    }
+
     return *this;
   }
 
@@ -107,6 +128,7 @@ class LogStream {
   // Set this flag to skip processing this log message
   bool skip_{false};
   std::ostringstream stream_;
+  LogBase& sink_;
 };
 
 // Must declare explicit specialization in *namespace* scope (class scope
