@@ -47,8 +47,8 @@ and some examples.
 See [docs/core_plugins.md](docs/core_plugins.md) for a quick reference on
 core plugin capabilities.
 
-See [docs/production_setup.md] for guidelines on how oomd should be set up
-in a production environment.
+See [docs/production_setup.md](docs/production_setup.md) for guidelines on
+how oomd should be set up in a production environment.
 
 ## Running tests
 
