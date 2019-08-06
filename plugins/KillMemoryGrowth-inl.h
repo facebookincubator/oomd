@@ -168,7 +168,8 @@ bool KillMemoryGrowth<Base>::tryToKillBySize(
     OLOG << "Picked \"" << state_pair.first.relativePath() << "\" ("
          << state_pair.second.current_usage / 1024 / 1024
          << "MB) based on size > " << size_threshold_ << "% of total "
-         << cur_memcurrent / 1024 / 1024 << "MB";
+         << cur_memcurrent / 1024 / 1024 << "MB"
+         << (ignore_threshold ? " (size threshold overridden)" : "");
 
     if (Base::tryToKillCgroup(state_pair.first.absolutePath(), true, dry_)) {
       Base::logKill(
