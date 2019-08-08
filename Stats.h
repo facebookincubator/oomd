@@ -34,6 +34,7 @@ class Stats {
    * Initializes stats singleton
    */
   static bool init(const std::string& stats_socket_path);
+  static bool isInit();
 
   /*
    * Returns stats singleton
@@ -68,6 +69,8 @@ class Stats {
   int reset();
 
  private:
+  static bool& isInitInternal();
+
   /*
    * Ensure only get() can construct
    */

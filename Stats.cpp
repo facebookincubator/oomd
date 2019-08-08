@@ -78,7 +78,18 @@ bool Stats::init(const std::string& stats_socket_path) {
     OLOG << "Initializing singleton failed: " << e.what();
     return false;
   }
+
+  isInitInternal() = true;
   return true;
+}
+
+bool Stats::isInit() {
+  return isInitInternal();
+}
+
+bool& Stats::isInitInternal() {
+  static bool init = false;
+  return init;
 }
 
 bool Stats::startSocket() {
@@ -236,18 +247,38 @@ int Stats::reset() {
 }
 
 std::unordered_map<std::string, int> getStats() {
+  if (!Stats::isInit()) {
+    OLOG << "Warning: stats module not initialized";
+    return {};
+  }
+
   return Stats::get().getAll();
 }
 
 int incrementStats(const std::string& key, int val) {
+  if (!Stats::isInit()) {
+    OLOG << "Warning: stats module not initialized";
+    return 1;
+  }
+
   return Stats::get().increment(key, val);
 }
 
 int setStats(const std::string& key, int val) {
+  if (!Stats::isInit()) {
+    OLOG << "Warning: stats module not initialized";
+    return 1;
+  }
+
   return Stats::get().set(key, val);
 }
 
 int resetStats() {
+  if (!Stats::isInit()) {
+    OLOG << "Warning: stats module not initialized";
+    return 1;
+  }
+
   return Stats::get().reset();
 }
 
