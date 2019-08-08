@@ -18,6 +18,7 @@
 #pragma once
 
 #include <sys/un.h>
+#include <atomic>
 #include <unordered_map>
 #include "oomd/Log.h"
 

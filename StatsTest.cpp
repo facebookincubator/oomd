@@ -18,6 +18,13 @@
 #include "oomd/Stats.h"
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
+#include <json/reader.h>
+#include <json/value.h>
+#include <sys/socket.h>
+#include <iostream>
+
+#include "oomd/util/ScopeGuard.h"
+#include "oomd/util/Util.h"
 
 using namespace Oomd;
 using namespace testing;
@@ -65,4 +72,50 @@ TEST_F(StatsTest, BasicStats) {
 TEST_F(StatsTest, InvalidSocketPath) {
   std::string invalid_path = "/var/";
   EXPECT_THROW(Oomd::Stats::get_for_unittest(invalid_path), std::runtime_error);
+}
+
+TEST_F(StatsTest, InvalidRequests) {
+  auto stats_ptr = get_instance();
+  ASSERT_NE(stats_ptr, nullptr);
+  auto& stats = *(stats_ptr);
+  {
+    const std::string msg = "g";
+    auto msg_opt = stats.msgSocket(msg);
+    ASSERT_TRUE(msg_opt);
+    auto& ret_msg = *msg_opt;
+    Json::Value root;
+    Json::Reader reader;
+    ASSERT_TRUE(reader.parse(ret_msg, root));
+    EXPECT_EQ(root["error"], 0);
+  }
+  {
+    const std::string msg = "xlskdjfksdj";
+    auto msg_opt = stats.msgSocket(msg);
+    ASSERT_TRUE(msg_opt);
+    auto& ret_msg = *msg_opt;
+    Json::Value root;
+    Json::Reader reader;
+    ASSERT_TRUE(reader.parse(ret_msg, root));
+    EXPECT_EQ(root["error"], 1);
+  }
+  {
+    const std::string msg = "ysdf\nasdf";
+    auto msg_opt = stats.msgSocket(msg);
+    ASSERT_FALSE(msg_opt);
+  }
+  {
+    const std::string msg = "zsdfasdfasdfasdfasdfasdfasdfadsfasdfasdf";
+    auto msg_opt = stats.msgSocket(msg);
+    ASSERT_FALSE(msg_opt);
+  }
+  {
+    const std::string msg = "";
+    auto msg_opt = stats.msgSocket(msg);
+    ASSERT_TRUE(msg_opt);
+    auto& ret_msg = *msg_opt;
+    Json::Value root;
+    Json::Reader reader;
+    ASSERT_TRUE(reader.parse(ret_msg, root));
+    EXPECT_EQ(root["error"], 1);
+  }
 }

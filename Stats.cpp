@@ -145,7 +145,7 @@ void Stats::runSocket() {
     if (sockfd < 0) {
       OLOG << "Stats server error: accepting connection: "
            << ::strerror_r(errno, err_buf.data(), err_buf.size());
-      break;
+      continue;
     }
     OOMD_SCOPE_EXIT {
       if (::close(sockfd) < 0) {
@@ -154,14 +154,41 @@ void Stats::runSocket() {
       }
     };
     char mode = 'a';
+    char byte_buf;
+    int num_read = 0;
+    for (; num_read < 32; num_read++) {
+      int res = ::read(sockfd, &byte_buf, 1);
+      if (res < 0) { // Error reading
+        OLOG << "Stats server error: reading from socket: "
+             << ::strerror_r(errno, err_buf.data(), err_buf.size());
+        break;
+      } else if (res == 0) { // EOF reached
+        break;
+      }
+      // We read a char
+      if (byte_buf == '\n' || byte_buf == '\0') {
+        break;
+      }
+      if (num_read == 0) { // We only care about the first char
+        mode = byte_buf;
+      }
+    }
+
+    if (num_read == 0) {
+      OLOG << "Stats server error: no msg received";
+    }
 
     Json::Value root;
     root["error"] = 0;
     Json::Value body(Json::objectValue);
     switch (mode) {
       case 'g':
+        for (auto const& pair : getAll()) {
+          body[pair.first] = pair.second;
+        }
         break;
       case 'r':
+        Stats::reset();
         break;
       case '0':
         break;
@@ -174,7 +201,7 @@ void Stats::runSocket() {
     if (Util::writeFull(sockfd, ret.c_str(), strlen(ret.c_str())) < 0) {
       OLOG << "Stats server error: writing to socket: "
            << ::strerror_r(errno, err_buf.data(), err_buf.size());
-      break;
+      continue;
     }
     std::lock_guard<std::mutex> lock(stats_mutex_);
     statsThreadRunning = statsThreadRunning_;
