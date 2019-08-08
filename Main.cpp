@@ -15,6 +15,8 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
+#include <sys/types.h>
+#include <sys/unistd.h>
 #include <cstring>
 #include <fstream>
 #include <iostream>
@@ -26,6 +28,7 @@
 #include "oomd/Log.h"
 #include "oomd/Oomd.h"
 #include "oomd/PluginRegistry.h"
+#include "oomd/Stats.h"
 #include "oomd/config/ConfigCompiler.h"
 #include "oomd/config/JsonConfigParser.h"
 #include "oomd/include/Assert.h"
@@ -35,6 +38,7 @@
 
 static constexpr auto kConfigFilePath = "/etc/oomd.json";
 static constexpr auto kCgroupFsRoot = "/sys/fs/cgroup";
+static constexpr auto kSocketPath = "/run/oomd/oomd-stats.socket";
 
 static void printUsage() {
   std::cerr
@@ -47,6 +51,7 @@ static void printUsage() {
          "  --check-config, -c CONFIG  Check config file (default: /etc/oomd.json)\n"
          "  --list-plugins, -l         List all available plugins\n"
          "  --drop-in-dir, -w DIR      Directory to watch for drop in configs\n"
+         "  --socket-path, -s PATH     Specify stats socket path (default: /run/oomd/oomd-stats.socket)\n"
       << std::endl;
 }
 
@@ -97,13 +102,14 @@ int main(int argc, char** argv) {
   std::string flag_conf_file = kConfigFilePath;
   std::string cgroup_fs = kCgroupFsRoot;
   std::string drop_in_dir;
+  std::string stats_socket_path = kSocketPath;
   int interval = 5;
   bool should_check_config = false;
 
   int option_index = 0;
   int c = 0;
 
-  const char* const short_options = "hC:w:i:f:c:l";
+  const char* const short_options = "hC:w:i:f:c:ls:";
   option long_options[] = {
       option{"help", no_argument, nullptr, 'h'},
       option{"config", required_argument, nullptr, 'C'},
@@ -112,6 +118,7 @@ int main(int argc, char** argv) {
       option{"check-config", required_argument, nullptr, 'c'},
       option{"list-plugins", no_argument, nullptr, 'l'},
       option{"drop-in-dir", required_argument, nullptr, 'w'},
+      option{"socket-path", required_argument, nullptr, 's'},
       option{nullptr, 0, nullptr, 0}};
 
   while ((c = getopt_long(
@@ -142,6 +149,9 @@ int main(int argc, char** argv) {
         break;
       case 'f':
         cgroup_fs = std::string(optarg);
+        break;
+      case 's':
+        stats_socket_path = std::string(optarg);
         break;
       case 0:
         break;
@@ -212,6 +222,11 @@ int main(int argc, char** argv) {
   if (!engine) {
     OLOG << "Config failed to compile";
     return EXIT_CANT_RECOVER;
+  }
+
+  if (!Oomd::Stats::init(stats_socket_path)) {
+    OLOG << "Stats collection failed to initialize";
+    return 1;
   }
 
   Oomd::Oomd oomd(

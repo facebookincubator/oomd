@@ -19,6 +19,7 @@ srcs = files('''
     Log.cpp
     Oomd.cpp
     OomdContext.cpp
+    Stats.cpp
     PluginRegistry.cpp
     config/ConfigCompiler.cpp
     config/ConfigTypes.cpp
@@ -89,6 +90,7 @@ core_tests = [
   ['cpath',    files('include/CgroupPathTest.cpp')],
   ['compiler', files('config/ConfigCompilerTest.cpp')],
   ['plugin',   files('plugins/CorePluginsTest.cpp')],
+  ['stats',    files('StatsTest.cpp')],
 ]
 
 # Optional tests
