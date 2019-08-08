@@ -15,6 +15,7 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
+#include <json/value.h>
 #include <sys/types.h>
 #include <sys/unistd.h>
 #include <cstring>
@@ -29,6 +30,7 @@
 #include "oomd/Oomd.h"
 #include "oomd/PluginRegistry.h"
 #include "oomd/Stats.h"
+#include "oomd/StatsClient.h"
 #include "oomd/config/ConfigCompiler.h"
 #include "oomd/config/JsonConfigParser.h"
 #include "oomd/include/Assert.h"
@@ -52,6 +54,8 @@ static void printUsage() {
          "  --list-plugins, -l         List all available plugins\n"
          "  --drop-in-dir, -w DIR      Directory to watch for drop in configs\n"
          "  --socket-path, -s PATH     Specify stats socket path (default: /run/oomd/oomd-stats.socket)\n"
+         "  --dump-stats, -d           Dump accumulated stats\n"
+         "  --reset-stats, -r          Reset stats collection\n"
       << std::endl;
 }
 
@@ -108,8 +112,10 @@ int main(int argc, char** argv) {
 
   int option_index = 0;
   int c = 0;
+  bool should_dump_stats = false;
+  bool should_reset_stats = false;
 
-  const char* const short_options = "hC:w:i:f:c:ls:";
+  const char* const short_options = "hC:w:i:f:c:ls:dr";
   option long_options[] = {
       option{"help", no_argument, nullptr, 'h'},
       option{"config", required_argument, nullptr, 'C'},
@@ -119,6 +125,8 @@ int main(int argc, char** argv) {
       option{"list-plugins", no_argument, nullptr, 'l'},
       option{"drop-in-dir", required_argument, nullptr, 'w'},
       option{"socket-path", required_argument, nullptr, 's'},
+      option{"dump-stats", no_argument, nullptr, 'd'},
+      option{"reset-stats", no_argument, nullptr, 'r'},
       option{nullptr, 0, nullptr, 0}};
 
   while ((c = getopt_long(
@@ -153,6 +161,12 @@ int main(int argc, char** argv) {
       case 's':
         stats_socket_path = std::string(optarg);
         break;
+      case 'd':
+        should_dump_stats = true;
+        break;
+      case 'r':
+        should_reset_stats = true;
+        break;
       case 0:
         break;
       case '?':
@@ -172,6 +186,42 @@ int main(int argc, char** argv) {
     std::cerr << std::endl;
     printUsage();
     return 1;
+  }
+
+  if (should_dump_stats) {
+    try {
+      Oomd::StatsClient client(stats_socket_path);
+      auto map = client.getStats();
+      if (!map) {
+        std::cerr << "Failed to retrieve stats";
+        return 1;
+      }
+      Json::Value root;
+      for (const auto& pair : *map) {
+        root[pair.first] = pair.second;
+      }
+      std::cout << root.toStyledString() << std::endl;
+    } catch (const std::runtime_error& e) {
+      std::cerr << e.what() << std::endl;
+      return 1;
+    }
+    return 0;
+  }
+
+  if (should_reset_stats) {
+    try {
+      Oomd::StatsClient client(stats_socket_path);
+      int res = client.resetStats();
+      if (res != 0) {
+        std::cerr << "Reset stats error: received error code= " << res
+                  << std::endl;
+        return 1;
+      }
+    } catch (const std::runtime_error& e) {
+      std::cerr << e.what() << std::endl;
+      return 1;
+    }
+    return 0;
   }
 
   // Init oomd logging code

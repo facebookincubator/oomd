@@ -20,6 +20,7 @@ srcs = files('''
     Oomd.cpp
     OomdContext.cpp
     Stats.cpp
+    StatsClient.cpp
     PluginRegistry.cpp
     config/ConfigCompiler.cpp
     config/ConfigTypes.cpp

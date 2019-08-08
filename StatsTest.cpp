@@ -22,6 +22,7 @@
 #include <json/value.h>
 #include <sys/socket.h>
 #include <iostream>
+#include "oomd/StatsClient.h"
 
 #include "oomd/util/ScopeGuard.h"
 #include "oomd/util/Util.h"
@@ -78,9 +79,10 @@ TEST_F(StatsTest, InvalidRequests) {
   auto stats_ptr = get_instance();
   ASSERT_NE(stats_ptr, nullptr);
   auto& stats = *(stats_ptr);
+  auto client = StatsClient(socket_path);
   {
     const std::string msg = "g";
-    auto msg_opt = stats.msgSocket(msg);
+    auto msg_opt = client.msgSocket(msg);
     ASSERT_TRUE(msg_opt);
     auto& ret_msg = *msg_opt;
     Json::Value root;
@@ -90,7 +92,7 @@ TEST_F(StatsTest, InvalidRequests) {
   }
   {
     const std::string msg = "xlskdjfksdj";
-    auto msg_opt = stats.msgSocket(msg);
+    auto msg_opt = client.msgSocket(msg);
     ASSERT_TRUE(msg_opt);
     auto& ret_msg = *msg_opt;
     Json::Value root;
@@ -100,22 +102,98 @@ TEST_F(StatsTest, InvalidRequests) {
   }
   {
     const std::string msg = "ysdf\nasdf";
-    auto msg_opt = stats.msgSocket(msg);
+    auto msg_opt = client.msgSocket(msg);
     ASSERT_FALSE(msg_opt);
   }
   {
     const std::string msg = "zsdfasdfasdfasdfasdfasdfasdfadsfasdfasdf";
-    auto msg_opt = stats.msgSocket(msg);
+    auto msg_opt = client.msgSocket(msg);
     ASSERT_FALSE(msg_opt);
   }
   {
     const std::string msg = "";
-    auto msg_opt = stats.msgSocket(msg);
+    auto msg_opt = client.msgSocket(msg);
     ASSERT_TRUE(msg_opt);
     auto& ret_msg = *msg_opt;
     Json::Value root;
     Json::Reader reader;
     ASSERT_TRUE(reader.parse(ret_msg, root));
     EXPECT_EQ(root["error"], 1);
+  }
+}
+
+TEST_F(StatsTest, BasicGetAndClear) {
+  auto stats = get_instance();
+
+  auto client = StatsClient(socket_path);
+  EXPECT_EQ(client.getStats()->size(), 0);
+  int limit = 3;
+  {
+    // Stats increments, Client Gets and checks
+    for (int i = 0; i < limit; i++) {
+      EXPECT_EQ(stats->increment(std::to_string(i), i), 0);
+    }
+    EXPECT_EQ(stats->getAll().size(), limit);
+    auto client_map_ptr = client.getStats();
+    ASSERT_TRUE(client_map_ptr);
+    auto& client_map = *client_map_ptr;
+    EXPECT_EQ(client_map.size(), limit);
+    for (int i = 0; i < limit; i++) {
+      EXPECT_EQ(client_map[std::to_string(i)], i);
+    }
+  }
+  {
+    // Client Clears, Stats/Client Gets and checks
+    EXPECT_EQ(client.resetStats(), 0);
+    auto stats_map = stats->getAll();
+    EXPECT_EQ(stats_map.size(), limit);
+    for (int i = 0; i < limit; i++) {
+      EXPECT_EQ(stats_map.at(std::to_string(i)), 0);
+    }
+    auto client_map_ptr = client.getStats();
+    ASSERT_TRUE(client_map_ptr);
+    auto& client_map = *client_map_ptr;
+    EXPECT_EQ(client_map.size(), limit);
+    for (int i = 0; i < limit; i++) {
+      EXPECT_EQ(stats_map.at(std::to_string(i)), 0);
+    }
+  }
+}
+
+TEST_F(StatsTest, LongJson) {
+  auto stats = get_instance();
+
+  auto client = StatsClient(socket_path);
+  EXPECT_EQ(client.getStats()->size(), 0);
+  int limit = 10000;
+  {
+    // Stats increments, Client Gets and checks
+    for (int i = 0; i < limit; i++) {
+      EXPECT_EQ(stats->increment(std::to_string(i), i), 0);
+    }
+    EXPECT_EQ(stats->getAll().size(), limit);
+    auto client_map_ptr = client.getStats();
+    ASSERT_TRUE(client_map_ptr);
+    auto& client_map = *client_map_ptr;
+    EXPECT_EQ(client_map.size(), limit);
+    for (int i = 0; i < limit; i++) {
+      EXPECT_EQ(client_map[std::to_string(i)], i);
+    }
+  }
+  {
+    // Client Clears, Stats/Client Gets and checks
+    EXPECT_EQ(client.resetStats(), 0);
+    auto stats_map = stats->getAll();
+    EXPECT_EQ(stats_map.size(), limit);
+    for (int i = 0; i < limit; i++) {
+      EXPECT_EQ(stats_map.at(std::to_string(i)), 0);
+    }
+    auto client_map_ptr = client.getStats();
+    ASSERT_TRUE(client_map_ptr);
+    auto& client_map = *client_map_ptr;
+    EXPECT_EQ(client_map.size(), limit);
+    for (int i = 0; i < limit; i++) {
+      EXPECT_EQ(stats_map.at(std::to_string(i)), 0);
+    }
   }
 }

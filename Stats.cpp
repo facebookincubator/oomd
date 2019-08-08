@@ -28,6 +28,7 @@
 #include <iostream>
 
 #include "oomd/Stats.h"
+#include "oomd/StatsClient.h"
 #include "oomd/util/Fs.h"
 #include "oomd/util/ScopeGuard.h"
 #include "oomd/util/Util.h"
@@ -43,7 +44,8 @@ Stats::Stats(const std::string& stats_socket_path)
 
 Stats::~Stats() {
   statsThreadRunning_ = false;
-  Stats::msgSocket("0");
+  auto client = StatsClient(stats_socket_path_);
+  client.closeSocket();
   if (stats_thread_.joinable()) {
     stats_thread_.join();
   }
@@ -231,55 +233,6 @@ int Stats::reset() {
     stats_[pair.first] = 0;
   }
   return 0;
-}
-
-std::optional<std::string> Stats::msgSocket(const std::string& msg) {
-  std::array<char, 64> err_buf;
-  ::memset(err_buf.data(), '\0', err_buf.size());
-  int sockfd = ::socket(AF_UNIX, SOCK_STREAM, 0);
-  if (sockfd < 0) {
-    std::cerr << "Error: creating client socket: "
-              << ::strerror_r(errno, err_buf.data(), err_buf.size())
-              << std::endl;
-    return std::nullopt;
-  }
-  OOMD_SCOPE_EXIT {
-    if (::close(sockfd) < 0) {
-      std::cerr << "Error: shutting down client socket: "
-                << ::strerror_r(errno, err_buf.data(), err_buf.size())
-                << std::endl;
-    }
-  };
-  if (::connect(sockfd, (struct sockaddr*)&serv_addr_, sizeof(serv_addr_)) <
-      0) {
-    std::cerr << "Error: connecting to stats socket: "
-              << ::strerror_r(errno, err_buf.data(), err_buf.size())
-              << std::endl;
-    return std::nullopt;
-  }
-  std::string msg_full = msg + "\n";
-  if (Util::writeFull(sockfd, msg_full.c_str(), strlen(msg_full.c_str())) < 0) {
-    std::cerr << "Error: writing to stats socket: "
-              << ::strerror_r(errno, err_buf.data(), err_buf.size())
-              << std::endl;
-    return std::nullopt;
-  }
-  std::string ret = "";
-  std::array<char, 512> msg_buf;
-  while (true) {
-    int n = Util::readFull(sockfd, msg_buf.data(), msg_buf.size() - 1);
-    if (n < 0) {
-      std::cerr << "Error: reading from stats socket: "
-                << ::strerror_r(errno, err_buf.data(), err_buf.size())
-                << std::endl;
-      return std::nullopt;
-    } else if (n == 0) {
-      break;
-    }
-    msg_buf[n] = '\0';
-    ret += std::string(msg_buf.data());
-  }
-  return std::optional<std::string>{ret};
 }
 
 std::unordered_map<std::string, int> getStats() {

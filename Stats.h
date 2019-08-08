@@ -67,12 +67,6 @@ class Stats {
    */
   int reset();
 
-  /*
-   * Send a message to the socket. Appends a \n delimiter to the message
-   * before sending. Returnsthe the socket's response.
-   */
-  std::optional<std::string> msgSocket(const std::string& msg);
-
  private:
   /*
    * Ensure only get() can construct
