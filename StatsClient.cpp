@@ -28,6 +28,23 @@
 #include "oomd/util/ScopeGuard.h"
 #include "oomd/util/Util.h"
 
+namespace {
+std::optional<Json::Value> parseJson(const std::string& input) {
+  Json::Value ret;
+  std::string errs;
+  Json::CharReaderBuilder rbuilder;
+  std::istringstream sinput(input);
+
+  bool ok = Json::parseFromStream(rbuilder, sinput, &ret, &errs);
+  if (!ok) {
+    std::cerr << "Unable to parse JSON: " << errs;
+    return std::nullopt;
+  }
+
+  return ret;
+}
+} // namespace
+
 namespace Oomd {
 
 StatsClient::StatsClient(const std::string& stats_socket_path)
@@ -41,16 +58,16 @@ std::optional<std::unordered_map<std::string, int>> StatsClient::getStats() {
   if (!msg) {
     return std::nullopt;
   }
-  Json::Value root;
-  Json::Reader reader;
-  if (!reader.parse(*msg, root)) {
-    std::cerr << "Error parsing message" << std::endl;
+
+  auto root = parseJson(*msg);
+  if (!root) {
     return std::nullopt;
   }
+
   try {
-    if (root["error"].asInt()) {
+    if ((*root)["error"].asInt()) {
       std::cerr << "StatsClient error: received error code="
-                << root["error"].toStyledString() << std::endl;
+                << (*root)["error"].toStyledString() << std::endl;
       return std::nullopt;
     }
   } catch (const std::exception& e) {
@@ -58,7 +75,7 @@ std::optional<std::unordered_map<std::string, int>> StatsClient::getStats() {
               << std::endl;
     return std::nullopt;
   }
-  const auto& body = root["body"];
+  const auto& body = (*root)["body"];
   std::unordered_map<std::string, int> ret_map;
   for (const auto& key : body.getMemberNames()) {
     ret_map[key] = body[key].asInt();
@@ -71,14 +88,14 @@ int StatsClient::resetStats() {
   if (!msg) {
     return 1;
   }
-  Json::Value root;
-  Json::Reader reader;
-  if (!reader.parse(*msg, root)) {
-    std::cerr << "Error parsing message" << std::endl;
+
+  auto root = parseJson(*msg);
+  if (!root) {
     return 1;
   }
+
   try {
-    return root["error"].asInt();
+    return (*root)["error"].asInt();
   } catch (const std::exception& e) {
     std::cerr << "StatsClient error: parsed error value not an int"
               << std::endl;
@@ -91,14 +108,14 @@ int StatsClient::closeSocket() {
   if (!msg) {
     return 1;
   }
-  Json::Value root;
-  Json::Reader reader;
-  if (!reader.parse(*msg, root)) {
-    std::cerr << "Error parsing message" << std::endl;
+
+  auto root = parseJson(*msg);
+  if (!root) {
     return 1;
   }
+
   try {
-    return root["error"].asInt();
+    return (*root)["error"].asInt();
   } catch (const std::exception& e) {
     std::cerr << "StatsClient error: parsed error value not an int"
               << std::endl;
