@@ -18,7 +18,9 @@
 #include "oomd/util/Fs.h"
 
 #include <dirent.h>
+#include <fcntl.h>
 #include <fnmatch.h>
+#include <string.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/xattr.h>
@@ -399,6 +401,18 @@ int64_t Fs::readMemhigh(const std::string& path) {
   return Fs::readMinMaxLowHigh(path, kMemHighFile);
 }
 
+int64_t Fs::readMemhightmp(const std::string& path) {
+  auto lines = readFileByLine(path + "/" + kMemHighTmpFile);
+  OCHECK_EXCEPT(lines.size() == 1, bad_control_file(path + ": missing file"));
+  auto tokens = Util::split(lines[0], ' ');
+  OCHECK_EXCEPT(
+      tokens.size() == 2, bad_control_file(path + ": invalid format"));
+  if (tokens[0] == "max") {
+    return std::numeric_limits<int64_t>::max();
+  }
+  return static_cast<int64_t>(std::stoll(tokens[0]));
+}
+
 int64_t Fs::readMemmin(const std::string& path) {
   return Fs::readMinMaxLowHigh(path, kMemMinFile);
 }
@@ -481,9 +495,42 @@ ResourcePressure Fs::readIopressure(
 }
 
 void Fs::writeMemhigh(const std::string& path, int64_t value) {
-  std::ofstream f(path + "/" + kMemHighFile);
-  f << value;
-  f.flush();
+  char buf[1024];
+  buf[0] = '\0';
+  auto file_name = path + "/" + kMemHighFile;
+  auto fd = ::open(file_name.c_str(), O_WRONLY);
+  if (fd < 0) {
+    throw bad_control_file(
+        file_name + ": open failed: " + ::strerror_r(errno, buf, sizeof(buf)));
+  }
+  auto val_str = std::to_string(value);
+  auto ret = Util::writeFull(fd, val_str.c_str(), val_str.size());
+  ::close(fd);
+  if (ret < 0) {
+    throw bad_control_file(
+        file_name + ": write failed: " + ::strerror_r(errno, buf, sizeof(buf)));
+  }
+}
+
+void Fs::writeMemhightmp(
+    const std::string& path,
+    int64_t value,
+    std::chrono::microseconds duration) {
+  char buf[1024];
+  buf[0] = '\0';
+  auto file_name = path + "/" + kMemHighTmpFile;
+  auto fd = ::open(file_name.c_str(), O_WRONLY);
+  if (fd < 0) {
+    throw bad_control_file(
+        file_name + ": open failed: " + ::strerror_r(errno, buf, sizeof(buf)));
+  }
+  auto val_str = std::to_string(value) + " " + std::to_string(duration.count());
+  auto ret = Util::writeFull(fd, val_str.c_str(), val_str.size());
+  ::close(fd);
+  if (ret < 0) {
+    throw bad_control_file(
+        file_name + ": write failed: " + ::strerror_r(errno, buf, sizeof(buf)));
+  }
 }
 
 bool Fs::setxattr(

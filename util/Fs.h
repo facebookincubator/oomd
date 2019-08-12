@@ -44,6 +44,7 @@ class Fs {
   static constexpr auto kMemPressureFile = "memory.pressure";
   static constexpr auto kMemLowFile = "memory.low";
   static constexpr auto kMemHighFile = "memory.high";
+  static constexpr auto kMemHighTmpFile = "memory.high.tmp";
   static constexpr auto kMemMinFile = "memory.min";
   static constexpr auto kMemStatFile = "memory.stat";
   static constexpr auto kMemSwapCurrentFile = "memory.swap.current";
@@ -111,6 +112,7 @@ class Fs {
       const std::string& file);
   static int64_t readMemlow(const std::string& path);
   static int64_t readMemhigh(const std::string& path);
+  static int64_t readMemhightmp(const std::string& path);
   static int64_t readMemmin(const std::string& path);
   static int64_t readSwapCurrent(const std::string& path);
   static ResourcePressure readIopressure(
@@ -118,6 +120,10 @@ class Fs {
       PressureType type = PressureType::FULL);
 
   static void writeMemhigh(const std::string& path, int64_t value);
+  static void writeMemhightmp(
+      const std::string& path,
+      int64_t value,
+      std::chrono::microseconds duration);
 
   static std::unordered_map<std::string, int64_t> getVmstat(
       const std::string& path = "/proc/vmstat");

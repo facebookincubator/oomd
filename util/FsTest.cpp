@@ -191,6 +191,16 @@ TEST(FsTest, ReadMemoryMin) {
   EXPECT_EQ(Fs::readMemmin(dir), 666);
 }
 
+TEST(FsTest, ReadMemoryHigh) {
+  std::string dir(kCgroupDataDir);
+  EXPECT_EQ(Fs::readMemhigh(dir), 1000);
+}
+
+TEST(FsTest, ReadMemoryHighTmp) {
+  std::string dir(kCgroupDataDir);
+  EXPECT_EQ(Fs::readMemhightmp(dir), 2000);
+}
+
 TEST(FsTest, ReadSwapCurrent) {
   std::string dir(kCgroupDataDir);
   EXPECT_EQ(Fs::readSwapCurrent(dir), 321321);
