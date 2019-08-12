@@ -53,7 +53,7 @@ static void printUsage() {
       << "usage: oomd [OPTION]...\n\n"
          "optional arguments:\n"
          "  --help, -h                 Show this help message and exit\n"
-         "  --version                  Print version and exit\n"
+         "  --version, -v              Print version and exit\n"
          "  --config, -C CONFIG        Config file (default: /etc/oomd.json)\n"
          "  --interval, -i INTERVAL    Event loop polling interval (default: 5)\n"
          "  --cgroup-fs, -f FS         Cgroup2 filesystem mount point (default: /sys/fs/cgroup)\n"
