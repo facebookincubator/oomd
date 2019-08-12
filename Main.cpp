@@ -38,6 +38,12 @@
 #include "oomd/include/Defines.h"
 #include "oomd/util/Fs.h"
 
+#ifdef MESON_BUILD
+#include "Version.h"
+#else
+#define GIT_VERSION "unknown"
+#endif
+
 static constexpr auto kConfigFilePath = "/etc/oomd.json";
 static constexpr auto kCgroupFsRoot = "/sys/fs/cgroup";
 static constexpr auto kSocketPath = "/run/oomd/oomd-stats.socket";
@@ -47,6 +53,7 @@ static void printUsage() {
       << "usage: oomd [OPTION]...\n\n"
          "optional arguments:\n"
          "  --help, -h                 Show this help message and exit\n"
+         "  --version                  Print version and exit\n"
          "  --config, -C CONFIG        Config file (default: /etc/oomd.json)\n"
          "  --interval, -i INTERVAL    Event loop polling interval (default: 5)\n"
          "  --cgroup-fs, -f FS         Cgroup2 filesystem mount point (default: /sys/fs/cgroup)\n"
@@ -115,9 +122,10 @@ int main(int argc, char** argv) {
   bool should_dump_stats = false;
   bool should_reset_stats = false;
 
-  const char* const short_options = "hC:w:i:f:c:ls:dr";
+  const char* const short_options = "hvC:w:i:f:c:ls:dr";
   option long_options[] = {
       option{"help", no_argument, nullptr, 'h'},
+      option{"version", no_argument, nullptr, 'v'},
       option{"config", required_argument, nullptr, 'C'},
       option{"interval", required_argument, nullptr, 'i'},
       option{"cgroup-fs", required_argument, nullptr, 'f'},
@@ -134,6 +142,9 @@ int main(int argc, char** argv) {
     switch (c) {
       case 'h':
         printUsage();
+        return 0;
+      case 'v':
+        std::cout << GIT_VERSION << std::endl;
         return 0;
       case 'C':
         flag_conf_file = std::string(optarg);

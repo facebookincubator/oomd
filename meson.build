@@ -2,7 +2,7 @@ project('oomd', 'cpp',
   version : '0.1.0',
   license : 'GPL2')
 
-cpp_args = ['-std=c++17', '-g', '-rdynamic']
+cpp_args = ['-std=c++17', '-g', '-rdynamic', '-DMESON_BUILD']
 
 # The ".." include path is necessary if one
 # does not want to build via the "build-from-github.sh" script.
@@ -14,6 +14,16 @@ inc = include_directories('''
     .
     ..
 '''.split())
+
+# Plumbing to #define a GIT_VERSION so Main.cpp can print it out
+vcs_tagger = [meson.source_root() + '/vcs_tagger.sh',
+    meson.source_root(),
+    meson.project_version()]
+version_h = vcs_tag(
+    input : 'include/Version.h.in',
+    output : 'Version.h',
+    command : vcs_tagger)
+versiondep = declare_dependency(sources : version_h)
 
 srcs = files('''
     Log.cpp
@@ -47,7 +57,8 @@ srcs = files('''
     plugins/KillPressure.cpp
 '''.split())
 
-deps = [dependency('jsoncpp'),
+deps = [versiondep,
+        dependency('jsoncpp'),
         dependency('threads')]
 
 # Optional dependencies
