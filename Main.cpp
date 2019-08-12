@@ -39,7 +39,7 @@
 #include "oomd/util/Fs.h"
 
 #ifdef MESON_BUILD
-#include "Version.h"
+#include "Version.h" // @manual
 #else
 #define GIT_VERSION "unknown"
 #endif
