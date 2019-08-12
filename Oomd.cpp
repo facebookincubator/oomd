@@ -431,7 +431,7 @@ void Oomd::processDropInAdd(const std::string& file) {
   }
 
   size_t tag = std::hash<std::string>{}(file);
-  for (int i = 0; i < unit->rulesets.size(); ++i) {
+  for (size_t i = 0; i < unit->rulesets.size(); ++i) {
     if (engine_->addDropInConfig(tag, std::move(unit->rulesets.at(i)))) {
       resources_.insert(unit->resources.cbegin(), unit->resources.cend());
     } else {

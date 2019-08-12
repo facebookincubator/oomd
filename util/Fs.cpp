@@ -355,6 +355,9 @@ ResourcePressure Fs::readRespressure(
     case PsiFormat::INVALID:
       throw bad_control_file(path + ": invalid format");
   }
+
+  // To silence g++ compiler warning about enums
+  throw std::runtime_error("Not all enums handled");
 }
 
 int64_t Fs::readMemcurrent(const std::string& path) {

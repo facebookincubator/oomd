@@ -30,6 +30,23 @@
 using namespace Oomd;
 using namespace testing;
 
+namespace {
+std::optional<Json::Value> parseJson(const std::string& input) {
+  Json::Value ret;
+  std::string errs;
+  Json::CharReaderBuilder rbuilder;
+  std::istringstream sinput(input);
+
+  bool ok = Json::parseFromStream(rbuilder, sinput, &ret, &errs);
+  if (!ok) {
+    std::cerr << "Unable to parse JSON: " << errs;
+    return std::nullopt;
+  }
+
+  return ret;
+}
+} // namespace
+
 class StatsTest : public ::testing::Test {
  public:
   std::string socket_path;
@@ -78,27 +95,22 @@ TEST_F(StatsTest, InvalidSocketPath) {
 TEST_F(StatsTest, InvalidRequests) {
   auto stats_ptr = get_instance();
   ASSERT_NE(stats_ptr, nullptr);
-  auto& stats = *(stats_ptr);
   auto client = StatsClient(socket_path);
   {
     const std::string msg = "g";
     auto msg_opt = client.msgSocket(msg);
     ASSERT_TRUE(msg_opt);
-    auto& ret_msg = *msg_opt;
-    Json::Value root;
-    Json::Reader reader;
-    ASSERT_TRUE(reader.parse(ret_msg, root));
-    EXPECT_EQ(root["error"], 0);
+    auto root = parseJson(*msg_opt);
+    ASSERT_TRUE(root);
+    EXPECT_EQ((*root)["error"], 0);
   }
   {
     const std::string msg = "xlskdjfksdj";
     auto msg_opt = client.msgSocket(msg);
     ASSERT_TRUE(msg_opt);
-    auto& ret_msg = *msg_opt;
-    Json::Value root;
-    Json::Reader reader;
-    ASSERT_TRUE(reader.parse(ret_msg, root));
-    EXPECT_EQ(root["error"], 1);
+    auto root = parseJson(*msg_opt);
+    ASSERT_TRUE(root);
+    EXPECT_EQ((*root)["error"], 1);
   }
   {
     const std::string msg = "ysdf\nasdf";
@@ -114,11 +126,9 @@ TEST_F(StatsTest, InvalidRequests) {
     const std::string msg = "";
     auto msg_opt = client.msgSocket(msg);
     ASSERT_TRUE(msg_opt);
-    auto& ret_msg = *msg_opt;
-    Json::Value root;
-    Json::Reader reader;
-    ASSERT_TRUE(reader.parse(ret_msg, root));
-    EXPECT_EQ(root["error"], 1);
+    auto root = parseJson(*msg_opt);
+    ASSERT_TRUE(root);
+    EXPECT_EQ((*root)["error"], 1);
   }
 }
 
