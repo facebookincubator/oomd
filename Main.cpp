@@ -246,6 +246,11 @@ int main(int argc, char** argv) {
     return 1;
   }
 
+  if (!Oomd::Stats::init(stats_socket_path)) {
+    OLOG << "Stats module failed to initialize";
+    return 1;
+  }
+
   if (should_check_config) {
     auto ir = parseConfig(flag_conf_file);
     if (!ir) {
@@ -283,11 +288,6 @@ int main(int argc, char** argv) {
   if (!engine) {
     OLOG << "Config failed to compile";
     return EXIT_CANT_RECOVER;
-  }
-
-  if (!Oomd::Stats::init(stats_socket_path)) {
-    OLOG << "Stats collection failed to initialize";
-    return 1;
   }
 
   Oomd::Oomd oomd(
