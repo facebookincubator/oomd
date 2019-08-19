@@ -497,6 +497,37 @@ ResourcePressure Fs::readIopressure(
   }
 }
 
+IOStat Fs::readIostat(const std::string& path) {
+  const auto& io_stat_path = path + "/" + kIoStatFile;
+  auto lines = readFileByLine(io_stat_path);
+  std::vector<DeviceIOStat> io_stat;
+  io_stat.reserve(lines.size());
+
+  for (const auto& line : lines) {
+    // format
+    //
+    // 0:0 rbytes=0 wbytes=0 rios=0 wios=0 dbytes=0 dios=0
+    DeviceIOStat dev_io_stat;
+    int major, minor;
+    int ret = sscanf(
+        line.c_str(),
+        "%d:%d rbytes=%lu wbytes=%lu rios=%lu wios=%lu dbytes=%lu dios=%lu\n",
+        &major,
+        &minor,
+        &dev_io_stat.rbytes,
+        &dev_io_stat.wbytes,
+        &dev_io_stat.rios,
+        &dev_io_stat.wios,
+        &dev_io_stat.dbytes,
+        &dev_io_stat.dios);
+
+    OCHECK_EXCEPT(ret == 8, bad_control_file(path + ": invalid format"));
+    dev_io_stat.dev_id = std::to_string(major) + ":" + std::to_string(minor);
+    io_stat.push_back(dev_io_stat);
+  }
+  return io_stat;
+}
+
 void Fs::writeMemhigh(const std::string& path, int64_t value) {
   char buf[1024];
   buf[0] = '\0';
@@ -597,6 +628,22 @@ std::string Fs::getCgroup2MountPoint(const std::string& path) {
     }
   }
   return "";
+}
+
+DeviceType Fs::getDeviceType(
+    const std::string& dev_id,
+    const std::string& path) {
+  const auto deviceTypeFile =
+      path + "/" + dev_id + "/" + kDeviceTypeDir + "/" + kDeviceTypeFile;
+  auto lines = readFileByLine(deviceTypeFile);
+  if (lines.size() == 1) {
+    if (lines[0] == "1") {
+      return DeviceType::HDD;
+    } else if (lines[0] == "0") {
+      return DeviceType::SSD;
+    }
+  }
+  throw bad_control_file(deviceTypeFile + ": invalid format");
 }
 
 } // namespace Oomd

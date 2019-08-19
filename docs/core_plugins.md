@@ -271,3 +271,29 @@ cgroups that are killed have the "trusted.oomd_kill" xattr set to the number
 of SIGKILLs sent to resident processes.
 
 STOP if killed something (even if dry=true), CONTINUE otherwise.
+
+## kill_by_io_cost
+
+### Arguments
+
+    cgroup
+    post_action_delay=15 (optional)
+    cgroup_fs=/sys/fs/cgroup (optional)
+    dry=false (optional)
+
+### Description
+
+`cgroup` follows the same semantics and options as
+`kill_by_memory_size_or_growth`.
+
+Sleeps for `post_action_delay` following a kill.
+
+`dry` follows the same semantics and options as
+`kill_by_memory_size_or_growth`
+
+Kills the child generating the most io cost.
+
+cgroups that are killed have the "trusted.oomd_kill" xattr set to the number
+of SIGKILLs sent to resident processes.
+
+STOP if killed something (even if dry=true), CONTINUE otherwise.

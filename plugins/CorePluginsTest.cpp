@@ -26,6 +26,7 @@
 #include "oomd/PluginRegistry.h"
 #include "oomd/engine/BasePlugin.h"
 #include "oomd/plugins/BaseKillPlugin.h"
+#include "oomd/plugins/KillIOCost.h"
 #include "oomd/plugins/KillMemoryGrowth.h"
 #include "oomd/plugins/KillPressure.h"
 #include "oomd/plugins/KillSwapUsage.h"
@@ -770,6 +771,104 @@ TEST(Exists, NotExists) {
 
   ctx.setCgroupContext(cgroup_path_C, CgroupContext{});
   EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
+}
+
+TEST(KillIOCost, KillsHighestIOCost) {
+  auto plugin = std::make_shared<KillIOCost<BaseKillPluginMock>>();
+  ASSERT_NE(plugin, nullptr);
+
+  Engine::MonitoredResources resources;
+  Engine::PluginArgs args;
+  args["cgroup_fs"] = "oomd/fixtures/plugins/kill_by_io_cost";
+  args["cgroup"] = "one_high/*";
+  args["post_action_delay"] = "0";
+
+  ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+
+  OomdContext ctx;
+  ctx.setCgroupContext(
+      CgroupPath(args["cgroup_fs"], "one_high/cgroup1"),
+      CgroupContext{.io_cost_cumulative = 10000, .io_cost_rate = 10});
+  ctx.setCgroupContext(
+      CgroupPath(args["cgroup_fs"], "one_high/cgroup2"),
+      CgroupContext{.io_cost_cumulative = 5000, .io_cost_rate = 30});
+  ctx.setCgroupContext(
+      CgroupPath(args["cgroup_fs"], "one_high/cgroup3"),
+      CgroupContext{.io_cost_cumulative = 6000, .io_cost_rate = 50});
+  ctx.setCgroupContext(
+      CgroupPath(args["cgroup_fs"], "sibling/cgroup1"),
+      CgroupContext{.io_cost_cumulative = 20000, .io_cost_rate = 100});
+  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
+  EXPECT_THAT(plugin->killed, Contains(111));
+  EXPECT_THAT(plugin->killed, Not(Contains(123)));
+  EXPECT_THAT(plugin->killed, Not(Contains(456)));
+  EXPECT_THAT(plugin->killed, Not(Contains(789)));
+  EXPECT_THAT(plugin->killed, Not(Contains(888)));
+}
+
+TEST(KillIOCost, KillsHighestIOCostMultiCgroup) {
+  auto plugin = std::make_shared<KillIOCost<BaseKillPluginMock>>();
+  ASSERT_NE(plugin, nullptr);
+
+  Engine::MonitoredResources resources;
+  Engine::PluginArgs args;
+  args["cgroup_fs"] = "oomd/fixtures/plugins/kill_by_io_cost";
+  args["cgroup"] = "one_high/*,sibling/*";
+  args["resource"] = "io";
+  args["post_action_delay"] = "0";
+
+  ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+
+  OomdContext ctx;
+  ctx.setCgroupContext(
+      CgroupPath(args["cgroup_fs"], "one_high/cgroup1"),
+      CgroupContext{.io_cost_cumulative = 10000, .io_cost_rate = 10});
+  ctx.setCgroupContext(
+      CgroupPath(args["cgroup_fs"], "one_high/cgroup2"),
+      CgroupContext{.io_cost_cumulative = 5000, .io_cost_rate = 30});
+  ctx.setCgroupContext(
+      CgroupPath(args["cgroup_fs"], "one_high/cgroup3"),
+      CgroupContext{.io_cost_cumulative = 6000, .io_cost_rate = 50});
+  ctx.setCgroupContext(
+      CgroupPath(args["cgroup_fs"], "sibling/cgroup1"),
+      CgroupContext{.io_cost_cumulative = 20000, .io_cost_rate = 100});
+  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
+  EXPECT_THAT(plugin->killed, Contains(888));
+  EXPECT_THAT(plugin->killed, Not(Contains(111)));
+  EXPECT_THAT(plugin->killed, Not(Contains(123)));
+  EXPECT_THAT(plugin->killed, Not(Contains(456)));
+  EXPECT_THAT(plugin->killed, Not(Contains(789)));
+}
+
+TEST(KillIOCost, DoesntKillsHighestIOCostDry) {
+  auto plugin = std::make_shared<KillIOCost<BaseKillPluginMock>>();
+  ASSERT_NE(plugin, nullptr);
+
+  Engine::MonitoredResources resources;
+  Engine::PluginArgs args;
+  args["cgroup_fs"] = "oomd/fixtures/plugins/kill_by_pressure";
+  args["cgroup"] = "one_high/*";
+  args["resource"] = "io";
+  args["post_action_delay"] = "0";
+  args["dry"] = "true";
+
+  ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+
+  OomdContext ctx;
+  ctx.setCgroupContext(
+      CgroupPath(args["cgroup_fs"], "one_high/cgroup1"),
+      CgroupContext{.io_cost_cumulative = 10000, .io_cost_rate = 10});
+  ctx.setCgroupContext(
+      CgroupPath(args["cgroup_fs"], "one_high/cgroup2"),
+      CgroupContext{.io_cost_cumulative = 5000, .io_cost_rate = 30});
+  ctx.setCgroupContext(
+      CgroupPath(args["cgroup_fs"], "one_high/cgroup3"),
+      CgroupContext{.io_cost_cumulative = 6000, .io_cost_rate = 50});
+  ctx.setCgroupContext(
+      CgroupPath(args["cgroup_fs"], "sibling/cgroup1"),
+      CgroupContext{.io_cost_cumulative = 20000, .io_cost_rate = 100});
+  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
+  EXPECT_EQ(plugin->killed.size(), 0);
 }
 
 TEST(KillMemoryGrowth, KillsBigCgroup) {

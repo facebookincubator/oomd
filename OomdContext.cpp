@@ -157,6 +157,8 @@ void OomdContext::dumpOomdContext(
          << " mem_min=" << (ms.second.memory_min >> 20) << "MB"
          << " mem_prot=" << (ms.second.memory_protection >> 20) << "MB"
          << " anon=" << (ms.second.anon_usage >> 20) << "MB";
+    OLOG << "  io_cost_cumulative=" << ms.second.io_cost_cumulative
+         << " io_cost_rate=" << ms.second.io_cost_rate;
   }
 }
 

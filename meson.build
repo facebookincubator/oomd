@@ -52,6 +52,7 @@ srcs = files('''
     plugins/PressureRisingBeyond.cpp
     plugins/SwapFree.cpp
     plugins/Exists.cpp
+    plugins/KillIOCost.cpp
     plugins/KillMemoryGrowth.cpp
     plugins/KillSwapUsage.cpp
     plugins/KillPressure.cpp

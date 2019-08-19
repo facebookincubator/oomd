@@ -88,12 +88,18 @@ Oomd::Oomd(
     std::unique_ptr<Engine::Engine> engine,
     int interval,
     const std::string& cgroup_fs,
-    const std::string& drop_in_dir)
+    const std::string& drop_in_dir,
+    const std::unordered_map<std::string, DeviceType>& io_devs,
+    const IOCostCoeffs& hdd_coeffs,
+    const IOCostCoeffs& ssd_coeffs)
     : interval_(interval),
       cgroup_fs_(cgroup_fs),
       ir_root_(std::move(ir_root)),
       engine_(std::move(engine)),
-      drop_in_dir_(drop_in_dir) {
+      drop_in_dir_(drop_in_dir),
+      io_devs_(io_devs),
+      hdd_coeffs_(hdd_coeffs),
+      ssd_coeffs_(ssd_coeffs) {
   // Ensure that each monitored cgroup's cgroup fs is the same as the one
   // passed in by the command line
   if (engine_) { // Tests will pass in a nullptr
@@ -171,6 +177,35 @@ int64_t Oomd::calculateProtection(
   return ret;
 }
 
+double Oomd::calculateIOCostCumulative(const IOStat& io_stat) {
+  double cost_cumulative = 0.0;
+
+  // calculate the sum of cumulative io cost on all devices.
+  for (auto& stat : io_stat) {
+    // only keep stats from devices we care
+    if (io_devs_.find(stat.dev_id) == io_devs_.end()) {
+      continue;
+    }
+    IOCostCoeffs coeffs;
+    switch (io_devs_.at(stat.dev_id)) {
+      case DeviceType::SSD:
+        coeffs = ssd_coeffs_;
+        break;
+      case DeviceType::HDD:
+        coeffs = hdd_coeffs_;
+        break;
+    }
+    // Dot product between dev io stat and io cost coeffs. A more sensible way
+    // is to do dot product between rate of change (bandwidth, iops) with coeffs
+    // but since the coeffs are constant, we can calculate rate of change later.
+    cost_cumulative += stat.rios * coeffs.read_iops +
+        stat.rbytes * coeffs.readbw + stat.wios * coeffs.write_iops +
+        stat.wbytes * coeffs.writebw + stat.dios * coeffs.trim_iops +
+        stat.dbytes * coeffs.trimbw;
+  }
+  return cost_cumulative;
+}
+
 bool Oomd::updateContextCgroup(const CgroupPath& path, OomdContext& ctx) {
   std::string absolute_cgroup_path = path.absolutePath();
 
@@ -208,6 +243,21 @@ bool Oomd::updateContextCgroup(const CgroupPath& path, OomdContext& ctx) {
     // older kernels don't have io.pressure, nan them out
     io_pressure = {std::nanf(""), std::nanf(""), std::nanf("")};
   }
+  double io_cost_cumulative = 0;
+  if (io_devs_.size() != 0) {
+    IOStat io_stat;
+    try {
+      io_stat = Fs::readIostat(absolute_cgroup_path);
+    } catch (const std::exception& ex) {
+      if (!warned_io_stat_.count(absolute_cgroup_path)) {
+        warned_io_stat_.emplace(absolute_cgroup_path);
+        OLOG << "IO stat unavailable on " << absolute_cgroup_path << ": "
+             << ex.what();
+      }
+      io_stat = {};
+    }
+    io_cost_cumulative = calculateIOCostCumulative(io_stat);
+  }
 
   ctx.setCgroupContext(
       path,
@@ -217,7 +267,8 @@ bool Oomd::updateContextCgroup(const CgroupPath& path, OomdContext& ctx) {
        .memory_low = memlow,
        .swap_usage = swap_current,
        .anon_usage = anon_usage,
-       .memory_min = memmin});
+       .memory_min = memmin,
+       .io_cost_cumulative = io_cost_cumulative});
 
   return true;
 }
@@ -252,14 +303,23 @@ void Oomd::updateContext(
   for (auto& key : new_ctx.cgroups()) {
     auto new_cgroup_ctx = new_ctx.getCgroupContext(key); // copy
 
-    // Update running average
     float prev_avg = 0;
+    // make the initial io cost zero
+    double prev_io_cost_cum = new_cgroup_ctx.io_cost_cumulative;
     if (ctx.hasCgroupContext(key)) {
       prev_avg = ctx.getCgroupContext(key).average_usage;
+      prev_io_cost_cum = ctx.getCgroupContext(key).io_cost_cumulative;
     }
+
+    // Update running average
     new_cgroup_ctx.average_usage =
         prev_avg * ((average_size_decay_ - 1) / average_size_decay_) +
         (new_cgroup_ctx.current_usage / average_size_decay_);
+
+    // Update io cost
+    new_cgroup_ctx.io_cost_rate =
+        (new_cgroup_ctx.io_cost_cumulative - prev_io_cost_cum) /
+        interval_.count();
 
     // Update protection overage
     new_cgroup_ctx.memory_protection =

@@ -19,12 +19,39 @@
 
 #include <chrono>
 #include <cstdint>
+#include <vector>
 
 namespace Oomd {
 
 enum struct ResourceType {
   MEMORY,
   IO,
+};
+
+enum struct DeviceType {
+  HDD,
+  SSD,
+};
+
+struct DeviceIOStat {
+  std::string dev_id{""};
+  int64_t rbytes{0};
+  int64_t wbytes{0};
+  int64_t rios{0};
+  int64_t wios{0};
+  int64_t dbytes{0};
+  int64_t dios{0};
+};
+
+using IOStat = std::vector<DeviceIOStat>;
+
+struct IOCostCoeffs {
+  double read_iops{0};
+  double readbw{0};
+  double write_iops{0};
+  double writebw{0};
+  double trim_iops{0};
+  double trimbw{0};
 };
 
 struct ResourcePressure {
@@ -47,6 +74,8 @@ class CgroupContext {
   int64_t memory_min{0};
   float memory_scale{1};
   int64_t memory_adj{0};
+  double io_cost_cumulative{0}; // Dot product between io stat and coeffs
+  double io_cost_rate{0}; // change of cumulative divided by interval in seconds
 
   int64_t effective_usage() const {
     return current_usage * memory_scale - memory_protection + memory_adj;

@@ -15,10 +15,16 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
+#include <fcntl.h>
+#include <ftw.h>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
+#include <sys/stat.h>
+#include <utility>
+#include <vector>
 
 #include "oomd/util/Fs.h"
+#include "oomd/util/Util.h"
 
 using namespace Oomd;
 using namespace testing;
@@ -29,8 +35,103 @@ constexpr auto kFsDataDir = "oomd/fixtures/fs_data";
 constexpr auto kFsVmstatFile = "oomd/fixtures/proc/vmstat";
 constexpr auto kFsMeminfoFile = "oomd/fixtures/proc/meminfo";
 constexpr auto kFsMountsFile = "oomd/fixtures/proc/mounts";
+constexpr auto kFsDeviceDir = "oomd/fixtures/sys_dev_block";
 
-TEST(FsTest, FindDirectories) {
+static void mkdirsChecked(
+    const std::string& path,
+    const std::string& prefix = "") {
+  char buf[1024];
+  buf[0] = '\0';
+  auto dirs = Oomd::Util::split(path, '/');
+  std::string prefix_path = prefix;
+  if (prefix_path != "") {
+    prefix_path += "/";
+  }
+  for (const auto& dir : dirs) {
+    prefix_path += dir + "/";
+    if (::mkdir(prefix_path.c_str(), 0777) == -1) {
+      switch (errno) {
+        case EEXIST:
+          continue;
+        default:
+          throw std::runtime_error(
+              prefix_path +
+              ": mkdir failed: " + ::strerror_r(errno, buf, sizeof(buf)));
+      }
+    }
+  }
+}
+
+static int rm(const char* path, const struct stat*, int, struct FTW*) {
+  return ::remove(path);
+}
+
+static void rmrChecked(const std::string& path) {
+  char buf[1024];
+  buf[0] = '\0';
+  if (::nftw(path.c_str(), rm, 10, FTW_DEPTH | FTW_MOUNT | FTW_PHYS) == -1) {
+    switch (errno) {
+      case ENOENT:
+        return;
+      default:
+        throw std::runtime_error(
+            path + ": remove failed: " + ::strerror_r(errno, buf, sizeof(buf)));
+    }
+  }
+}
+
+static void writeChecked(const std::string& path, const std::string& content) {
+  char buf[1024];
+  buf[0] = '\0';
+  auto fd = ::open(path.c_str(), O_CREAT | O_WRONLY | O_TRUNC, 0666);
+  if (fd < 0) {
+    throw std::runtime_error(
+        path + ": open failed: " + ::strerror_r(errno, buf, sizeof(buf)));
+  }
+  auto ret = Util::writeFull(fd, content.c_str(), content.size());
+  ::close(fd);
+  if (ret < 0) {
+    throw std::runtime_error(
+        path + ": write failed: " + ::strerror_r(errno, buf, sizeof(buf)));
+  }
+  if (ret != content.size()) {
+    throw std::runtime_error(
+        path + ": write failed: not all bytes are written");
+  }
+}
+
+class FsTest : public ::testing::Test {
+ public:
+  // run once before test suite
+  static void SetUpTestCase() {
+    try {
+      mkdirsChecked(kFsDeviceDir);
+      std::pair<const std::string, const std::string> devs[] = {
+          {"1:0", "0\n"}, {"1:1", "1\n"}, {"1:2", "\n"}};
+      for (const auto& dev : devs) {
+        const auto dev_type_dir = dev.first + "/" + Fs::kDeviceTypeDir;
+        mkdirsChecked(dev_type_dir, kFsDeviceDir);
+
+        const auto dev_type_file = std::string(kFsDeviceDir) + "/" +
+            dev_type_dir + "/" + Fs::kDeviceTypeFile;
+        writeChecked(dev_type_file, dev.second);
+      }
+    } catch (const std::exception& e) {
+      FAIL() << "SetUpTestSuite: " << e.what();
+    }
+  }
+
+  // run once after test suite
+  static void TearDownTestCase() {
+    try {
+      rmrChecked(kFsDeviceDir);
+    } catch (const std::exception& e) {
+      FAIL() << "TearDownTestSuite: " << e.what();
+    }
+  }
+};
+
+TEST_F(FsTest, FindDirectories) {
   std::string dir(kFsDataDir);
   auto dirs = Fs::readDir(dir, Fs::EntryType::DIRECTORY);
 
@@ -43,14 +144,14 @@ TEST(FsTest, FindDirectories) {
   EXPECT_THAT(dirs, Not(Contains(std::string("dir22"))));
 }
 
-TEST(FsTest, IsDir) {
+TEST_F(FsTest, IsDir) {
   std::string dir(kFsDataDir);
   EXPECT_TRUE(Fs::isDir(dir + "/dir1"));
   EXPECT_FALSE(Fs::isDir(dir + "/dir1/stuff"));
   EXPECT_FALSE(Fs::isDir(dir + "/NOTINFS"));
 }
 
-TEST(FsTest, RemovePrefix) {
+TEST_F(FsTest, RemovePrefix) {
   std::string s = "long string like this";
   Fs::removePrefix(s, "long string ");
   EXPECT_EQ(s, "like this");
@@ -72,7 +173,7 @@ TEST(FsTest, RemovePrefix) {
   EXPECT_EQ(path2, "messages");
 }
 
-TEST(FsTest, FindFiles) {
+TEST_F(FsTest, FindFiles) {
   std::string dir(kFsDataDir);
   auto files = Fs::readDir(dir, Fs::EntryType::REG_FILE);
 
@@ -84,7 +185,7 @@ TEST(FsTest, FindFiles) {
   EXPECT_THAT(files, Not(Contains(std::string("file5"))));
 }
 
-TEST(FsTest, ResolveWildcardedPathRelative) {
+TEST_F(FsTest, ResolveWildcardedPathRelative) {
   std::string dir(kFsDataDir);
   dir += "/wildcard";
 
@@ -107,14 +208,14 @@ TEST(FsTest, ResolveWildcardedPathRelative) {
   ASSERT_EQ(resolved.size(), 0);
 }
 
-TEST(FsTest, ResolveWildcardedPathAbsolute) {
+TEST_F(FsTest, ResolveWildcardedPathAbsolute) {
   auto resolved = Fs::resolveWildcardPath("/proc/vm*");
   ASSERT_EQ(resolved.size(), 2);
   EXPECT_THAT(resolved, Contains("/proc/vmstat"));
   EXPECT_THAT(resolved, Contains("/proc/vmallocinfo"));
 }
 
-TEST(FsTest, ResolveCgroupWildcardPath) {
+TEST_F(FsTest, ResolveCgroupWildcardPath) {
   std::string root_fs(kFsDataDir);
   root_fs += "/wildcard";
 
@@ -140,7 +241,7 @@ TEST(FsTest, ResolveCgroupWildcardPath) {
   EXPECT_EQ(it_two->cgroupFs(), root_fs);
 }
 
-TEST(FsTest, ReadFile) {
+TEST_F(FsTest, ReadFile) {
   auto file = std::string(kFsDataDir) + "/dir1/stuff";
   auto lines = Fs::readFileByLine(file);
 
@@ -151,13 +252,13 @@ TEST(FsTest, ReadFile) {
   EXPECT_EQ(lines[3], "1");
 }
 
-TEST(FsTest, ReadFileBad) {
+TEST_F(FsTest, ReadFileBad) {
   auto file = std::string(kFsDataDir) + "/ksldjfksdlfdsjf";
   auto lines = Fs::readFileByLine(file);
   ASSERT_EQ(lines.size(), 0);
 }
 
-TEST(FsTest, GetPids) {
+TEST_F(FsTest, GetPids) {
   std::string dir(kCgroupDataDir);
   auto pids = Fs::getPids(dir);
   EXPECT_EQ(pids.size(), 1);
@@ -176,37 +277,37 @@ TEST(FsTest, GetPids) {
   EXPECT_THAT(pids_r, Contains(789));
 }
 
-TEST(FsTest, ReadMemoryCurrent) {
+TEST_F(FsTest, ReadMemoryCurrent) {
   std::string dir(kCgroupDataDir);
   EXPECT_EQ(Fs::readMemcurrent(dir), 987654321);
 }
 
-TEST(FsTest, ReadMemoryLow) {
+TEST_F(FsTest, ReadMemoryLow) {
   std::string dir(kCgroupDataDir);
   EXPECT_EQ(Fs::readMemlow(dir), 333333);
 }
 
-TEST(FsTest, ReadMemoryMin) {
+TEST_F(FsTest, ReadMemoryMin) {
   std::string dir(kCgroupDataDir);
   EXPECT_EQ(Fs::readMemmin(dir), 666);
 }
 
-TEST(FsTest, ReadMemoryHigh) {
+TEST_F(FsTest, ReadMemoryHigh) {
   std::string dir(kCgroupDataDir);
   EXPECT_EQ(Fs::readMemhigh(dir), 1000);
 }
 
-TEST(FsTest, ReadMemoryHighTmp) {
+TEST_F(FsTest, ReadMemoryHighTmp) {
   std::string dir(kCgroupDataDir);
   EXPECT_EQ(Fs::readMemhightmp(dir), 2000);
 }
 
-TEST(FsTest, ReadSwapCurrent) {
+TEST_F(FsTest, ReadSwapCurrent) {
   std::string dir(kCgroupDataDir);
   EXPECT_EQ(Fs::readSwapCurrent(dir), 321321);
 }
 
-TEST(FsTest, ReadControllers) {
+TEST_F(FsTest, ReadControllers) {
   std::string dir(kCgroupDataDir);
   auto controllers = Fs::readControllers(dir);
 
@@ -218,7 +319,7 @@ TEST(FsTest, ReadControllers) {
   EXPECT_THAT(controllers, Not(Contains(std::string("block"))));
 }
 
-TEST(FsTest, ReadMemoryPressure) {
+TEST_F(FsTest, ReadMemoryPressure) {
   // v4.16+ upstream format
   std::string dir(kCgroupDataDir);
   auto pressure = Fs::readMempressure(dir);
@@ -244,7 +345,7 @@ TEST(FsTest, ReadMemoryPressure) {
   EXPECT_FLOAT_EQ(pressure3.sec_600, 6.66);
 }
 
-TEST(FsTest, ReadMemoryPressureSome) {
+TEST_F(FsTest, ReadMemoryPressureSome) {
   // v4.16+ upstream format
   std::string dir(kCgroupDataDir);
   auto pressure = Fs::readMempressure(dir, Fs::PressureType::SOME);
@@ -262,7 +363,7 @@ TEST(FsTest, ReadMemoryPressureSome) {
   EXPECT_FLOAT_EQ(pressure2.sec_600, 3.33);
 }
 
-TEST(FsTest, GetVmstat) {
+TEST_F(FsTest, GetVmstat) {
   std::string vmstatfile(kFsVmstatFile);
   auto vmstat = Fs::getVmstat(vmstatfile);
 
@@ -274,7 +375,7 @@ TEST(FsTest, GetVmstat) {
   EXPECT_EQ(vmstat["asdf"], 0);
 }
 
-TEST(FsTest, GetMeminfo) {
+TEST_F(FsTest, GetMeminfo) {
   std::string meminfofile(kFsMeminfoFile);
   auto meminfo = Fs::getMeminfo(meminfofile);
 
@@ -287,7 +388,7 @@ TEST(FsTest, GetMeminfo) {
   EXPECT_EQ(meminfo["asdf"], 0);
 }
 
-TEST(FsTest, GetMemstat) {
+TEST_F(FsTest, GetMemstat) {
   std::string dir(kCgroupDataDir);
   auto meminfo = Fs::getMemstat(dir);
 
@@ -300,7 +401,7 @@ TEST(FsTest, GetMemstat) {
   EXPECT_EQ(meminfo["asdf"], 0);
 }
 
-TEST(FsTest, ReadIoPressure) {
+TEST_F(FsTest, ReadIoPressure) {
   std::string dir(kCgroupDataDir);
   auto pressure = Fs::readIopressure(dir);
 
@@ -309,7 +410,7 @@ TEST(FsTest, ReadIoPressure) {
   EXPECT_FLOAT_EQ(pressure.sec_600, 6.67);
 }
 
-TEST(FsTest, ReadIoPressureSome) {
+TEST_F(FsTest, ReadIoPressureSome) {
   std::string dir(kCgroupDataDir);
   auto pressure = Fs::readIopressure(dir, Fs::PressureType::SOME);
 
@@ -318,7 +419,7 @@ TEST(FsTest, ReadIoPressureSome) {
   EXPECT_FLOAT_EQ(pressure.sec_600, 3.34);
 }
 
-TEST(FsTest, IsUnderParentPath) {
+TEST_F(FsTest, IsUnderParentPath) {
   EXPECT_TRUE(Fs::isUnderParentPath("/sys/fs/cgroup/", "/sys/fs/cgroup/"));
   EXPECT_TRUE(Fs::isUnderParentPath("/sys/fs/cgroup/", "/sys/fs/cgroup/blkio"));
   EXPECT_FALSE(Fs::isUnderParentPath("/sys/fs/cgroup/", "/sys/fs/"));
@@ -329,9 +430,58 @@ TEST(FsTest, IsUnderParentPath) {
   EXPECT_FALSE(Fs::isUnderParentPath("", ""));
 }
 
-TEST(FsTest, GetCgroup2MountPoint) {
+TEST_F(FsTest, GetCgroup2MountPoint) {
   std::string mountsfile(kFsMountsFile);
   auto cgrouppath = Fs::getCgroup2MountPoint(mountsfile);
 
   EXPECT_EQ(cgrouppath, std::string("/sys/fs/cgroup/"));
+}
+
+TEST_F(FsTest, GetDeviceType) {
+  std::string devicedir(kFsDeviceDir);
+
+  try {
+    auto ssd_type = Fs::getDeviceType("1:0", devicedir);
+    EXPECT_EQ(ssd_type, DeviceType::SSD);
+    auto hdd_type = Fs::getDeviceType("1:1", devicedir);
+    EXPECT_EQ(hdd_type, DeviceType::HDD);
+  } catch (const std::exception& e) {
+    FAIL() << "Expect no exception but got: " << e.what();
+  }
+  try {
+    auto unknown_type = Fs::getDeviceType("1:2", devicedir);
+    FAIL() << "Expected Fs::bad_control_file";
+  } catch (Fs::bad_control_file& e) {
+    EXPECT_EQ(
+        e.what(),
+        devicedir + "/1:2/" + Fs::kDeviceTypeDir + "/" + Fs::kDeviceTypeFile +
+            ": invalid format");
+  } catch (const std::exception& e) {
+    FAIL() << "Expected Fs::bad_control_file but got: " << e.what();
+  }
+}
+
+TEST_F(FsTest, ReadIostat) {
+  std::string dir(kCgroupDataDir);
+
+  auto io_stat = Fs::readIostat(dir);
+  EXPECT_EQ(io_stat.size(), 2);
+
+  auto stat0 = io_stat[0];
+  EXPECT_EQ(stat0.dev_id, "1:10");
+  EXPECT_EQ(stat0.rbytes, 1111111);
+  EXPECT_EQ(stat0.wbytes, 2222222);
+  EXPECT_EQ(stat0.rios, 33);
+  EXPECT_EQ(stat0.wios, 44);
+  EXPECT_EQ(stat0.dbytes, 5555555555);
+  EXPECT_EQ(stat0.dios, 6);
+
+  auto stat1 = io_stat[1];
+  EXPECT_EQ(stat1.dev_id, "1:11");
+  EXPECT_EQ(stat1.rbytes, 2222222);
+  EXPECT_EQ(stat1.wbytes, 3333333);
+  EXPECT_EQ(stat1.rios, 44);
+  EXPECT_EQ(stat1.wios, 55);
+  EXPECT_EQ(stat1.dbytes, 6666666666);
+  EXPECT_EQ(stat1.dios, 7);
 }

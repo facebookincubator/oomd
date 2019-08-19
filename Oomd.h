@@ -21,6 +21,7 @@
 #include <chrono>
 #include <memory>
 #include <string>
+#include <unordered_map>
 #include <unordered_set>
 #include <utility>
 #include <vector>
@@ -38,7 +39,10 @@ class Oomd {
       std::unique_ptr<Engine::Engine> engine,
       int interval,
       const std::string& cgroup_fs,
-      const std::string& drop_in_dir);
+      const std::string& drop_in_dir,
+      const std::unordered_map<std::string, DeviceType>& io_devs = {},
+      const IOCostCoeffs& hdd_coeffs = {},
+      const IOCostCoeffs& ssd_coeffs = {});
   virtual ~Oomd() = default;
 
   /*
@@ -69,6 +73,7 @@ class Oomd {
       const CgroupPath& cgroup,
       OomdContext& ctx,
       std::unordered_map<CgroupPath, int64_t>& cache);
+  double calculateIOCostCumulative(const IOStat& io_stat);
   bool updateContextCgroup(const CgroupPath& path, OomdContext& ctx);
   int prepDropInWatcher(const std::string& dir);
   int prepEventLoop(const std::chrono::seconds& interval);
@@ -91,8 +96,13 @@ class Oomd {
   std::unique_ptr<Engine::Engine> engine_;
   Engine::MonitoredResources resources_;
   std::unordered_set<std::string> warned_io_pressure_;
+  std::unordered_set<std::string> warned_io_stat_;
   std::unordered_set<std::string> warned_mem_controller_;
   std::string drop_in_dir_;
+  // root io device IDs (<major>:<minor>) and their device types (SSD/HDD)
+  std::unordered_map<std::string, DeviceType> io_devs_;
+  IOCostCoeffs hdd_coeffs_;
+  IOCostCoeffs ssd_coeffs_;
 };
 
 } // namespace Oomd

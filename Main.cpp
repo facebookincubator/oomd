@@ -23,6 +23,7 @@
 #include <iostream>
 #include <sstream>
 #include <string>
+#include <unordered_map>
 
 #include <getopt.h>
 
@@ -37,6 +38,7 @@
 #include "oomd/include/CgroupPath.h"
 #include "oomd/include/Defines.h"
 #include "oomd/util/Fs.h"
+#include "oomd/util/Util.h"
 
 #ifdef MESON_BUILD
 #include "Version.h" // @manual
@@ -47,6 +49,22 @@
 static constexpr auto kConfigFilePath = "/etc/oomd.json";
 static constexpr auto kCgroupFsRoot = "/sys/fs/cgroup";
 static constexpr auto kSocketPath = "/run/oomd/oomd-stats.socket";
+static const struct Oomd::IOCostCoeffs default_hdd_coeffs = {
+    .read_iops = 2.58e-1,
+    .readbw = 1.13e-7,
+    .write_iops = 1.31e-3,
+    .writebw = 5.04e-7,
+    .trim_iops = 0,
+    .trimbw = 0,
+};
+static const struct Oomd::IOCostCoeffs default_ssd_coeffs = {
+    .read_iops = 1.21e-2,
+    .readbw = 6.25e-7,
+    .write_iops = 1.07e-3,
+    .writebw = 2.61e-7,
+    .trim_iops = 2.37e-2,
+    .trimbw = 9.10e-10,
+};
 
 static void printUsage() {
   std::cerr
@@ -63,6 +81,9 @@ static void printUsage() {
          "  --socket-path, -s PATH     Specify stats socket path (default: /run/oomd/oomd-stats.socket)\n"
          "  --dump-stats, -d           Dump accumulated stats\n"
          "  --reset-stats, -r          Reset stats collection\n"
+         "  --device DEVS              Comma separated <major>:<minor> pairs for IO cost calculation (default: none)\n"
+         "  --ssd-coeffs COEFFS        Comma separated values for SSD IO cost calculation (default: see doc)\n"
+         "  --hdd-coeffs COEFFS        Comma separated values for HDD IO cost calculation (default: see doc)\n"
       << std::endl;
 }
 
@@ -109,11 +130,47 @@ static std::unique_ptr<Oomd::Config2::IR::Root> parseConfig(
   return ir;
 }
 
+static Oomd::IOCostCoeffs parseCoeffs(const std::string& str_coeffs) {
+  Oomd::IOCostCoeffs coeffs = {};
+  auto parts = Oomd::Util::split(str_coeffs, ',');
+  auto coeff_fields = {&coeffs.read_iops,
+                       &coeffs.readbw,
+                       &coeffs.write_iops,
+                       &coeffs.writebw,
+                       &coeffs.trim_iops,
+                       &coeffs.trimbw};
+
+  int idx = 0;
+  for (auto& coeff_field : coeff_fields) {
+    *coeff_field = idx >= parts.size() ? 0 : std::stod(parts[idx]);
+    idx++;
+  }
+  return coeffs;
+}
+
+static std::unordered_map<std::string, Oomd::DeviceType> parseDevices(
+    const std::string& str_devices) {
+  std::unordered_map<std::string, Oomd::DeviceType> io_devs;
+  auto parts = Oomd::Util::split(str_devices, ',');
+  for (const auto& dev_id : parts) {
+    auto dev_type = Oomd::Fs::getDeviceType(dev_id);
+    io_devs[dev_id] = dev_type;
+  }
+  return io_devs;
+}
+
+enum MainOptions {
+  OPT_DEVICE = 256, // avoid collision with char
+  OPT_SSD_COEFFS,
+  OPT_HDD_COEFFS,
+};
+
 int main(int argc, char** argv) {
   std::string flag_conf_file = kConfigFilePath;
   std::string cgroup_fs = kCgroupFsRoot;
   std::string drop_in_dir;
   std::string stats_socket_path = kSocketPath;
+  std::string dev_id;
   int interval = 5;
   bool should_check_config = false;
 
@@ -121,6 +178,9 @@ int main(int argc, char** argv) {
   int c = 0;
   bool should_dump_stats = false;
   bool should_reset_stats = false;
+  std::unordered_map<std::string, Oomd::DeviceType> io_devs;
+  struct Oomd::IOCostCoeffs hdd_coeffs = default_hdd_coeffs;
+  struct Oomd::IOCostCoeffs ssd_coeffs = default_ssd_coeffs;
 
   const char* const short_options = "hvC:w:i:f:c:ls:dr";
   option long_options[] = {
@@ -135,6 +195,9 @@ int main(int argc, char** argv) {
       option{"socket-path", required_argument, nullptr, 's'},
       option{"dump-stats", no_argument, nullptr, 'd'},
       option{"reset-stats", no_argument, nullptr, 'r'},
+      option{"device", required_argument, nullptr, OPT_DEVICE},
+      option{"ssd-coeffs", required_argument, nullptr, OPT_SSD_COEFFS},
+      option{"hdd-coeffs", required_argument, nullptr, OPT_HDD_COEFFS},
       option{nullptr, 0, nullptr, 0}};
 
   while ((c = getopt_long(
@@ -177,6 +240,30 @@ int main(int argc, char** argv) {
         break;
       case 'r':
         should_reset_stats = true;
+        break;
+      case OPT_DEVICE:
+        try {
+          io_devs = parseDevices(optarg);
+        } catch (const Oomd::Fs::bad_control_file& e) {
+          std::cerr << "Invalid devices: " << e.what() << '\n';
+          return 1;
+        }
+        break;
+      case OPT_SSD_COEFFS:
+        try {
+          ssd_coeffs = parseCoeffs(optarg);
+        } catch (const std::invalid_argument& e) {
+          std::cerr << "Invalid SSD coefficients: " << e.what() << '\n';
+          return 1;
+        }
+        break;
+      case OPT_HDD_COEFFS:
+        try {
+          hdd_coeffs = parseCoeffs(optarg);
+        } catch (const std::invalid_argument& e) {
+          std::cerr << "Invalid HDD coefficients: " << e.what() << '\n';
+          return 1;
+        }
         break;
       case 0:
         break;
@@ -291,6 +378,13 @@ int main(int argc, char** argv) {
   }
 
   Oomd::Oomd oomd(
-      std::move(ir), std::move(engine), interval, cgroup_fs, drop_in_dir);
+      std::move(ir),
+      std::move(engine),
+      interval,
+      cgroup_fs,
+      drop_in_dir,
+      io_devs,
+      hdd_coeffs,
+      ssd_coeffs);
   return oomd.run();
 }

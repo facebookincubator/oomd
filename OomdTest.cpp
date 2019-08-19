@@ -30,8 +30,15 @@ constexpr auto kCgroupDataDir = "oomd/fixtures/cgroup";
 class OomdTest : public ::testing::Test {
  public:
   OomdTest() {
-    oomd =
-        std::make_unique<::Oomd::Oomd>(nullptr, nullptr, 5, kCgroupDataDir, "");
+    oomd = std::make_unique<::Oomd::Oomd>(
+        nullptr,
+        nullptr,
+        5,
+        kCgroupDataDir,
+        "",
+        io_devs,
+        hdd_coeffs,
+        ssd_coeffs);
   }
 
   std::string cgroup_path{kCgroupDataDir};
@@ -43,6 +50,24 @@ class OomdTest : public ::testing::Test {
   CgroupPath service4{cgroup_path, "system.slice/service4.service"};
   CgroupPath slice1{cgroup_path, "system.slice/slice1.slice"};
   CgroupPath workload_service1{cgroup_path, "workload.slice/service1.service"};
+  std::unordered_map<std::string, DeviceType> io_devs = {
+      {"1:11", DeviceType::SSD}};
+  IOCostCoeffs hdd_coeffs = {
+      .read_iops = 6,
+      .readbw = 5,
+      .write_iops = 4,
+      .writebw = 3,
+      .trim_iops = 2,
+      .trimbw = 1,
+  };
+  IOCostCoeffs ssd_coeffs = {
+      .read_iops = 1,
+      .readbw = 2,
+      .write_iops = 3,
+      .writebw = 4,
+      .trim_iops = 5,
+      .trimbw = 6,
+  };
 };
 
 TEST_F(OomdTest, OomdContextUpdate) {
@@ -165,6 +190,32 @@ TEST_F(OomdTest, CalculateProtectionOverageContrived) {
   EXPECT_GT(A1, A2);
   EXPECT_EQ(B2, A1);
   EXPECT_GT(B1, B2);
+}
+
+TEST_F(OomdTest, CalculateIOCostCumulative) {
+  /*
+  system.slice/io.stat content:
+  1:10 rbytes=1111111 wbytes=2222222 rios=33 wios=44 dbytes=5555555555 dios=6
+  1:11 rbytes=2222222 wbytes=3333333 rios=44 wios=55 dbytes=6666666666 dios=7
+  */
+  std::unordered_set<CgroupPath> cgroups;
+  cgroups.emplace(CgroupPath(cgroup_path, "system.slice"));
+  oomd->updateContext(cgroups, ctx);
+
+  auto expected_io_cost_cum = 2222222 /*rbytes*/ * ssd_coeffs.readbw +
+      3333333 /*wbytes*/ * ssd_coeffs.writebw +
+      44 /*rios*/ * ssd_coeffs.read_iops + 55 /*wios*/ * ssd_coeffs.write_iops +
+      6666666666 /*dbytes*/ * ssd_coeffs.trimbw +
+      7 /*dios*/ * ssd_coeffs.trim_iops;
+
+  auto root_ctx = ctx.getCgroupContext(CgroupPath(cgroup_path, "system.slice"));
+  EXPECT_EQ(root_ctx.io_cost_cumulative, expected_io_cost_cum);
+  EXPECT_EQ(root_ctx.io_cost_rate, 0); // initial rate should be zero
+
+  oomd->updateContext(cgroups, ctx);
+  // if file is not change, nothing should change
+  EXPECT_EQ(root_ctx.io_cost_cumulative, expected_io_cost_cum);
+  EXPECT_EQ(root_ctx.io_cost_rate, 0);
 }
 
 TEST_F(OomdTest, MissingControlFiles) {

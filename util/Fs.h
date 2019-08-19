@@ -49,6 +49,9 @@ class Fs {
   static constexpr auto kMemStatFile = "memory.stat";
   static constexpr auto kMemSwapCurrentFile = "memory.swap.current";
   static constexpr auto kIoPressureFile = "io.pressure";
+  static constexpr auto kIoStatFile = "io.stat";
+  static constexpr auto kDeviceTypeDir = "queue";
+  static constexpr auto kDeviceTypeFile = "rotational";
 
   enum class EntryType {
     REG_FILE = 0,
@@ -125,6 +128,8 @@ class Fs {
       int64_t value,
       std::chrono::microseconds duration);
 
+  static IOStat readIostat(const std::string& path);
+
   static std::unordered_map<std::string, int64_t> getVmstat(
       const std::string& path = "/proc/vmstat");
 
@@ -149,6 +154,11 @@ class Fs {
       const std::string& attr,
       const std::string& val);
   static std::string getxattr(const std::string& path, const std::string& attr);
+
+  // Return if device is SSD or HDD given its id in <major>:<minor> format
+  static DeviceType getDeviceType(
+      const std::string& dev_id,
+      const std::string& path = "/sys/dev/block");
 };
 
 } // namespace Oomd
