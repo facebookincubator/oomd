@@ -29,6 +29,7 @@
 using namespace Oomd;
 using namespace testing;
 
+constexpr auto kFixturesDirTemplate = "/tmp/__oomd_fixtures_XXXXXX";
 constexpr auto kCgroupRootDir = "oomd/fixtures/cgroup";
 constexpr auto kCgroupDataDir = "oomd/fixtures/cgroup/system.slice";
 constexpr auto kFsDataDir = "oomd/fixtures/fs_data";
@@ -36,6 +37,16 @@ constexpr auto kFsVmstatFile = "oomd/fixtures/proc/vmstat";
 constexpr auto kFsMeminfoFile = "oomd/fixtures/proc/meminfo";
 constexpr auto kFsMountsFile = "oomd/fixtures/proc/mounts";
 constexpr auto kFsDeviceDir = "oomd/fixtures/sys_dev_block";
+
+static std::string mkdtempChecked(const std::string& tmplt) {
+  char buf[tmplt.length() + 1];
+  strcpy(buf, tmplt.c_str());
+  if (::mkdtemp(buf) == nullptr) {
+    throw std::runtime_error(
+        tmplt + ": mkdtemp failed: " + ::strerror_r(errno, buf, sizeof(buf)));
+  }
+  return buf;
+}
 
 static void mkdirsChecked(
     const std::string& path,
@@ -101,34 +112,36 @@ static void writeChecked(const std::string& path, const std::string& content) {
 }
 
 class FsTest : public ::testing::Test {
- public:
-  // run once before test suite
-  static void SetUpTestCase() {
+ protected:
+  void SetUp() override {
     try {
-      mkdirsChecked(kFsDeviceDir);
+      tempFixtureDir_ = mkdtempChecked(kFixturesDirTemplate);
+
+      mkdirsChecked(kFsDeviceDir, tempFixtureDir_);
+      const auto& fsDevDir = tempFixtureDir_ + "/" + kFsDeviceDir;
       std::pair<const std::string, const std::string> devs[] = {
           {"1:0", "0\n"}, {"1:1", "1\n"}, {"1:2", "\n"}};
       for (const auto& dev : devs) {
-        const auto dev_type_dir = dev.first + "/" + Fs::kDeviceTypeDir;
-        mkdirsChecked(dev_type_dir, kFsDeviceDir);
-
-        const auto dev_type_file = std::string(kFsDeviceDir) + "/" +
-            dev_type_dir + "/" + Fs::kDeviceTypeFile;
-        writeChecked(dev_type_file, dev.second);
+        const auto devTypeDir = dev.first + "/" + Fs::kDeviceTypeDir;
+        mkdirsChecked(devTypeDir, fsDevDir);
+        const auto devTypeFile =
+            fsDevDir + "/" + devTypeDir + "/" + Fs::kDeviceTypeFile;
+        writeChecked(devTypeFile, dev.second);
       }
     } catch (const std::exception& e) {
       FAIL() << "SetUpTestSuite: " << e.what();
     }
   }
 
-  // run once after test suite
-  static void TearDownTestCase() {
+  void TearDown() override {
     try {
-      rmrChecked(kFsDeviceDir);
+      rmrChecked(tempFixtureDir_);
     } catch (const std::exception& e) {
       FAIL() << "TearDownTestSuite: " << e.what();
     }
   }
+
+  std::string tempFixtureDir_;
 };
 
 TEST_F(FsTest, FindDirectories) {
@@ -438,23 +451,23 @@ TEST_F(FsTest, GetCgroup2MountPoint) {
 }
 
 TEST_F(FsTest, GetDeviceType) {
-  std::string devicedir(kFsDeviceDir);
+  std::string fsDevDir(tempFixtureDir_ + "/" + kFsDeviceDir);
 
   try {
-    auto ssd_type = Fs::getDeviceType("1:0", devicedir);
+    auto ssd_type = Fs::getDeviceType("1:0", fsDevDir);
     EXPECT_EQ(ssd_type, DeviceType::SSD);
-    auto hdd_type = Fs::getDeviceType("1:1", devicedir);
+    auto hdd_type = Fs::getDeviceType("1:1", fsDevDir);
     EXPECT_EQ(hdd_type, DeviceType::HDD);
   } catch (const std::exception& e) {
     FAIL() << "Expect no exception but got: " << e.what();
   }
   try {
-    auto unknown_type = Fs::getDeviceType("1:2", devicedir);
+    Fs::getDeviceType("1:2", fsDevDir);
     FAIL() << "Expected Fs::bad_control_file";
   } catch (Fs::bad_control_file& e) {
     EXPECT_EQ(
         e.what(),
-        devicedir + "/1:2/" + Fs::kDeviceTypeDir + "/" + Fs::kDeviceTypeFile +
+        fsDevDir + "/1:2/" + Fs::kDeviceTypeDir + "/" + Fs::kDeviceTypeFile +
             ": invalid format");
   } catch (const std::exception& e) {
     FAIL() << "Expected Fs::bad_control_file but got: " << e.what();
