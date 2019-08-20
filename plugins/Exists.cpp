@@ -17,6 +17,8 @@
 
 #include "oomd/plugins/Exists.h"
 
+#include <fnmatch.h>
+
 #include <iomanip>
 #include <string>
 
@@ -74,15 +76,16 @@ Engine::PluginRet Exists::run(OomdContext& ctx) {
   bool exists = false;
 
   for (const auto& cgroup : cgroups_) {
-    try {
-      ctx.getCgroupContext(cgroup);
-      exists = true;
-      break;
-    } catch (const std::exception& ex) {
-      continue;
+    for (const auto& path : ctx.cgroups()) {
+      if (!::fnmatch(
+              cgroup.absolutePath().c_str(), path.absolutePath().c_str(), 0)) {
+        exists = true;
+        goto out;
+      }
     }
   }
 
+out:
   if (negate_) {
     exists = !exists;
   }

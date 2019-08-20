@@ -119,7 +119,7 @@ STOP otherwise.
 
 ### Description
 
-`cgroup` supports comma separated arguments.
+`cgroup` supports comma separated arguments and wildcards.
 
 When `negate` is `false`, if `cgroup` exists, CONTINUE. STOP
 otherwise.
