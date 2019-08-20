@@ -119,6 +119,8 @@ STOP otherwise.
 
 ### Description
 
+`cgroup` supports comma separated arguments.
+
 When `negate` is `false`, if `cgroup` exists, CONTINUE. STOP
 otherwise.
 
