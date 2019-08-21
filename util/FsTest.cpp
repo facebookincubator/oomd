@@ -80,7 +80,7 @@ static int rm(const char* path, const struct stat*, int, struct FTW*) {
 static void rmrChecked(const std::string& path) {
   char buf[1024];
   buf[0] = '\0';
-  if (::nftw(path.c_str(), rm, 10, FTW_DEPTH | FTW_MOUNT | FTW_PHYS) == -1) {
+  if (::nftw(path.c_str(), rm, 10, FTW_DEPTH | FTW_PHYS) == -1) {
     switch (errno) {
       case ENOENT:
         return;
@@ -105,7 +105,7 @@ static void writeChecked(const std::string& path, const std::string& content) {
     throw std::runtime_error(
         path + ": write failed: " + ::strerror_r(errno, buf, sizeof(buf)));
   }
-  if (ret != content.size()) {
+  if ((size_t)ret != content.size()) {
     throw std::runtime_error(
         path + ": write failed: not all bytes are written");
   }
