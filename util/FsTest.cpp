@@ -80,7 +80,7 @@ static int rm(const char* path, const struct stat*, int, struct FTW*) {
 static void rmrChecked(const std::string& path) {
   char buf[1024];
   buf[0] = '\0';
-  if (::nftw(path.c_str(), rm, 10, FTW_DEPTH | FTW_MOUNT | FTW_PHYS) == -1) {
+  if (::nftw(path.c_str(), rm, 10, FTW_DEPTH | FTW_PHYS) == -1) {
     switch (errno) {
       case ENOENT:
         return;
