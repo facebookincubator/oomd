@@ -105,7 +105,7 @@ static void writeChecked(const std::string& path, const std::string& content) {
     throw std::runtime_error(
         path + ": write failed: " + ::strerror_r(errno, buf, sizeof(buf)));
   }
-  if (ret != content.size()) {
+  if ((size_t)ret != content.size()) {
     throw std::runtime_error(
         path + ": write failed: not all bytes are written");
   }

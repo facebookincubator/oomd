@@ -140,7 +140,7 @@ static Oomd::IOCostCoeffs parseCoeffs(const std::string& str_coeffs) {
                        &coeffs.trim_iops,
                        &coeffs.trimbw};
 
-  int idx = 0;
+  size_t idx = 0;
   for (auto& coeff_field : coeff_fields) {
     *coeff_field = idx >= parts.size() ? 0 : std::stod(parts[idx]);
     idx++;
