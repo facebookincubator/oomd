@@ -4,6 +4,14 @@ The document covers how oomd is set up in production at Facebook.
 
 ## Host setup
 
+### kernel command line
+The follow command line arguments must be set:
+
+* `swapaccount=1`
+  * or equivalent, if the kernel has this turned on via compile time flags
+* `systemd.unified_cgroup_hierarchy=1`
+  * or equivalent, if systemd has this turned on via compile time flags
+
 ### cgroup2
 
 The host must be running unified cgroup (cgroup2) alone. oomd is not designed
