@@ -45,6 +45,19 @@ $  zcat /proc/config.gz | grep CONFIG_PSI
 CONFIG_PSI=y
 ```
 
+### swap
+
+The system must have swap enabled for oomd to function correctly. With swap
+enabled, the system spends enough time swapping pages to let oomd react.
+Without swap, the system enters a livelocked state much more quickly and
+may prevent oomd from doing in a reasonable amount of time.
+
+While this kind of sounds like a crutch, swap is generally very good on modern
+systems. See https://chrisdown.name/2018/01/02/in-defence-of-swap.html for
+more details on swap.
+
+The current recommendation for swap size is at least 1x size of physical memory.
+
 ## Service setup
 
 oomd must be run in a protected cgroup. In other words, we use a specialized
