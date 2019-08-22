@@ -139,6 +139,10 @@ bool Stats::startSocket() {
          << ::strerror_r(errno, err_buf.data(), err_buf.size());
     return false;
   }
+  if (::chmod(stats_socket_path_.c_str(), 0666) < 0) {
+    OLOG << "Unable to set permissions on " << stats_socket_path_;
+    return false;
+  }
   if (::listen(sockfd_, 5) < 0) {
     OLOG << "Error listening at socket: "
          << ::strerror_r(errno, err_buf.data(), err_buf.size());
