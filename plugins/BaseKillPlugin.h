@@ -33,6 +33,8 @@ namespace Oomd {
  */
 class BaseKillPlugin : public Oomd::Engine::BasePlugin {
  protected:
+  BaseKillPlugin();
+
   /*
    * Kills a cgroup
    *

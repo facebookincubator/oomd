@@ -25,13 +25,23 @@
 #include <iomanip>
 #include <unordered_set>
 
+#include "oomd/CoreStats.h"
 #include "oomd/Log.h"
+#include "oomd/Stats.h"
 #include "oomd/util/Fs.h"
 
 static auto constexpr kOomdKillInitiationXattr = "trusted.oomd_ooms";
 static auto constexpr kOomdKillCompletionXattr = "trusted.oomd_kill";
 
 namespace Oomd {
+
+BaseKillPlugin::BaseKillPlugin() {
+  /*
+   * Initializes kKillsKey in stats for immediate reporting,
+   * rather than waiting for first occurrence
+   */
+  setStats(CoreStats::kKillsKey, 0);
+}
 
 int BaseKillPlugin::getAndTryToKillPids(
     const std::string& path,
@@ -173,6 +183,7 @@ void BaseKillPlugin::logKill(
       << "ruleset:[" << action_context.ruleset << "] "
       << "detectorgroup:[" << action_context.detectorgroup << "] "
       << "killer:" << (dry ? "(dry)" : "") << getName() << " v2";
+  incrementStats(CoreStats::kKillsKey, 1);
   OOMD_KMSG_LOG(oss.str(), "oomd kill");
 }
 

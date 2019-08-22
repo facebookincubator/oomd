@@ -17,32 +17,11 @@
 
 #pragma once
 
-#include "oomd/plugins/systemd/BaseSystemdPlugin.h"
-
 namespace Oomd {
 
-template <typename Base = BaseSystemdPlugin>
-class SystemdRestart : public Base {
+class CoreStats {
  public:
-  int init(
-      Engine::MonitoredResources& resources,
-      const Engine::PluginArgs& args) override;
-
-  Engine::PluginRet run(OomdContext& /* unused */) override;
-
-  static SystemdRestart* create() {
-    return new SystemdRestart();
-  }
-
-  ~SystemdRestart() = default;
-
- private:
-  std::string service_;
-  int post_action_delay_{15};
-  bool dry_{false};
-  static constexpr auto kRestartsKey = "oomd.restarts_structured";
+  static constexpr auto kKillsKey = "oomd.kills_structured";
 };
 
 } // namespace Oomd
-
-#include "oomd/plugins/systemd/SystemdRestart-inl.h"

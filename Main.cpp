@@ -294,7 +294,7 @@ int main(int argc, char** argv) {
         std::cerr << "Failed to retrieve stats";
         return 1;
       }
-      Json::Value root;
+      Json::Value root(Json::objectValue);
       for (const auto& pair : *map) {
         root[pair.first] = pair.second;
       }
@@ -303,7 +303,9 @@ int main(int argc, char** argv) {
       std::cerr << e.what() << std::endl;
       return 1;
     }
-    return 0;
+    if (!should_reset_stats) {
+      return 0;
+    }
   }
 
   if (should_reset_stats) {
