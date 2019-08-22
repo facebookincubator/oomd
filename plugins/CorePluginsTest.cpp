@@ -656,6 +656,7 @@ TEST(MemoryReclaim, SingleCgroupReclaimSuccess) {
   ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
 
   OomdContext ctx;
+  ctx.setCgroupContext(CgroupPath(args["cgroup_fs"], "cgroup1"), {});
   EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::CONTINUE);
 }
 
@@ -672,6 +673,8 @@ TEST(MemoryReclaim, MultiCgroupReclaimSuccess) {
   ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
 
   OomdContext ctx;
+  ctx.setCgroupContext(CgroupPath(args["cgroup_fs"], "cgroup1"), {});
+  ctx.setCgroupContext(CgroupPath(args["cgroup_fs"], "cgroup2"), {});
   EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::CONTINUE);
 }
 
