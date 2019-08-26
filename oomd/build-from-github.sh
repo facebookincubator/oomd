@@ -3,6 +3,7 @@
 COMPATIBILITY_SYMLINK=oomd
 OUTDIR=build
 
+cd oomd
 
 # Required for compatiblity with internal Facebook header path conventions
 rm -f $COMPATIBILITY_SYMLINK

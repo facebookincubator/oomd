@@ -27,5 +27,5 @@ notifications:
     on_failure: always
 
 script:
-  - $SH ./build-from-github.sh
-  - $SH './clang-format.sh && if [ $(git diff HEAD | wc -l) == "0" ]; then exit 0; else exit 1; fi'
+  - $SH ./oomd/build-from-github.sh
+  - $SH './oomd/clang-format.sh && if [ $(git diff HEAD | wc -l) == "0" ]; then exit 0; else exit 1; fi'
