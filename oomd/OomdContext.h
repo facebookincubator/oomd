@@ -53,12 +53,12 @@ class OomdContext {
   OomdContext(OomdContext&& other) noexcept = default;
   OomdContext& operator=(OomdContext&& other) = default;
 
-  /**
+  /*
    * @returns whether or not OomdContext holds a particular cgroup
    */
   bool hasCgroupContext(const CgroupPath& path) const;
 
-  /**
+  /*
    * @returns all the stored cgroup paths
    */
   std::vector<CgroupPath> cgroups() const;
@@ -69,22 +69,22 @@ class OomdContext {
    */
   const CgroupContext& getCgroupContext(const CgroupPath& path) const;
 
-  /**
+  /*
    * Mutable variant of getCgroupContext(). Use only when necessary.
    */
   CgroupContext& getMutableCgroupContext(const CgroupPath& path) const;
 
-  /**
+  /*
    * @returns a CgroupNode* if cgroup is present, nullptr otherwise
    */
   std::shared_ptr<CgroupNode> getCgroupNode(const CgroupPath& path) const;
 
-  /**
+  /*
    * Assigns a mapping of cgroup -> CgroupContext
    */
   void setCgroupContext(const CgroupPath& path, CgroupContext context);
 
-  /**
+  /*
    * Manipulates CgroupContexts into helpful other helpful datastructures
    *
    * @param getKey is a lambda that accesses the key you want to reverse sort by
@@ -92,7 +92,7 @@ class OomdContext {
   std::vector<std::pair<CgroupPath, CgroupContext>> reverseSort(
       std::function<double(const CgroupContext& cgroup_ctx)> getKey = nullptr);
 
-  /**
+  /*
    * In place sorts @param vec. Similar to @method
    * reverseSort(std::function<...>)
    */
@@ -100,7 +100,7 @@ class OomdContext {
       std::vector<std::pair<CgroupPath, CgroupContext>>& vec,
       std::function<double(const CgroupContext& cgroup_ctx)> getKey);
 
-  /**
+  /*
    * Dumps OomdContext state to stderr
    */
   void dump();
@@ -108,14 +108,14 @@ class OomdContext {
       const std::vector<std::pair<CgroupPath, CgroupContext>>& vec,
       const bool skip_negligible = false);
 
-  /**
+  /*
    * Used to let action plugins know which ruleset and detector group
    * triggered it
    */
   const ActionContext& getActionContext() const;
   void setActionContext(const ActionContext& context);
 
-  /**
+  /*
    * Used to let action plugins retrieve and set info stored in struct
    */
   const SystemContext& getSystemContext() const;
