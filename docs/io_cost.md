@@ -38,41 +38,38 @@ static const struct Oomd::IOCostCoeffs default_ssd_coeffs = {
 };
 ```
 These number are obtained through experiments with disks running on Facebook
-servers. They may not match other IO devices and experiments with your own
-devices is recommended.
+servers. They may not match other IO devices and therefore running experiments
+with your own devices is recommended.
 
 ## How to Configure IO Cost
 
 IO cost in oomd is configured by command line arguments:
 ```
---device DEV
+--device DEVS
 --hdd-coeffs COEFFS
 --ssd-coeffs COEFFS
 ```
 
-### `--device DEV`
+### `--device DEVS`
 
 This option tells oomd what are the root devices, or ones that will contribute
 to calculating the IO cost. The `io.stat` file can have multiple lines, one for
 each IO device that the cgroup has interacted with. Only lines belong to the
 root devices will be used to calculated the IO cost.
 
-This option expects `DEV` in the format of `<major>:<minor>` of a device, e.g.
-`252:1` for a device with major=252 and minor=1. This option can be repeated to
-provide multiple devices. For example,
-```
-oomd --device 252:1 --device 253:1 <other options>...
-```
-This will tell oomd to calculate IO cost by summing the bandwitdh and iops data
-of both `252:1` and `253:1`.
+This option expects `DEVS` in the format of comma separated `<major>:<minor>`
+pairs of devices, e.g. `252:1,253:1` for two devices, one with major=252 and
+minor=1 and the other with major=253 and minor=1. This will tell oomd to
+calculate IO cost by summing the bandwitdh and iops data of both `252:1` and
+`253:1`.
 
 ### `--hdd-coeffs COEFFS`
 
 This option specifies an alternative to the `default_hdd_coeffs` shown above. It
-expects a list of numeric values separated by comma. These are coefficients in
+expects a comma separated list of numeric values, which will be coefficients in
 the order of read iops, read bandwidth, write iops, write bandwidth, trim iops,
 and trim bandwidth. See `std::stod` for support numeric formats. If less than 6
-numbers are passed, remaining ones are set zero. Coefficients for trim are
+values are passed, remaining ones are set zero. Coefficients for trim are
 likely ignored and should not be passed.
 
 ### `--ssd-coeffs COEFFS`
