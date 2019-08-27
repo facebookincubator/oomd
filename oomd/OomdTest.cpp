@@ -21,6 +21,7 @@
 #include <unordered_set>
 
 #include "oomd/Oomd.h"
+#include "oomd/util/Fs.h"
 
 using namespace Oomd;
 using namespace testing;
@@ -155,6 +156,23 @@ TEST_F(OomdTest, CalculateProtectionOverage) {
   EXPECT_EQ(s2_ctx.effective_usage(), s3_ctx.effective_usage());
   EXPECT_EQ(s2_ctx.effective_usage(), s4_ctx.effective_usage());
   EXPECT_EQ(s2_ctx.effective_usage(), sl1_ctx.effective_usage());
+}
+
+TEST_F(OomdTest, MonitorRootHost) {
+  std::string cgroup2fs_mntpt = Fs::getCgroup2MountPoint();
+  if (cgroup2fs_mntpt.empty()) {
+    FAIL() << "Host not running cgroup2";
+  }
+
+  std::unordered_set<CgroupPath> cgroups;
+  CgroupPath root(cgroup2fs_mntpt, "/");
+  cgroups.emplace(root);
+  oomd->updateContext(cgroups, ctx);
+
+  int64_t current = ctx.getCgroupContext(root).current_usage;
+  // If we're running the test, I should hope the root host is using memory
+  // otherwise we've really stumbled onto a competitive advantage.
+  EXPECT_GT(current, 0);
 }
 
 TEST_F(OomdTest, CalculateProtectionOverageContrived) {

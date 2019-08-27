@@ -64,13 +64,14 @@ std::unordered_set<Oomd::CgroupPath> resolveCgroupPaths(
     for (const auto& resolved_path : resolved_paths) {
       size_t idx = 0;
 
-      // TODO: make Fs::resolveWildcardPath return a "cleaned" path
-      if (resolved_path.find("./", 0) != std::string::npos) {
-        idx += 2;
+      // Use idx to mark where non-cgroupfs part of path begins
+      idx += cgroup.cgroupFs().size();
+      if (resolved_path.size() > cgroup.cgroupFs().size()) {
+        // Remove '/' after cgroupfs in path
+        idx += 1;
       }
-      idx += cgroup.cgroupFs().size() + /* trailing slash */ +1;
 
-      if (idx < resolved_path.size()) {
+      if (idx <= resolved_path.size()) {
         std::string cgroup_relative = resolved_path.substr(idx);
         ret.emplace(cgroup.cgroupFs(), std::move(cgroup_relative));
       }
@@ -206,6 +207,39 @@ double Oomd::calculateIOCostCumulative(const IOStat& io_stat) {
   return cost_cumulative;
 }
 
+ResourcePressure Oomd::readIopressureWarnOnce(const std::string& path) {
+  ResourcePressure io_pressure;
+  // Older kernels don't have io.pressure, nan them out
+  io_pressure = {std::nanf(""), std::nanf(""), std::nanf("")};
+
+  try {
+    if (!warned_io_pressure_.count(path)) {
+      io_pressure = Fs::readIopressure(path);
+    }
+  } catch (const std::exception& ex) {
+    warned_io_pressure_.emplace(path);
+    OLOG << "IO pressure unavailable on " << path << ": " << ex.what();
+  }
+
+  return io_pressure;
+}
+
+bool Oomd::updateContextRoot(const CgroupPath& path, OomdContext& ctx) {
+  // Note we not not collect _every_ piece of data that makes
+  // sense for the root host. Feel free to add more as needed.
+  auto pressures = Fs::readMempressure("/");
+  auto io_pressure = readIopressureWarnOnce("/");
+  auto current = Fs::readMemcurrent("/");
+
+  ctx.setCgroupContext(
+      path,
+      {.pressure = pressures,
+       .io_pressure = io_pressure,
+       .current_usage = current});
+
+  return true;
+}
+
 bool Oomd::updateContextCgroup(const CgroupPath& path, OomdContext& ctx) {
   std::string absolute_cgroup_path = path.absolutePath();
 
@@ -231,18 +265,7 @@ bool Oomd::updateContextCgroup(const CgroupPath& path, OomdContext& ctx) {
   auto swap_current = Fs::readSwapCurrent(absolute_cgroup_path);
   auto memory_stats = Fs::getMemstat(absolute_cgroup_path);
   auto anon_usage = memory_stats["anon"];
-  ResourcePressure io_pressure;
-  try {
-    io_pressure = Fs::readIopressure(absolute_cgroup_path);
-  } catch (const std::exception& ex) {
-    if (!warned_io_pressure_.count(absolute_cgroup_path)) {
-      warned_io_pressure_.emplace(absolute_cgroup_path);
-      OLOG << "IO pressure unavailable on " << absolute_cgroup_path << ": "
-           << ex.what();
-    }
-    // older kernels don't have io.pressure, nan them out
-    io_pressure = {std::nanf(""), std::nanf(""), std::nanf("")};
-  }
+  auto io_pressure = readIopressureWarnOnce(absolute_cgroup_path);
   double io_cost_cumulative = 0;
   if (io_devs_.size() != 0) {
     IOStat io_stat;
@@ -291,7 +314,11 @@ void Oomd::updateContext(
     // we can still race with a cgroup disappearing. When that happens,
     // simply abort updating the cgroup.
     try {
-      updateContextCgroup(resolved_cgroup, new_ctx);
+      if (resolved_cgroup.isRoot()) {
+        updateContextRoot(resolved_cgroup, new_ctx);
+      } else {
+        updateContextCgroup(resolved_cgroup, new_ctx);
+      }
     } catch (const Fs::bad_control_file& ex) {
       OLOG << "Caught bad_control_file: " << ex.what() << ". This is OK -- "
            << "cgroups can disappear when a managed process exits";
@@ -301,6 +328,11 @@ void Oomd::updateContext(
 
   // Update values that depend on the rest of OomdContext being up to date
   for (auto& key : new_ctx.cgroups()) {
+    // This information isn't really relevant to the root host. Skip it.
+    if (key.isRoot()) {
+      continue;
+    }
+
     auto new_cgroup_ctx = new_ctx.getCgroupContext(key); // copy
 
     float prev_avg = 0;

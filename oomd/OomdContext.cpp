@@ -209,6 +209,7 @@ std::shared_ptr<CgroupNode> OomdContext::addToTreeHelper(
   if (path.isRoot()) {
     if (!root_) {
       root_ = std::make_shared<CgroupNode>(path);
+      root_->ctx = std::move(ctx);
     } else {
       // Only one cgroup root is allowed
       OCHECK_EXCEPT(

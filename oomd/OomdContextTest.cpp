@@ -65,6 +65,13 @@ TEST_F(OomdContextTest, CgroupKeys) {
   EXPECT_THAT(ctx.cgroups(), Contains(p2));
 }
 
+TEST_F(OomdContextTest, CgroupKeyRoot) {
+  CgroupPath root("/sys/fs/cgroup", "/");
+  ctx.setCgroupContext(root, CgroupContext{.current_usage = 12345});
+  EXPECT_EQ(ctx.cgroups().size(), 1);
+  EXPECT_EQ(ctx.getCgroupContext(root).current_usage, 12345);
+}
+
 TEST_F(OomdContextTest, SetCgroup) {
   CgroupPath p1("/sys/fs/cgroup", "asdf");
   ctx.setCgroupContext(p1, CgroupContext{});

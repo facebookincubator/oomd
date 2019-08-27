@@ -74,6 +74,8 @@ class Oomd {
       OomdContext& ctx,
       std::unordered_map<CgroupPath, int64_t>& cache);
   double calculateIOCostCumulative(const IOStat& io_stat);
+  ResourcePressure readIopressureWarnOnce(const std::string& path);
+  bool updateContextRoot(const CgroupPath& path, OomdContext& ctx);
   bool updateContextCgroup(const CgroupPath& path, OomdContext& ctx);
   int prepDropInWatcher(const std::string& dir);
   int prepEventLoop(const std::chrono::seconds& interval);
