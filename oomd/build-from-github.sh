@@ -16,4 +16,6 @@ ln -f -s $(which g++-8) $(which g++)
 meson $OUTDIR
 cd $OUTDIR
 ninja
+set +e
 meson test --print-errorlogs
+cat meson-logs/testlog.txt
