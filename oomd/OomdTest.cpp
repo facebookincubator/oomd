@@ -161,7 +161,14 @@ TEST_F(OomdTest, CalculateProtectionOverage) {
 TEST_F(OomdTest, MonitorRootHost) {
   std::string cgroup2fs_mntpt = Fs::getCgroup2MountPoint();
   if (cgroup2fs_mntpt.empty()) {
-    FAIL() << "Host not running cgroup2";
+#ifdef MESON_BUILD
+    // GTEST_SKIP() is in gtest 1.9.x (note: starting at 1.9.x,
+    // gtest is living at master) and it's unlikely that it will
+    // ever get packaged.
+    return;
+#else
+    GTEST_SKIP() << "Host not running cgroup2";
+#endif
   }
 
   std::unordered_set<CgroupPath> cgroups;
