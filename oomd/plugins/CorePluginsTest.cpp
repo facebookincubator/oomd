@@ -229,6 +229,13 @@ TEST(PresureRisingBeyond, DetectsHighMemPressure) {
   ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
 
   OomdContext ctx;
+  ctx.setCgroupContext(
+      CgroupPath(args["cgroup_fs"], "high_pressure"),
+      CgroupContext{.pressure =
+                        ResourcePressure{
+                            .sec_10 = 99.99, .sec_60 = 99.99, .sec_600 = 99.99},
+                    .current_usage = 987654321});
+
   EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::CONTINUE);
 }
 
@@ -248,6 +255,13 @@ TEST(PresureRisingBeyond, NoDetectLowMemPressure) {
   ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
 
   OomdContext ctx;
+  ctx.setCgroupContext(
+      CgroupPath(args["cgroup_fs"], "low_pressure"),
+      CgroupContext{
+          .pressure =
+              ResourcePressure{.sec_10 = 1.11, .sec_60 = 1.11, .sec_600 = 1.11},
+          .current_usage = 987654321});
+
   EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
 }
 
@@ -267,6 +281,19 @@ TEST(PresureRisingBeyond, DetectsHighMemPressureMultiCgroup) {
   ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
 
   OomdContext ctx;
+  ctx.setCgroupContext(
+      CgroupPath(args["cgroup_fs"], "high_pressure"),
+      CgroupContext{.pressure =
+                        ResourcePressure{
+                            .sec_10 = 99.99, .sec_60 = 99.99, .sec_600 = 99.99},
+                    .current_usage = 987654321});
+  ctx.setCgroupContext(
+      CgroupPath(args["cgroup_fs"], "low_pressure"),
+      CgroupContext{
+          .pressure =
+              ResourcePressure{.sec_10 = 1.11, .sec_60 = 1.11, .sec_600 = 1.11},
+          .current_usage = 987654321});
+
   EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::CONTINUE);
 }
 
@@ -286,6 +313,19 @@ TEST(PresureRisingBeyond, DetectsHighMemPressureWildcard) {
   ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
 
   OomdContext ctx;
+  ctx.setCgroupContext(
+      CgroupPath(args["cgroup_fs"], "high_pressure"),
+      CgroupContext{.pressure =
+                        ResourcePressure{
+                            .sec_10 = 99.99, .sec_60 = 99.99, .sec_600 = 99.99},
+                    .current_usage = 987654321});
+  ctx.setCgroupContext(
+      CgroupPath(args["cgroup_fs"], "low_pressure"),
+      CgroupContext{
+          .pressure =
+              ResourcePressure{.sec_10 = 1.11, .sec_60 = 1.11, .sec_600 = 1.11},
+          .current_usage = 987654321});
+
   EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::CONTINUE);
 }
 
@@ -304,6 +344,13 @@ TEST(PressureAbove, DetectsHighMemPressure) {
   ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
 
   OomdContext ctx;
+  ctx.setCgroupContext(
+      CgroupPath(args["cgroup_fs"], "high_pressure"),
+      CgroupContext{.pressure =
+                        ResourcePressure{
+                            .sec_10 = 99.99, .sec_60 = 99.99, .sec_600 = 99.99},
+                    .current_usage = 987654321});
+
   EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::CONTINUE);
 }
 
@@ -322,6 +369,13 @@ TEST(PressureAbove, NoDetectLowMemPressure) {
   ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
 
   OomdContext ctx;
+  ctx.setCgroupContext(
+      CgroupPath(args["cgroup_fs"], "low_pressure"),
+      CgroupContext{
+          .pressure =
+              ResourcePressure{.sec_10 = 1.11, .sec_60 = 1.11, .sec_600 = 1.11},
+          .current_usage = 987654321});
+
   EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
 }
 
@@ -340,6 +394,19 @@ TEST(PressureAbove, DetectsHighMemPressureMultiCgroup) {
   ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
 
   OomdContext ctx;
+  ctx.setCgroupContext(
+      CgroupPath(args["cgroup_fs"], "high_pressure"),
+      CgroupContext{.pressure =
+                        ResourcePressure{
+                            .sec_10 = 99.99, .sec_60 = 99.99, .sec_600 = 99.99},
+                    .current_usage = 987654321});
+  ctx.setCgroupContext(
+      CgroupPath(args["cgroup_fs"], "low_pressure"),
+      CgroupContext{
+          .pressure =
+              ResourcePressure{.sec_10 = 1.11, .sec_60 = 1.11, .sec_600 = 1.11},
+          .current_usage = 987654321});
+
   EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::CONTINUE);
 }
 
@@ -358,6 +425,19 @@ TEST(PressureAbove, DetectsHighMemPressureWildcard) {
   ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
 
   OomdContext ctx;
+  ctx.setCgroupContext(
+      CgroupPath(args["cgroup_fs"], "high_pressure"),
+      CgroupContext{.pressure =
+                        ResourcePressure{
+                            .sec_10 = 99.99, .sec_60 = 99.99, .sec_600 = 99.99},
+                    .current_usage = 987654321});
+  ctx.setCgroupContext(
+      CgroupPath(args["cgroup_fs"], "low_pressure"),
+      CgroupContext{
+          .pressure =
+              ResourcePressure{.sec_10 = 1.11, .sec_60 = 1.11, .sec_600 = 1.11},
+          .current_usage = 987654321});
+
   EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::CONTINUE);
 }
 

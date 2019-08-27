@@ -86,29 +86,22 @@ int PressureRisingBeyond::init(
   return 0;
 }
 
-Engine::PluginRet PressureRisingBeyond::run(OomdContext& /* unused */) {
+Engine::PluginRet PressureRisingBeyond::run(OomdContext& ctx) {
   using std::chrono::steady_clock;
 
-  std::unordered_set<std::string> resolved_cgroups;
-  for (const auto& cgroup : cgroups_) {
-    if (cgroup.isRoot()) {
-      resolved_cgroups.insert("/");
-    } else {
-      auto resolved = Fs::resolveWildcardPath(cgroup.absolutePath());
-      resolved_cgroups.insert(resolved.begin(), resolved.end());
-    }
-  }
   ResourcePressure current_pressure;
   int64_t current_memory_usage = 0;
+  auto sorted_cgroups = ctx.reverseSort();
+  OomdContext::removeSiblingCgroups(cgroups_, sorted_cgroups);
 
-  for (const auto& abs_cgroup_path : resolved_cgroups) {
+  for (const auto& state_pair : sorted_cgroups) {
     ResourcePressure rp;
     switch (resource_) {
       case ResourceType::IO:
-        rp = Fs::readIopressure(abs_cgroup_path);
+        rp = state_pair.second.io_pressure;
         break;
       case ResourceType::MEMORY:
-        rp = Fs::readMempressure(abs_cgroup_path);
+        rp = state_pair.second.pressure;
         break;
         // No default case to catch for future additions to ResourceType
     }
@@ -118,7 +111,7 @@ Engine::PluginRet PressureRisingBeyond::run(OomdContext& /* unused */) {
         current_pressure.sec_10 * 3 + current_pressure.sec_60 * 2 +
             current_pressure.sec_600) {
       current_pressure = rp;
-      current_memory_usage = Fs::readMemcurrent(abs_cgroup_path);
+      current_memory_usage = state_pair.second.current_usage;
     }
   }
 
