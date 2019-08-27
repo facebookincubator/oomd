@@ -69,17 +69,6 @@ class BaseKillPlugin : public Oomd::Engine::BasePlugin {
       const ActionContext& action_context,
       bool dry = false) const;
 
-  /*
-   * Removes all cgroups from @param vec that do not match @param ours.
-   *
-   * This is useful in kill plugins, as kill plugins usually have an assigned
-   * cgroup to kill in. Those plugins probably would not want to kill cgroups it
-   * was not assigned to kill.
-   */
-  virtual void removeSiblingCgroups(
-      const std::unordered_set<CgroupPath>& ours,
-      std::vector<std::pair<CgroupPath, Oomd::CgroupContext>>& vec);
-
  private:
   virtual int getAndTryToKillPids(
       const std::string& path,

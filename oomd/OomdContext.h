@@ -22,6 +22,7 @@
 #include <memory>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 #include "oomd/include/CgroupPath.h"
@@ -99,6 +100,17 @@ class OomdContext {
   static void reverseSort(
       std::vector<std::pair<CgroupPath, CgroupContext>>& vec,
       std::function<double(const CgroupContext& cgroup_ctx)> getKey);
+
+  /*
+   * Removes all cgroups from @param vec that do not match @param ours.
+   *
+   * This is useful in plugins that are assigned a set of cgroups to monitor.
+   * Those plugins often need a way to remove all the cgroups they do not
+   * care about.
+   */
+  static void removeSiblingCgroups(
+      const std::unordered_set<CgroupPath>& ours,
+      std::vector<std::pair<CgroupPath, Oomd::CgroupContext>>& vec);
 
   /*
    * Dumps OomdContext state to stderr

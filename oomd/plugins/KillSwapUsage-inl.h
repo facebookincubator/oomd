@@ -99,7 +99,7 @@ bool KillSwapUsage<Base>::tryToKillSomething(OomdContext& ctx) {
     OomdContext::dumpOomdContext(swap_sorted, !debug_);
     OLOG << "Removed sibling cgroups";
   }
-  Base::removeSiblingCgroups(cgroups_, swap_sorted);
+  OomdContext::removeSiblingCgroups(cgroups_, swap_sorted);
   OomdContext::dumpOomdContext(swap_sorted, !debug_);
 
   for (const auto& state_pair : swap_sorted) {

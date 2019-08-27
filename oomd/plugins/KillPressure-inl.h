@@ -126,7 +126,7 @@ bool KillPressure<Base>::tryToKillSomething(OomdContext& ctx) {
     OomdContext::dumpOomdContext(pressure_sorted, !debug_);
     OLOG << "Removed sibling cgroups";
   }
-  Base::removeSiblingCgroups(cgroups_, pressure_sorted);
+  OomdContext::removeSiblingCgroups(cgroups_, pressure_sorted);
   OomdContext::dumpOomdContext(pressure_sorted, !debug_);
 
   for (const auto& state_pair : pressure_sorted) {

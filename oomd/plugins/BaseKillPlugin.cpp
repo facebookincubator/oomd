@@ -17,8 +17,6 @@
 
 #include "oomd/plugins/BaseKillPlugin.h"
 
-#include <fnmatch.h>
-
 #include <chrono>
 #include <csignal>
 #include <fstream>
@@ -185,30 +183,6 @@ void BaseKillPlugin::logKill(
       << "killer:" << (dry ? "(dry)" : "") << getName() << " v2";
   incrementStats(CoreStats::kKillsKey, 1);
   OOMD_KMSG_LOG(oss.str(), "oomd kill");
-}
-
-void BaseKillPlugin::removeSiblingCgroups(
-    const std::unordered_set<CgroupPath>& ours,
-    std::vector<std::pair<CgroupPath, Oomd::CgroupContext>>& vec) {
-  vec.erase(
-      std::remove_if(
-          vec.begin(),
-          vec.end(),
-          [&](const auto& pair) {
-            // Remove this cgroup if does not match any of ours
-            bool found = false;
-            for (const auto& our : ours) {
-              if (our.cgroupFs() == pair.first.cgroupFs() &&
-                  !::fnmatch(
-                      our.relativePath().c_str(),
-                      pair.first.relativePath().c_str(),
-                      0)) {
-                found = true;
-              }
-            }
-            return !found;
-          }),
-      vec.end());
 }
 
 } // namespace Oomd

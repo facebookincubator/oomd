@@ -99,7 +99,7 @@ bool KillIOCost<Base>::tryToKillSomething(OomdContext& ctx) {
     OomdContext::dumpOomdContext(io_cost_sorted, !debug_);
     OLOG << "Removed sibling cgroups";
   }
-  Base::removeSiblingCgroups(cgroups_, io_cost_sorted);
+  OomdContext::removeSiblingCgroups(cgroups_, io_cost_sorted);
   if (debug_) {
     OomdContext::dumpOomdContext(io_cost_sorted, !debug_);
   }

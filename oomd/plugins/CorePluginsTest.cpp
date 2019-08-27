@@ -76,12 +76,6 @@ class BaseKillPluginShim : public BaseKillPluginMock {
     return Engine::PluginRet::CONTINUE;
   }
 
-  void removeSiblingCgroupsShim(
-      const std::unordered_set<CgroupPath>& our_prefixes,
-      std::vector<std::pair<CgroupPath, Oomd::CgroupContext>>& vec) {
-    removeSiblingCgroups(our_prefixes, vec);
-  }
-
   bool tryToKillCgroupShim(
       const std::string& cgroup_path,
       bool recursive,
@@ -175,7 +169,7 @@ TEST(BaseKillPlugin, RemoveSiblingCgroups) {
   ASSERT_NE(plugin, nullptr);
 
   // Test wildcard support first
-  plugin->removeSiblingCgroupsShim(
+  OomdContext::removeSiblingCgroups(
       {CgroupPath("/", "some/*/cgroup/path/*")}, vec);
   ASSERT_EQ(vec.size(), 2);
   EXPECT_TRUE(std::any_of(vec.begin(), vec.end(), [&](const auto& pair) {
@@ -186,7 +180,7 @@ TEST(BaseKillPlugin, RemoveSiblingCgroups) {
   }));
 
   // Now test non-wildcard
-  plugin->removeSiblingCgroupsShim(
+  OomdContext::removeSiblingCgroups(
       {CgroupPath("/", "some/other/cgroup/path/*")}, vec);
   ASSERT_EQ(vec.size(), 1);
   EXPECT_EQ(vec[0].first.relativePath(), "some/other/cgroup/path/here");
@@ -206,7 +200,7 @@ TEST(BaseKillPlugin, RemoveSiblingCgroupsMultiple) {
   auto plugin = std::make_shared<BaseKillPluginShim>();
   ASSERT_NE(plugin, nullptr);
 
-  plugin->removeSiblingCgroupsShim(
+  OomdContext::removeSiblingCgroups(
       {CgroupPath("/", "some/made_up/cgroup/path/*"),
        CgroupPath("/", "some/other/cgroup/path/*")},
       vec);

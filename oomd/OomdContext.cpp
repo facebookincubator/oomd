@@ -16,11 +16,13 @@
  */
 
 #include "oomd/OomdContext.h"
+
+#include <fnmatch.h>
+#include <exception>
+
 #include "oomd/Log.h"
 #include "oomd/include/Assert.h"
 #include "oomd/util/Fs.h"
-
-#include <exception>
 
 namespace Oomd {
 
@@ -160,6 +162,30 @@ void OomdContext::dumpOomdContext(
     OLOG << "  io_cost_cumulative=" << ms.second.io_cost_cumulative
          << " io_cost_rate=" << ms.second.io_cost_rate;
   }
+}
+
+void OomdContext::removeSiblingCgroups(
+    const std::unordered_set<CgroupPath>& ours,
+    std::vector<std::pair<CgroupPath, Oomd::CgroupContext>>& vec) {
+  vec.erase(
+      std::remove_if(
+          vec.begin(),
+          vec.end(),
+          [&](const auto& pair) {
+            // Remove this cgroup if does not match any of ours
+            bool found = false;
+            for (const auto& our : ours) {
+              if (our.cgroupFs() == pair.first.cgroupFs() &&
+                  !::fnmatch(
+                      our.relativePath().c_str(),
+                      pair.first.relativePath().c_str(),
+                      0)) {
+                found = true;
+              }
+            }
+            return !found;
+          }),
+      vec.end());
 }
 
 std::shared_ptr<CgroupNode> OomdContext::addToTree(

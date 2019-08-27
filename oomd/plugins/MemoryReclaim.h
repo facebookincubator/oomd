@@ -20,12 +20,11 @@
 #include <chrono>
 #include <unordered_set>
 
-#include "oomd/plugins/BaseKillPlugin.h"
+#include "oomd/engine/BasePlugin.h"
 
 namespace Oomd {
 
-template <typename Base = BaseKillPlugin>
-class MemoryReclaim : public Base {
+class MemoryReclaim : public Engine::BasePlugin {
  public:
   int init(
       Engine::MonitoredResources& /* unused */,
@@ -48,5 +47,3 @@ class MemoryReclaim : public Base {
 };
 
 } // namespace Oomd
-
-#include "oomd/plugins/MemoryReclaim-inl.h"
