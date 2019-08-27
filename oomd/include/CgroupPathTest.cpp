@@ -37,6 +37,10 @@ TEST(CgroupPathTest, ConstructorsTest) {
   EXPECT_EQ(path4.absolutePath(), "/sys/fs/cgroup/myservice");
   CgroupPath path5 = std::move(path4);
   EXPECT_EQ(path5.absolutePath(), "/sys/fs/cgroup/myservice");
+
+  // Test root token maps to root cgroup
+  CgroupPath path("/sys/fs/cgroup", "/");
+  EXPECT_TRUE(path.isRoot());
 }
 
 TEST(CgroupPathTest, GettersTest) {
