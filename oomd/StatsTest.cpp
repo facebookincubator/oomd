@@ -53,7 +53,7 @@ class StatsTest : public ::testing::Test {
 
  protected:
   std::unique_ptr<Stats> get_instance() {
-    socket_path = "oomd/sample_dir/XXXXXX.socket";
+    socket_path = "/tmp/oomd-XXXXXX.socket";
     ::mkstemps(socket_path.data(), 7);
     return Stats::get_for_unittest(socket_path);
   }
