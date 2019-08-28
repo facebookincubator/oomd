@@ -23,9 +23,9 @@
 #include <iomanip>
 #include <unordered_set>
 
-#include "oomd/CoreStats.h"
 #include "oomd/Log.h"
 #include "oomd/Stats.h"
+#include "oomd/include/CoreStats.h"
 #include "oomd/util/Fs.h"
 
 static auto constexpr kOomdKillInitiationXattr = "trusted.oomd_ooms";

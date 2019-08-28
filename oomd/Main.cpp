@@ -36,6 +36,7 @@
 #include "oomd/config/JsonConfigParser.h"
 #include "oomd/include/Assert.h"
 #include "oomd/include/CgroupPath.h"
+#include "oomd/include/CoreStats.h"
 #include "oomd/include/Defines.h"
 #include "oomd/util/Fs.h"
 #include "oomd/util/Util.h"
@@ -157,6 +158,14 @@ static std::unordered_map<std::string, Oomd::DeviceType> parseDevices(
     io_devs[dev_id] = dev_type;
   }
   return io_devs;
+}
+
+static void initializeCoreStats() {
+  // Zero out core keys so that there aren't any "missing" keys
+  // until the associated event occurs
+  for (const char* key : Oomd::CoreStats::kAllKeys) {
+    Oomd::setStats(key, 0);
+  }
 }
 
 enum MainOptions {
@@ -339,6 +348,8 @@ int main(int argc, char** argv) {
     OLOG << "Stats module failed to initialize";
     return 1;
   }
+
+  initializeCoreStats();
 
   if (should_check_config) {
     auto ir = parseConfig(flag_conf_file);
