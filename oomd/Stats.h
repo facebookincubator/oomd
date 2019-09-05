@@ -94,12 +94,12 @@ class Stats {
   std::thread stats_thread_;
 };
 
+/*
+ * Public API
+ */
 std::unordered_map<std::string, int> getStats();
-
-int incrementStats(const std::string& key, int val);
-
-int setStats(const std::string& key, int val);
-
+int incrementStat(const std::string& key, int val);
+int setStat(const std::string& key, int val);
 int resetStats();
 
 } // namespace Oomd

@@ -259,7 +259,7 @@ std::unordered_map<std::string, int> getStats() {
   return Stats::get().getAll();
 }
 
-int incrementStats(const std::string& key, int val) {
+int incrementStat(const std::string& key, int val) {
   if (!Stats::isInit()) {
     OLOG << "Warning: stats module not initialized";
     return 1;
@@ -268,7 +268,7 @@ int incrementStats(const std::string& key, int val) {
   return Stats::get().increment(key, val);
 }
 
-int setStats(const std::string& key, int val) {
+int setStat(const std::string& key, int val) {
   if (!Stats::isInit()) {
     OLOG << "Warning: stats module not initialized";
     return 1;

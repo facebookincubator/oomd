@@ -38,7 +38,7 @@ BaseKillPlugin::BaseKillPlugin() {
    * Initializes kKillsKey in stats for immediate reporting,
    * rather than waiting for first occurrence
    */
-  setStats(CoreStats::kKillsKey, 0);
+  Oomd::setStat(CoreStats::kKillsKey, 0);
 }
 
 int BaseKillPlugin::getAndTryToKillPids(
@@ -181,7 +181,7 @@ void BaseKillPlugin::logKill(
       << "ruleset:[" << action_context.ruleset << "] "
       << "detectorgroup:[" << action_context.detectorgroup << "] "
       << "killer:" << (dry ? "(dry)" : "") << getName() << " v2";
-  incrementStats(CoreStats::kKillsKey, 1);
+  Oomd::incrementStat(CoreStats::kKillsKey, 1);
   OOMD_KMSG_LOG(oss.str(), "oomd kill");
 }
 

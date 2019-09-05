@@ -63,7 +63,7 @@ bool Engine::addDropInConfig(size_t tag, std::unique_ptr<Ruleset> ruleset) {
   // Mark base ruleset at targeted
   it->ruleset->markDropInTargeted();
 
-  Oomd::incrementStats(CoreStats::kNumDropInAdds, 1);
+  Oomd::incrementStat(CoreStats::kNumDropInAdds, 1);
 
   return true;
 }
@@ -91,7 +91,7 @@ void Engine::removeDropInConfig(size_t tag) {
     // Make sure to decrement counter if there's a remove. This is to
     // normalize the count in case the same drop-in config is added/
     // removed a bunch for some reason.
-    Oomd::incrementStats(CoreStats::kNumDropInAdds, -n);
+    Oomd::incrementStat(CoreStats::kNumDropInAdds, -n);
   }
 }
 

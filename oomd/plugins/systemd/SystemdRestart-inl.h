@@ -57,7 +57,8 @@ int SystemdRestart<Base>::init(
       dry_ = true;
     }
   }
-  Oomd::setStats(kRestartsKey, 0);
+
+  Oomd::setStat(kRestartsKey, 0);
 
   // Success
   return 0;
@@ -77,7 +78,7 @@ Engine::PluginRet SystemdRestart<Base>::run(OomdContext& /* unused */) {
     std::ostringstream oss;
     oss << "restarted systemd service=" << service_ << (dry_ ? " (dry)" : "");
     OOMD_KMSG_LOG(oss.str(), "oomd kill");
-    incrementStats(kRestartsKey, 1);
+    Oomd::incrementStat(kRestartsKey, 1);
     std::this_thread::sleep_for(std::chrono::seconds(post_action_delay_));
     return Engine::PluginRet::STOP;
   } else {

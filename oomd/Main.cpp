@@ -164,7 +164,7 @@ static void initializeCoreStats() {
   // Zero out core keys so that there aren't any "missing" keys
   // until the associated event occurs
   for (const char* key : Oomd::CoreStats::kAllKeys) {
-    Oomd::setStats(key, 0);
+    Oomd::setStat(key, 0);
   }
 }
 
