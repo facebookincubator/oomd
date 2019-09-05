@@ -300,7 +300,7 @@ int main(int argc, char** argv) {
       Oomd::StatsClient client(stats_socket_path);
       auto map = client.getStats();
       if (!map) {
-        std::cerr << "Failed to retrieve stats";
+        std::cerr << "Failed to retrieve stats" << std::endl;
         return 1;
       }
       Json::Value root(Json::objectValue);
