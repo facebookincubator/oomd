@@ -20,7 +20,9 @@
 #include <algorithm>
 
 #include "oomd/Log.h"
+#include "oomd/Stats.h"
 #include "oomd/include/Assert.h"
+#include "oomd/include/CoreStats.h"
 
 namespace Oomd {
 namespace Engine {
@@ -61,6 +63,8 @@ bool Engine::addDropInConfig(size_t tag, std::unique_ptr<Ruleset> ruleset) {
   // Mark base ruleset at targeted
   it->ruleset->markDropInTargeted();
 
+  Oomd::incrementStats(CoreStats::kNumDropInAdds, 1);
+
   return true;
 }
 
@@ -83,6 +87,11 @@ void Engine::removeDropInConfig(size_t tag) {
     for (int i = 0; i < n; ++i) {
       base.ruleset->markDropInUntargeted();
     }
+
+    // Make sure to decrement counter if there's a remove. This is to
+    // normalize the count in case the same drop-in config is added/
+    // removed a bunch for some reason.
+    Oomd::incrementStats(CoreStats::kNumDropInAdds, -n);
   }
 }
 
