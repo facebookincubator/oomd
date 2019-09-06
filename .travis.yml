@@ -1,23 +1,38 @@
+dist: bionic
+addons:
+  apt:
+    packages:
+      - pkg-config
+      - libsystemd-dev
+      - libjsoncpp-dev
+      - googletest
+      - meson
+      - g++-8
+
 language: cpp
 
-compiler:
-  - clang
-  - gcc
+script:
+  - meson build/
+  - ninja -C build/
+  - ninja -C build/ test
 
-sudo: required
+matrix:
+  include:
+    - compiler: gcc
+      env:
+        - CC="gcc-8" CXX="g++-8"
 
-services:
-  - docker
+    - compiler: clang
 
-env:
-  - SH="docker exec -t ubuntu-bionic bash -c"
-
-before_install:
-  - docker run -d --name ubuntu-bionic -v $(pwd):/travis -w /travis ubuntu:bionic tail -f /dev/null
-
-install:
-  - $SH "apt update"
-  - $SH "apt install -y pkg-config libsystemd-dev libjsoncpp-dev googletest meson clang-format g++-8 git"
+    - env:
+        - JOB_TYPE="clang-format"
+      addons:
+        apt:
+          packages:
+            - clang-format
+      script:
+        - ./oomd/clang-format.sh
+        -  git diff --exit-code
 
 notifications:
   irc:
@@ -25,7 +40,3 @@ notifications:
       - "chat.freenode.net#oomd"
     on_success: change
     on_failure: always
-
-script:
-  - $SH ./build-from-github.sh
-  - $SH './clang-format.sh && if [ $(git diff HEAD | wc -l) == "0" ]; then exit 0; else exit 1; fi'
