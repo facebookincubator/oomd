@@ -5,53 +5,49 @@ project('oomd', 'cpp',
 
 cpp_args = ['-std=c++17', '-g', '-rdynamic', '-DMESON_BUILD']
 
-inc = include_directories('''
-    oomd/include
-    oomd/util
-    oomd/
-'''.split())
+inc = include_directories('src')
 
 # Plumbing to #define a GIT_VERSION so Main.cpp can print it out
 vcs_tagger = [meson.source_root() + '/vcs_tagger.sh',
     meson.source_root(),
     meson.project_version()]
 version_h = vcs_tag(
-    input : 'oomd/include/Version.h.in',
+    input : 'src/oomd/include/Version.h.in',
     output : 'Version.h',
     command : vcs_tagger)
 versiondep = declare_dependency(sources : version_h)
 
 srcs = files('''
-    oomd/Log.cpp
-    oomd/Oomd.cpp
-    oomd/OomdContext.cpp
-    oomd/Stats.cpp
-    oomd/StatsClient.cpp
-    oomd/PluginRegistry.cpp
-    oomd/config/ConfigCompiler.cpp
-    oomd/config/ConfigTypes.cpp
-    oomd/config/JsonConfigParser.cpp
-    oomd/engine/DetectorGroup.cpp
-    oomd/engine/Engine.cpp
-    oomd/engine/Ruleset.cpp
-    oomd/include/Assert.cpp
-    oomd/include/CgroupPath.cpp
-    oomd/plugins/AdjustCgroup.cpp
-    oomd/plugins/BaseKillPlugin.cpp
-    oomd/plugins/ContinuePlugin.cpp
-    oomd/plugins/DumpCgroupOverview.cpp
-    oomd/util/Fs.cpp
-    oomd/util/Util.cpp
-    oomd/plugins/MemoryAbove.cpp
-    oomd/plugins/MemoryReclaim.cpp
-    oomd/plugins/PressureAbove.cpp
-    oomd/plugins/PressureRisingBeyond.cpp
-    oomd/plugins/SwapFree.cpp
-    oomd/plugins/Exists.cpp
-    oomd/plugins/KillIOCost.cpp
-    oomd/plugins/KillMemoryGrowth.cpp
-    oomd/plugins/KillSwapUsage.cpp
-    oomd/plugins/KillPressure.cpp
+    src/oomd/Log.cpp
+    src/oomd/Oomd.cpp
+    src/oomd/OomdContext.cpp
+    src/oomd/Stats.cpp
+    src/oomd/StatsClient.cpp
+    src/oomd/PluginRegistry.cpp
+    src/oomd/config/ConfigCompiler.cpp
+    src/oomd/config/ConfigTypes.cpp
+    src/oomd/config/JsonConfigParser.cpp
+    src/oomd/engine/DetectorGroup.cpp
+    src/oomd/engine/Engine.cpp
+    src/oomd/engine/Ruleset.cpp
+    src/oomd/include/Assert.cpp
+    src/oomd/include/CgroupPath.cpp
+    src/oomd/plugins/AdjustCgroup.cpp
+    src/oomd/plugins/BaseKillPlugin.cpp
+    src/oomd/plugins/ContinuePlugin.cpp
+    src/oomd/plugins/DumpCgroupOverview.cpp
+    src/oomd/util/Fs.cpp
+    src/oomd/util/Util.cpp
+    src/oomd/plugins/MemoryAbove.cpp
+    src/oomd/plugins/MemoryReclaim.cpp
+    src/oomd/plugins/PressureAbove.cpp
+    src/oomd/plugins/PressureRisingBeyond.cpp
+    src/oomd/plugins/SwapFree.cpp
+    src/oomd/plugins/Exists.cpp
+    src/oomd/plugins/KillIOCost.cpp
+    src/oomd/plugins/KillMemoryGrowth.cpp
+    src/oomd/plugins/KillSwapUsage.cpp
+    src/oomd/plugins/KillPressure.cpp
 '''.split())
 
 deps = [versiondep,
@@ -62,8 +58,8 @@ deps = [versiondep,
 systemd_dep = dependency('libsystemd', required: false)
 if systemd_dep.found()
   srcs += files('''
-      oomd/plugins/systemd/BaseSystemdPlugin.cpp
-      oomd/plugins/systemd/SystemdRestart.cpp
+      src/oomd/plugins/systemd/BaseSystemdPlugin.cpp
+      src/oomd/plugins/systemd/SystemdRestart.cpp
   '''.split())
 
   deps += [systemd_dep]
@@ -76,7 +72,7 @@ oomd_lib = static_library('oomd',
                           install : false,
                           dependencies : deps)
 executable('oomd_bin',
-           files('oomd/Main.cpp'),
+           files('src/oomd/Main.cpp'),
            include_directories : inc,
            cpp_args : cpp_args,
            dependencies : deps,
@@ -88,23 +84,23 @@ executable('oomd_bin',
 # TODO: Normally we'd use a dictionary here, but they are only supported as of
 # Meson version 0.47.0.  Ubuntu 18.04 provides only Meson version 0.45.1.
 core_tests = [
-  ['config',   files('oomd/config/JsonConfigParserTest.cpp')],
-  ['oomd',     files('oomd/OomdTest.cpp')],
-  ['util',     files('oomd/util/FsTest.cpp',
-                     'oomd/util/ScopeGuardTest.cpp',
-                     'oomd/util/UtilTest.cpp')],
-  ['context',  files('oomd/OomdContextTest.cpp')],
-  ['log',      files('oomd/LogTest.cpp')],
-  ['assert',   files('oomd/include/AssertTest.cpp')],
-  ['cpath',    files('oomd/include/CgroupPathTest.cpp')],
-  ['compiler', files('oomd/config/ConfigCompilerTest.cpp')],
-  ['plugin',   files('oomd/plugins/CorePluginsTest.cpp')],
-  ['stats',    files('oomd/StatsTest.cpp')],
+  ['config',   files('src/oomd/config/JsonConfigParserTest.cpp')],
+  ['oomd',     files('src/oomd/OomdTest.cpp')],
+  ['util',     files('src/oomd/util/FsTest.cpp',
+                     'src/oomd/util/ScopeGuardTest.cpp',
+                     'src/oomd/util/UtilTest.cpp')],
+  ['context',  files('src/oomd/OomdContextTest.cpp')],
+  ['log',      files('src/oomd/LogTest.cpp')],
+  ['assert',   files('src/oomd/include/AssertTest.cpp')],
+  ['cpath',    files('src/oomd/include/CgroupPathTest.cpp')],
+  ['compiler', files('src/oomd/config/ConfigCompilerTest.cpp')],
+  ['plugin',   files('src/oomd/plugins/CorePluginsTest.cpp')],
+  ['stats',    files('src/oomd/StatsTest.cpp')],
 ]
 
 # Optional tests
 if systemd_dep.found()
-    core_tests += [['systemd_plugin', files('oomd/plugins/systemd/SystemdPluginsTest.cpp')]]
+    core_tests += [['systemd_plugin', files('src/oomd/plugins/systemd/SystemdPluginsTest.cpp')]]
 endif
 
 
@@ -127,7 +123,7 @@ if gtest_dep.found() and gmock_dep.found()
             link_whole : oomd_lib)
         test(executable_name_suffix,
              test_executable,
-             workdir : meson.source_root())
+             workdir : meson.source_root() + '/src')
     endforeach
 
 endif
