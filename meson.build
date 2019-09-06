@@ -68,11 +68,11 @@ if systemd_dep.found()
   deps += [systemd_dep]
 endif
 
-oomd_lib = library('oomd',
+oomd_lib = static_library('oomd',
                    srcs,
                    include_directories : inc,
                    cpp_args : cpp_args,
-                   install: true,
+                   install: false,
                    dependencies : deps)
 executable('oomd_bin',
            files('oomd/Main.cpp'),
