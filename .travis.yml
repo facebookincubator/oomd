@@ -32,7 +32,7 @@ matrix:
             - clang-format
       script:
         - ./clang-format.sh
-        -  git diff --exit-code
+        - git diff --exit-code
 
 notifications:
   irc:
