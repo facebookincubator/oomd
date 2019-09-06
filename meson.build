@@ -1,9 +1,9 @@
 project('oomd', 'cpp',
   version : '0.1.0',
   license : 'GPL2',
-  default_options : ['stdsplit=false'])
+  default_options : ['stdsplit=false', 'cpp_std=c++17'])
 
-cpp_args = ['-std=c++17', '-g', '-rdynamic', '-DMESON_BUILD']
+cpp_args = ['-DMESON_BUILD']
 
 inc = include_directories('''
     oomd/include
