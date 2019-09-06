@@ -68,20 +68,19 @@ if systemd_dep.found()
   deps += [systemd_dep]
 endif
 
-oomd_lib = library('oomd',
-                   srcs,
-                   include_directories : inc,
-                   cpp_args : cpp_args,
-                   install: true,
-                   dependencies : deps)
+oomd_lib = static_library('oomd',
+                          srcs,
+                          include_directories : inc,
+                          cpp_args : cpp_args,
+                          install : false,
+                          dependencies : deps)
 executable('oomd_bin',
            files('oomd/Main.cpp'),
            include_directories : inc,
            cpp_args : cpp_args,
            dependencies : deps,
            install: true,
-           install_rpath: join_paths(get_option('prefix'), get_option('libdir')),
-           link_with : oomd_lib)
+           link_whole : oomd_lib)
 
 
 # Core tests
@@ -123,7 +122,7 @@ if gtest_dep.found() and gmock_dep.found()
             include_directories : inc,
             cpp_args : cpp_args,
             dependencies : deps,
-            link_with : oomd_lib)
+            link_whole : oomd_lib)
         test(executable_name_suffix, test_executable)
    endforeach
 
