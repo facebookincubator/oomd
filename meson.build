@@ -1,6 +1,7 @@
 project('oomd', 'cpp',
   version : '0.1.0',
-  license : 'GPL2')
+  license : 'GPL2',
+  default_options : ['stdsplit=false'])
 
 cpp_args = ['-std=c++17', '-g', '-rdynamic', '-DMESON_BUILD']
 
@@ -89,7 +90,8 @@ executable('oomd_bin',
 core_tests = [
   ['config',   files('oomd/config/JsonConfigParserTest.cpp')],
   ['oomd',     files('oomd/OomdTest.cpp')],
-  ['util',     files('oomd/util/FsTest.cpp', 'oomd/util/ScopeGuardTest.cpp',
+  ['util',     files('oomd/util/FsTest.cpp',
+                     'oomd/util/ScopeGuardTest.cpp',
                      'oomd/util/UtilTest.cpp')],
   ['context',  files('oomd/OomdContextTest.cpp')],
   ['log',      files('oomd/LogTest.cpp')],
@@ -124,7 +126,7 @@ if gtest_dep.found() and gmock_dep.found()
             dependencies : deps,
             link_whole : oomd_lib)
         test(executable_name_suffix, test_executable)
-   endforeach
+    endforeach
 
 
     # Copy over fixtures to build dir so 'ninja test' will work
