@@ -31,7 +31,7 @@ matrix:
           packages:
             - clang-format
       script:
-        - ./oomd/clang-format.sh
+        - ./clang-format.sh
         -  git diff --exit-code
 
 notifications:
