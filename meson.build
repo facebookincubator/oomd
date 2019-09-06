@@ -125,19 +125,9 @@ if gtest_dep.found() and gmock_dep.found()
             cpp_args : cpp_args,
             dependencies : deps,
             link_whole : oomd_lib)
-        test(executable_name_suffix, test_executable)
+        test(executable_name_suffix,
+             test_executable,
+             workdir : meson.source_root())
     endforeach
 
-
-    # Copy over fixtures to build dir so 'ninja test' will work
-    r = run_command('rm', '-r', meson.build_root() + '/oomd')
-    r = run_command('mkdir', '-p', meson.build_root() + '/oomd')
-    if r.returncode() != 0
-      error('Failed to create test fixture directory')
-    endif
-
-    r = run_command('cp', '-r', meson.source_root() + '/oomd/fixtures', meson.build_root() + '/oomd')
-    if r.returncode() != 0
-      error('Failed to copy test fixtures')
-    endif
 endif
