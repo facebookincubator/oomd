@@ -20,6 +20,7 @@
 #include <string>
 #include <unordered_set>
 
+#include "oomd/Log.h"
 #include "oomd/Oomd.h"
 #include "oomd/util/Fs.h"
 
@@ -161,13 +162,29 @@ TEST_F(OomdTest, CalculateProtectionOverage) {
 TEST_F(OomdTest, MonitorRootHost) {
   std::string cgroup2fs_mntpt = Fs::getCgroup2MountPoint();
   if (cgroup2fs_mntpt.empty()) {
-#ifdef MESON_BUILD
+#ifdef GTEST_SKIP
+    GTEST_SKIP() << "Host not running cgroup2";
+#else
     // GTEST_SKIP() is in gtest 1.9.x (note: starting at 1.9.x,
     // gtest is living at master) and it's unlikely that it will
     // ever get packaged.
+    OLOG << "Host not running cgroup2";
     return;
+#endif
+  }
+
+  if (cgroup2fs_mntpt == "/sys/fs/cgroup/unified/") {
+    // If we have the cgroup tree in "hybrid" mode, this will fail when we test
+    // to get the cgroup context, since we will not find any memory stat files
+    // in that tree. Let's also skip this test in that case.
+    // TODO: A better approach would be to find which controllers are mounted in
+    // the cgroup2 mountpoint, but for now this should be enough to get us to
+    // pass our tests on Travis-CI.
+#ifdef GTEST_SKIP
+    GTEST_SKIP() << "This test does not support hybrid hierarchy";
 #else
-    GTEST_SKIP() << "Host not running cgroup2";
+    OLOG << "This test does not support hybrid hierarchy";
+    return;
 #endif
   }
 
