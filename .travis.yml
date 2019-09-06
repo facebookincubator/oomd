@@ -17,7 +17,7 @@ before_install:
 
 install:
   - $SH "apt update"
-  - $SH "apt install -y pkg-config libsystemd-dev libjsoncpp-dev googletest meson clang-format g++-8"
+  - $SH "apt install -y pkg-config libsystemd-dev libjsoncpp-dev googletest meson clang-format g++-8 git"
 
 notifications:
   irc:
@@ -27,5 +27,5 @@ notifications:
     on_failure: always
 
 script:
-  - $SH ./oomd/build-from-github.sh
-  - $SH './oomd/clang-format.sh && if [ $(git diff HEAD | wc -l) == "0" ]; then exit 0; else exit 1; fi'
+  - $SH ./build-from-github.sh
+  - $SH './clang-format.sh && if [ $(git diff HEAD | wc -l) == "0" ]; then exit 0; else exit 1; fi'
