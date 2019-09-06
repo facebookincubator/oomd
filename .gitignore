@@ -1,6 +1,7 @@
 .DS_Store
 
-oomd/build/
+/build/
+/tags
 
 node_modules
 
