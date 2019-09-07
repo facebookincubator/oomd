@@ -80,18 +80,27 @@ class Stats {
   bool startSocket();
 
   /*
-   * Loop for socket to accept new connections
+   * Accepts new connections to socket and delegates
+   * created fds to processMsg()
    */
   void runSocket();
 
+  /*
+   * Processes a msg on a given fd
+   */
+  void processMsg(int sockfd);
+
   // Notifies the stats socket thread to stop
-  bool statsThreadRunning_{true};
+  std::atomic<bool> statsThreadRunning_{true};
   std::mutex stats_mutex_;
   std::string stats_socket_path_;
   sockaddr_un serv_addr_;
   int sockfd_;
   std::unordered_map<std::string, int> stats_;
   std::thread stats_thread_;
+  std::mutex thread_mutex_;
+  std::atomic<int> thread_count_{0};
+  std::condition_variable thread_exited_;
 };
 
 /*

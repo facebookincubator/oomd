@@ -24,11 +24,13 @@
 #include <sys/types.h>
 #include <sys/un.h>
 #include <unistd.h>
+#include <chrono>
 #include <cstring>
 #include <iostream>
 
 #include "oomd/Stats.h"
 #include "oomd/StatsClient.h"
+#include "oomd/include/Assert.h"
 #include "oomd/util/Fs.h"
 #include "oomd/util/ScopeGuard.h"
 #include "oomd/util/Util.h"
@@ -43,14 +45,24 @@ Stats::Stats(const std::string& stats_socket_path)
 }
 
 Stats::~Stats() {
+  std::array<char, 64> err_buf = {};
   statsThreadRunning_ = false;
   auto client = StatsClient(stats_socket_path_);
   client.closeSocket();
+  std::unique_lock<std::mutex> lock(thread_mutex_);
+  if (!thread_exited_.wait_for(lock, std::chrono::seconds(5), [this] {
+        return this->thread_count_ == 0;
+      })) {
+    OLOG << "Closing stats error: timed out waiting for a thread";
+    // Crash here because client threads _must_ timeout in < 5s.
+    // If we don't crash then we risk the client threads accessing destructed
+    // members. Note this should never happen.
+    OCHECK(false);
+  }
+  lock.unlock();
   if (stats_thread_.joinable()) {
     stats_thread_.join();
   }
-  std::array<char, 64> err_buf;
-  ::memset(err_buf.data(), '\0', err_buf.size());
   if (::unlink(serv_addr_.sun_path) < 0) {
     OLOG << "Closing stats error: unlinking socket path: "
          << ::strerror_r(errno, err_buf.data(), err_buf.size());
@@ -93,8 +105,7 @@ bool& Stats::isInitInternal() {
 }
 
 bool Stats::startSocket() {
-  std::array<char, 64> err_buf;
-  ::memset(err_buf.data(), '\0', err_buf.size());
+  std::array<char, 64> err_buf = {};
   size_t dir_end = stats_socket_path_.find_last_of("/");
   // Iteratively checks if dirs in path exist, creates them if not
   if (dir_end != std::string::npos) {
@@ -146,83 +157,98 @@ bool Stats::startSocket() {
   if (::listen(sockfd_, 5) < 0) {
     OLOG << "Error listening at socket: "
          << ::strerror_r(errno, err_buf.data(), err_buf.size());
+    return false;
   }
   stats_thread_ = std::thread([this] { this->runSocket(); });
   return true;
 }
 
 void Stats::runSocket() {
-  bool statsThreadRunning = true;
   sockaddr_un cli_addr;
   socklen_t clilen = sizeof(cli_addr);
-  std::array<char, 64> err_buf;
-  ::memset(err_buf.data(), '\0', err_buf.size());
-  while (statsThreadRunning) {
+  std::array<char, 64> err_buf = {};
+  while (statsThreadRunning_) {
     int sockfd = ::accept(sockfd_, (struct sockaddr*)&cli_addr, &clilen);
     if (sockfd < 0) {
       OLOG << "Stats server error: accepting connection: "
            << ::strerror_r(errno, err_buf.data(), err_buf.size());
       continue;
     }
-    OOMD_SCOPE_EXIT {
-      if (::close(sockfd) < 0) {
-        OLOG << "Stats server error: closing file descriptor: "
-             << ::strerror_r(errno, err_buf.data(), err_buf.size());
-      }
-    };
-    char mode = 'a';
-    char byte_buf;
-    int num_read = 0;
-    for (; num_read < 32; num_read++) {
-      int res = ::read(sockfd, &byte_buf, 1);
-      if (res < 0) { // Error reading
-        OLOG << "Stats server error: reading from socket: "
-             << ::strerror_r(errno, err_buf.data(), err_buf.size());
-        break;
-      } else if (res == 0) { // EOF reached
-        break;
-      }
-      // We read a char
-      if (byte_buf == '\n' || byte_buf == '\0') {
-        break;
-      }
-      if (num_read == 0) { // We only care about the first char
-        mode = byte_buf;
-      }
-    }
-
-    if (num_read == 0) {
-      OLOG << "Stats server error: no msg received";
-    }
-
-    Json::Value root;
-    root["error"] = 0;
-    Json::Value body(Json::objectValue);
-    switch (mode) {
-      case 'g':
-        for (auto const& pair : getAll()) {
-          body[pair.first] = pair.second;
-        }
-        break;
-      case 'r':
-        Stats::reset();
-        break;
-      case '0':
-        break;
-      default:
-        root["error"] = 1;
-        OLOG << "Stats server error: received unknown request: " << mode;
-    }
-    root["body"] = body;
-    std::string ret = root.toStyledString();
-    if (Util::writeFull(sockfd, ret.c_str(), strlen(ret.c_str())) < 0) {
-      OLOG << "Stats server error: writing to socket: "
-           << ::strerror_r(errno, err_buf.data(), err_buf.size());
-      continue;
-    }
-    std::lock_guard<std::mutex> lock(stats_mutex_);
-    statsThreadRunning = statsThreadRunning_;
+    const timeval io_timeout{.tv_sec = 2, .tv_usec = 0};
+    const void* time_ptr = static_cast<const void*>(&io_timeout);
+    ::setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, time_ptr, sizeof io_timeout);
+    ::setsockopt(sockfd, SOL_SOCKET, SO_SNDTIMEO, time_ptr, sizeof io_timeout);
+    std::unique_lock<std::mutex> lock(thread_mutex_);
+    ++thread_count_;
+    std::thread msg_thread_ =
+        std::thread([this, sockfd] { this->processMsg(sockfd); });
+    msg_thread_.detach();
+    lock.unlock();
+    thread_exited_.notify_one();
   }
+}
+
+void Stats::processMsg(int sockfd) {
+  std::array<char, 64> err_buf = {};
+  OOMD_SCOPE_EXIT {
+    if (::close(sockfd) < 0) {
+      OLOG << "Stats server error: closing file descriptor: "
+           << ::strerror_r(errno, err_buf.data(), err_buf.size());
+    }
+  };
+  char mode = 'a';
+  char byte_buf;
+  int num_read = 0;
+  for (; num_read < 32; num_read++) {
+    int res = ::read(sockfd, &byte_buf, 1);
+    if (res < 0) { // Error reading
+      OLOG << "Stats server error: reading from socket: "
+           << ::strerror_r(errno, err_buf.data(), err_buf.size());
+      return;
+    } else if (res == 0) { // EOF reached
+      break;
+    }
+    // We read a char
+    if (byte_buf == '\n' || byte_buf == '\0') {
+      break;
+    }
+    if (num_read == 0) { // We only care about the first char
+      mode = byte_buf;
+    }
+  }
+
+  if (num_read == 0) {
+    OLOG << "Stats server error: no msg received";
+  }
+
+  Json::Value root;
+  root["error"] = 0;
+  Json::Value body(Json::objectValue);
+  switch (mode) {
+    case 'g':
+      for (auto const& pair : getAll()) {
+        body[pair.first] = pair.second;
+      }
+      break;
+    case 'r':
+      Stats::reset();
+      break;
+    case '0':
+      break;
+    default:
+      root["error"] = 1;
+      OLOG << "Stats server error: received unknown request: " << mode;
+  }
+  root["body"] = body;
+  std::string ret = root.toStyledString();
+  if (Util::writeFull(sockfd, ret.c_str(), strlen(ret.c_str())) < 0) {
+    OLOG << "Stats server error: writing to socket: "
+         << ::strerror_r(errno, err_buf.data(), err_buf.size());
+  }
+  std::unique_lock<std::mutex> lock(thread_mutex_);
+  thread_count_--;
+  lock.unlock();
+  thread_exited_.notify_one();
 }
 
 std::unordered_map<std::string, int> Stats::getAll() {

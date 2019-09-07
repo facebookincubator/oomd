@@ -124,8 +124,7 @@ int StatsClient::closeSocket() {
 }
 
 std::optional<std::string> StatsClient::msgSocket(std::string msg) {
-  std::array<char, 64> err_buf;
-  ::memset(err_buf.data(), '\0', err_buf.size());
+  std::array<char, 64> err_buf = {};
   int sockfd = ::socket(AF_UNIX, SOCK_STREAM, 0);
   if (sockfd < 0) {
     std::cerr << "Error: creating client socket: "
@@ -140,11 +139,15 @@ std::optional<std::string> StatsClient::msgSocket(std::string msg) {
                 << std::endl;
     }
   };
+  const timeval io_timeout{.tv_sec = 2, .tv_usec = 0};
+  const void* time_ptr = static_cast<const void*>(&io_timeout);
+  ::setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, time_ptr, sizeof io_timeout);
+  ::setsockopt(sockfd, SOL_SOCKET, SO_SNDTIMEO, time_ptr, sizeof io_timeout);
   if (::connect(sockfd, (struct sockaddr*)&serv_addr_, sizeof(serv_addr_)) <
       0) {
     std::cerr << "Error: connecting to stats socket: "
               << ::strerror_r(errno, err_buf.data(), err_buf.size())
-              << std::endl;
+              << "\nSocket path: " << serv_addr_.sun_path << std::endl;
     return std::nullopt;
   }
   msg += '\n';
@@ -155,7 +158,7 @@ std::optional<std::string> StatsClient::msgSocket(std::string msg) {
     return std::nullopt;
   }
   std::string ret = "";
-  std::array<char, 512> msg_buf;
+  std::array<char, 512> msg_buf = {};
   while (true) {
     int n = Util::readFull(sockfd, msg_buf.data(), msg_buf.size() - 1);
     if (n < 0) {
