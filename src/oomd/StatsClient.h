@@ -48,7 +48,7 @@ class StatsClient {
 
  private:
   std::string stats_socket_path_;
-  struct sockaddr_un serv_addr_;
+  sockaddr_un serv_addr_;
 };
 
 } // namespace Oomd

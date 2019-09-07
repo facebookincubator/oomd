@@ -207,3 +207,31 @@ TEST_F(StatsTest, LongJson) {
     }
   }
 }
+
+TEST_F(StatsTest, MultiThreadedMany) {
+  sockaddr_un serv_addr_;
+  auto stats = get_instance();
+  serv_addr_.sun_family = AF_UNIX;
+  ::strcpy(serv_addr_.sun_path, socket_path.c_str());
+
+  const int num_threads = 50;
+  std::array<int, num_threads> sockfds;
+  for (int i = 0; i < num_threads; i++) {
+    int sockfd = ::socket(AF_UNIX, SOCK_STREAM, 0);
+    sockfds[i] = sockfd;
+    EXPECT_GE(sockfd, 0);
+    int connected =
+        ::connect(sockfd, (struct sockaddr*)&serv_addr_, sizeof(serv_addr_));
+    EXPECT_GE(connected, 0);
+    std::string msg = "g\n";
+    int res = Util::writeFull(sockfd, msg.c_str(), strlen(msg.c_str()));
+    EXPECT_GE(res, 0);
+  }
+  // server threads are now blocked on write()
+  for (int i = 0; i < num_threads; i++) {
+    std::array<char, 512> msg_buf = {};
+    int res = Util::readFull(sockfds[i], msg_buf.data(), msg_buf.size() - 1);
+    EXPECT_GE(res, 0);
+    EXPECT_EQ(::close(sockfds[i]), 0);
+  }
+}
