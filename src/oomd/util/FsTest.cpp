@@ -15,21 +15,18 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#include <fcntl.h>
-#include <ftw.h>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
-#include <sys/stat.h>
 #include <utility>
 #include <vector>
 
+#include "oomd/util/Fixture.h"
 #include "oomd/util/Fs.h"
 #include "oomd/util/Util.h"
 
 using namespace Oomd;
 using namespace testing;
 
-constexpr auto kFixturesDirTemplate = "/tmp/__oomd_fixtures_XXXXXX";
 constexpr auto kCgroupRootDir = "oomd/fixtures/cgroup";
 constexpr auto kCgroupDataDir = "oomd/fixtures/cgroup/system.slice";
 constexpr auto kFsDataDir = "oomd/fixtures/fs_data";
@@ -37,96 +34,22 @@ constexpr auto kFsVmstatFile = "oomd/fixtures/proc/vmstat";
 constexpr auto kFsMeminfoFile = "oomd/fixtures/proc/meminfo";
 constexpr auto kFsMountsFile = "oomd/fixtures/proc/mounts";
 constexpr auto kFsDeviceDir = "oomd/fixtures/sys_dev_block";
-
-static std::string mkdtempChecked(const std::string& tmplt) {
-  char buf[tmplt.length() + 1];
-  strcpy(buf, tmplt.c_str());
-  if (::mkdtemp(buf) == nullptr) {
-    throw std::runtime_error(
-        tmplt + ": mkdtemp failed: " + ::strerror_r(errno, buf, sizeof(buf)));
-  }
-  return buf;
-}
-
-static void mkdirsChecked(
-    const std::string& path,
-    const std::string& prefix = "") {
-  char buf[1024];
-  buf[0] = '\0';
-  auto dirs = Oomd::Util::split(path, '/');
-  std::string prefix_path = prefix;
-  if (prefix_path != "") {
-    prefix_path += "/";
-  }
-  for (const auto& dir : dirs) {
-    prefix_path += dir + "/";
-    if (::mkdir(prefix_path.c_str(), 0777) == -1) {
-      switch (errno) {
-        case EEXIST:
-          continue;
-        default:
-          throw std::runtime_error(
-              prefix_path +
-              ": mkdir failed: " + ::strerror_r(errno, buf, sizeof(buf)));
-      }
-    }
-  }
-}
-
-static int rm(const char* path, const struct stat*, int, struct FTW*) {
-  return ::remove(path);
-}
-
-static void rmrChecked(const std::string& path) {
-  char buf[1024];
-  buf[0] = '\0';
-  if (::nftw(path.c_str(), rm, 10, FTW_DEPTH | FTW_PHYS) == -1) {
-    switch (errno) {
-      case ENOENT:
-        return;
-      default:
-        throw std::runtime_error(
-            path + ": remove failed: " + ::strerror_r(errno, buf, sizeof(buf)));
-    }
-  }
-}
-
-static void writeChecked(const std::string& path, const std::string& content) {
-  char buf[1024];
-  buf[0] = '\0';
-  auto fd = ::open(path.c_str(), O_CREAT | O_WRONLY | O_TRUNC, 0666);
-  if (fd < 0) {
-    throw std::runtime_error(
-        path + ": open failed: " + ::strerror_r(errno, buf, sizeof(buf)));
-  }
-  auto ret = Util::writeFull(fd, content.c_str(), content.size());
-  ::close(fd);
-  if (ret < 0) {
-    throw std::runtime_error(
-        path + ": write failed: " + ::strerror_r(errno, buf, sizeof(buf)));
-  }
-  if ((size_t)ret != content.size()) {
-    throw std::runtime_error(
-        path + ": write failed: not all bytes are written");
-  }
-}
-
 class FsTest : public ::testing::Test {
  protected:
   void SetUp() override {
     try {
-      tempFixtureDir_ = mkdtempChecked(kFixturesDirTemplate);
+      tempFixtureDir_ = Fixture::mkdtempChecked();
 
-      mkdirsChecked(kFsDeviceDir, tempFixtureDir_);
-      const auto& fsDevDir = tempFixtureDir_ + "/" + kFsDeviceDir;
+      Fixture::mkdirsChecked(kFsDeviceDir, tempFixtureDir_);
+      const std::string fsDevDir = tempFixtureDir_ + "/" + kFsDeviceDir;
       std::pair<const std::string, const std::string> devs[] = {
           {"1:0", "0\n"}, {"1:1", "1\n"}, {"1:2", "\n"}};
       for (const auto& dev : devs) {
         const auto devTypeDir = dev.first + "/" + Fs::kDeviceTypeDir;
-        mkdirsChecked(devTypeDir, fsDevDir);
+        Fixture::mkdirsChecked(devTypeDir, fsDevDir);
         const auto devTypeFile =
             fsDevDir + "/" + devTypeDir + "/" + Fs::kDeviceTypeFile;
-        writeChecked(devTypeFile, dev.second);
+        Fixture::writeChecked(devTypeFile, dev.second);
       }
     } catch (const std::exception& e) {
       FAIL() << "SetUpTestSuite: " << e.what();
@@ -135,7 +58,7 @@ class FsTest : public ::testing::Test {
 
   void TearDown() override {
     try {
-      rmrChecked(tempFixtureDir_);
+      Fixture::rmrChecked(tempFixtureDir_);
     } catch (const std::exception& e) {
       FAIL() << "TearDownTestSuite: " << e.what();
     }

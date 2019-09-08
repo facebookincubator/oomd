@@ -50,6 +50,8 @@ srcs = files('''
     src/oomd/plugins/KillPressure.cpp
 '''.split())
 
+fixture_srcs = files(['src/oomd/util/Fixture.cpp'])
+
 deps = [versiondep,
         dependency('jsoncpp'),
         dependency('threads')]
@@ -71,6 +73,12 @@ oomd_lib = static_library('oomd',
                           cpp_args : cpp_args,
                           install : false,
                           dependencies : deps)
+oomd_fixture_lib = static_library('oomd_fixture',
+                                  fixture_srcs,
+                                  include_directories : inc,
+                                  cpp_args : cpp_args,
+                                  dependencies : deps,
+                                  link_with : oomd_lib)
 executable('oomd_bin',
            files('src/oomd/Main.cpp'),
            include_directories : inc,
@@ -86,7 +94,8 @@ executable('oomd_bin',
 core_tests = [
   ['config',   files('src/oomd/config/JsonConfigParserTest.cpp')],
   ['oomd',     files('src/oomd/OomdTest.cpp')],
-  ['util',     files('src/oomd/util/FsTest.cpp',
+  ['util',     files('src/oomd/util/FixtureTest.cpp',
+                     'src/oomd/util/FsTest.cpp',
                      'src/oomd/util/ScopeGuardTest.cpp',
                      'src/oomd/util/UtilTest.cpp')],
   ['context',  files('src/oomd/OomdContextTest.cpp')],
@@ -120,7 +129,7 @@ if gtest_dep.found() and gmock_dep.found()
             include_directories : inc,
             cpp_args : cpp_args,
             dependencies : deps,
-            link_whole : oomd_lib)
+            link_whole : [oomd_lib, oomd_fixture_lib])
         test(executable_name_suffix,
              test_executable,
              workdir : meson.source_root() + '/src')
