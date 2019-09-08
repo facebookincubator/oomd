@@ -50,7 +50,10 @@ srcs = files('''
     src/oomd/plugins/KillPressure.cpp
 '''.split())
 
-fixture_srcs = files(['src/oomd/util/Fixture.cpp'])
+fixture_srcs = files('''
+    src/oomd/fixtures/FsFixture.cpp
+    src/oomd/util/Fixture.cpp
+'''.split())
 
 deps = [versiondep,
         dependency('jsoncpp'),
