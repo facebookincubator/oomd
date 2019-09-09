@@ -82,7 +82,7 @@ oomd_fixture_lib = static_library('oomd_fixture',
                                   cpp_args : cpp_args,
                                   dependencies : deps,
                                   link_with : oomd_lib)
-executable('oomd_bin',
+executable('oomd',
            files('src/oomd/Main.cpp'),
            include_directories : inc,
            cpp_args : cpp_args,
@@ -90,6 +90,31 @@ executable('oomd_bin',
            install: true,
            link_whole : oomd_lib)
 
+prefixdir = get_option('prefix')
+bindir = join_paths(prefixdir, get_option('bindir'))
+sysconfdir = join_paths(prefixdir, get_option('sysconfdir'))
+oomdconfdir = join_paths(sysconfdir, 'oomd')
+systemunitdir = join_paths(prefixdir, 'lib/systemd/system')
+
+substs = configuration_data()
+substs.set('bindir', bindir)
+substs.set('sysconfdir', sysconfdir)
+substs.set('oomdconfdir', oomdconfdir)
+substs.set('systemunitdir', systemunitdir)
+
+configure_file(
+    input : 'src/oomd/etc/oomd.service.in',
+    output : 'oomd.service',
+    configuration : substs,
+    install : true,
+    install_dir : systemunitdir)
+
+configure_file(
+    input : 'src/oomd/etc/desktop.json',
+    output : 'oomd.json',
+    copy : true,
+    install : true,
+    install_dir : oomdconfdir)
 
 # Core tests
 # TODO: Normally we'd use a dictionary here, but they are only supported as of
