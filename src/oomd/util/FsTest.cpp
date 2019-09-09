@@ -20,37 +20,18 @@
 #include <utility>
 #include <vector>
 
-#include "oomd/util/Fixture.h"
+#include "oomd/fixtures/FsFixture.h"
 #include "oomd/util/Fs.h"
 #include "oomd/util/Util.h"
 
 using namespace Oomd;
 using namespace testing;
 
-constexpr auto kCgroupRootDir = "oomd/fixtures/cgroup";
-constexpr auto kCgroupDataDir = "oomd/fixtures/cgroup/system.slice";
-constexpr auto kFsDataDir = "oomd/fixtures/fs_data";
-constexpr auto kFsVmstatFile = "oomd/fixtures/proc/vmstat";
-constexpr auto kFsMeminfoFile = "oomd/fixtures/proc/meminfo";
-constexpr auto kFsMountsFile = "oomd/fixtures/proc/mounts";
-constexpr auto kFsDeviceDir = "oomd/fixtures/sys_dev_block";
 class FsTest : public ::testing::Test {
  protected:
   void SetUp() override {
     try {
-      tempFixtureDir_ = Fixture::mkdtempChecked();
-
-      Fixture::mkdirsChecked(kFsDeviceDir, tempFixtureDir_);
-      const std::string fsDevDir = tempFixtureDir_ + "/" + kFsDeviceDir;
-      std::pair<const std::string, const std::string> devs[] = {
-          {"1:0", "0\n"}, {"1:1", "1\n"}, {"1:2", "\n"}};
-      for (const auto& dev : devs) {
-        const auto devTypeDir = dev.first + "/" + Fs::kDeviceTypeDir;
-        Fixture::mkdirsChecked(devTypeDir, fsDevDir);
-        const auto devTypeFile =
-            fsDevDir + "/" + devTypeDir + "/" + Fs::kDeviceTypeFile;
-        Fixture::writeChecked(devTypeFile, dev.second);
-      }
+      fixture_.materialize();
     } catch (const std::exception& e) {
       FAIL() << "SetUpTestSuite: " << e.what();
     }
@@ -58,17 +39,17 @@ class FsTest : public ::testing::Test {
 
   void TearDown() override {
     try {
-      Fixture::rmrChecked(tempFixtureDir_);
+      fixture_.teardown();
     } catch (const std::exception& e) {
       FAIL() << "TearDownTestSuite: " << e.what();
     }
   }
 
-  std::string tempFixtureDir_;
+  FsFixture fixture_{};
 };
 
 TEST_F(FsTest, FindDirectories) {
-  std::string dir(kFsDataDir);
+  auto dir = fixture_.fsDataDir();
   auto dirs = Fs::readDir(dir, Fs::EntryType::DIRECTORY);
 
   ASSERT_EQ(dirs.size(), 4);
@@ -81,7 +62,7 @@ TEST_F(FsTest, FindDirectories) {
 }
 
 TEST_F(FsTest, IsDir) {
-  std::string dir(kFsDataDir);
+  auto dir = fixture_.fsDataDir();
   EXPECT_TRUE(Fs::isDir(dir + "/dir1"));
   EXPECT_FALSE(Fs::isDir(dir + "/dir1/stuff"));
   EXPECT_FALSE(Fs::isDir(dir + "/NOTINFS"));
@@ -110,7 +91,7 @@ TEST_F(FsTest, RemovePrefix) {
 }
 
 TEST_F(FsTest, FindFiles) {
-  std::string dir(kFsDataDir);
+  auto dir = fixture_.fsDataDir();
   auto files = Fs::readDir(dir, Fs::EntryType::REG_FILE);
 
   ASSERT_EQ(files.size(), 4);
@@ -122,7 +103,7 @@ TEST_F(FsTest, FindFiles) {
 }
 
 TEST_F(FsTest, ResolveWildcardedPathRelative) {
-  std::string dir(kFsDataDir);
+  auto dir = fixture_.fsDataDir();
   dir += "/wildcard";
 
   std::string wildcarded_path_some = "/this/path/is*/going/to/be/long/file";
@@ -152,7 +133,7 @@ TEST_F(FsTest, ResolveWildcardedPathAbsolute) {
 }
 
 TEST_F(FsTest, ResolveCgroupWildcardPath) {
-  std::string root_fs(kFsDataDir);
+  auto root_fs = fixture_.fsDataDir();
   root_fs += "/wildcard";
 
   auto resolved = Fs::resolveCgroupWildcardPath(
@@ -178,7 +159,7 @@ TEST_F(FsTest, ResolveCgroupWildcardPath) {
 }
 
 TEST_F(FsTest, ReadFile) {
-  auto file = std::string(kFsDataDir) + "/dir1/stuff";
+  auto file = fixture_.fsDataDir() + "/dir1/stuff";
   auto lines = Fs::readFileByLine(file);
 
   ASSERT_EQ(lines.size(), 4);
@@ -189,13 +170,13 @@ TEST_F(FsTest, ReadFile) {
 }
 
 TEST_F(FsTest, ReadFileBad) {
-  auto file = std::string(kFsDataDir) + "/ksldjfksdlfdsjf";
+  auto file = fixture_.fsDataDir() + "/ksldjfksdlfdsjf";
   auto lines = Fs::readFileByLine(file);
   ASSERT_EQ(lines.size(), 0);
 }
 
 TEST_F(FsTest, GetPids) {
-  std::string dir(kCgroupDataDir);
+  auto dir = fixture_.cgroupDataDir();
   auto pids = Fs::getPids(dir);
   EXPECT_EQ(pids.size(), 1);
   EXPECT_THAT(pids, Contains(123));
@@ -214,37 +195,37 @@ TEST_F(FsTest, GetPids) {
 }
 
 TEST_F(FsTest, ReadMemoryCurrent) {
-  std::string dir(kCgroupDataDir);
+  auto dir = fixture_.cgroupDataDir();
   EXPECT_EQ(Fs::readMemcurrent(dir), 987654321);
 }
 
 TEST_F(FsTest, ReadMemoryLow) {
-  std::string dir(kCgroupDataDir);
+  auto dir = fixture_.cgroupDataDir();
   EXPECT_EQ(Fs::readMemlow(dir), 333333);
 }
 
 TEST_F(FsTest, ReadMemoryMin) {
-  std::string dir(kCgroupDataDir);
+  auto dir = fixture_.cgroupDataDir();
   EXPECT_EQ(Fs::readMemmin(dir), 666);
 }
 
 TEST_F(FsTest, ReadMemoryHigh) {
-  std::string dir(kCgroupDataDir);
+  auto dir = fixture_.cgroupDataDir();
   EXPECT_EQ(Fs::readMemhigh(dir), 1000);
 }
 
 TEST_F(FsTest, ReadMemoryHighTmp) {
-  std::string dir(kCgroupDataDir);
+  auto dir = fixture_.cgroupDataDir();
   EXPECT_EQ(Fs::readMemhightmp(dir), 2000);
 }
 
 TEST_F(FsTest, ReadSwapCurrent) {
-  std::string dir(kCgroupDataDir);
+  auto dir = fixture_.cgroupDataDir();
   EXPECT_EQ(Fs::readSwapCurrent(dir), 321321);
 }
 
 TEST_F(FsTest, ReadControllers) {
-  std::string dir(kCgroupDataDir);
+  auto dir = fixture_.cgroupDataDir();
   auto controllers = Fs::readControllers(dir);
 
   ASSERT_EQ(controllers.size(), 4);
@@ -257,7 +238,7 @@ TEST_F(FsTest, ReadControllers) {
 
 TEST_F(FsTest, ReadMemoryPressure) {
   // v4.16+ upstream format
-  std::string dir(kCgroupDataDir);
+  auto dir = fixture_.cgroupDataDir();
   auto pressure = Fs::readMempressure(dir);
 
   EXPECT_FLOAT_EQ(pressure.sec_10, 4.44);
@@ -283,7 +264,7 @@ TEST_F(FsTest, ReadMemoryPressure) {
 
 TEST_F(FsTest, ReadMemoryPressureSome) {
   // v4.16+ upstream format
-  std::string dir(kCgroupDataDir);
+  auto dir = fixture_.cgroupDataDir();
   auto pressure = Fs::readMempressure(dir, Fs::PressureType::SOME);
 
   EXPECT_FLOAT_EQ(pressure.sec_10, 1.11);
@@ -300,7 +281,7 @@ TEST_F(FsTest, ReadMemoryPressureSome) {
 }
 
 TEST_F(FsTest, GetVmstat) {
-  std::string vmstatfile(kFsVmstatFile);
+  auto vmstatfile = fixture_.fsVmstatFile();
   auto vmstat = Fs::getVmstat(vmstatfile);
 
   EXPECT_EQ(vmstat["first_key"], 12345);
@@ -312,7 +293,7 @@ TEST_F(FsTest, GetVmstat) {
 }
 
 TEST_F(FsTest, GetMeminfo) {
-  std::string meminfofile(kFsMeminfoFile);
+  auto meminfofile = fixture_.fsMeminfoFile();
   auto meminfo = Fs::getMeminfo(meminfofile);
 
   EXPECT_EQ(meminfo.size(), 49);
@@ -325,7 +306,7 @@ TEST_F(FsTest, GetMeminfo) {
 }
 
 TEST_F(FsTest, GetMemstat) {
-  std::string dir(kCgroupDataDir);
+  auto dir = fixture_.cgroupDataDir();
   auto meminfo = Fs::getMemstat(dir);
 
   EXPECT_EQ(meminfo.size(), 29);
@@ -338,7 +319,7 @@ TEST_F(FsTest, GetMemstat) {
 }
 
 TEST_F(FsTest, ReadIoPressure) {
-  std::string dir(kCgroupDataDir);
+  auto dir = fixture_.cgroupDataDir();
   auto pressure = Fs::readIopressure(dir);
 
   EXPECT_FLOAT_EQ(pressure.sec_10, 4.45);
@@ -347,7 +328,7 @@ TEST_F(FsTest, ReadIoPressure) {
 }
 
 TEST_F(FsTest, ReadIoPressureSome) {
-  std::string dir(kCgroupDataDir);
+  auto dir = fixture_.cgroupDataDir();
   auto pressure = Fs::readIopressure(dir, Fs::PressureType::SOME);
 
   EXPECT_FLOAT_EQ(pressure.sec_10, 1.12);
@@ -367,14 +348,14 @@ TEST_F(FsTest, IsUnderParentPath) {
 }
 
 TEST_F(FsTest, GetCgroup2MountPoint) {
-  std::string mountsfile(kFsMountsFile);
+  auto mountsfile = fixture_.fsMountsFile();
   auto cgrouppath = Fs::getCgroup2MountPoint(mountsfile);
 
   EXPECT_EQ(cgrouppath, std::string("/sys/fs/cgroup/"));
 }
 
 TEST_F(FsTest, GetDeviceType) {
-  std::string fsDevDir(tempFixtureDir_ + "/" + kFsDeviceDir);
+  auto fsDevDir = fixture_.fsDeviceDir();
 
   try {
     auto ssd_type = Fs::getDeviceType("1:0", fsDevDir);
@@ -398,7 +379,7 @@ TEST_F(FsTest, GetDeviceType) {
 }
 
 TEST_F(FsTest, ReadIostat) {
-  std::string dir(kCgroupDataDir);
+  auto dir = fixture_.cgroupDataDir();
 
   auto io_stat = Fs::readIostat(dir);
   EXPECT_EQ(io_stat.size(), 2);
