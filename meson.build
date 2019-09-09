@@ -112,7 +112,7 @@ configure_file(
 configure_file(
     input : 'src/oomd/etc/desktop.json',
     output : 'oomd.json',
-    copy : true,
+    configuration : substs,
     install : true,
     install_dir : oomdconfdir)
 
