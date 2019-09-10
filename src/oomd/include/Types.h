@@ -61,6 +61,9 @@ struct ResourcePressure {
   std::chrono::microseconds total{0};
 };
 
+// If you update this class with something that could be valuable to know
+// when debugging, please remember to update OomdContext::dumpOomdContext
+// as well.
 class CgroupContext {
  public:
   ResourcePressure pressure;
