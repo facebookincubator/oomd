@@ -24,7 +24,23 @@ of flexibility where each workload can have custom protection rules.
 Furthermore, time spent livedlocked in kernelspace is minimized. In practice at
 Facebook, we've regularly seen 30 minute host lockups go away entirely.
 
-## Building and installing
+## Installing from RPMs on Fedora
+
+RPMs are currently available for Fedora 30+ from a COPR repository.
+
+You can enable the COPR repository for oomd with:
+
+    $ sudo dnf copr enable filbranden/oomd
+
+Then install oomd with:
+
+    $ sudo dnf install oomd
+
+Finally, enable and start it with:
+
+    $ sudo systemctl enable --now oomd.service
+
+## Building from source
 
 Note that oomd requires PSI to function. This kernel feature has been merged
 into the 4.20 release.
