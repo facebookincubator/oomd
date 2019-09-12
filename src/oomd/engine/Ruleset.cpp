@@ -81,9 +81,9 @@ void Ruleset::markDropInUntargeted() {
   }
 }
 
-void Ruleset::runOnce(OomdContext& context) {
+uint32_t Ruleset::runOnce(OomdContext& context) {
   if (!enabled_) {
-    return;
+    return 0;
   }
 
   // If any DetectorGroup fires, then begin running action chain
@@ -103,7 +103,7 @@ void Ruleset::runOnce(OomdContext& context) {
   }
 
   if (!run_actions) {
-    return;
+    return 0;
   }
 
   // Begin running action chain
@@ -140,6 +140,8 @@ void Ruleset::runOnce(OomdContext& context) {
 
     break;
   }
+
+  return 1;
 }
 
 } // namespace Engine

@@ -96,17 +96,21 @@ void Engine::removeDropInConfig(size_t tag) {
 }
 
 void Engine::runOnce(OomdContext& context) {
+  uint32_t nr_dropins_run = 0;
+
   for (const auto& base : rulesets_) {
     // Run all the drop in rulesets first
     for (const auto& dropin : base.dropins) {
       if (dropin.ruleset) {
-        dropin.ruleset->runOnce(context);
+        nr_dropins_run += dropin.ruleset->runOnce(context);
       }
     }
 
     // Now run the base ruleset
     base.ruleset->runOnce(context);
   }
+
+  Oomd::incrementStat(CoreStats::kNumDropInFired, nr_dropins_run);
 }
 
 const MonitoredResources& Engine::getMonitoredResources() const {

@@ -25,12 +25,14 @@ class CoreStats {
  public:
   static constexpr auto kKillsKey = "oomd.kills_structured";
   static constexpr auto kNumDropInAdds = "oomd.dropin.added";
+  static constexpr auto kNumDropInFired = "oomd.dropin.fired";
 
   // List of all the stats keys. Useful for operations that need to know
   // all the available core keys.
-  static constexpr std::array<const char*, 2> kAllKeys = {
+  static constexpr std::array<const char*, 3> kAllKeys = {
       kKillsKey,
       kNumDropInAdds,
+      kNumDropInFired,
   };
 };
 

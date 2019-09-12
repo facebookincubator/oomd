@@ -54,8 +54,10 @@ class Ruleset {
   /*
    * Runs the all the DetectorGroup's. If any of them fires, then begin
    * running the action chain.
+   *
+   * @returns 1 if we attempted to run the action chain. 0 otherwise.
    */
-  void runOnce(OomdContext& context);
+  uint32_t runOnce(OomdContext& context);
 
   const std::string& getName() const {
     return name_;
