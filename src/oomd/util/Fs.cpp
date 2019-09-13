@@ -347,6 +347,7 @@ ResourcePressure Fs::readRespressure(
           std::stof(toks[1]),
           std::stof(toks[2]),
           std::stof(toks[3]),
+          std::nullopt,
       };
     }
     case PsiFormat::MISSING:

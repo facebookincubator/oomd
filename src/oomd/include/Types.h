@@ -58,7 +58,7 @@ struct ResourcePressure {
   float sec_10{0};
   float sec_60{0};
   float sec_600{0};
-  std::chrono::microseconds total{0};
+  std::optional<std::chrono::microseconds> total{std::nullopt};
 };
 
 // If you update this class with something that could be valuable to know
