@@ -21,9 +21,9 @@ and the measurements is the IO cost.
 By default, these are the coefficients for HDD and SSD devices:
 ```
 static const struct Oomd::IOCostCoeffs default_hdd_coeffs = {
-    .read_iops = 2.58e-1,
+    .read_iops = 1.31e-3,
     .readbw = 1.13e-7,
-    .write_iops = 1.31e-3,
+    .write_iops = 2.58e-1,
     .writebw = 5.04e-7,
     .trim_iops = 0,
     .trimbw = 0,
