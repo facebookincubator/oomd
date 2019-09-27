@@ -41,6 +41,7 @@ int PressureAbove::init(
                                               : kCgroupFs);
     auto cgroups = Util::split(args.at("cgroup"), ',');
     for (const auto& c : cgroups) {
+      resources.emplace(cgroup_fs, c);
       cgroups_.emplace(cgroup_fs, c);
     }
   } else {
