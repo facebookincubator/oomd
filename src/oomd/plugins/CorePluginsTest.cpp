@@ -98,6 +98,7 @@ TEST(AdjustCgroupPlugin, AdjustCgroupMemory) {
   args["debug"] = "1";
 
   ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+  ASSERT_EQ(resources.size(), 1);
 
   OomdContext ctx;
   auto cgroup_path = CgroupPath(args["cgroup_fs"], "adjust_cgroup");
@@ -227,6 +228,7 @@ TEST(PresureRisingBeyond, DetectsHighMemPressure) {
   args["fast_fall_ratio"] = "0";
 
   ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+  ASSERT_EQ(resources.size(), 1);
 
   OomdContext ctx;
   ctx.setCgroupContext(
@@ -253,6 +255,7 @@ TEST(PresureRisingBeyond, NoDetectLowMemPressure) {
   args["fast_fall_ratio"] = "0";
 
   ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+  ASSERT_EQ(resources.size(), 1);
 
   OomdContext ctx;
   ctx.setCgroupContext(
@@ -279,6 +282,7 @@ TEST(PresureRisingBeyond, DetectsHighMemPressureMultiCgroup) {
   args["fast_fall_ratio"] = "0";
 
   ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+  ASSERT_EQ(resources.size(), 2);
 
   OomdContext ctx;
   ctx.setCgroupContext(
@@ -311,6 +315,7 @@ TEST(PresureRisingBeyond, DetectsHighMemPressureWildcard) {
   args["fast_fall_ratio"] = "0";
 
   ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+  ASSERT_EQ(resources.size(), 1);
 
   OomdContext ctx;
   ctx.setCgroupContext(
@@ -342,6 +347,7 @@ TEST(PressureAbove, DetectsHighMemPressure) {
   args["duration"] = "0";
 
   ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+  ASSERT_EQ(resources.size(), 1);
 
   OomdContext ctx;
   ctx.setCgroupContext(
@@ -367,6 +373,7 @@ TEST(PressureAbove, NoDetectLowMemPressure) {
   args["duration"] = "0";
 
   ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+  ASSERT_EQ(resources.size(), 1);
 
   OomdContext ctx;
   ctx.setCgroupContext(
@@ -392,6 +399,7 @@ TEST(PressureAbove, DetectsHighMemPressureMultiCgroup) {
   args["duration"] = "0";
 
   ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+  ASSERT_EQ(resources.size(), 2);
 
   OomdContext ctx;
   ctx.setCgroupContext(
@@ -423,6 +431,7 @@ TEST(PressureAbove, DetectsHighMemPressureWildcard) {
   args["duration"] = "0";
 
   ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+  ASSERT_EQ(resources.size(), 1);
 
   OomdContext ctx;
   ctx.setCgroupContext(
@@ -454,6 +463,7 @@ TEST(MemoryAbove, DetectsHighMemUsage) {
   args["duration"] = "0";
 
   ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+  ASSERT_EQ(resources.size(), 1);
 
   OomdContext ctx;
   ctx.setCgroupContext(
@@ -475,6 +485,7 @@ TEST(MemoryAbove, NoDetectLowMemUsage) {
   args["duration"] = "0";
 
   ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+  ASSERT_EQ(resources.size(), 1);
 
   OomdContext ctx;
   ctx.setCgroupContext(
@@ -496,6 +507,7 @@ TEST(MemoryAbove, DetectsHighMemUsageCompat) {
   args["duration"] = "0";
 
   ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+  ASSERT_EQ(resources.size(), 1);
 
   OomdContext ctx;
   ctx.setCgroupContext(
@@ -517,6 +529,7 @@ TEST(MemoryAbove, NoDetectLowMemUsageCompat) {
   args["duration"] = "0";
 
   ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+  ASSERT_EQ(resources.size(), 1);
 
   OomdContext ctx;
   ctx.setCgroupContext(
@@ -538,6 +551,7 @@ TEST(MemoryAbove, DetectsHighMemUsagePercent) {
   args["duration"] = "0";
 
   ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+  ASSERT_EQ(resources.size(), 1);
 
   OomdContext ctx;
   ctx.setCgroupContext(
@@ -560,6 +574,7 @@ TEST(MemoryAbove, NoDetectLowMemUsageMultiple) {
   args["debug"] = "true";
 
   ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+  ASSERT_EQ(resources.size(), 1);
 
   OomdContext ctx;
   ctx.setCgroupContext(
@@ -585,6 +600,7 @@ TEST(MemoryAbove, DetectsHighMemUsageMultiple) {
   args["debug"] = "true";
 
   ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+  ASSERT_EQ(resources.size(), 1);
 
   OomdContext ctx;
   ctx.setCgroupContext(
@@ -609,6 +625,7 @@ TEST(MemoryAbove, NoDetectLowMemUsagePercent) {
   args["duration"] = "0";
 
   ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+  ASSERT_EQ(resources.size(), 1);
 
   OomdContext ctx;
   ctx.setCgroupContext(
@@ -630,6 +647,7 @@ TEST(MemoryAbove, DetectsHighAnonUsage) {
   args["duration"] = "0";
 
   ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+  ASSERT_EQ(resources.size(), 1);
 
   OomdContext ctx;
   ctx.setCgroupContext(
@@ -654,6 +672,7 @@ TEST(MemoryAbove, NoDetectLowAnonUsage) {
   args["duration"] = "0";
 
   ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+  ASSERT_EQ(resources.size(), 1);
 
   OomdContext ctx;
   ctx.setCgroupContext(
@@ -679,6 +698,7 @@ TEST(MemoryAbove, DetectsHighAnonUsageIgnoreLowMemUsage) {
   args["duration"] = "0";
 
   ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+  ASSERT_EQ(resources.size(), 1);
 
   OomdContext ctx;
   ctx.setCgroupContext(
@@ -705,6 +725,7 @@ TEST(MemoryAbove, NoDetectLowAnonUsageIgnoreHighMemUsage) {
   args["duration"] = "0";
 
   ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+  ASSERT_EQ(resources.size(), 1);
 
   OomdContext ctx;
   ctx.setCgroupContext(
@@ -728,6 +749,7 @@ TEST(MemoryReclaim, SingleCgroupReclaimSuccess) {
   args["duration"] = "0";
 
   ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+  ASSERT_EQ(resources.size(), 1);
 
   OomdContext ctx;
   ctx.setCgroupContext(CgroupPath(args["cgroup_fs"], "cgroup1"), {});
@@ -745,6 +767,7 @@ TEST(MemoryReclaim, MultiCgroupReclaimSuccess) {
   args["duration"] = "0";
 
   ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+  ASSERT_EQ(resources.size(), 2);
 
   OomdContext ctx;
   ctx.setCgroupContext(CgroupPath(args["cgroup_fs"], "cgroup1"), {});
@@ -762,6 +785,7 @@ TEST(SwapFree, LowSwap) {
   args["duration"] = "0";
 
   ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+  ASSERT_EQ(resources.size(), 0);
 
   OomdContext ctx;
   SystemContext system_ctx;
@@ -781,6 +805,7 @@ TEST(SwapFree, EnoughSwap) {
   args["duration"] = "0";
 
   ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+  ASSERT_EQ(resources.size(), 0);
 
   OomdContext ctx;
   SystemContext system_ctx;
@@ -800,6 +825,7 @@ TEST(SwapFree, SwapOff) {
   args["duration"] = "0";
 
   ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+  ASSERT_EQ(resources.size(), 0);
 
   OomdContext ctx;
   EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
@@ -815,6 +841,7 @@ TEST(Exists, Exists) {
   args["cgroup"] = "cgroup_A,cgroup_B,cgroup_C";
 
   ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+  ASSERT_EQ(resources.size(), 3);
 
   OomdContext ctx;
   auto cgroup_path_C = CgroupPath(args["cgroup_fs"], "cgroup_C");
@@ -838,6 +865,7 @@ TEST(Exists, NotExists) {
   args["negate"] = "true";
 
   ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+  ASSERT_EQ(resources.size(), 3);
 
   OomdContext ctx;
   auto cgroup_path_C = CgroupPath(args["cgroup_fs"], "cgroup_C");
@@ -861,6 +889,7 @@ TEST(KillIOCost, KillsHighestIOCost) {
   args["post_action_delay"] = "0";
 
   ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+  ASSERT_EQ(resources.size(), 1);
 
   OomdContext ctx;
   ctx.setCgroupContext(
@@ -895,6 +924,7 @@ TEST(KillIOCost, KillsHighestIOCostMultiCgroup) {
   args["post_action_delay"] = "0";
 
   ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+  ASSERT_EQ(resources.size(), 2);
 
   OomdContext ctx;
   ctx.setCgroupContext(
@@ -930,6 +960,7 @@ TEST(KillIOCost, DoesntKillsHighestIOCostDry) {
   args["dry"] = "true";
 
   ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+  ASSERT_EQ(resources.size(), 1);
 
   OomdContext ctx;
   ctx.setCgroupContext(
@@ -958,6 +989,7 @@ TEST(Exists, ExistsWildcard) {
   args["cgroup"] = "cgroup_PREFIX*";
 
   ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+  ASSERT_EQ(resources.size(), 1);
 
   OomdContext ctx;
   auto cgroup_path_notok = CgroupPath(args["cgroup_fs"], "cgroup_SOMETHING");
@@ -981,6 +1013,7 @@ TEST(Exists, NotExistsWildcard) {
   args["negate"] = "true";
 
   ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+  ASSERT_EQ(resources.size(), 1);
 
   OomdContext ctx;
   auto cgroup_path_notok = CgroupPath(args["cgroup_fs"], "cgroup_SOMETHING");
@@ -1004,6 +1037,7 @@ TEST(KillMemoryGrowth, KillsBigCgroup) {
   args["post_action_delay"] = "0";
 
   ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+  ASSERT_EQ(resources.size(), 1);
 
   OomdContext ctx;
   ctx.setCgroupContext(
@@ -1050,6 +1084,7 @@ TEST(KillMemoryGrowth, KillsBigCgroupGrowth) {
   args["post_action_delay"] = "0";
 
   ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+  ASSERT_EQ(resources.size(), 1);
 
   OomdContext ctx;
 
@@ -1114,6 +1149,7 @@ TEST(KillMemoryGrowth, KillsBigCgroupMultiCgroup) {
   args["post_action_delay"] = "0";
 
   ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+  ASSERT_EQ(resources.size(), 2);
 
   OomdContext ctx;
   ctx.setCgroupContext(
@@ -1160,6 +1196,7 @@ TEST(KillMemoryGrowth, DoesntKillBigCgroupInDry) {
   args["dry"] = "true";
 
   ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+  ASSERT_EQ(resources.size(), 1);
 
   OomdContext ctx;
   ctx.setCgroupContext(
@@ -1195,6 +1232,7 @@ TEST(KillSwapUsage, KillsBigSwapCgroup) {
   args["post_action_delay"] = "0";
 
   ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+  ASSERT_EQ(resources.size(), 1);
 
   OomdContext ctx;
   ctx.setCgroupContext(
@@ -1224,6 +1262,7 @@ TEST(KillSwapUsage, KillsBigSwapCgroupMultiCgroup) {
   args["post_action_delay"] = "0";
 
   ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+  ASSERT_EQ(resources.size(), 2);
 
   OomdContext ctx;
   ctx.setCgroupContext(
@@ -1258,6 +1297,7 @@ TEST(KillSwapUsage, DoesntKillBigSwapCgroupDry) {
   args["dry"] = "true";
 
   ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+  ASSERT_EQ(resources.size(), 1);
 
   OomdContext ctx;
   ctx.setCgroupContext(
@@ -1285,6 +1325,7 @@ TEST(KillSwapUsage, DoesntKillNoSwap) {
   args["dry"] = "true";
 
   ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+  ASSERT_EQ(resources.size(), 1);
 
   OomdContext ctx;
   ctx.setCgroupContext(
@@ -1309,6 +1350,7 @@ TEST(KillPressure, KillsHighestPressure) {
   args["post_action_delay"] = "0";
 
   ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+  ASSERT_EQ(resources.size(), 1);
 
   OomdContext ctx;
   ctx.setCgroupContext(
@@ -1356,6 +1398,7 @@ TEST(KillPressure, KillsHighestPressureMultiCgroup) {
   args["post_action_delay"] = "0";
 
   ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+  ASSERT_EQ(resources.size(), 2);
 
   OomdContext ctx;
   ctx.setCgroupContext(
@@ -1404,6 +1447,7 @@ TEST(KillPressure, DoesntKillsHighestPressureDry) {
   args["dry"] = "true";
 
   ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+  ASSERT_EQ(resources.size(), 1);
 
   OomdContext ctx;
   ctx.setCgroupContext(
