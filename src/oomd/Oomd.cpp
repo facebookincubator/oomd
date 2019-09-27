@@ -269,13 +269,15 @@ bool Oomd::updateContextCgroup(const CgroupPath& path, OomdContext& ctx) {
   double io_cost_cumulative = 0;
   if (io_devs_.size() != 0) {
     IOStat io_stat;
-    try {
+    if (std::any_of(controllers.begin(), controllers.end(), [](std::string& s) {
+          return s == "io";
+        })) {
       io_stat = Fs::readIostat(absolute_cgroup_path);
-    } catch (const std::exception& ex) {
+    } else {
       if (!warned_io_stat_.count(absolute_cgroup_path)) {
         warned_io_stat_.emplace(absolute_cgroup_path);
-        OLOG << "IO stat unavailable on " << absolute_cgroup_path << ": "
-             << ex.what();
+        OLOG << "WARNING: cgroup io controller unavailable on "
+             << absolute_cgroup_path << ". io cost will be zero.";
       }
       io_stat = {};
     }
