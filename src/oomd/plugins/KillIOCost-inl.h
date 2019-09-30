@@ -100,9 +100,7 @@ bool KillIOCost<Base>::tryToKillSomething(OomdContext& ctx) {
     OLOG << "Removed sibling cgroups";
   }
   OomdContext::removeSiblingCgroups(cgroups_, io_cost_sorted);
-  if (debug_) {
-    OomdContext::dumpOomdContext(io_cost_sorted, !debug_);
-  }
+  OomdContext::dumpOomdContext(io_cost_sorted, !debug_);
 
   for (const auto& state_pair : io_cost_sorted) {
     OLOG << "Picked \"" << state_pair.first.relativePath() << "\" ("
