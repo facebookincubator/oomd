@@ -46,6 +46,24 @@ TEST(UtilTest, ParseSizeTest) {
   EXPECT_EQ(Util::parseSize("+-123M", &v), -1);
 }
 
+TEST(UtilTest, ParseSizeOrPercentTest) {
+  int64_t v;
+
+  EXPECT_EQ(Util::parseSizeOrPercent("1%", &v, 100), 0);
+  EXPECT_EQ(v, 1);
+
+  EXPECT_EQ(Util::parseSizeOrPercent("5M", &v, 100), 0);
+  EXPECT_EQ(v, 5 << 20);
+
+  EXPECT_EQ(Util::parseSizeOrPercent("5", &v, 100), 0);
+  EXPECT_EQ(v, 5 << 20);
+
+  EXPECT_EQ(Util::parseSizeOrPercent("5K", &v, 100), 0);
+  EXPECT_EQ(v, 5 << 10);
+
+  EXPECT_NE(Util::parseSizeOrPercent("5%z", &v, 100), 0);
+}
+
 TEST(UtilTest, Split) {
   auto toks = Util::split("one by two", ' ');
   ASSERT_EQ(toks.size(), 3);

@@ -57,9 +57,6 @@ ssize_t wrapFull(F f, int fd, T buf, size_t count) {
 
 namespace Oomd {
 
-// "1.5G"    : 1.5 gigabytes - 1610612736 bytes
-// "1G 128M" : 1 gigabyte and 128 megabytes - 1207959552 bytes
-// "4K 2048" : 4 kilobytes and 2048 bytes - 6144 bytes
 int Util::parseSize(const std::string& input, int64_t* output) {
   bool is_neg = false;
   uint64_t size = 0;
@@ -127,6 +124,42 @@ int Util::parseSize(const std::string& input, int64_t* output) {
   }
   *output = is_neg ? -size : size;
   return 0;
+}
+
+int Util::parseSizeOrPercent(
+    const std::string& input,
+    int64_t* output,
+    int64_t total) {
+  try {
+    if (input.size() > 0 && input.at(input.size() - 1) == '%') {
+      int64_t pct = std::stoi(input.substr(0, input.size() - 1));
+      if (pct < 0 || pct > 100) {
+        return -1;
+      }
+
+      *output = total * pct / 100;
+      return 0;
+    } else {
+      int64_t v;
+      size_t end_pos;
+
+      // compat - a bare number is interpreted as megabytes
+      v = std::stoll(input, &end_pos);
+      if (end_pos == input.length()) {
+        *output = v << 20;
+        return 0;
+      }
+
+      if (Util::parseSize(input, &v) == 0) {
+        *output = v;
+        return 0;
+      }
+
+      return -1;
+    }
+  } catch (...) {
+    return -1;
+  }
 }
 
 std::vector<std::string> Util::split(const std::string& line, char delim) {

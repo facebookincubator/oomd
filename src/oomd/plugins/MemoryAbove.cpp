@@ -32,32 +32,6 @@ namespace Oomd {
 
 REGISTER_PLUGIN(memory_above, MemoryAbove::create);
 
-namespace {
-int64_t parse_threshold(const std::string& str, int64_t memtotal) {
-  if (str.size() > 0 && str.at(str.size() - 1) == '%') {
-    double pct = std::stod(str.substr(0, str.size() - 1));
-    if (pct < 0 || pct > 100) {
-      OLOG << str << " is an illegal percentage value";
-      return -1;
-    }
-    return memtotal * pct / 100;
-  } else {
-    int64_t v;
-    size_t end_pos;
-
-    // compat - a bare number is interpreted as megabytes
-    v = std::stoll(str, &end_pos);
-    if (end_pos == str.length()) {
-      return v << 20;
-    }
-    if (Util::parseSize(str, &v) == 0) {
-      return v;
-    }
-    return -1;
-  }
-}
-} // namespace
-
 int MemoryAbove::init(
     Engine::MonitoredResources& resources,
     const Engine::PluginArgs& args) {
@@ -81,15 +55,17 @@ int MemoryAbove::init(
       : Fs::getMeminfo();
 
   if (args.find("threshold_anon") != args.end()) {
-    threshold_ =
-        parse_threshold(args.at("threshold_anon"), meminfo["MemTotal"]);
-    if (threshold_ < 0) {
+    if (Util::parseSizeOrPercent(
+            args.at("threshold_anon"), &threshold_, meminfo.at("MemTotal")) !=
+        0) {
+      OLOG << "Failed to parse threshold_anon=" << args.at("threshold_anon");
       return 1;
     }
     is_anon_ = true;
   } else if (args.find("threshold") != args.end()) {
-    threshold_ = parse_threshold(args.at("threshold"), meminfo["MemTotal"]);
-    if (threshold_ < 0) {
+    if (Util::parseSizeOrPercent(
+            args.at("threshold"), &threshold_, meminfo.at("MemTotal")) < 0) {
+      OLOG << "Failed to parse threshold=" << args.at("threshold");
       return 1;
     }
   } else {

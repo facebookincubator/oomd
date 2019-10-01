@@ -31,7 +31,32 @@ namespace Oomd {
  */
 class Util {
  public:
+  /*
+   * Parsing rules:
+   *
+   * "1.5G"    : 1.5 gigabytes, outputs 1610612736 bytes
+   * "1G 128M" : 1 gigabyte and 128 megabytes, outputs 1207959552 bytes
+   * "4K 2048" : 4 kilobytes and 2048 bytes, outputs 6144 bytes
+   *
+   * Supports [kmgt] suffixes.
+   *
+   * @returns 0 on success, -1 on failure. Parsed output is passed out
+   * through @param output
+   */
   static int parseSize(const std::string& input, int64_t* output);
+
+  /*
+   * Handles the following 3 cases and returns the first valid result:
+   *
+   * 1) `<int_val>%` and returns the % of @param total
+   * 2) `<int_val>` and returns the value in bytes (parsed as megabytes)
+   * 3) `<int_val>suffix` and acts the same as @function parseSize
+   *
+   * @returns 0 on success, -1 on failure. Parsed output is passed out
+   * through @param output
+   */
+  static int
+  parseSizeOrPercent(const std::string& input, int64_t* output, int64_t total);
 
   /* Split string into tokens by delim */
   static std::vector<std::string> split(const std::string& line, char delim);
