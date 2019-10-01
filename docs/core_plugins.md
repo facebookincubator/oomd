@@ -221,6 +221,7 @@ STOP if killed something (even if dry=true). CONTINUE otherwise.
 ### Arguments
 
     cgroup
+    threshold=1 (optional)
     post_action_delay=15 (optional)
     dry=false (optional)
 
@@ -228,6 +229,8 @@ STOP if killed something (even if dry=true). CONTINUE otherwise.
 
 `cgroup` follows the same semantics and options as
 `kill_by_memory_size_or_growth`.
+
+`threshold` follows the same semantics and options as `memory_above`.
 
 Sleeps for `post_action_delay` following a kill.
 

@@ -1251,6 +1251,48 @@ TEST(KillSwapUsage, KillsBigSwapCgroup) {
   EXPECT_THAT(plugin->killed, Not(Contains(111)));
 }
 
+TEST(KillSwapUsage, ThresholdTest) {
+  auto plugin = std::make_shared<KillSwapUsage<BaseKillPluginMock>>();
+  ASSERT_NE(plugin, nullptr);
+
+  Engine::MonitoredResources resources;
+  Engine::PluginArgs args;
+  args["cgroup_fs"] = "oomd/fixtures/plugins/kill_by_swap_usage";
+  args["meminfo_location"] = "oomd/fixtures/plugins/kill_by_swap_usage/meminfo";
+  args["cgroup"] = "one_big/*";
+  args["post_action_delay"] = "0";
+  args["threshold"] = "20%";
+
+  ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+
+  OomdContext ctx;
+  ctx.setCgroupContext(
+      CgroupPath(args["cgroup_fs"], "one_big/cgroup1"),
+      CgroupContext{.swap_usage = 1});
+  ctx.setCgroupContext(
+      CgroupPath(args["cgroup_fs"], "one_big/cgroup2"),
+      CgroupContext{.swap_usage = 2});
+  ctx.setCgroupContext(
+      CgroupPath(args["cgroup_fs"], "one_big/cgroup3"),
+      CgroupContext{.swap_usage = 3});
+  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::CONTINUE);
+
+  ctx.setCgroupContext(
+      CgroupPath(args["cgroup_fs"], "one_big/cgroup1"),
+      CgroupContext{.swap_usage = 20 << 10});
+  ctx.setCgroupContext(
+      CgroupPath(args["cgroup_fs"], "one_big/cgroup2"),
+      CgroupContext{.swap_usage = 60 << 10});
+  ctx.setCgroupContext(
+      CgroupPath(args["cgroup_fs"], "one_big/cgroup3"),
+      CgroupContext{.swap_usage = 40 << 10});
+  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
+  EXPECT_THAT(plugin->killed, Contains(789));
+  EXPECT_THAT(plugin->killed, Not(Contains(123)));
+  EXPECT_THAT(plugin->killed, Not(Contains(456)));
+  EXPECT_THAT(plugin->killed, Not(Contains(111)));
+}
+
 TEST(KillSwapUsage, KillsBigSwapCgroupMultiCgroup) {
   auto plugin = std::make_shared<KillSwapUsage<BaseKillPluginMock>>();
   ASSERT_NE(plugin, nullptr);

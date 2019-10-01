@@ -48,6 +48,18 @@ int KillSwapUsage<Base>::init(
     return 1;
   }
 
+  if (args.find("threshold") != args.end()) {
+    auto meminfo = args.find("meminfo_location") != args.end()
+        ? Fs::getMeminfo(args.at("meminfo_location"))
+        : Fs::getMeminfo();
+
+    if (Util::parseSizeOrPercent(
+            args.at("threshold"), &threshold_, meminfo.at("SwapTotal")) != 0) {
+      OLOG << "Failed to parse threshold" << args.at("threshold");
+      return 1;
+    }
+  }
+
   if (args.find("post_action_delay") != args.end()) {
     int val = std::stoi(args.at("post_action_delay"));
 
@@ -103,9 +115,8 @@ bool KillSwapUsage<Base>::tryToKillSomething(OomdContext& ctx) {
   OomdContext::dumpOomdContext(swap_sorted, !debug_);
 
   for (const auto& state_pair : swap_sorted) {
-    // If our target isn't using any swap, killing it won't free up any either
-    if (!state_pair.second.swap_usage) {
-      continue;
+    if (state_pair.second.swap_usage < threshold_) {
+      break;
     }
 
     OLOG << "Picked \"" << state_pair.first.relativePath() << "\" ("

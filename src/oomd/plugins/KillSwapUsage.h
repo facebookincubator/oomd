@@ -42,6 +42,8 @@ class KillSwapUsage : public Base {
   virtual bool tryToKillSomething(OomdContext& ctx);
 
   std::unordered_set<CgroupPath> cgroups_;
+  // Default threshold is to kill something with non-zero swap usage
+  int64_t threshold_{1};
   int post_action_delay_{15};
   bool dry_{false};
   bool debug_{false};
