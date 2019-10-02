@@ -23,7 +23,7 @@ namespace Oomd {
 
 class CoreStats {
  public:
-  static constexpr auto kKillsKey = "oomd.kills_structured";
+  static constexpr auto kKillsKey = "oomd.kills";
   static constexpr auto kNumDropInAdds = "oomd.dropin.added";
   static constexpr auto kNumDropInFired = "oomd.dropin.fired";
 
