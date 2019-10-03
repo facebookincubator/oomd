@@ -78,6 +78,8 @@ class Oomd {
   bool updateContextRoot(const CgroupPath& path, OomdContext& ctx);
   bool updateContextCgroup(const CgroupPath& path, OomdContext& ctx);
   int prepDropInWatcher(const std::string& dir);
+  int prepDropInWatcherEventLoop(const std::string& dir);
+  int deregisterDropInWatcherFromEventLoop();
   int prepEventLoop(const std::chrono::seconds& interval);
   void processDropInRemove(const std::string& file);
   void processDropInAdd(const std::string& file);
@@ -87,6 +89,8 @@ class Oomd {
   int epollfd_{-1};
   int timerfd_{-1};
   int inotifyfd_{-1};
+  int inotifywd_{-1};
+  bool drop_in_dir_deleted_{false};
 
   // runtime settings
   std::chrono::seconds interval_{0};

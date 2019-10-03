@@ -383,9 +383,61 @@ void Oomd::updateContext(
   ctx = std::move(new_ctx);
 }
 
-int Oomd::prepDropInWatcher(const std::string& dir) {
+int Oomd::deregisterDropInWatcherFromEventLoop() {
+  char buf[1024];
+  int ret = 0;
+
+  // Remove watch for stale fd and wd and reset them to their
+  // initial values. Caveat: If we try to remove the watch for
+  // drop_in_dir that has been deleted, inotify_rm_watch() returns
+  // EINVAL as the watch is automatically deleted when the directory
+  // was removed. Only remove watches if they're files in the directory
+  // and not the directory itself.
+  if (!drop_in_dir_deleted_ && ::inotify_rm_watch(inotifyfd_, inotifywd_) < 0) {
+    OLOG << "inotify_rm_watch: " << ::strerror_r(errno, buf, sizeof(buf));
+    ret = 1;
+  }
+  if (::epoll_ctl(epollfd_, EPOLL_CTL_DEL, inotifyfd_, nullptr) < 0) {
+    OLOG << "epoll_ctl: " << ::strerror_r(errno, buf, sizeof(buf));
+    ret = 1;
+  }
+
+  inotifyfd_ = -1;
+  inotifywd_ = -1;
+
+  return ret;
+}
+
+int Oomd::prepDropInWatcherEventLoop(const std::string& dir) {
   char buf[1024];
 
+  inotifyfd_ = ::inotify_init1(IN_NONBLOCK | IN_CLOEXEC);
+  if (inotifyfd_ < 0) {
+    OLOG << "inotify_init1: " << ::strerror_r(errno, buf, sizeof(buf));
+    return 1;
+  }
+
+  uint32_t mask = IN_DELETE | IN_MODIFY | IN_MOVE | IN_ONLYDIR | IN_MOVE_SELF |
+      IN_DELETE_SELF;
+  if ((inotifywd_ = ::inotify_add_watch(inotifyfd_, dir.c_str(), mask)) < 0) {
+    OLOG << "inotify_add_watch: " << ::strerror_r(errno, buf, sizeof(buf));
+    return 1;
+  }
+
+  // Add inotifyfd to epoll set
+  struct epoll_event ev;
+  std::memset(&ev, 0, sizeof(ev));
+  ev.events = EPOLLIN;
+  ev.data.fd = inotifyfd_;
+  if (::epoll_ctl(epollfd_, EPOLL_CTL_ADD, inotifyfd_, &ev) < 0) {
+    OLOG << "epoll_ctl: " << ::strerror_r(errno, buf, sizeof(buf));
+    return 1;
+  }
+
+  return 0;
+}
+
+int Oomd::prepDropInWatcher(const std::string& dir) {
   if (!Fs::isDir(dir)) {
     OLOG << "Error: " << dir << " is not a directory";
     return 1;
@@ -399,25 +451,7 @@ int Oomd::prepDropInWatcher(const std::string& dir) {
     processDropInAdd(config);
   }
 
-  inotifyfd_ = ::inotify_init1(IN_NONBLOCK | IN_CLOEXEC);
-  if (inotifyfd_ < 0) {
-    OLOG << "inotify_init1: " << ::strerror_r(errno, buf, sizeof(buf));
-    return 1;
-  }
-
-  uint32_t mask = IN_DELETE | IN_MODIFY | IN_MOVE | IN_ONLYDIR;
-  if (::inotify_add_watch(inotifyfd_, dir.c_str(), mask) < 0) {
-    OLOG << "inotify_add_watch: " << ::strerror_r(errno, buf, sizeof(buf));
-    return 1;
-  }
-
-  // Add inotifyfd to epoll set
-  struct epoll_event ev;
-  std::memset(&ev, 0, sizeof(ev));
-  ev.events = EPOLLIN;
-  ev.data.fd = inotifyfd_;
-  if (::epoll_ctl(epollfd_, EPOLL_CTL_ADD, inotifyfd_, &ev) < 0) {
-    OLOG << "epoll_ctl: " << ::strerror_r(errno, buf, sizeof(buf));
+  if (prepDropInWatcherEventLoop(dir)) {
     return 1;
   }
 
@@ -562,6 +596,13 @@ int Oomd::processDropInWatcher(int fd) {
         // Remove drop in if file has been moved from or removed from
         // the watched directory
         processDropInRemove(event->name);
+      } else if (event->mask & (IN_DELETE_SELF | IN_MOVE_SELF)) {
+        // Remove stale watch descriptor for drop in if watched file or
+        // directory itself is moved or deleted
+        drop_in_dir_deleted_ = true;
+        if (deregisterDropInWatcherFromEventLoop()) {
+          return 1;
+        }
       }
     }
   }
@@ -591,6 +632,15 @@ int Oomd::processEventLoop() {
       if (ret < 0) {
         OLOG << "read: " << ::strerror_r(errno, buf, sizeof(buf));
         return 1;
+      }
+      // If drop_in_dir_ exists again and contains config files,
+      // set up the watch
+      if (drop_in_dir_deleted_ && Fs::isDir(drop_in_dir_)) {
+        ret = prepDropInWatcher(drop_in_dir_);
+        if (ret) {
+          return ret;
+        }
+        drop_in_dir_deleted_ = false;
       }
     } else if (fd == inotifyfd_) {
       ret = processDropInWatcher(fd);
