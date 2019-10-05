@@ -169,7 +169,8 @@ int64_t Oomd::calculateProtection(
       return 0;
     }
 
-    return p_func(parent) * l_func(node->ctx) / l_sum_children;
+    return std::min(
+        l_func(node->ctx), p_func(parent) * l_func(node->ctx) / l_sum_children);
   };
 
   int64_t ret = p_func(node);

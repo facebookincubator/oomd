@@ -66,7 +66,7 @@ class Oomd {
    * Let L(cgrp) = min(cgrp.memory.current, max(cgrp.memory.min,
    * cgrp.memory.low))
    *
-   * Then, P(cgpr) = P(parent) * L(cgrp) / (Sum of L(child) for
+   * Then, P(cgpr) = min(L(cgrp), P(parent) * L(cgrp) / (Sum of L(child))) for
    * each child of parent)
    */
   int64_t calculateProtection(
