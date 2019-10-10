@@ -269,6 +269,11 @@ bool Oomd::updateContextCgroup(const CgroupPath& path, OomdContext& ctx) {
   auto memory_stats = Fs::getMemstat(absolute_cgroup_path);
   auto anon_usage = memory_stats["anon"];
   auto io_pressure = readIopressureWarnOnce(absolute_cgroup_path);
+  int64_t memhigh_tmp = 0;
+  try {
+    memhigh_tmp = Fs::readMemhightmp(absolute_cgroup_path);
+  } catch (const Fs::bad_control_file& ex) {
+  }
   double io_cost_cumulative = 0;
   if (io_devs_.size() != 0) {
     IOStat io_stat;
@@ -297,6 +302,7 @@ bool Oomd::updateContextCgroup(const CgroupPath& path, OomdContext& ctx) {
        .anon_usage = anon_usage,
        .memory_min = memmin,
        .memory_high = memhigh,
+       .memory_high_tmp = memhigh_tmp,
        .memory_max = memmax,
        .io_cost_cumulative = io_cost_cumulative});
 
