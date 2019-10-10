@@ -405,6 +405,10 @@ int64_t Fs::readMemhigh(const std::string& path) {
   return Fs::readMinMaxLowHigh(path, kMemHighFile);
 }
 
+int64_t Fs::readMemmax(const std::string& path) {
+  return Fs::readMinMaxLowHigh(path, kMemMaxFile);
+}
+
 int64_t Fs::readMemhightmp(const std::string& path) {
   auto lines = readFileByLine(path + "/" + kMemHighTmpFile);
   OCHECK_EXCEPT(lines.size() == 1, bad_control_file(path + ": missing file"));

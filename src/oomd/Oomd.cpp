@@ -263,6 +263,8 @@ bool Oomd::updateContextCgroup(const CgroupPath& path, OomdContext& ctx) {
   auto pressures = Fs::readMempressure(absolute_cgroup_path);
   auto memlow = Fs::readMemlow(absolute_cgroup_path);
   auto memmin = Fs::readMemmin(absolute_cgroup_path);
+  auto memhigh = Fs::readMemhigh(absolute_cgroup_path);
+  auto memmax = Fs::readMemmax(absolute_cgroup_path);
   auto swap_current = Fs::readSwapCurrent(absolute_cgroup_path);
   auto memory_stats = Fs::getMemstat(absolute_cgroup_path);
   auto anon_usage = memory_stats["anon"];
@@ -294,6 +296,8 @@ bool Oomd::updateContextCgroup(const CgroupPath& path, OomdContext& ctx) {
        .swap_usage = swap_current,
        .anon_usage = anon_usage,
        .memory_min = memmin,
+       .memory_high = memhigh,
+       .memory_max = memmax,
        .io_cost_cumulative = io_cost_cumulative});
 
   return true;

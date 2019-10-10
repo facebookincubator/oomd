@@ -157,6 +157,8 @@ void OomdContext::dumpOomdContext(
          << " mem_avg=" << (ms.second.average_usage >> 20) << "MB"
          << " mem_low=" << (ms.second.memory_low >> 20) << "MB"
          << " mem_min=" << (ms.second.memory_min >> 20) << "MB"
+         << " mem_high=" << (ms.second.memory_high >> 20) << "MB"
+         << " mem_max=" << (ms.second.memory_max >> 20) << "MB"
          << " mem_prot=" << (ms.second.memory_protection >> 20) << "MB"
          << " anon=" << (ms.second.anon_usage >> 20) << "MB"
          << " swap_usage=" << (ms.second.swap_usage >> 20) << "MB";

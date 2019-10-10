@@ -75,6 +75,8 @@ class CgroupContext {
   int64_t swap_usage{0};
   int64_t anon_usage{0};
   int64_t memory_min{0};
+  int64_t memory_high{0};
+  int64_t memory_max{0};
   float memory_scale{1};
   int64_t memory_adj{0};
   double io_cost_cumulative{0}; // Dot product between io stat and coeffs

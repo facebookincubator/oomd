@@ -195,6 +195,7 @@ const auto kEntCgroup = F::makeDir(
                 "1:10 rbytes=1111111 wbytes=2222222 rios=33 wios=44 dbytes=5555555555 dios=6\n"
                 "1:11 rbytes=2222222 wbytes=3333333 rios=44 wios=55 dbytes=6666666666 dios=7\n"),
             F::makeFile("memory.current", "987654321\n"),
+            F::makeFile("memory.max", "654\n"),
             F::makeFile("memory.high", "1000\n"),
             F::makeFile("memory.high.tmp", "2000 20000\n"),
             F::makeFile("memory.low", "333333\n"),

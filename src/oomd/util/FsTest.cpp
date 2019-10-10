@@ -214,6 +214,11 @@ TEST_F(FsTest, ReadMemoryHigh) {
   EXPECT_EQ(Fs::readMemhigh(dir), 1000);
 }
 
+TEST_F(FsTest, ReadMemoryMax) {
+  auto dir = fixture_.cgroupDataDir();
+  EXPECT_EQ(Fs::readMemmax(dir), 654);
+}
+
 TEST_F(FsTest, ReadMemoryHighTmp) {
   auto dir = fixture_.cgroupDataDir();
   EXPECT_EQ(Fs::readMemhightmp(dir), 2000);
