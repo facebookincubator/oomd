@@ -67,6 +67,13 @@ drop-in config into the engine. Filenames beginning with '.' are ignored.
   * If there is more than one match, the first base ruleset will be chosen
   * If more than one drop-in config is present, they are added last-in-first-out
     (LIFO) order
+  * A single drop-in config may contain more than one ruleset
+  * Drop-in configs override the targeted ruleset on detector group or action
+    group granularity
+
+* Behind the scenes, oomd will clone a copy of the targeted ruleset and
+  replace the dropped-in detector groups and action groups. That new ruleset
+  will be run before the targeted ruleset.
 
 ## Example
 
