@@ -26,6 +26,7 @@
 #include <sys/xattr.h>
 #include <unistd.h>
 
+#include <cinttypes>
 #include <deque>
 #include <fstream>
 #include <utility>
@@ -516,7 +517,7 @@ IOStat Fs::readIostat(const std::string& path) {
     int major, minor;
     int ret = sscanf(
         line.c_str(),
-        "%d:%d rbytes=%lu wbytes=%lu rios=%lu wios=%lu dbytes=%lu dios=%lu\n",
+        "%d:%d rbytes=%" SCNu64 " wbytes=%" SCNu64 " rios=%" SCNu64 " wios=%" SCNu64 " dbytes=%" SCNu64 " dios=%" SCNu64 "\n",
         &major,
         &minor,
         &dev_io_stat.rbytes,
