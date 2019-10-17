@@ -26,6 +26,7 @@
 #include <sys/xattr.h>
 #include <unistd.h>
 
+#include <cinttypes>
 #include <deque>
 #include <fstream>
 #include <utility>
@@ -461,12 +462,13 @@ std::unordered_map<std::string, int64_t> Fs::getVmstat(
 std::unordered_map<std::string, int64_t> Fs::getMeminfo(
     const std::string& path) {
   char name[256] = {0};
-  unsigned long val;
+  uint64_t val;
   std::unordered_map<std::string, int64_t> map;
 
   auto lines = readFileByLine(path);
   for (auto& line : lines) {
-    int ret = sscanf(line.c_str(), "%255[^:]:%*[ \t]%lu%*s\n", name, &val);
+    int ret =
+        sscanf(line.c_str(), "%255[^:]:%*[ \t]%" SCNu64 "%*s\n", name, &val);
     if (ret == 2) {
       map[name] = val * 1024;
     }
@@ -478,12 +480,12 @@ std::unordered_map<std::string, int64_t> Fs::getMeminfo(
 std::unordered_map<std::string, int64_t> Fs::getMemstat(
     const std::string& path) {
   char name[256] = {0};
-  unsigned long val;
+  uint64_t val;
   std::unordered_map<std::string, int64_t> map;
 
   auto lines = readFileByLine(path + "/" + kMemStatFile);
   for (const auto& line : lines) {
-    int ret = sscanf(line.c_str(), "%255s %lu\n", name, &val);
+    int ret = sscanf(line.c_str(), "%255s %" SCNu64 "\n", name, &val);
     if (ret == 2) {
       map[name] = val;
     }
@@ -516,7 +518,8 @@ IOStat Fs::readIostat(const std::string& path) {
     int major, minor;
     int ret = sscanf(
         line.c_str(),
-        "%d:%d rbytes=%lu wbytes=%lu rios=%lu wios=%lu dbytes=%lu dios=%lu\n",
+        "%d:%d rbytes=%" SCNd64 " wbytes=%" SCNd64 " rios=%" SCNd64
+        " wios=%" SCNd64 " dbytes=%" SCNd64 " dios=%" SCNd64 "\n",
         &major,
         &minor,
         &dev_io_stat.rbytes,
