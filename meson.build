@@ -107,14 +107,12 @@ configure_file(
     input : 'src/oomd/etc/oomd.service.in',
     output : 'oomd.service',
     configuration : substs,
-    install : true,
     install_dir : systemunitdir)
 
 configure_file(
     input : 'src/oomd/etc/desktop.json',
     output : 'oomd.json',
     configuration : substs,
-    install : true,
     install_dir : oomdconfdir)
 
 # Core tests
