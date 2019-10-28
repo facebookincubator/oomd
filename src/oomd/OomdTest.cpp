@@ -225,8 +225,8 @@ TEST_F(OomdTest, CalculateProtectionOverageContrived) {
   int64_t B2 = ctx.getCgroupContext(CgroupPath(contrived_cgroup_path, "B/B2"))
                    .effective_usage();
 
-  EXPECT_EQ(A, 2l << 30);
-  EXPECT_EQ(B, 3l << 30);
+  EXPECT_EQ(A, 2ll << 30);
+  EXPECT_EQ(B, 3ll << 30);
 
   // Hierarchy is B1 > B2 >= A1 > A2
   EXPECT_GT(A1, A2);
