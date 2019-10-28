@@ -9,7 +9,7 @@ oomd is *userspace* Out-Of-Memory (OOM) killer for linux systems.
 Out of memory killing has historically happened inside kernel space. On a
 [memory overcommitted][0] linux system, malloc(2) and friends usually never
 fail. However, if an application dereferences the returned pointer and the
-system has run out of physical memory, the linux kernel is forced take extreme
+system has run out of physical memory, the linux kernel is forced to take extreme
 measures, up to and including killing processes. This is sometimes a slow and
 painful process because the kernel can spend an unbounded amount of time
 swapping in and out pages and evicting the page cache. Furthermore,
