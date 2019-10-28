@@ -517,7 +517,8 @@ IOStat Fs::readIostat(const std::string& path) {
     int major, minor;
     int ret = sscanf(
         line.c_str(),
-        "%d:%d rbytes=%" SCNu64 " wbytes=%" SCNu64 " rios=%" SCNu64 " wios=%" SCNu64 " dbytes=%" SCNu64 " dios=%" SCNu64 "\n",
+        "%d:%d rbytes=%" SCNu64 " wbytes=%" SCNu64 " rios=%" SCNu64
+        " wios=%" SCNu64 " dbytes=%" SCNu64 " dios=%" SCNu64 "\n",
         &major,
         &minor,
         &dev_io_stat.rbytes,
