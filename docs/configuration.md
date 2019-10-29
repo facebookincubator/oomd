@@ -73,7 +73,7 @@ conforming config is evaluated at runtime are described in the next section.
 
 * Every plugin must return CONTINUE or STOP.
   * CONTINUE
-    * For DETECTORs, loop
+    * For DETECTORs, noop
       chain
     * For ACTIONs, continue executing the current ACTION chain
   * STOP
