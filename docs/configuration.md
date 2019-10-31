@@ -61,7 +61,7 @@ In plain english, the general idea is that each oomd config one or more
 RULESETs.  Each RULESET has a set of DETECTOR_GROUPs and a set of ACTIONs. Each
 DETECTOR_GROUP has a set of DETECTORs. Both DETECTORs and ACTIONs are PLUGIN
 types. That means _everything_ is a plugin in oomd. The rules on how a
-conforming config is evaulated at runtime are described in the next section.
+conforming config is evaluated at runtime are described in the next section.
 
 ### Notes
 
@@ -69,7 +69,7 @@ conforming config is evaulated at runtime are described in the next section.
   * `engine`: oomd engine logs
   * `plugins`: logs written by plugins
 
-## Runtime evaulation rules
+## Runtime evaluation rules
 
 * Every plugin must return CONTINUE or STOP.
   * CONTINUE
