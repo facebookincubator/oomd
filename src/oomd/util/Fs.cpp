@@ -78,6 +78,29 @@ std::vector<std::string> Fs::readDir(const std::string& path, EntryType type) {
       continue;
     }
 
+    /*
+     * Optimisation: Avoid doing lstat calls if kernfs gives us back d_type.
+     * This actually can be pretty useful, since avoiding lstat()ing everything
+     * can reduce oomd CPU usage by ~10% on a reasonably sized cgroup
+     * hierarchy.
+     */
+    if (dir->d_type != DT_UNKNOWN) {
+      switch (type) {
+        case EntryType::REG_FILE:
+          if (dir->d_type == DT_REG) {
+            v.push_back(dir->d_name);
+          }
+          break;
+        case EntryType::DIRECTORY:
+          if (dir->d_type == DT_DIR) {
+            v.push_back(dir->d_name);
+          }
+          break;
+      }
+
+      continue;
+    }
+
     auto file = path + "/" + dir->d_name;
     struct stat buf;
     int ret = ::lstat(file.c_str(), &buf);
