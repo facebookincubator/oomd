@@ -29,9 +29,9 @@
 #include <cinttypes>
 #include <deque>
 #include <fstream>
+#include <sstream>
 #include <utility>
 
-#include "oomd/Log.h"
 #include "oomd/include/Assert.h"
 #include "oomd/util/Util.h"
 
@@ -69,7 +69,6 @@ std::vector<std::string> Fs::readDir(const std::string& path, EntryType type) {
 
   d = ::opendir(path.c_str());
   if (!d) {
-    OLOG << "Unable to open directory=" << path;
     return v;
   }
 
@@ -105,10 +104,6 @@ std::vector<std::string> Fs::readDir(const std::string& path, EntryType type) {
     struct stat buf;
     int ret = ::lstat(file.c_str(), &buf);
     if (ret == -1) {
-      auto errorNum = errno;
-      // TODO: better error handling for methods here instead of ignoring.
-      OLOG << "lstat failed with errno: " << errorNum << ", file: " << file
-           << ", ignoring file";
       continue;
     }
 
@@ -247,7 +242,6 @@ void Fs::removePrefix(std::string& str, const std::string& prefix) {
 std::vector<std::string> Fs::readFileByLine(const std::string& path) {
   std::ifstream f(path, std::ios::in);
   if (!f.is_open()) {
-    OLOG << "Unable to open " << path;
     return {};
   }
 
@@ -255,10 +249,6 @@ std::vector<std::string> Fs::readFileByLine(const std::string& path) {
   std::vector<std::string> v;
   while (std::getline(f, s)) {
     v.push_back(std::move(s));
-  }
-
-  if (f.bad()) {
-    OLOG << "Error while processing file " << path;
   }
 
   return v;
@@ -284,7 +274,6 @@ std::vector<int> Fs::getPids(const std::string& path, bool recursive) {
       })) {
     auto str_pids = readFileByLine(path + "/" + kProcsFile);
     for (const auto& sp : str_pids) {
-      OLOG << "found pid " << sp;
       pids.push_back(std::stoi(sp));
     }
   }
@@ -604,8 +593,6 @@ bool Fs::setxattr(
     const std::string& val) {
   int ret = ::setxattr(path.c_str(), attr.c_str(), val.c_str(), val.size(), 0);
   if (ret == -1) {
-    OLOG << "Unable to set xattr " << attr << "=" << val << " on " << path
-         << ". errno=" << errno;
     return false;
   }
   return true;
