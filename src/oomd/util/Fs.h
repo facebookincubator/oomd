@@ -54,9 +54,14 @@ class Fs {
   static constexpr auto kDeviceTypeDir = "queue";
   static constexpr auto kDeviceTypeFile = "rotational";
 
-  enum class EntryType {
-    REG_FILE = 0,
-    DIRECTORY,
+  struct DirEnts {
+    std::vector<std::string> dirs;
+    std::vector<std::string> files;
+  };
+
+  enum DirEntFlags {
+    DE_FILE = 1,
+    DE_DIR = (1 << 1),
   };
 
   enum class PressureType {
@@ -68,9 +73,7 @@ class Fs {
    * Reads a directory and returns the names of the requested entry types
    * Won't return any dotfiles (including ./ and ../)
    */
-  static std::vector<std::string> readDir(
-      const std::string& path,
-      EntryType type);
+  static struct DirEnts readDir(const std::string& path, int flags);
 
   /*
    * Checks if @param path is a directory

@@ -63,13 +63,13 @@ PsiFormat getPsiFormat(const std::vector<std::string>& lines) {
 
 namespace Oomd {
 
-std::vector<std::string> Fs::readDir(const std::string& path, EntryType type) {
+struct Fs::DirEnts Fs::readDir(const std::string& path, int flags) {
   DIR* d;
-  std::vector<std::string> v;
+  struct Fs::DirEnts de;
 
   d = ::opendir(path.c_str());
   if (!d) {
-    return v;
+    return de;
   }
 
   while (struct dirent* dir = ::readdir(d)) {
@@ -83,20 +83,12 @@ std::vector<std::string> Fs::readDir(const std::string& path, EntryType type) {
      * can reduce oomd CPU usage by ~10% on a reasonably sized cgroup
      * hierarchy.
      */
-    if (dir->d_type != DT_UNKNOWN) {
-      switch (type) {
-        case EntryType::REG_FILE:
-          if (dir->d_type == DT_REG) {
-            v.push_back(dir->d_name);
-          }
-          break;
-        case EntryType::DIRECTORY:
-          if (dir->d_type == DT_DIR) {
-            v.push_back(dir->d_name);
-          }
-          break;
-      }
-
+    if ((flags & DirEntFlags::DE_FILE) && dir->d_type == DT_REG) {
+      de.files.push_back(dir->d_name);
+      continue;
+    }
+    if ((flags & DirEntFlags::DE_DIR) && dir->d_type == DT_DIR) {
+      de.dirs.push_back(dir->d_name);
       continue;
     }
 
@@ -107,22 +99,16 @@ std::vector<std::string> Fs::readDir(const std::string& path, EntryType type) {
       continue;
     }
 
-    switch (type) {
-      case EntryType::REG_FILE:
-        if (buf.st_mode & S_IFREG) {
-          v.push_back(dir->d_name);
-        }
-        break;
-      case EntryType::DIRECTORY:
-        if (buf.st_mode & S_IFDIR) {
-          v.push_back(dir->d_name);
-        }
-        break;
+    if ((flags & DirEntFlags::DE_FILE) && (buf.st_mode & S_IFREG)) {
+      de.files.push_back(dir->d_name);
+    }
+    if ((flags & DirEntFlags::DE_DIR) && (buf.st_mode & S_IFDIR)) {
+      de.files.push_back(dir->d_name);
     }
   }
 
   ::closedir(d);
-  return v;
+  return de;
 }
 
 bool Fs::isDir(const std::string& path) {
@@ -164,12 +150,11 @@ std::unordered_set<std::string> Fs::resolveWildcardPath(
       continue;
     }
 
-    // Only resolve regular files and directories
-    auto entries = readDir(front.first, EntryType::DIRECTORY);
-    auto files = readDir(front.first, EntryType::REG_FILE);
-    entries.insert(entries.end(), files.begin(), files.end());
+    auto de = readDir(front.first, DE_FILE | DE_DIR);
+    de.files.reserve(de.files.size() + de.dirs.size());
+    de.files.insert(de.files.end(), de.dirs.begin(), de.dirs.end());
 
-    for (const auto& entry : entries) {
+    for (const auto& entry : de.files) {
       if (::fnmatch(parts[front.second].c_str(), entry.c_str(), 0) == 0) {
         if (front.second == parts.size() - 1) {
           // We have reached a leaf, add it to the return set
@@ -268,8 +253,8 @@ std::vector<std::string> Fs::readControllers(const std::string& path) {
 
 std::vector<int> Fs::getPids(const std::string& path, bool recursive) {
   std::vector<int> pids;
-  auto files = readDir(path, EntryType::REG_FILE);
-  if (std::any_of(files.begin(), files.end(), [](const std::string& s) {
+  auto de = readDir(path, DE_FILE | DE_DIR);
+  if (std::any_of(de.files.begin(), de.files.end(), [](const std::string& s) {
         return s == kProcsFile;
       })) {
     auto str_pids = readFileByLine(path + "/" + kProcsFile);
@@ -279,8 +264,7 @@ std::vector<int> Fs::getPids(const std::string& path, bool recursive) {
   }
 
   if (recursive) {
-    auto dirs = readDir(path, EntryType::DIRECTORY);
-    for (const auto& dir : dirs) {
+    for (const auto& dir : de.dirs) {
       auto recursive_pids = getPids(path + "/" + dir, true);
       pids.insert(pids.end(), recursive_pids.begin(), recursive_pids.end());
     }

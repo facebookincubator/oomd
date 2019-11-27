@@ -50,15 +50,15 @@ class FsTest : public ::testing::Test {
 
 TEST_F(FsTest, FindDirectories) {
   auto dir = fixture_.fsDataDir();
-  auto dirs = Fs::readDir(dir, Fs::EntryType::DIRECTORY);
+  auto de = Fs::readDir(dir, Fs::DE_DIR);
 
-  ASSERT_EQ(dirs.size(), 4);
-  EXPECT_THAT(dirs, Contains(std::string("dir1")));
-  EXPECT_THAT(dirs, Contains(std::string("dir2")));
-  EXPECT_THAT(dirs, Contains(std::string("dir3")));
-  EXPECT_THAT(dirs, Contains(std::string("wildcard")));
-  EXPECT_THAT(dirs, Not(Contains(std::string("dir21"))));
-  EXPECT_THAT(dirs, Not(Contains(std::string("dir22"))));
+  ASSERT_EQ(de.dirs.size(), 4);
+  EXPECT_THAT(de.dirs, Contains(std::string("dir1")));
+  EXPECT_THAT(de.dirs, Contains(std::string("dir2")));
+  EXPECT_THAT(de.dirs, Contains(std::string("dir3")));
+  EXPECT_THAT(de.dirs, Contains(std::string("wildcard")));
+  EXPECT_THAT(de.dirs, Not(Contains(std::string("dir21"))));
+  EXPECT_THAT(de.dirs, Not(Contains(std::string("dir22"))));
 }
 
 TEST_F(FsTest, IsDir) {
@@ -92,14 +92,14 @@ TEST_F(FsTest, RemovePrefix) {
 
 TEST_F(FsTest, FindFiles) {
   auto dir = fixture_.fsDataDir();
-  auto files = Fs::readDir(dir, Fs::EntryType::REG_FILE);
+  auto de = Fs::readDir(dir, Fs::DE_FILE);
 
-  ASSERT_EQ(files.size(), 4);
-  EXPECT_THAT(files, Contains(std::string("file1")));
-  EXPECT_THAT(files, Contains(std::string("file2")));
-  EXPECT_THAT(files, Contains(std::string("file3")));
-  EXPECT_THAT(files, Contains(std::string("file4")));
-  EXPECT_THAT(files, Not(Contains(std::string("file5"))));
+  ASSERT_EQ(de.files.size(), 4);
+  EXPECT_THAT(de.files, Contains(std::string("file1")));
+  EXPECT_THAT(de.files, Contains(std::string("file2")));
+  EXPECT_THAT(de.files, Contains(std::string("file3")));
+  EXPECT_THAT(de.files, Contains(std::string("file4")));
+  EXPECT_THAT(de.files, Not(Contains(std::string("file5"))));
 }
 
 TEST_F(FsTest, ResolveWildcardedPathRelative) {

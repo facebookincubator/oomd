@@ -46,7 +46,6 @@ int BaseKillPlugin::getAndTryToKillPids(
     bool recursive,
     size_t stream_size) {
   int nr_killed = 0;
-  auto files = Fs::readDir(path, Fs::EntryType::REG_FILE);
 
   std::ifstream f(path + "/" + Fs::kProcsFile, std::ios::in);
   if (!f.is_open()) {
@@ -69,8 +68,8 @@ int BaseKillPlugin::getAndTryToKillPids(
   }
 
   if (recursive) {
-    auto dirs = Fs::readDir(path, Fs::EntryType::DIRECTORY);
-    for (const auto& dir : dirs) {
+    auto de = Fs::readDir(path, Fs::DE_DIR);
+    for (const auto& dir : de.dirs) {
       nr_killed += getAndTryToKillPids(path + "/" + dir, true, stream_size);
     }
   }

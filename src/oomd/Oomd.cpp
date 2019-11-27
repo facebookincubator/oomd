@@ -456,9 +456,9 @@ int Oomd::prepDropInWatcher(const std::string& dir) {
 
   // Load existing drop in configs before setting up inotify hooks
   // so we don't race with configs dropping in
-  auto configs = Fs::readDir(dir, Fs::EntryType::REG_FILE);
-  std::sort(configs.begin(), configs.end()); // Provide some determinism
-  for (const auto& config : configs) {
+  auto de = Fs::readDir(dir, Fs::DE_FILE);
+  std::sort(de.files.begin(), de.files.end()); // Provide some determinism
+  for (const auto& config : de.files) {
     processDropInAdd(config);
   }
 
