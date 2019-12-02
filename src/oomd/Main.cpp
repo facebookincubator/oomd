@@ -211,6 +211,9 @@ int main(int argc, char** argv) {
 
   while ((c = getopt_long(
               argc, argv, short_options, long_options, &option_index)) != -1) {
+    size_t parsed_len;
+    bool parse_error = false;
+
     switch (c) {
       case 'h':
         printUsage();
@@ -236,7 +239,16 @@ int main(int argc, char** argv) {
         }
         return 0;
       case 'i':
-        interval = std::stoi(optarg);
+        try {
+          interval = std::stoi(optarg, &parsed_len);
+        } catch (const std::invalid_argument& e) {
+          parse_error = true;
+        }
+        if (parse_error || interval < 1 || parsed_len != strlen(optarg)) {
+          std::cerr << "Interval not a >0 integer: " << optarg << std::endl;
+          return 1;
+        }
+
         break;
       case 'f':
         cgroup_fs = std::string(optarg);
