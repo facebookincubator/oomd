@@ -587,7 +587,7 @@ int Oomd::processDropInWatcher(int fd) {
   while (true) {
     int len = ::read(fd, buf, sizeof(buf));
     if (len < 0 && errno != EAGAIN) {
-      OLOG << "epoll_wait: " << ::strerror_r(errno, buf, sizeof(buf));
+      OLOG << "read: " << ::strerror_r(errno, buf, sizeof(buf));
       return 1;
     }
 
