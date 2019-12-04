@@ -4,6 +4,16 @@ project('oomd', 'cpp',
   license : 'GPL2',
   default_options : ['stdsplit=false', 'cpp_std=c++17'])
 
+compiler = meson.get_compiler('cpp')
+
+if compiler.get_id() == 'clang'
+  add_project_link_arguments(['-lc++fs', '-llibc++experimental'], language : 'cpp')
+elif compiler.get_id() == 'gcc'
+  add_project_link_arguments(['-lstdc++fs'], language : 'cpp')
+else
+  error('No idea what to link for this compiler for <filesystem>')
+endif
+
 cpp_args = ['-DMESON_BUILD']
 
 inc = include_directories('src')
@@ -152,21 +162,11 @@ if gtest_dep.found() and gmock_dep.found()
 
         executable_name_suffix = test_name + '_tests'
 
-        # Remove once GCC 8+ is more ubiquitous with non-experimental
-        # <filesystem>
-        local_deps = deps
-        if test_name == 'oomd'
-          fs_dep = dependency('stdc++fs', required : false)
-          if fs_dep.found()
-            local_deps += [fs_dep]
-          endif
-        endif
-
         test_executable = executable('oomd_' + executable_name_suffix,
             sources,
             include_directories : inc,
             cpp_args : cpp_args,
-            dependencies : local_deps,
+            dependencies : deps,
             link_whole : [oomd_lib, oomd_fixture_lib])
         test(executable_name_suffix,
              test_executable,
