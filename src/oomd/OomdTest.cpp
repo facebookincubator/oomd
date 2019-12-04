@@ -24,10 +24,25 @@
 #include "oomd/Oomd.h"
 #include "oomd/util/Fs.h"
 
+// GCC 8+ has C++17's std::filesystem in <filesystem>. Before that, it's in
+// namespace std::experimental::filesystem in <experimental/filesystem>. This
+// can be reduced to just `#include <filesystem>` once GCC 8+ has
+// near-ubiquity.
+#if __has_include(<filesystem>)
+#include <filesystem>
+namespace sfs = std::filesystem;
+#elif __has_include(<experimental/filesystem>)
+#include <experimental/filesystem>
+namespace sfs = std::experimental::filesystem;
+#else
+#error "No filesystem include found"
+#endif
+
 using namespace Oomd;
 using namespace testing;
 
-constexpr auto kCgroupDataDir = "oomd/fixtures/cgroup";
+const auto kCgroupDataDir =
+    sfs::current_path().u8string() + "/oomd/fixtures/cgroup";
 
 class OomdTest : public ::testing::Test {
  public:

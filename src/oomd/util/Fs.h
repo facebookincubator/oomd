@@ -85,8 +85,6 @@ class Fs {
    * resolved fully qualified paths.
    */
   static std::unordered_set<std::string> resolveWildcardPath(
-      const std::string& path);
-  static std::unordered_set<CgroupPath> resolveCgroupWildcardPath(
       const CgroupPath& path);
 
   /*

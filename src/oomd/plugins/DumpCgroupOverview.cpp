@@ -94,8 +94,11 @@ int DumpCgroupOverview::init(
 Engine::PluginRet DumpCgroupOverview::run(OomdContext& ctx) {
   std::unordered_set<CgroupPath> resolved_cgroups;
   for (const auto& cgroup : cgroups_) {
-    auto resolved = Fs::resolveCgroupWildcardPath(cgroup);
-    resolved_cgroups.insert(resolved.begin(), resolved.end());
+    auto resolved_raw_paths = Fs::resolveWildcardPath(cgroup);
+    for (const auto& raw : resolved_raw_paths) {
+      resolved_cgroups.emplace(
+          cgroup.cgroupFs(), raw.substr(cgroup.cgroupFs().size()));
+    }
   }
 
   for (const auto& resolved : resolved_cgroups) {
