@@ -162,6 +162,8 @@ class Fs {
   static DeviceType getDeviceType(
       const std::string& dev_id,
       const std::string& path = "/sys/dev/block");
+
+  static bool hasGlob(const std::string& s);
 };
 
 } // namespace Oomd

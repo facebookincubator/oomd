@@ -120,6 +120,17 @@ bool Fs::isDir(const std::string& path) {
   return false;
 }
 
+/*
+ * Return if a string might have something special for fnmatch.
+ *
+ * This function is simple and can return false-positives, but not
+ * false-negatives -- that is, true means "maybe", and false means false.
+ * That's ok, since this is only used for optimisations.
+ */
+bool Fs::hasGlob(const std::string& s) {
+  return s.find_first_of("*[?") != std::string::npos;
+}
+
 std::unordered_set<std::string> Fs::resolveWildcardPath(
     const CgroupPath& cgpath) {
   std::string path = cgpath.absolutePath();
@@ -147,6 +158,15 @@ std::unordered_set<std::string> Fs::resolveWildcardPath(
   while (!queue.empty()) {
     const auto front = queue.front(); // copy
     queue.pop_front();
+
+    // Optimisation: If there's no glob and we're not at the end, it must be
+    // intended to be a single dir. It doesn't matter if it actually *is* in
+    // reality, because if it doesn't exist we'll fail later on.
+    if (front.second < parts.size() - 1 && !Fs::hasGlob(parts[front.second])) {
+      queue.emplace_front(
+          front.first + parts[front.second] + "/", front.second + 1);
+      continue;
+    }
 
     // We can't continue BFS if we've hit a regular file
     if (!isDir(front.first)) {
