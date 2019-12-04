@@ -16,6 +16,7 @@
  */
 
 #include <gtest/gtest.h>
+#include <limits.h>
 
 #include <string>
 #include <unordered_set>
@@ -24,25 +25,25 @@
 #include "oomd/Oomd.h"
 #include "oomd/util/Fs.h"
 
-// GCC 8+ has C++17's std::filesystem in <filesystem>. Before that, it's in
-// namespace std::experimental::filesystem in <experimental/filesystem>. This
-// can be reduced to just `#include <filesystem>` once GCC 8+ has
-// near-ubiquity.
-#if __has_include(<filesystem>)
-#include <filesystem>
-namespace sfs = std::filesystem;
-#elif __has_include(<experimental/filesystem>)
-#include <experimental/filesystem>
-namespace sfs = std::experimental::filesystem;
-#else
-#error "No filesystem include found"
-#endif
-
 using namespace Oomd;
 using namespace testing;
 
-const auto kCgroupDataDir =
-    sfs::current_path().u8string() + "/oomd/fixtures/cgroup";
+// TODO: Use std::filesystem once it doesn't require header/ifdef/linker
+// shenanigans to reliably work on modernish GCC/Clang
+std::string _get_working_path() {
+  // This goes to a C API, don't complain about not using std::array
+  char buf[PATH_MAX]; // @nolint
+  char* res;
+
+  res = ::getcwd(buf, sizeof(buf));
+  if (!res) {
+    throw std::runtime_error("Can't getcwd");
+  }
+
+  return buf;
+}
+
+const auto kCgroupDataDir = _get_working_path() + "/oomd/fixtures/cgroup";
 
 class OomdTest : public ::testing::Test {
  public:
