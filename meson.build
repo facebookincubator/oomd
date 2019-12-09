@@ -115,6 +115,8 @@ configure_file(
     configuration : substs,
     install_dir : oomdconfdir)
 
+install_man('man/oomd.1')
+
 # Core tests
 # TODO: Normally we'd use a dictionary here, but they are only supported as of
 # Meson version 0.47.0.  Ubuntu 18.04 provides only Meson version 0.45.1.

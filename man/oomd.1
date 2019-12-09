@@ -1,0 +1,92 @@
+.TH "oomd" "1"
+.SH NAME
+oomd \- Userspace Out-Of-Memory (OOM) killer for Linux systems
+
+
+.SH SYNOPSIS
+.B oomd
+.RI [ OPTION "] ..."
+
+
+.SH DESCRIPTION
+.B oomd
+leverages PSI and cgroupv2 to monitor a system holistically.
+.B oomd
+then takes corrective action in userspace before an OOM occurs in kernel space. Corrective action is configured via a flexible plugin system, in which custom code can be written. By default, this involves killing offending processes. This enables an unparalleled level of flexibility where each workload can have custom protection rules. Furthermore, time spent livedlocked in kernelspace is minimized.
+
+
+.SH OPTIONS
+
+.TP
+.B \-\-help, \-h
+Show this help message and exit
+
+.TP
+.B \-\-version, \-v
+Print version and exit
+
+.TP
+.BI "\-\-config, \-C " CONFIG
+Config file (default: \fI/etc/oomd/oomd.json\fR)
+
+.TP
+.BI "\-\-interval, \-i " INTERVAL
+Event loop polling interval (default: 5)
+
+.TP
+.BI "\-\-cgroup\-fs, \-f " FS
+Cgroup2 filesystem mount point (default: \fI/sys/fs/cgroup\fR)
+
+.TP
+.BI "\-\-check\-config, \-c " CONFIG
+Check config file (default: \fI/etc/oomd/oomd.json\fR)
+
+.TP
+.B \-\-list\-plugins, \-l
+List all available plugins
+
+.TP
+.BI "\-\-drop\-in\-dir, \-w " DIR
+Directory to watch for drop in configs
+
+.TP
+.BI "\-\-socket\-path, \-s " PATH
+Specify stats socket path (default: \fI/run/oomd/oomd\-stats.socket\fR)
+
+.TP
+.B \-\-dump\-stats, \-d
+Dump accumulated stats
+
+.TP
+.B \-\-reset\-stats, \-r
+Reset stats collection
+
+.TP
+.BI "\-\-device " DEVS
+Comma separated <\fImajor\fR>:<\fIminor\fR> pairs for IO cost calculation (default: none)
+
+.TP
+.BI "\-\-ssd\-coeffs " COEFFS
+Comma separated values for SSD IO cost calculation (default: see doc)
+
+.TP
+.BI "\-\-hdd\-coeffs " COEFFS
+Comma separated values for HDD IO cost calculation (default: see doc)
+
+
+.SH SEE ALSO
+https://github.com/facebookincubator/oomd#configuration
+
+
+.SH AUTHOR
+.B oomd
+is written by
+.UR https://opensource.fb.com/
+Facebook, Inc
+.UE .
+
+This manual page was written by
+.MT mmyangfl@\:gmail.com
+Yangfl
+.ME
+for the Debian Project (and may be used by others).
