@@ -41,6 +41,7 @@ srcs = files('''
     src/oomd/util/Util.cpp
     src/oomd/plugins/MemoryAbove.cpp
     src/oomd/plugins/MemoryReclaim.cpp
+    src/oomd/plugins/NrDyingDescendants.cpp
     src/oomd/plugins/PressureAbove.cpp
     src/oomd/plugins/PressureRisingBeyond.cpp
     src/oomd/plugins/SwapFree.cpp
