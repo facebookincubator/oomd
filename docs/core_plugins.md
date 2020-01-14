@@ -127,6 +127,26 @@ otherwise.
 When `negate` is `true`, if `cgroup` doesn't exist, CONTINUE. STOP
 otherwise.
 
+## nr_dying_descendants
+
+### Arguments
+
+    cgroup
+    count
+    lte=true (optional)
+    negate=false (optional)
+
+### Description
+
+`cgroup` supports comma separated arguments and wildcards. The plugin triggers
+if any of the globbed cgroups matches the condition.
+
+When `lte` is `true`, if `nr_dying_descendants(cgroup) <= count`, CONTINUE.
+STOP otherwise.
+
+When `lte` is `false`, if `nr_dying_descendants(cgroup) > count`, CONTINUE.
+STOP otherwise.
+
 ## dump_cgroup_overview
 
 ### Arguments
