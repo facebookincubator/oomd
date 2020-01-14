@@ -162,6 +162,12 @@ TEST_F(FsTest, GetPids) {
   EXPECT_THAT(pids_r, Contains(789));
 }
 
+TEST_F(FsTest, GetNrDying) {
+  auto dir = fixture_.cgroupDataDir();
+  int64_t nr = Fs::getNrDyingDescendants(dir);
+  EXPECT_EQ(nr, 27);
+}
+
 TEST_F(FsTest, ReadMemoryCurrent) {
   auto dir = fixture_.cgroupDataDir();
   EXPECT_EQ(Fs::readMemcurrent(dir), 987654321);

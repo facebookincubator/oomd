@@ -48,6 +48,7 @@ class Fs {
   static constexpr auto kMemHighTmpFile = "memory.high.tmp";
   static constexpr auto kMemMinFile = "memory.min";
   static constexpr auto kMemStatFile = "memory.stat";
+  static constexpr auto kCgroupStatFile = "cgroup.stat";
   static constexpr auto kMemSwapCurrentFile = "memory.swap.current";
   static constexpr auto kIoPressureFile = "io.pressure";
   static constexpr auto kIoStatFile = "io.stat";
@@ -131,6 +132,8 @@ class Fs {
       int64_t value,
       std::chrono::microseconds duration);
 
+  static int64_t getNrDyingDescendants(const std::string& path);
+
   static IOStat readIostat(const std::string& path);
 
   static std::unordered_map<std::string, int64_t> getVmstat(
@@ -164,6 +167,10 @@ class Fs {
       const std::string& path = "/sys/dev/block");
 
   static bool hasGlob(const std::string& s);
+
+ private:
+  static std::unordered_map<std::string, int64_t> getMemstatLike(
+      const std::string& file);
 };
 
 } // namespace Oomd
