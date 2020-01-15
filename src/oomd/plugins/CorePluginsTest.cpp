@@ -1026,6 +1026,110 @@ TEST(Exists, NotExistsWildcard) {
   EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
 }
 
+TEST(NrDyingDescendants, SingleCgroupLte) {
+  auto plugin = createPlugin("nr_dying_descendants");
+  ASSERT_NE(plugin, nullptr);
+
+  Engine::MonitoredResources resources;
+  Engine::PluginArgs args;
+  args["cgroup_fs"] = "oomd/fixtures/cgroup";
+  args["cgroup"] = "cg";
+  args["debug"] = "true";
+  args["lte"] = "true";
+  args["count"] = "100";
+
+  ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+  ASSERT_EQ(resources.size(), 1);
+
+  OomdContext ctx;
+  ctx.setCgroupContext(
+      CgroupPath(args["cgroup_fs"], "cg"),
+      CgroupContext{.nr_dying_descendants = 123});
+  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
+
+  ctx.setCgroupContext(
+      CgroupPath(args["cgroup_fs"], "cg"),
+      CgroupContext{.nr_dying_descendants = 90});
+  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::CONTINUE);
+}
+
+TEST(NrDyingDescendants, SingleCgroupGt) {
+  auto plugin = createPlugin("nr_dying_descendants");
+  ASSERT_NE(plugin, nullptr);
+
+  Engine::MonitoredResources resources;
+  Engine::PluginArgs args;
+  args["cgroup_fs"] = "oomd/fixtures/cgroup";
+  args["cgroup"] = "cg";
+  args["debug"] = "true";
+  args["lte"] = "false";
+  args["count"] = "100";
+
+  ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+  ASSERT_EQ(resources.size(), 1);
+
+  OomdContext ctx;
+  ctx.setCgroupContext(
+      CgroupPath(args["cgroup_fs"], "cg"),
+      CgroupContext{.nr_dying_descendants = 123});
+  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::CONTINUE);
+
+  ctx.setCgroupContext(
+      CgroupPath(args["cgroup_fs"], "cg"),
+      CgroupContext{.nr_dying_descendants = 90});
+  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
+}
+
+TEST(NrDyingDescendants, RootCgroup) {
+  auto plugin = createPlugin("nr_dying_descendants");
+  ASSERT_NE(plugin, nullptr);
+
+  Engine::MonitoredResources resources;
+  Engine::PluginArgs args;
+  args["cgroup_fs"] = "oomd/fixtures/cgroup";
+  args["cgroup"] = "/";
+  args["debug"] = "true";
+  args["lte"] = "false"; // Greater than
+  args["count"] = "29";
+
+  ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+  ASSERT_EQ(resources.size(), 1);
+
+  OomdContext ctx;
+  ctx.setCgroupContext(
+      CgroupPath(args["cgroup_fs"], ""),
+      CgroupContext{.nr_dying_descendants = 30});
+  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::CONTINUE);
+}
+
+TEST(NrDyingDescendants, MultiCgroupGt) {
+  auto plugin = createPlugin("nr_dying_descendants");
+  ASSERT_NE(plugin, nullptr);
+
+  Engine::MonitoredResources resources;
+  Engine::PluginArgs args;
+  args["cgroup_fs"] = "oomd/fixtures/cgroup";
+  args["cgroup"] = "above,above1,below";
+  args["debug"] = "true";
+  args["lte"] = "true";
+  args["count"] = "100";
+
+  ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+  ASSERT_EQ(resources.size(), 3);
+
+  OomdContext ctx;
+  ctx.setCgroupContext(
+      CgroupPath(args["cgroup_fs"], "above"),
+      CgroupContext{.nr_dying_descendants = 200});
+  ctx.setCgroupContext(
+      CgroupPath(args["cgroup_fs"], "above1"),
+      CgroupContext{.nr_dying_descendants = 300});
+  ctx.setCgroupContext(
+      CgroupPath(args["cgroup_fs"], "below"),
+      CgroupContext{.nr_dying_descendants = 90});
+  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::CONTINUE);
+}
+
 TEST(KillMemoryGrowth, KillsBigCgroup) {
   auto plugin = std::make_shared<KillMemoryGrowth<BaseKillPluginMock>>();
   ASSERT_NE(plugin, nullptr);

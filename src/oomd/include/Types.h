@@ -82,6 +82,7 @@ class CgroupContext {
   int64_t memory_adj{0};
   double io_cost_cumulative{0}; // Dot product between io stat and coeffs
   double io_cost_rate{0}; // change of cumulative divided by interval in seconds
+  int64_t nr_dying_descendants{0};
 
   int64_t effective_usage() const {
     return current_usage * memory_scale - memory_protection + memory_adj;

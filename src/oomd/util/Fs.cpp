@@ -460,13 +460,13 @@ std::unordered_map<std::string, int64_t> Fs::getMeminfo(
   return map;
 }
 
-std::unordered_map<std::string, int64_t> Fs::getMemstat(
-    const std::string& path) {
+std::unordered_map<std::string, int64_t> Fs::getMemstatLike(
+    const std::string& file) {
   char name[256] = {0};
   uint64_t val;
   std::unordered_map<std::string, int64_t> map;
 
-  auto lines = readFileByLine(path + "/" + kMemStatFile);
+  auto lines = readFileByLine(file);
   for (const auto& line : lines) {
     int ret = sscanf(line.c_str(), "%255s %" SCNu64 "\n", name, &val);
     if (ret == 2) {
@@ -475,6 +475,11 @@ std::unordered_map<std::string, int64_t> Fs::getMemstat(
   }
 
   return map;
+}
+
+std::unordered_map<std::string, int64_t> Fs::getMemstat(
+    const std::string& path) {
+  return getMemstatLike(path + "/" + kMemStatFile);
 }
 
 ResourcePressure Fs::readIopressure(
@@ -556,6 +561,12 @@ void Fs::writeMemhightmp(
     throw bad_control_file(
         file_name + ": write failed: " + ::strerror_r(errno, buf, sizeof(buf)));
   }
+}
+
+int64_t Fs::getNrDyingDescendants(const std::string& path) {
+  auto map = getMemstatLike(path + "/" + kCgroupStatFile);
+  // Will return 0 for missing entries
+  return map["nr_dying_descendants"];
 }
 
 bool Fs::setxattr(

@@ -231,12 +231,14 @@ bool Oomd::updateContextRoot(const CgroupPath& path, OomdContext& ctx) {
   auto pressures = Fs::readMempressure("/");
   auto io_pressure = readIopressureWarnOnce("/");
   auto current = Fs::readMemcurrent("/");
+  auto nr_dying_descendants = Fs::getNrDyingDescendants(path.cgroupFs());
 
   ctx.setCgroupContext(
       path,
       {.pressure = pressures,
        .io_pressure = io_pressure,
-       .current_usage = current});
+       .current_usage = current,
+       .nr_dying_descendants = nr_dying_descendants});
 
   return true;
 }
@@ -291,6 +293,7 @@ bool Oomd::updateContextCgroup(const CgroupPath& path, OomdContext& ctx) {
     }
     io_cost_cumulative = calculateIOCostCumulative(io_stat);
   }
+  auto nr_dying_descendants = Fs::getNrDyingDescendants(absolute_cgroup_path);
 
   ctx.setCgroupContext(
       path,
@@ -304,7 +307,8 @@ bool Oomd::updateContextCgroup(const CgroupPath& path, OomdContext& ctx) {
        .memory_high = memhigh,
        .memory_high_tmp = memhigh_tmp,
        .memory_max = memmax,
-       .io_cost_cumulative = io_cost_cumulative});
+       .io_cost_cumulative = io_cost_cumulative,
+       .nr_dying_descendants = nr_dying_descendants});
 
   return true;
 }

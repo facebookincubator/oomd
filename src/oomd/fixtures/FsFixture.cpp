@@ -187,6 +187,10 @@ const auto kEntCgroup = F::makeDir(
             F::makeFile("cgroup.controllers", "cpu io memory pids\n"),
             F::makeFile("cgroup.procs", "123\n"),
             F::makeFile(
+                "cgroup.stat",
+                "nr_descendants 34\n"
+                "nr_dying_descendants 27\n"),
+            F::makeFile(
                 "io.pressure",
                 "some avg10=1.12 avg60=2.23 avg300=3.34 total=134829384401\n"
                 "full avg10=4.45 avg60=5.56 avg300=6.67 total=128544748771\n"),
