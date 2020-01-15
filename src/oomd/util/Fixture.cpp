@@ -94,9 +94,10 @@ void Fixture::mkdirsChecked(
   std::string prefix_path;
   // two slashes after each component
   prefix_path.reserve(path.size() + prefix.size() + 2);
-  prefix_path += prefix;
-  if (prefix_path != "") {
+  if (path.size() && path[0] == '/') {
     prefix_path += "/";
+  } else if (prefix != "") {
+    prefix_path += prefix + "/";
   }
   for (const auto& dir : dirs) {
     if (dir == "") {
