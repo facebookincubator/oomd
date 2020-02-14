@@ -1,5 +1,5 @@
 project('oomd', 'cpp',
-  version : '0.2.0',
+  version : 'v0.3.1',
   meson_version : '>= 0.45',
   license : 'GPL2',
   default_options : ['stdsplit=false', 'cpp_std=c++17'])
