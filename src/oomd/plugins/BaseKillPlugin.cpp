@@ -182,6 +182,8 @@ void BaseKillPlugin::logKill(
       << "killer:" << (dry ? "(dry)" : "") << getName() << " v2";
   Oomd::incrementStat(CoreStats::kKillsKey, 1);
   OOMD_KMSG_LOG(oss.str(), "oomd kill");
+
+  dumpKillInfo(killed_cgroup, context, action_context, dry);
 }
 
 } // namespace Oomd

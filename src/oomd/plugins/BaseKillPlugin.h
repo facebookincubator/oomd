@@ -69,6 +69,12 @@ class BaseKillPlugin : public Oomd::Engine::BasePlugin {
       const ActionContext& action_context,
       bool dry = false) const;
 
+  virtual void dumpKillInfo(
+      const CgroupPath& killed_group,
+      const CgroupContext& context,
+      const ActionContext& action_context,
+      bool dry = false) const;
+
  private:
   virtual int getAndTryToKillPids(
       const std::string& path,

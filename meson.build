@@ -37,6 +37,7 @@ srcs = files('''
     src/oomd/plugins/BaseKillPlugin.cpp
     src/oomd/plugins/ContinuePlugin.cpp
     src/oomd/plugins/DumpCgroupOverview.cpp
+    src/oomd/plugins/DumpKillInfoNoOp.cpp
     src/oomd/util/Fs.cpp
     src/oomd/util/Util.cpp
     src/oomd/plugins/MemoryAbove.cpp
