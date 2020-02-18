@@ -61,11 +61,11 @@ BARE NUMBER IS INTERPRETED AS MEGABYTES.
 A percentage threshold must be in the format `N%`, where
 `0 <= N <= 100`.
 
-If `threshold` is specified, CONTINUE if 10s total memory usage >
-`threshold` longer than `duration`, STOP otherwise.
+If `threshold` is specified, CONTINUE if total memory usage > `threshold`
+longer than `duration`, STOP otherwise.
 
-If `threshold_anon` is specified, CONTINUE if 10s anonymous memory
-usage > `threshold_anon` longer than `duration`, STOP otherwise.
+If `threshold_anon` is specified, CONTINUE if anonymous memory usage >
+`threshold_anon` longer than `duration`, STOP otherwise.
 
 ## pressure_above
 
