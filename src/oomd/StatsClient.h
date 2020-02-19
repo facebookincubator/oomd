@@ -18,6 +18,7 @@
 #pragma once
 
 #include <sys/un.h>
+#include <string>
 #include <unordered_map>
 
 namespace Oomd {
