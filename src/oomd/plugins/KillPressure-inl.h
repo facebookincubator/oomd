@@ -147,9 +147,14 @@ bool KillPressure<Base>::tryToKillSomething(OomdContext& ctx) {
          << state_pair.second.current_usage / 1024 / 1024
          << "MB) based on pressure generation at "
          << "10s=" << pressure10 << " 60s=" << pressure60;
-    if (Base::tryToKillCgroup(state_pair.first.absolutePath(), true, dry_)) {
+    if (auto kill_uuid = Base::tryToKillCgroup(
+            state_pair.first.absolutePath(), true, dry_)) {
       Base::logKill(
-          state_pair.first, state_pair.second, ctx.getActionContext(), dry_);
+          state_pair.first,
+          state_pair.second,
+          ctx.getActionContext(),
+          *kill_uuid,
+          dry_);
       return true;
     }
   }

@@ -21,6 +21,7 @@
 #include <csignal>
 #include <fstream>
 #include <iomanip>
+#include <random>
 #include <unordered_set>
 
 #include "oomd/Log.h"
@@ -30,6 +31,7 @@
 
 static auto constexpr kOomdKillInitiationXattr = "trusted.oomd_ooms";
 static auto constexpr kOomdKillCompletionXattr = "trusted.oomd_kill";
+static auto constexpr kOomdKillUuidXattr = "trusted.oomd_kill_uuid";
 
 namespace Oomd {
 
@@ -76,7 +78,7 @@ int BaseKillPlugin::getAndTryToKillPids(
   return nr_killed;
 }
 
-bool BaseKillPlugin::tryToKillCgroup(
+std::optional<BaseKillPlugin::KillUuid> BaseKillPlugin::tryToKillCgroup(
     const std::string& cgroup_path,
     bool recursive,
     bool dry) {
@@ -87,13 +89,16 @@ bool BaseKillPlugin::tryToKillCgroup(
   int tries = 10;
   static constexpr size_t stream_size = 20;
 
+  KillUuid kill_uuid = generateKillUuid();
+
   if (dry) {
     OLOG << "OOMD: In dry-run mode; would have tried to kill " << cgroup_path;
-    return true;
+    return kill_uuid;
   }
 
   OLOG << "Trying to kill " << cgroup_path;
 
+  reportKillUuidToXattr(cgroup_path, kill_uuid);
   reportKillInitiationToXattr(cgroup_path);
   while (tries--) {
     nr_killed += getAndTryToKillPids(cgroup_path, recursive, stream_size);
@@ -113,7 +118,7 @@ bool BaseKillPlugin::tryToKillCgroup(
     last_nr_killed = nr_killed;
   }
   reportKillCompletionToXattr(cgroup_path, nr_killed);
-  return nr_killed > 0;
+  return nr_killed > 0 ? kill_uuid : std::optional<KillUuid>{};
 }
 
 int BaseKillPlugin::tryToKillPids(const std::vector<int>& pids) {
@@ -142,13 +147,38 @@ int BaseKillPlugin::tryToKillPids(const std::vector<int>& pids) {
   return nr_killed;
 }
 
+BaseKillPlugin::KillUuid BaseKillPlugin::generateKillUuid() const {
+  static std::random_device rd;
+  static std::mt19937 gen(rd());
+  static std::uniform_int_distribution<uint64_t> dis;
+
+  // Combine two 64-bit numbers
+  std::stringstream ss;
+  ss << std::hex << dis(gen) << dis(gen);
+
+  return ss.str();
+}
+
+std::string BaseKillPlugin::getxattr(
+    const std::string& path,
+    const std::string& attr) {
+  return Fs::getxattr(path, attr);
+}
+
+bool BaseKillPlugin::setxattr(
+    const std::string& path,
+    const std::string& attr,
+    const std::string& val) {
+  return Fs::setxattr(path, attr, val);
+}
+
 void BaseKillPlugin::reportKillInitiationToXattr(
     const std::string& cgroup_path) {
-  auto prev_xattr_str = Fs::getxattr(cgroup_path, kOomdKillInitiationXattr);
+  auto prev_xattr_str = getxattr(cgroup_path, kOomdKillInitiationXattr);
   const int prev_xattr = std::stoi(prev_xattr_str != "" ? prev_xattr_str : "0");
   std::string new_xattr_str = std::to_string(prev_xattr + 1);
 
-  if (Fs::setxattr(cgroup_path, kOomdKillInitiationXattr, new_xattr_str)) {
+  if (setxattr(cgroup_path, kOomdKillInitiationXattr, new_xattr_str)) {
     OLOG << "Set xattr " << kOomdKillInitiationXattr << "=" << new_xattr_str
          << " on " << cgroup_path;
   }
@@ -157,13 +187,22 @@ void BaseKillPlugin::reportKillInitiationToXattr(
 void BaseKillPlugin::reportKillCompletionToXattr(
     const std::string& cgroup_path,
     int num_procs_killed) {
-  auto prev_xattr_str = Fs::getxattr(cgroup_path, kOomdKillCompletionXattr);
+  auto prev_xattr_str = getxattr(cgroup_path, kOomdKillCompletionXattr);
   const int prev_xattr = std::stoi(prev_xattr_str != "" ? prev_xattr_str : "0");
   std::string new_xattr_str = std::to_string(prev_xattr + num_procs_killed);
 
-  if (Fs::setxattr(cgroup_path, kOomdKillCompletionXattr, new_xattr_str)) {
+  if (setxattr(cgroup_path, kOomdKillCompletionXattr, new_xattr_str)) {
     OLOG << "Set xattr " << kOomdKillCompletionXattr << "=" << new_xattr_str
          << " on " << cgroup_path;
+  }
+}
+
+void BaseKillPlugin::reportKillUuidToXattr(
+    const std::string& cgroup_path,
+    const std::string& kill_uuid) {
+  if (setxattr(cgroup_path, kOomdKillUuidXattr, kill_uuid)) {
+    OLOG << "Set xattr " << kOomdKillUuidXattr << "=" << kill_uuid << " on "
+         << cgroup_path;
   }
 }
 
@@ -171,6 +210,7 @@ void BaseKillPlugin::logKill(
     const CgroupPath& killed_cgroup,
     const CgroupContext& context,
     const ActionContext& action_context,
+    const std::string& kill_uuid,
     bool dry) const {
   std::ostringstream oss;
   oss << std::setprecision(2) << std::fixed;
@@ -183,7 +223,7 @@ void BaseKillPlugin::logKill(
   Oomd::incrementStat(CoreStats::kKillsKey, 1);
   OOMD_KMSG_LOG(oss.str(), "oomd kill");
 
-  dumpKillInfo(killed_cgroup, context, action_context, dry);
+  dumpKillInfo(killed_cgroup, context, action_context, kill_uuid, dry);
 }
 
 } // namespace Oomd

@@ -171,9 +171,14 @@ bool KillMemoryGrowth<Base>::tryToKillBySize(
          << cur_memcurrent / 1024 / 1024 << "MB"
          << (ignore_threshold ? " (size threshold overridden)" : "");
 
-    if (Base::tryToKillCgroup(state_pair.first.absolutePath(), true, dry_)) {
+    if (auto kill_uuid = Base::tryToKillCgroup(
+            state_pair.first.absolutePath(), true, dry_)) {
       Base::logKill(
-          state_pair.first, state_pair.second, ctx.getActionContext(), dry_);
+          state_pair.first,
+          state_pair.second,
+          ctx.getActionContext(),
+          *kill_uuid,
+          dry_);
       return true;
     }
   }
@@ -221,9 +226,14 @@ bool KillMemoryGrowth<Base>::tryToKillByGrowth(OomdContext& ctx) {
         << " among P" << growing_size_percentile_ << " largest";
     OLOG << oss.str();
 
-    if (Base::tryToKillCgroup(state_pair.first.absolutePath(), true, dry_)) {
+    if (auto kill_uuid = Base::tryToKillCgroup(
+            state_pair.first.absolutePath(), true, dry_)) {
       Base::logKill(
-          state_pair.first, state_pair.second, ctx.getActionContext(), dry_);
+          state_pair.first,
+          state_pair.second,
+          ctx.getActionContext(),
+          *kill_uuid,
+          dry_);
       return true;
     }
   }

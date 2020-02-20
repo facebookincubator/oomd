@@ -24,6 +24,7 @@ void BaseKillPlugin::dumpKillInfo(
     const CgroupPath& killed_group,
     const CgroupContext& context,
     const ActionContext& action_context,
+    const std::string& kill_uuid,
     bool dry) const {}
 
 } // namespace Oomd

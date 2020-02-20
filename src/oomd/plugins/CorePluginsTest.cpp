@@ -30,6 +30,8 @@
 #include "oomd/plugins/KillMemoryGrowth.h"
 #include "oomd/plugins/KillPressure.h"
 #include "oomd/plugins/KillSwapUsage.h"
+#include "oomd/util/Fixture.h"
+#include "oomd/util/Fs.h"
 
 using namespace Oomd;
 using namespace testing;
@@ -76,7 +78,7 @@ class BaseKillPluginShim : public BaseKillPluginMock {
     return Engine::PluginRet::CONTINUE;
   }
 
-  bool tryToKillCgroupShim(
+  std::optional<BaseKillPlugin::KillUuid> tryToKillCgroupShim(
       const std::string& cgroup_path,
       bool recursive,
       bool dry) {
@@ -117,8 +119,10 @@ TEST(AdjustCgroupPlugin, AdjustCgroupMemory) {
 TEST(BaseKillPlugin, TryToKillCgroupKillsNonRecursive) {
   BaseKillPluginShim plugin;
   EXPECT_EQ(
-      plugin.tryToKillCgroupShim(
-          "oomd/fixtures/plugins/base_kill_plugin/one_big", false, false),
+      plugin
+          .tryToKillCgroupShim(
+              "oomd/fixtures/plugins/base_kill_plugin/one_big", false, false)
+          .has_value(),
       true);
 
   int expected_total = 0;
@@ -137,8 +141,10 @@ TEST(BaseKillPlugin, TryToKillCgroupKillsNonRecursive) {
 TEST(BaseKillPlugin, TryToKillCgroupKillsRecursive) {
   BaseKillPluginShim plugin;
   EXPECT_EQ(
-      plugin.tryToKillCgroupShim(
-          "oomd/fixtures/plugins/base_kill_plugin/one_big", true, false),
+      plugin
+          .tryToKillCgroupShim(
+              "oomd/fixtures/plugins/base_kill_plugin/one_big", true, false)
+          .has_value(),
       true);
 
   int expected_total = 0;
@@ -212,6 +218,59 @@ TEST(BaseKillPlugin, RemoveSiblingCgroupsMultiple) {
   EXPECT_TRUE(std::any_of(vec.begin(), vec.end(), [&](const auto& pair) {
     return pair.first.relativePath() == "some/other/cgroup/path/here";
   }));
+}
+
+class BaseKillPluginXattrTest : public ::testing::Test,
+                                public BaseKillPluginShim {
+ protected:
+  std::string getxattr(const std::string& path, const std::string& attr)
+      override {
+    return xattrs_[path][attr];
+  }
+
+  bool setxattr(
+      const std::string& path,
+      const std::string& attr,
+      const std::string& val) override {
+    xattrs_[path][attr] = val;
+    return true;
+  }
+
+ private:
+  std::unordered_map<std::string, std::unordered_map<std::string, std::string>>
+      xattrs_;
+};
+
+TEST_F(BaseKillPluginXattrTest, XattrSetts) {
+  auto cgroup_path = "/sys/fs/cgroup/test/test";
+
+  static auto constexpr kOomdKillInitiationXattr = "trusted.oomd_ooms";
+  static auto constexpr kOomdKillCompletionXattr = "trusted.oomd_kill";
+  static auto constexpr kOomdKillUuidXattr = "trusted.oomd_kill_uuid";
+
+  static auto constexpr kKillUuid1 = "8c774f00-8202-4893-a58d-74bd1515660e";
+  static auto constexpr kKillUuid2 = "9c774f00-8202-4893-a58d-74bd1515660e";
+
+  // Kill Initiation increments on each kill
+  EXPECT_EQ(getxattr(cgroup_path, kOomdKillInitiationXattr), "");
+  reportKillInitiationToXattr(cgroup_path);
+  EXPECT_EQ(getxattr(cgroup_path, kOomdKillInitiationXattr), "1");
+  reportKillInitiationToXattr(cgroup_path);
+  EXPECT_EQ(getxattr(cgroup_path, kOomdKillInitiationXattr), "2");
+
+  // Kill Completion sums up for each kill
+  EXPECT_EQ(getxattr(cgroup_path, kOomdKillCompletionXattr), "");
+  reportKillCompletionToXattr(cgroup_path, 10);
+  EXPECT_EQ(getxattr(cgroup_path, kOomdKillCompletionXattr), "10");
+  reportKillCompletionToXattr(cgroup_path, 10);
+  EXPECT_EQ(getxattr(cgroup_path, kOomdKillCompletionXattr), "20");
+
+  // Kill Uuid resets on each kill
+  EXPECT_EQ(getxattr(cgroup_path, kOomdKillUuidXattr), "");
+  reportKillUuidToXattr(cgroup_path, kKillUuid1);
+  EXPECT_EQ(getxattr(cgroup_path, kOomdKillUuidXattr), kKillUuid1);
+  reportKillUuidToXattr(cgroup_path, kKillUuid2);
+  EXPECT_EQ(getxattr(cgroup_path, kOomdKillUuidXattr), kKillUuid2);
 }
 
 TEST(PresureRisingBeyond, DetectsHighMemPressure) {

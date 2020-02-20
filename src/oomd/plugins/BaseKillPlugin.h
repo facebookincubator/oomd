@@ -35,6 +35,8 @@ class BaseKillPlugin : public Oomd::Engine::BasePlugin {
  protected:
   BaseKillPlugin();
 
+  using KillUuid = std::string;
+
   /*
    * Kills a cgroup
    *
@@ -43,7 +45,7 @@ class BaseKillPlugin : public Oomd::Engine::BasePlugin {
    * cgroups) starting at @param cgroup_path
    * @param dry sets whether or not we should actually issue SIGKILLs
    */
-  virtual bool
+  virtual std::optional<KillUuid>
   tryToKillCgroup(const std::string& cgroup_path, bool recursive, bool dry);
 
   /*
@@ -51,14 +53,41 @@ class BaseKillPlugin : public Oomd::Engine::BasePlugin {
    */
   virtual int tryToKillPids(const std::vector<int>& procs);
 
-  virtual void reportKillInitiationToXattr(const std::string& cgroup_path);
+  virtual KillUuid generateKillUuid() const;
+
   /*
-   * Sets the "trusted.oomd_kill" extended attribute key to @param
+   * get/set methods for xattrs values. Since manipulating extended attributes
+   * requires root permission, we can't use ::get/setxattr in unit tests.
+   */
+  virtual std::string getxattr(
+      const std::string& path,
+      const std::string& attr);
+
+  virtual bool setxattr(
+      const std::string& path,
+      const std::string& attr,
+      const std::string& val);
+  /*
+   * Increments the "trusted.oomd_ooms" extended attribute key on @param
+   * cgroup_path
+   */
+  virtual void reportKillInitiationToXattr(const std::string& cgroup_path);
+
+  /*
+   * Increments the "trusted.oomd_kill" extended attribute key by @param
    * num_procs_killed on @param cgroup_path
    */
   virtual void reportKillCompletionToXattr(
       const std::string& cgroup_path,
       int num_procs_killed);
+
+  /*
+   * Sets the "trusted.oomd_kill_uuid" extended attribute key to @param
+   * kill_uuid on @param cgroup_path
+   */
+  virtual void reportKillUuidToXattr(
+      const std::string& cgroup_path,
+      const std::string& kill_uuid);
 
   /*
    * Logs a structured kill message to kmsg and stderr
@@ -67,12 +96,14 @@ class BaseKillPlugin : public Oomd::Engine::BasePlugin {
       const CgroupPath& killed_group,
       const CgroupContext& context,
       const ActionContext& action_context,
+      const std::string& kill_uuid,
       bool dry = false) const;
 
   virtual void dumpKillInfo(
       const CgroupPath& killed_group,
       const CgroupContext& context,
       const ActionContext& action_context,
+      const std::string& kill_uuid,
       bool dry = false) const;
 
  private:
