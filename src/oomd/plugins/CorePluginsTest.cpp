@@ -1683,3 +1683,17 @@ TEST(KillPressure, DoesntKillsHighestPressureDry) {
   EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
   EXPECT_EQ(plugin->killed.size(), 0);
 }
+
+TEST(Stop, Stops) {
+  auto plugin = createPlugin("stop");
+  ASSERT_NE(plugin, nullptr);
+
+  Engine::MonitoredResources resources;
+  Engine::PluginArgs args;
+
+  ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+  ASSERT_EQ(resources.size(), 0);
+
+  OomdContext ctx;
+  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
+}
