@@ -40,7 +40,7 @@ class Log : public LogBase {
   Log(const Log& other) = delete;
   Log& operator=(const Log& other) = delete;
   ~Log() override;
-  static bool init();
+  static bool init(const std::string& kmsg_path);
   static Log&
   get(int kmsg_fd = -1, std::ostream& debug_sink = std::cerr, bool inl = true);
   static std::unique_ptr<Log>

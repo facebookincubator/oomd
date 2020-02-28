@@ -50,6 +50,7 @@
 static constexpr auto kConfigFilePath = "/etc/oomd.json";
 static constexpr auto kCgroupFsRoot = "/sys/fs/cgroup";
 static constexpr auto kSocketPath = "/run/oomd/oomd-stats.socket";
+static constexpr auto kKmsgPath = "/dev/kmsg";
 static const struct Oomd::IOCostCoeffs default_hdd_coeffs = {
     .read_iops = 1.31e-3,
     .readbw = 1.13e-7,
@@ -85,6 +86,7 @@ static void printUsage() {
          "  --device DEVS              Comma separated <major>:<minor> pairs for IO cost calculation (default: none)\n"
          "  --ssd-coeffs COEFFS        Comma separated values for SSD IO cost calculation (default: see doc)\n"
          "  --hdd-coeffs COEFFS        Comma separated values for HDD IO cost calculation (default: see doc)\n"
+         "  --kmsg-override PATH       File to log kills to (default: /dev/kmsg)"
       << std::endl;
 }
 
@@ -180,6 +182,7 @@ int main(int argc, char** argv) {
   std::string drop_in_dir;
   std::string stats_socket_path = kSocketPath;
   std::string dev_id;
+  std::string kmsg_path = kKmsgPath;
   int interval = 5;
   bool should_check_config = false;
 
@@ -207,6 +210,7 @@ int main(int argc, char** argv) {
       option{"device", required_argument, nullptr, OPT_DEVICE},
       option{"ssd-coeffs", required_argument, nullptr, OPT_SSD_COEFFS},
       option{"hdd-coeffs", required_argument, nullptr, OPT_HDD_COEFFS},
+      option{"kmsg-override", required_argument, nullptr, 'k'},
       option{nullptr, 0, nullptr, 0}};
 
   while ((c = getopt_long(
@@ -286,6 +290,9 @@ int main(int argc, char** argv) {
           return 1;
         }
         break;
+      case 'k':
+        kmsg_path = std::string(optarg);
+        break;
       case 0:
         break;
       case '?':
@@ -351,7 +358,7 @@ int main(int argc, char** argv) {
   // kmsg logging (due to some weird setup code required to get unit testing
   // correct). Be careful not to make any oomd library calls before initing
   // logging.
-  if (!Oomd::Log::init()) {
+  if (!Oomd::Log::init(kmsg_path)) {
     std::cerr << "Logging failed to initialize. Try running with sudo\n";
     return 1;
   }

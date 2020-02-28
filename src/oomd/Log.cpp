@@ -73,11 +73,11 @@ Log::~Log() {
   }
 }
 
-bool Log::init() {
-  int kmsg_fd = ::open("/dev/kmsg", O_WRONLY);
+bool Log::init(const std::string& kmsg_path) {
+  int kmsg_fd = ::open(kmsg_path.c_str(), O_WRONLY);
   if (kmsg_fd < 0) {
     perror("open");
-    std::cerr << "Unable to open outfile (default=/dev/kmsg), not logging\n";
+    std::cerr << "Unable to open outfile " << kmsg_path << ", not logging\n";
     return false;
   }
 
