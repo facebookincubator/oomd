@@ -136,6 +136,10 @@ std::chrono::microseconds getTotal(const std::string& name) {
 uint64_t getCurrent(const std::string& name) {
   return static_cast<uint64_t>(Oomd::Fs::readMemcurrent(name));
 }
+
+uint64_t getMemMin(const std::string& name) {
+  return static_cast<uint64_t>(Oomd::Fs::readMemmin(name));
+}
 } // namespace
 std::map<std::string, Senpai::CgroupState> Senpai::addRemoveTrackedCgroups(
     const std::set<std::string>& resolved_cgroups) {
@@ -190,11 +194,14 @@ void Senpai::tick(const std::string& name, CgroupState& state) {
     return;
   }
 
+  // Make sure memory.high don't go below memory.min
+  auto limit_min_bytes = std::max(limit_min_bytes_, getMemMin(name));
+
   // Adjust cgroup limit by factor
   auto adjust = [&](double factor) {
     state.limit += state.limit * factor;
     state.limit =
-        std::max(limit_min_bytes_, std::min(limit_max_bytes_, state.limit));
+        std::max(limit_min_bytes, std::min(limit_max_bytes_, state.limit));
     // Memory high is always a multiple of 4K
     state.limit &= ~0xFFF;
     writeMemhigh(name, state.limit);

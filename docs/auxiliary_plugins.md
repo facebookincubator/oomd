@@ -37,9 +37,10 @@ STOP on success, CONTINUE otherwise.
 ### Description
 
 Slowly applies memory pressure to `cgroup` by decreasing memory.high until the
-cgroup begins to experience some memory pressure. Once memory pressure is
-detected, back off by increasing memory.high. Over time, `cgroup`'s
-memory.current will converge to the actual amount of memory it needs to operate.
+cgroup begins to experience some memory pressure, or memory.high is as low as
+memory.min. Once memory pressure is detected, back off by increasing
+memory.high. Over time, `cgroup`'s memory.current will converge to the actual
+amount of memory it needs to operate.
 
 `cgroup` is the cgroup to act on. `cgroup` supports multi-cgroup and wildcarded
 paths. Eg:
