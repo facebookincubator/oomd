@@ -39,12 +39,6 @@ REGISTER_PLUGIN(senpai, Senpai::create);
 int Senpai::init(
     Engine::MonitoredResources& resources,
     const Engine::PluginArgs& args) {
-  {
-    struct stat s;
-    has_memory_high_tmp_ =
-        !stat("/sys/fs/cgroup/system.slice/memory.high.tmp", &s);
-  }
-
   if (args.find("cgroup") != args.end()) {
     auto cgroup_fs =
         (args.find("cgroup_fs") != args.end() ? args.at("cgroup_fs")
@@ -255,17 +249,24 @@ Senpai::CgroupState Senpai::initializeCgroup(const std::string& path) {
 
 int64_t Senpai::readMemhigh(const std::string& path) {
   if (has_memory_high_tmp_) {
-    return Oomd::Fs::readMemhightmp(path);
-  } else {
-    return Oomd::Fs::readMemhigh(path);
+    try {
+      return Oomd::Fs::readMemhightmp(path);
+    } catch (const Fs::bad_control_file&) {
+      has_memory_high_tmp_ = false;
+    }
   }
+  return Oomd::Fs::readMemhigh(path);
 }
 
 void Senpai::writeMemhigh(const std::string& path, int64_t value) {
   if (has_memory_high_tmp_) {
-    Oomd::Fs::writeMemhightmp(path, value, std::chrono::seconds(20));
-  } else {
-    Oomd::Fs::writeMemhigh(path, value);
+    try {
+      Oomd::Fs::writeMemhightmp(path, value, std::chrono::seconds(20));
+      return;
+    } catch (const Fs::bad_control_file&) {
+      has_memory_high_tmp_ = false;
+    }
   }
+  Oomd::Fs::writeMemhigh(path, value);
 }
 } // namespace Oomd

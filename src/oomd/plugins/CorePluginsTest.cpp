@@ -87,6 +87,19 @@ class BaseKillPluginShim : public BaseKillPluginMock {
 };
 } // namespace Oomd
 
+// Tests that dynamically create fixtures (i.e. fake cgroup hierarchy)
+class FixtureTest : public testing::Test {
+ protected:
+  using F = Fixture;
+  void SetUp() override {
+    tempFixtureDir_ = F::mkdtempChecked();
+  }
+  void TearDown() override {
+    F::rmrChecked(tempFixtureDir_);
+  }
+  std::string tempFixtureDir_;
+};
+
 TEST(AdjustCgroupPlugin, AdjustCgroupMemory) {
   auto plugin = createPlugin("adjust_cgroup");
   ASSERT_NE(plugin, nullptr);
@@ -1696,4 +1709,75 @@ TEST(Stop, Stops) {
 
   OomdContext ctx;
   EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
+}
+
+class SenpaiTest : public FixtureTest {};
+
+// Senpai should use memory.high when memory.high.tmp is not available
+TEST_F(SenpaiTest, MemHigh) {
+  auto plugin = createPlugin("senpai");
+  ASSERT_NE(plugin, nullptr);
+
+  auto cgroup = F::makeDir(
+      "cgroup",
+      {F::makeDir(
+          "senpai_test.slice",
+          {F::makeFile("memory.high", "max\n"),
+           F::makeFile("memory.current", "1073741824\n"),
+           F::makeFile(
+               "memory.pressure",
+               "some avg10=0.00 avg60=0.00 avg300=0.00 total=0\n"
+               "full avg10=0.00 avg60=0.00 avg300=0.00 total=0\n")})});
+  cgroup.second.materialize(tempFixtureDir_, cgroup.first);
+
+  Engine::MonitoredResources resources;
+  Engine::PluginArgs args;
+  args["cgroup_fs"] = tempFixtureDir_ + "/cgroup";
+  args["cgroup"] = "senpai_test.slice";
+
+  ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+  ASSERT_EQ(resources.size(), 1);
+
+  OomdContext ctx;
+  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::CONTINUE);
+  EXPECT_EQ(
+      Fs::readMemhigh(tempFixtureDir_ + "/cgroup/senpai_test.slice"),
+      1073741824);
+}
+
+// Senpai should use memory.high.tmp whenever available, and memory.high not
+// touched
+TEST_F(SenpaiTest, MemHighTmp) {
+  auto plugin = createPlugin("senpai");
+  ASSERT_NE(plugin, nullptr);
+
+  auto cgroup = F::makeDir(
+      "cgroup",
+      {F::makeDir(
+          "senpai_test.slice",
+          {F::makeFile("memory.high.tmp", "max 0\n"),
+           F::makeFile("memory.high", "max\n"),
+           F::makeFile("memory.current", "1073741824\n"),
+           F::makeFile(
+               "memory.pressure",
+               "some avg10=0.00 avg60=0.00 avg300=0.00 total=0\n"
+               "full avg10=0.00 avg60=0.00 avg300=0.00 total=0\n")})});
+  cgroup.second.materialize(tempFixtureDir_, cgroup.first);
+
+  Engine::MonitoredResources resources;
+  Engine::PluginArgs args;
+  args["cgroup_fs"] = tempFixtureDir_ + "/cgroup";
+  args["cgroup"] = "senpai_test.slice";
+
+  ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+  ASSERT_EQ(resources.size(), 1);
+
+  OomdContext ctx;
+  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::CONTINUE);
+  EXPECT_EQ(
+      Fs::readMemhightmp(tempFixtureDir_ + "/cgroup/senpai_test.slice"),
+      1073741824);
+  EXPECT_EQ(
+      Fs::readMemhigh(tempFixtureDir_ + "/cgroup/senpai_test.slice"),
+      std::numeric_limits<int64_t>::max());
 }

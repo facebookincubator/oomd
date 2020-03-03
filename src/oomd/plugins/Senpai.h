@@ -76,7 +76,9 @@ class Senpai : public Engine::BasePlugin {
   std::unordered_set<CgroupPath> cgroups_;
   std::map<std::string, CgroupState> tracked_cgroups_;
 
-  bool has_memory_high_tmp_{false};
+  // Assume true until we find the first cgroup with/without this file, and then
+  // we are sure what's the actual value. Prefer memory.high.tmp over the other
+  bool has_memory_high_tmp_{true};
 
   // cgroup size limits
   uint64_t limit_min_bytes_{1ull << 30};
