@@ -70,7 +70,8 @@ class BaseKillPluginShim : public BaseKillPluginMock {
  public:
   int init(
       Engine::MonitoredResources& /* unused */,
-      const Engine::PluginArgs& /* unused */) override {
+      const Engine::PluginArgs& /* unused */,
+      const PluginConstructionContext& context) override {
     return 0;
   }
 
@@ -106,17 +107,16 @@ TEST(AdjustCgroupPlugin, AdjustCgroupMemory) {
 
   Engine::MonitoredResources resources;
   Engine::PluginArgs args;
-  args["cgroup_fs"] = "oomd/fixtures/cgroup";
   args["cgroup"] = "adjust_cgroup";
   args["memory_scale"] = "1.5";
   args["memory"] = "-8M";
   args["debug"] = "1";
-
-  ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+  const PluginConstructionContext compile_context("oomd/fixtures/cgroup");
+  ASSERT_EQ(plugin->init(resources, std::move(args), compile_context), 0);
   ASSERT_EQ(resources.size(), 1);
 
   OomdContext ctx;
-  auto cgroup_path = CgroupPath(args["cgroup_fs"], "adjust_cgroup");
+  auto cgroup_path = CgroupPath(compile_context.cgroupFs(), "adjust_cgroup");
   ctx.setCgroupContext(
       cgroup_path,
       CgroupContext{.current_usage = 64 << 20, .memory_protection = 16 << 20});
@@ -292,19 +292,20 @@ TEST(PresureRisingBeyond, DetectsHighMemPressure) {
 
   Engine::MonitoredResources resources;
   Engine::PluginArgs args;
-  args["cgroup_fs"] = "oomd/fixtures/plugins/pressure_rising_beyond";
   args["cgroup"] = "high_pressure";
   args["resource"] = "memory";
   args["threshold"] = "80";
   args["duration"] = "0";
   args["fast_fall_ratio"] = "0";
+  const PluginConstructionContext compile_context(
+      "oomd/fixtures/plugins/pressure_rising_beyond");
 
-  ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+  ASSERT_EQ(plugin->init(resources, std::move(args), compile_context), 0);
   ASSERT_EQ(resources.size(), 1);
 
   OomdContext ctx;
   ctx.setCgroupContext(
-      CgroupPath(args["cgroup_fs"], "high_pressure"),
+      CgroupPath(compile_context.cgroupFs(), "high_pressure"),
       CgroupContext{.pressure =
                         ResourcePressure{
                             .sec_10 = 99.99, .sec_60 = 99.99, .sec_600 = 99.99},
@@ -319,19 +320,20 @@ TEST(PresureRisingBeyond, NoDetectLowMemPressure) {
 
   Engine::MonitoredResources resources;
   Engine::PluginArgs args;
-  args["cgroup_fs"] = "oomd/fixtures/plugins/pressure_rising_beyond";
   args["cgroup"] = "low_pressure";
   args["resource"] = "memory";
   args["threshold"] = "80";
   args["duration"] = "0";
   args["fast_fall_ratio"] = "0";
+  const PluginConstructionContext compile_context(
+      "oomd/fixtures/plugins/pressure_rising_beyond");
 
-  ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+  ASSERT_EQ(plugin->init(resources, std::move(args), compile_context), 0);
   ASSERT_EQ(resources.size(), 1);
 
   OomdContext ctx;
   ctx.setCgroupContext(
-      CgroupPath(args["cgroup_fs"], "low_pressure"),
+      CgroupPath(compile_context.cgroupFs(), "low_pressure"),
       CgroupContext{
           .pressure =
               ResourcePressure{.sec_10 = 1.11, .sec_60 = 1.11, .sec_600 = 1.11},
@@ -346,25 +348,26 @@ TEST(PresureRisingBeyond, DetectsHighMemPressureMultiCgroup) {
 
   Engine::MonitoredResources resources;
   Engine::PluginArgs args;
-  args["cgroup_fs"] = "oomd/fixtures/plugins/pressure_rising_beyond";
   args["cgroup"] = "low_pressure,high_pressure";
   args["resource"] = "memory";
   args["threshold"] = "80";
   args["duration"] = "0";
   args["fast_fall_ratio"] = "0";
+  const PluginConstructionContext compile_context(
+      "oomd/fixtures/plugins/pressure_rising_beyond");
 
-  ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+  ASSERT_EQ(plugin->init(resources, std::move(args), compile_context), 0);
   ASSERT_EQ(resources.size(), 2);
 
   OomdContext ctx;
   ctx.setCgroupContext(
-      CgroupPath(args["cgroup_fs"], "high_pressure"),
+      CgroupPath(compile_context.cgroupFs(), "high_pressure"),
       CgroupContext{.pressure =
                         ResourcePressure{
                             .sec_10 = 99.99, .sec_60 = 99.99, .sec_600 = 99.99},
                     .current_usage = 987654321});
   ctx.setCgroupContext(
-      CgroupPath(args["cgroup_fs"], "low_pressure"),
+      CgroupPath(compile_context.cgroupFs(), "low_pressure"),
       CgroupContext{
           .pressure =
               ResourcePressure{.sec_10 = 1.11, .sec_60 = 1.11, .sec_600 = 1.11},
@@ -379,25 +382,26 @@ TEST(PresureRisingBeyond, DetectsHighMemPressureWildcard) {
 
   Engine::MonitoredResources resources;
   Engine::PluginArgs args;
-  args["cgroup_fs"] = "oomd/fixtures/plugins/pressure_rising_beyond";
   args["cgroup"] = "*_*";
   args["resource"] = "memory";
   args["threshold"] = "80";
   args["duration"] = "0";
   args["fast_fall_ratio"] = "0";
+  const PluginConstructionContext compile_context(
+      "oomd/fixtures/plugins/pressure_rising_beyond");
 
-  ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+  ASSERT_EQ(plugin->init(resources, std::move(args), compile_context), 0);
   ASSERT_EQ(resources.size(), 1);
 
   OomdContext ctx;
   ctx.setCgroupContext(
-      CgroupPath(args["cgroup_fs"], "high_pressure"),
+      CgroupPath(compile_context.cgroupFs(), "high_pressure"),
       CgroupContext{.pressure =
                         ResourcePressure{
                             .sec_10 = 99.99, .sec_60 = 99.99, .sec_600 = 99.99},
                     .current_usage = 987654321});
   ctx.setCgroupContext(
-      CgroupPath(args["cgroup_fs"], "low_pressure"),
+      CgroupPath(compile_context.cgroupFs(), "low_pressure"),
       CgroupContext{
           .pressure =
               ResourcePressure{.sec_10 = 1.11, .sec_60 = 1.11, .sec_600 = 1.11},
@@ -412,18 +416,19 @@ TEST(PressureAbove, DetectsHighMemPressure) {
 
   Engine::MonitoredResources resources;
   Engine::PluginArgs args;
-  args["cgroup_fs"] = "oomd/fixtures/plugins/pressure_above";
   args["cgroup"] = "high_pressure";
   args["resource"] = "memory";
   args["threshold"] = "80";
   args["duration"] = "0";
+  const PluginConstructionContext compile_context(
+      "oomd/fixtures/plugins/pressure_above");
 
-  ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+  ASSERT_EQ(plugin->init(resources, std::move(args), compile_context), 0);
   ASSERT_EQ(resources.size(), 1);
 
   OomdContext ctx;
   ctx.setCgroupContext(
-      CgroupPath(args["cgroup_fs"], "high_pressure"),
+      CgroupPath(compile_context.cgroupFs(), "high_pressure"),
       CgroupContext{.pressure =
                         ResourcePressure{
                             .sec_10 = 99.99, .sec_60 = 99.99, .sec_600 = 99.99},
@@ -438,18 +443,19 @@ TEST(PressureAbove, NoDetectLowMemPressure) {
 
   Engine::MonitoredResources resources;
   Engine::PluginArgs args;
-  args["cgroup_fs"] = "oomd/fixtures/plugins/pressure_above";
   args["cgroup"] = "low_pressure";
   args["resource"] = "memory";
   args["threshold"] = "80";
   args["duration"] = "0";
+  const PluginConstructionContext compile_context(
+      "oomd/fixtures/plugins/pressure_above");
 
-  ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+  ASSERT_EQ(plugin->init(resources, std::move(args), compile_context), 0);
   ASSERT_EQ(resources.size(), 1);
 
   OomdContext ctx;
   ctx.setCgroupContext(
-      CgroupPath(args["cgroup_fs"], "low_pressure"),
+      CgroupPath(compile_context.cgroupFs(), "low_pressure"),
       CgroupContext{
           .pressure =
               ResourcePressure{.sec_10 = 1.11, .sec_60 = 1.11, .sec_600 = 1.11},
@@ -464,24 +470,25 @@ TEST(PressureAbove, DetectsHighMemPressureMultiCgroup) {
 
   Engine::MonitoredResources resources;
   Engine::PluginArgs args;
-  args["cgroup_fs"] = "oomd/fixtures/plugins/pressure_above";
   args["cgroup"] = "high_pressure,low_pressure";
   args["resource"] = "memory";
   args["threshold"] = "80";
   args["duration"] = "0";
+  const PluginConstructionContext compile_context(
+      "oomd/fixtures/plugins/pressure_above");
 
-  ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+  ASSERT_EQ(plugin->init(resources, std::move(args), compile_context), 0);
   ASSERT_EQ(resources.size(), 2);
 
   OomdContext ctx;
   ctx.setCgroupContext(
-      CgroupPath(args["cgroup_fs"], "high_pressure"),
+      CgroupPath(compile_context.cgroupFs(), "high_pressure"),
       CgroupContext{.pressure =
                         ResourcePressure{
                             .sec_10 = 99.99, .sec_60 = 99.99, .sec_600 = 99.99},
                     .current_usage = 987654321});
   ctx.setCgroupContext(
-      CgroupPath(args["cgroup_fs"], "low_pressure"),
+      CgroupPath(compile_context.cgroupFs(), "low_pressure"),
       CgroupContext{
           .pressure =
               ResourcePressure{.sec_10 = 1.11, .sec_60 = 1.11, .sec_600 = 1.11},
@@ -496,24 +503,25 @@ TEST(PressureAbove, DetectsHighMemPressureWildcard) {
 
   Engine::MonitoredResources resources;
   Engine::PluginArgs args;
-  args["cgroup_fs"] = "oomd/fixtures/plugins/pressure_above";
   args["cgroup"] = "*";
   args["resource"] = "memory";
   args["threshold"] = "80";
   args["duration"] = "0";
+  const PluginConstructionContext compile_context(
+      "oomd/fixtures/plugins/pressure_above");
 
-  ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+  ASSERT_EQ(plugin->init(resources, std::move(args), compile_context), 0);
   ASSERT_EQ(resources.size(), 1);
 
   OomdContext ctx;
   ctx.setCgroupContext(
-      CgroupPath(args["cgroup_fs"], "high_pressure"),
+      CgroupPath(compile_context.cgroupFs(), "high_pressure"),
       CgroupContext{.pressure =
                         ResourcePressure{
                             .sec_10 = 99.99, .sec_60 = 99.99, .sec_600 = 99.99},
                     .current_usage = 987654321});
   ctx.setCgroupContext(
-      CgroupPath(args["cgroup_fs"], "low_pressure"),
+      CgroupPath(compile_context.cgroupFs(), "low_pressure"),
       CgroupContext{
           .pressure =
               ResourcePressure{.sec_10 = 1.11, .sec_60 = 1.11, .sec_600 = 1.11},
@@ -528,18 +536,19 @@ TEST(MemoryAbove, DetectsHighMemUsage) {
 
   Engine::MonitoredResources resources;
   Engine::PluginArgs args;
-  args["cgroup_fs"] = "oomd/fixtures/plugins/memory_above";
   args["cgroup"] = "high_memory";
   args["meminfo_location"] = "oomd/fixtures/plugins/memory_above/meminfo";
   args["threshold"] = "1536M";
   args["duration"] = "0";
+  const PluginConstructionContext compile_context(
+      "oomd/fixtures/plugins/memory_above");
 
-  ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+  ASSERT_EQ(plugin->init(resources, std::move(args), compile_context), 0);
   ASSERT_EQ(resources.size(), 1);
 
   OomdContext ctx;
   ctx.setCgroupContext(
-      CgroupPath(args["cgroup_fs"], "high_memory"),
+      CgroupPath(compile_context.cgroupFs(), "high_memory"),
       CgroupContext{.current_usage = 2147483648});
   EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::CONTINUE);
 }
@@ -550,18 +559,19 @@ TEST(MemoryAbove, NoDetectLowMemUsage) {
 
   Engine::MonitoredResources resources;
   Engine::PluginArgs args;
-  args["cgroup_fs"] = "oomd/fixtures/plugins/memory_above";
   args["cgroup"] = "low_memory";
   args["meminfo_location"] = "oomd/fixtures/plugins/memory_above/meminfo";
   args["threshold"] = "1536M";
   args["duration"] = "0";
+  const PluginConstructionContext compile_context(
+      "oomd/fixtures/plugins/memory_above");
 
-  ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+  ASSERT_EQ(plugin->init(resources, std::move(args), compile_context), 0);
   ASSERT_EQ(resources.size(), 1);
 
   OomdContext ctx;
   ctx.setCgroupContext(
-      CgroupPath(args["cgroup_fs"], "low_memory"),
+      CgroupPath(compile_context.cgroupFs(), "low_memory"),
       CgroupContext{.current_usage = 1073741824});
   EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
 }
@@ -572,18 +582,19 @@ TEST(MemoryAbove, DetectsHighMemUsageCompat) {
 
   Engine::MonitoredResources resources;
   Engine::PluginArgs args;
-  args["cgroup_fs"] = "oomd/fixtures/plugins/memory_above";
+  const PluginConstructionContext compile_context(
+      "oomd/fixtures/plugins/memory_above");
   args["cgroup"] = "high_memory";
   args["meminfo_location"] = "oomd/fixtures/plugins/memory_above/meminfo";
   args["threshold"] = "1536"; // Should be interpreted as MB
   args["duration"] = "0";
 
-  ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+  ASSERT_EQ(plugin->init(resources, std::move(args), compile_context), 0);
   ASSERT_EQ(resources.size(), 1);
 
   OomdContext ctx;
   ctx.setCgroupContext(
-      CgroupPath(args["cgroup_fs"], "high_memory"),
+      CgroupPath(compile_context.cgroupFs(), "high_memory"),
       CgroupContext{.current_usage = 2147483648});
   EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::CONTINUE);
 }
@@ -594,18 +605,19 @@ TEST(MemoryAbove, NoDetectLowMemUsageCompat) {
 
   Engine::MonitoredResources resources;
   Engine::PluginArgs args;
-  args["cgroup_fs"] = "oomd/fixtures/plugins/memory_above";
+  const PluginConstructionContext compile_context(
+      "oomd/fixtures/plugins/memory_above");
   args["cgroup"] = "low_memory";
   args["meminfo_location"] = "oomd/fixtures/plugins/memory_above/meminfo";
   args["threshold"] = "1536"; // Should be interpreted as MB
   args["duration"] = "0";
 
-  ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+  ASSERT_EQ(plugin->init(resources, std::move(args), compile_context), 0);
   ASSERT_EQ(resources.size(), 1);
 
   OomdContext ctx;
   ctx.setCgroupContext(
-      CgroupPath(args["cgroup_fs"], "low_memory"),
+      CgroupPath(compile_context.cgroupFs(), "low_memory"),
       CgroupContext{.current_usage = 1073741824});
   EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
 }
@@ -616,18 +628,19 @@ TEST(MemoryAbove, DetectsHighMemUsagePercent) {
 
   Engine::MonitoredResources resources;
   Engine::PluginArgs args;
-  args["cgroup_fs"] = "oomd/fixtures/plugins/memory_above";
+  const PluginConstructionContext compile_context(
+      "oomd/fixtures/plugins/memory_above");
   args["cgroup"] = "high_memory";
   args["meminfo_location"] = "oomd/fixtures/plugins/memory_above/meminfo";
   args["threshold"] = "10%";
   args["duration"] = "0";
 
-  ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+  ASSERT_EQ(plugin->init(resources, std::move(args), compile_context), 0);
   ASSERT_EQ(resources.size(), 1);
 
   OomdContext ctx;
   ctx.setCgroupContext(
-      CgroupPath(args["cgroup_fs"], "high_memory"),
+      CgroupPath(compile_context.cgroupFs(), "high_memory"),
       CgroupContext{.current_usage = 2147483648});
   EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::CONTINUE);
 }
@@ -638,22 +651,23 @@ TEST(MemoryAbove, NoDetectLowMemUsageMultiple) {
 
   Engine::MonitoredResources resources;
   Engine::PluginArgs args;
-  args["cgroup_fs"] = "oomd/fixtures/plugins/memory_above";
+  const PluginConstructionContext compile_context(
+      "oomd/fixtures/plugins/memory_above");
   args["cgroup"] = "low_memory";
   args["meminfo_location"] = "oomd/fixtures/plugins/memory_above/meminfo";
   args["threshold"] = "1536M";
   args["duration"] = "0";
   args["debug"] = "true";
 
-  ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+  ASSERT_EQ(plugin->init(resources, std::move(args), compile_context), 0);
   ASSERT_EQ(resources.size(), 1);
 
   OomdContext ctx;
   ctx.setCgroupContext(
-      CgroupPath(args["cgroup_fs"], "low_memory"),
+      CgroupPath(compile_context.cgroupFs(), "low_memory"),
       CgroupContext{.current_usage = 1073741824});
   ctx.setCgroupContext(
-      CgroupPath(args["cgroup_fs"], "high_memory"),
+      CgroupPath(compile_context.cgroupFs(), "high_memory"),
       CgroupContext{.current_usage = 2147483648});
   EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
 }
@@ -664,22 +678,23 @@ TEST(MemoryAbove, DetectsHighMemUsageMultiple) {
 
   Engine::MonitoredResources resources;
   Engine::PluginArgs args;
-  args["cgroup_fs"] = "oomd/fixtures/plugins/memory_above";
+  const PluginConstructionContext compile_context(
+      "oomd/fixtures/plugins/memory_above");
   args["cgroup"] = "high_memory";
   args["meminfo_location"] = "oomd/fixtures/plugins/memory_above/meminfo";
   args["threshold"] = "1536M";
   args["duration"] = "0";
   args["debug"] = "true";
 
-  ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+  ASSERT_EQ(plugin->init(resources, std::move(args), compile_context), 0);
   ASSERT_EQ(resources.size(), 1);
 
   OomdContext ctx;
   ctx.setCgroupContext(
-      CgroupPath(args["cgroup_fs"], "low_memory"),
+      CgroupPath(compile_context.cgroupFs(), "low_memory"),
       CgroupContext{.current_usage = 1073741824});
   ctx.setCgroupContext(
-      CgroupPath(args["cgroup_fs"], "high_memory"),
+      CgroupPath(compile_context.cgroupFs(), "high_memory"),
       CgroupContext{.current_usage = 2147483648});
   EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::CONTINUE);
 }
@@ -690,18 +705,19 @@ TEST(MemoryAbove, NoDetectLowMemUsagePercent) {
 
   Engine::MonitoredResources resources;
   Engine::PluginArgs args;
-  args["cgroup_fs"] = "oomd/fixtures/plugins/memory_above";
+  const PluginConstructionContext compile_context(
+      "oomd/fixtures/plugins/memory_above");
   args["cgroup"] = "low_memory";
   args["meminfo_location"] = "oomd/fixtures/plugins/memory_above/meminfo";
   args["threshold"] = "80%";
   args["duration"] = "0";
 
-  ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+  ASSERT_EQ(plugin->init(resources, std::move(args), compile_context), 0);
   ASSERT_EQ(resources.size(), 1);
 
   OomdContext ctx;
   ctx.setCgroupContext(
-      CgroupPath(args["cgroup_fs"], "low_memory"),
+      CgroupPath(compile_context.cgroupFs(), "low_memory"),
       CgroupContext{.current_usage = 1073741824});
   EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
 }
@@ -712,18 +728,19 @@ TEST(MemoryAbove, DetectsHighAnonUsage) {
 
   Engine::MonitoredResources resources;
   Engine::PluginArgs args;
-  args["cgroup_fs"] = "oomd/fixtures/plugins/memory_above";
+  const PluginConstructionContext compile_context(
+      "oomd/fixtures/plugins/memory_above");
   args["cgroup"] = "high_memory";
   args["meminfo_location"] = "oomd/fixtures/plugins/memory_above/meminfo";
   args["threshold_anon"] = "1536M";
   args["duration"] = "0";
 
-  ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+  ASSERT_EQ(plugin->init(resources, std::move(args), compile_context), 0);
   ASSERT_EQ(resources.size(), 1);
 
   OomdContext ctx;
   ctx.setCgroupContext(
-      CgroupPath(args["cgroup_fs"], "high_memory"),
+      CgroupPath(compile_context.cgroupFs(), "high_memory"),
       CgroupContext{
           .swap_usage = 20,
           .anon_usage = 2147483648,
@@ -737,18 +754,19 @@ TEST(MemoryAbove, NoDetectLowAnonUsage) {
 
   Engine::MonitoredResources resources;
   Engine::PluginArgs args;
-  args["cgroup_fs"] = "oomd/fixtures/plugins/memory_above";
+  const PluginConstructionContext compile_context(
+      "oomd/fixtures/plugins/memory_above");
   args["cgroup"] = "low_memory";
   args["meminfo_location"] = "oomd/fixtures/plugins/memory_above/meminfo";
   args["threshold_anon"] = "1536M";
   args["duration"] = "0";
 
-  ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+  ASSERT_EQ(plugin->init(resources, std::move(args), compile_context), 0);
   ASSERT_EQ(resources.size(), 1);
 
   OomdContext ctx;
   ctx.setCgroupContext(
-      CgroupPath(args["cgroup_fs"], "low_memory"),
+      CgroupPath(compile_context.cgroupFs(), "low_memory"),
       CgroupContext{
           .swap_usage = 20,
           .anon_usage = 1073741824,
@@ -762,19 +780,20 @@ TEST(MemoryAbove, DetectsHighAnonUsageIgnoreLowMemUsage) {
 
   Engine::MonitoredResources resources;
   Engine::PluginArgs args;
-  args["cgroup_fs"] = "oomd/fixtures/plugins/memory_above";
+  const PluginConstructionContext compile_context(
+      "oomd/fixtures/plugins/memory_above");
   args["cgroup"] = "high_memory";
   args["meminfo_location"] = "oomd/fixtures/plugins/memory_above/meminfo";
   args["threshold_anon"] = "1536M";
   args["threshold"] = "1536M";
   args["duration"] = "0";
 
-  ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+  ASSERT_EQ(plugin->init(resources, std::move(args), compile_context), 0);
   ASSERT_EQ(resources.size(), 1);
 
   OomdContext ctx;
   ctx.setCgroupContext(
-      CgroupPath(args["cgroup_fs"], "high_memory"),
+      CgroupPath(compile_context.cgroupFs(), "high_memory"),
       CgroupContext{
           .current_usage = 1073741824,
           .swap_usage = 20,
@@ -789,19 +808,20 @@ TEST(MemoryAbove, NoDetectLowAnonUsageIgnoreHighMemUsage) {
 
   Engine::MonitoredResources resources;
   Engine::PluginArgs args;
-  args["cgroup_fs"] = "oomd/fixtures/plugins/memory_above";
+  const PluginConstructionContext compile_context(
+      "oomd/fixtures/plugins/memory_above");
   args["cgroup"] = "low_memory";
   args["meminfo_location"] = "oomd/fixtures/plugins/memory_above/meminfo";
   args["threshold_anon"] = "1536M";
   args["threshold"] = "1536M";
   args["duration"] = "0";
 
-  ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+  ASSERT_EQ(plugin->init(resources, std::move(args), compile_context), 0);
   ASSERT_EQ(resources.size(), 1);
 
   OomdContext ctx;
   ctx.setCgroupContext(
-      CgroupPath(args["cgroup_fs"], "low_memory"),
+      CgroupPath(compile_context.cgroupFs(), "low_memory"),
       CgroupContext{
           .current_usage = 2147483648,
           .swap_usage = 20,
@@ -816,15 +836,16 @@ TEST(MemoryReclaim, SingleCgroupReclaimSuccess) {
 
   Engine::MonitoredResources resources;
   Engine::PluginArgs args;
-  args["cgroup_fs"] = "oomd/fixtures/plugins/memory_reclaim/single_cgroup";
+  const PluginConstructionContext compile_context(
+      "oomd/fixtures/plugins/memory_reclaim/single_cgroup");
   args["cgroup"] = "cgroup1";
   args["duration"] = "0";
 
-  ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+  ASSERT_EQ(plugin->init(resources, std::move(args), compile_context), 0);
   ASSERT_EQ(resources.size(), 1);
 
   OomdContext ctx;
-  ctx.setCgroupContext(CgroupPath(args["cgroup_fs"], "cgroup1"), {});
+  ctx.setCgroupContext(CgroupPath(compile_context.cgroupFs(), "cgroup1"), {});
   EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::CONTINUE);
 }
 
@@ -834,16 +855,17 @@ TEST(MemoryReclaim, MultiCgroupReclaimSuccess) {
 
   Engine::MonitoredResources resources;
   Engine::PluginArgs args;
-  args["cgroup_fs"] = "oomd/fixtures/plugins/memory_reclaim/multi_cgroup";
+  const PluginConstructionContext compile_context(
+      "oomd/fixtures/plugins/memory_reclaim/multi_cgroup");
   args["cgroup"] = "cgroup1,cgroup2";
   args["duration"] = "0";
 
-  ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+  ASSERT_EQ(plugin->init(resources, std::move(args), compile_context), 0);
   ASSERT_EQ(resources.size(), 2);
 
   OomdContext ctx;
-  ctx.setCgroupContext(CgroupPath(args["cgroup_fs"], "cgroup1"), {});
-  ctx.setCgroupContext(CgroupPath(args["cgroup_fs"], "cgroup2"), {});
+  ctx.setCgroupContext(CgroupPath(compile_context.cgroupFs(), "cgroup1"), {});
+  ctx.setCgroupContext(CgroupPath(compile_context.cgroupFs(), "cgroup2"), {});
   EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::CONTINUE);
 }
 
@@ -855,8 +877,9 @@ TEST(SwapFree, LowSwap) {
   Engine::PluginArgs args;
   args["threshold_pct"] = "20";
   args["duration"] = "0";
+  const PluginConstructionContext compile_context("/sys/fs/cgroup");
 
-  ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+  ASSERT_EQ(plugin->init(resources, std::move(args), compile_context), 0);
   ASSERT_EQ(resources.size(), 0);
 
   OomdContext ctx;
@@ -875,8 +898,9 @@ TEST(SwapFree, EnoughSwap) {
   Engine::PluginArgs args;
   args["threshold_pct"] = "20";
   args["duration"] = "0";
+  const PluginConstructionContext compile_context("/sys/fs/cgroup");
 
-  ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+  ASSERT_EQ(plugin->init(resources, std::move(args), compile_context), 0);
   ASSERT_EQ(resources.size(), 0);
 
   OomdContext ctx;
@@ -895,8 +919,9 @@ TEST(SwapFree, SwapOff) {
   Engine::PluginArgs args;
   args["threshold_pct"] = "20";
   args["duration"] = "0";
+  const PluginConstructionContext compile_context("/sys/fs/cgroup");
 
-  ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+  ASSERT_EQ(plugin->init(resources, std::move(args), compile_context), 0);
   ASSERT_EQ(resources.size(), 0);
 
   OomdContext ctx;
@@ -909,15 +934,15 @@ TEST(Exists, Exists) {
 
   Engine::MonitoredResources resources;
   Engine::PluginArgs args;
-  args["cgroup_fs"] = "oomd/fixtures/cgroup";
+  const PluginConstructionContext compile_context("oomd/fixtures/cgroup");
   args["cgroup"] = "cgroup_A,cgroup_B,cgroup_C";
 
-  ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+  ASSERT_EQ(plugin->init(resources, std::move(args), compile_context), 0);
   ASSERT_EQ(resources.size(), 3);
 
   OomdContext ctx;
-  auto cgroup_path_C = CgroupPath(args["cgroup_fs"], "cgroup_C");
-  auto cgroup_path_D = CgroupPath(args["cgroup_fs"], "cgroup_D");
+  auto cgroup_path_C = CgroupPath(compile_context.cgroupFs(), "cgroup_C");
+  auto cgroup_path_D = CgroupPath(compile_context.cgroupFs(), "cgroup_D");
 
   ctx.setCgroupContext(cgroup_path_D, CgroupContext{});
   EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
@@ -932,16 +957,16 @@ TEST(Exists, NotExists) {
 
   Engine::MonitoredResources resources;
   Engine::PluginArgs args;
-  args["cgroup_fs"] = "oomd/fixtures/cgroup";
+  const PluginConstructionContext compile_context("oomd/fixtures/cgroup");
   args["cgroup"] = "cgroup_A,cgroup_B,cgroup_C";
   args["negate"] = "true";
 
-  ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+  ASSERT_EQ(plugin->init(resources, std::move(args), compile_context), 0);
   ASSERT_EQ(resources.size(), 3);
 
   OomdContext ctx;
-  auto cgroup_path_C = CgroupPath(args["cgroup_fs"], "cgroup_C");
-  auto cgroup_path_D = CgroupPath(args["cgroup_fs"], "cgroup_D");
+  auto cgroup_path_C = CgroupPath(compile_context.cgroupFs(), "cgroup_C");
+  auto cgroup_path_D = CgroupPath(compile_context.cgroupFs(), "cgroup_D");
 
   ctx.setCgroupContext(cgroup_path_D, CgroupContext{});
   EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::CONTINUE);
@@ -956,25 +981,26 @@ TEST(KillIOCost, KillsHighestIOCost) {
 
   Engine::MonitoredResources resources;
   Engine::PluginArgs args;
-  args["cgroup_fs"] = "oomd/fixtures/plugins/kill_by_io_cost";
+  const PluginConstructionContext compile_context(
+      "oomd/fixtures/plugins/kill_by_io_cost");
   args["cgroup"] = "one_high/*";
   args["post_action_delay"] = "0";
 
-  ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+  ASSERT_EQ(plugin->init(resources, std::move(args), compile_context), 0);
   ASSERT_EQ(resources.size(), 1);
 
   OomdContext ctx;
   ctx.setCgroupContext(
-      CgroupPath(args["cgroup_fs"], "one_high/cgroup1"),
+      CgroupPath(compile_context.cgroupFs(), "one_high/cgroup1"),
       CgroupContext{.io_cost_cumulative = 10000, .io_cost_rate = 10});
   ctx.setCgroupContext(
-      CgroupPath(args["cgroup_fs"], "one_high/cgroup2"),
+      CgroupPath(compile_context.cgroupFs(), "one_high/cgroup2"),
       CgroupContext{.io_cost_cumulative = 5000, .io_cost_rate = 30});
   ctx.setCgroupContext(
-      CgroupPath(args["cgroup_fs"], "one_high/cgroup3"),
+      CgroupPath(compile_context.cgroupFs(), "one_high/cgroup3"),
       CgroupContext{.io_cost_cumulative = 6000, .io_cost_rate = 50});
   ctx.setCgroupContext(
-      CgroupPath(args["cgroup_fs"], "sibling/cgroup1"),
+      CgroupPath(compile_context.cgroupFs(), "sibling/cgroup1"),
       CgroupContext{.io_cost_cumulative = 20000, .io_cost_rate = 100});
   EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
   EXPECT_THAT(plugin->killed, Contains(111));
@@ -990,26 +1016,27 @@ TEST(KillIOCost, KillsHighestIOCostMultiCgroup) {
 
   Engine::MonitoredResources resources;
   Engine::PluginArgs args;
-  args["cgroup_fs"] = "oomd/fixtures/plugins/kill_by_io_cost";
+  const PluginConstructionContext compile_context(
+      "oomd/fixtures/plugins/kill_by_io_cost");
   args["cgroup"] = "one_high/*,sibling/*";
   args["resource"] = "io";
   args["post_action_delay"] = "0";
 
-  ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+  ASSERT_EQ(plugin->init(resources, std::move(args), compile_context), 0);
   ASSERT_EQ(resources.size(), 2);
 
   OomdContext ctx;
   ctx.setCgroupContext(
-      CgroupPath(args["cgroup_fs"], "one_high/cgroup1"),
+      CgroupPath(compile_context.cgroupFs(), "one_high/cgroup1"),
       CgroupContext{.io_cost_cumulative = 10000, .io_cost_rate = 10});
   ctx.setCgroupContext(
-      CgroupPath(args["cgroup_fs"], "one_high/cgroup2"),
+      CgroupPath(compile_context.cgroupFs(), "one_high/cgroup2"),
       CgroupContext{.io_cost_cumulative = 5000, .io_cost_rate = 30});
   ctx.setCgroupContext(
-      CgroupPath(args["cgroup_fs"], "one_high/cgroup3"),
+      CgroupPath(compile_context.cgroupFs(), "one_high/cgroup3"),
       CgroupContext{.io_cost_cumulative = 6000, .io_cost_rate = 50});
   ctx.setCgroupContext(
-      CgroupPath(args["cgroup_fs"], "sibling/cgroup1"),
+      CgroupPath(compile_context.cgroupFs(), "sibling/cgroup1"),
       CgroupContext{.io_cost_cumulative = 20000, .io_cost_rate = 100});
   EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
   EXPECT_THAT(plugin->killed, Contains(888));
@@ -1025,27 +1052,28 @@ TEST(KillIOCost, DoesntKillsHighestIOCostDry) {
 
   Engine::MonitoredResources resources;
   Engine::PluginArgs args;
-  args["cgroup_fs"] = "oomd/fixtures/plugins/kill_by_pressure";
+  const PluginConstructionContext compile_context(
+      "oomd/fixtures/plugins/kill_by_pressure");
   args["cgroup"] = "one_high/*";
   args["resource"] = "io";
   args["post_action_delay"] = "0";
   args["dry"] = "true";
 
-  ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+  ASSERT_EQ(plugin->init(resources, std::move(args), compile_context), 0);
   ASSERT_EQ(resources.size(), 1);
 
   OomdContext ctx;
   ctx.setCgroupContext(
-      CgroupPath(args["cgroup_fs"], "one_high/cgroup1"),
+      CgroupPath(compile_context.cgroupFs(), "one_high/cgroup1"),
       CgroupContext{.io_cost_cumulative = 10000, .io_cost_rate = 10});
   ctx.setCgroupContext(
-      CgroupPath(args["cgroup_fs"], "one_high/cgroup2"),
+      CgroupPath(compile_context.cgroupFs(), "one_high/cgroup2"),
       CgroupContext{.io_cost_cumulative = 5000, .io_cost_rate = 30});
   ctx.setCgroupContext(
-      CgroupPath(args["cgroup_fs"], "one_high/cgroup3"),
+      CgroupPath(compile_context.cgroupFs(), "one_high/cgroup3"),
       CgroupContext{.io_cost_cumulative = 6000, .io_cost_rate = 50});
   ctx.setCgroupContext(
-      CgroupPath(args["cgroup_fs"], "sibling/cgroup1"),
+      CgroupPath(compile_context.cgroupFs(), "sibling/cgroup1"),
       CgroupContext{.io_cost_cumulative = 20000, .io_cost_rate = 100});
   EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
   EXPECT_EQ(plugin->killed.size(), 0);
@@ -1057,15 +1085,17 @@ TEST(Exists, ExistsWildcard) {
 
   Engine::MonitoredResources resources;
   Engine::PluginArgs args;
-  args["cgroup_fs"] = "oomd/fixtures/cgroup";
+  const PluginConstructionContext compile_context("oomd/fixtures/cgroup");
   args["cgroup"] = "cgroup_PREFIX*";
 
-  ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+  ASSERT_EQ(plugin->init(resources, std::move(args), compile_context), 0);
   ASSERT_EQ(resources.size(), 1);
 
   OomdContext ctx;
-  auto cgroup_path_notok = CgroupPath(args["cgroup_fs"], "cgroup_SOMETHING");
-  auto cgroup_path_ok = CgroupPath(args["cgroup_fs"], "cgroup_PREFIXhere");
+  auto cgroup_path_notok =
+      CgroupPath(compile_context.cgroupFs(), "cgroup_SOMETHING");
+  auto cgroup_path_ok =
+      CgroupPath(compile_context.cgroupFs(), "cgroup_PREFIXhere");
 
   ctx.setCgroupContext(cgroup_path_notok, CgroupContext{});
   EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
@@ -1080,16 +1110,18 @@ TEST(Exists, NotExistsWildcard) {
 
   Engine::MonitoredResources resources;
   Engine::PluginArgs args;
-  args["cgroup_fs"] = "oomd/fixtures/cgroup";
+  const PluginConstructionContext compile_context("oomd/fixtures/cgroup");
   args["cgroup"] = "cgroup_PREFIX*";
   args["negate"] = "true";
 
-  ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+  ASSERT_EQ(plugin->init(resources, std::move(args), compile_context), 0);
   ASSERT_EQ(resources.size(), 1);
 
   OomdContext ctx;
-  auto cgroup_path_notok = CgroupPath(args["cgroup_fs"], "cgroup_SOMETHING");
-  auto cgroup_path_ok = CgroupPath(args["cgroup_fs"], "cgroup_PREFIXhere");
+  auto cgroup_path_notok =
+      CgroupPath(compile_context.cgroupFs(), "cgroup_SOMETHING");
+  auto cgroup_path_ok =
+      CgroupPath(compile_context.cgroupFs(), "cgroup_PREFIXhere");
 
   ctx.setCgroupContext(cgroup_path_notok, CgroupContext{});
   EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::CONTINUE);
@@ -1104,23 +1136,23 @@ TEST(NrDyingDescendants, SingleCgroupLte) {
 
   Engine::MonitoredResources resources;
   Engine::PluginArgs args;
-  args["cgroup_fs"] = "oomd/fixtures/cgroup";
+  const PluginConstructionContext compile_context("oomd/fixtures/cgroup");
   args["cgroup"] = "cg";
   args["debug"] = "true";
   args["lte"] = "true";
   args["count"] = "100";
 
-  ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+  ASSERT_EQ(plugin->init(resources, std::move(args), compile_context), 0);
   ASSERT_EQ(resources.size(), 1);
 
   OomdContext ctx;
   ctx.setCgroupContext(
-      CgroupPath(args["cgroup_fs"], "cg"),
+      CgroupPath(compile_context.cgroupFs(), "cg"),
       CgroupContext{.nr_dying_descendants = 123});
   EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
 
   ctx.setCgroupContext(
-      CgroupPath(args["cgroup_fs"], "cg"),
+      CgroupPath(compile_context.cgroupFs(), "cg"),
       CgroupContext{.nr_dying_descendants = 90});
   EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::CONTINUE);
 }
@@ -1131,23 +1163,23 @@ TEST(NrDyingDescendants, SingleCgroupGt) {
 
   Engine::MonitoredResources resources;
   Engine::PluginArgs args;
-  args["cgroup_fs"] = "oomd/fixtures/cgroup";
+  const PluginConstructionContext compile_context("oomd/fixtures/cgroup");
   args["cgroup"] = "cg";
   args["debug"] = "true";
   args["lte"] = "false";
   args["count"] = "100";
 
-  ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+  ASSERT_EQ(plugin->init(resources, std::move(args), compile_context), 0);
   ASSERT_EQ(resources.size(), 1);
 
   OomdContext ctx;
   ctx.setCgroupContext(
-      CgroupPath(args["cgroup_fs"], "cg"),
+      CgroupPath(compile_context.cgroupFs(), "cg"),
       CgroupContext{.nr_dying_descendants = 123});
   EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::CONTINUE);
 
   ctx.setCgroupContext(
-      CgroupPath(args["cgroup_fs"], "cg"),
+      CgroupPath(compile_context.cgroupFs(), "cg"),
       CgroupContext{.nr_dying_descendants = 90});
   EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
 }
@@ -1158,18 +1190,18 @@ TEST(NrDyingDescendants, RootCgroup) {
 
   Engine::MonitoredResources resources;
   Engine::PluginArgs args;
-  args["cgroup_fs"] = "oomd/fixtures/cgroup";
+  const PluginConstructionContext compile_context("oomd/fixtures/cgroup");
   args["cgroup"] = "/";
   args["debug"] = "true";
   args["lte"] = "false"; // Greater than
   args["count"] = "29";
 
-  ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+  ASSERT_EQ(plugin->init(resources, std::move(args), compile_context), 0);
   ASSERT_EQ(resources.size(), 1);
 
   OomdContext ctx;
   ctx.setCgroupContext(
-      CgroupPath(args["cgroup_fs"], ""),
+      CgroupPath(compile_context.cgroupFs(), ""),
       CgroupContext{.nr_dying_descendants = 30});
   EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::CONTINUE);
 }
@@ -1180,24 +1212,24 @@ TEST(NrDyingDescendants, MultiCgroupGt) {
 
   Engine::MonitoredResources resources;
   Engine::PluginArgs args;
-  args["cgroup_fs"] = "oomd/fixtures/cgroup";
+  const PluginConstructionContext compile_context("oomd/fixtures/cgroup");
   args["cgroup"] = "above,above1,below";
   args["debug"] = "true";
   args["lte"] = "true";
   args["count"] = "100";
 
-  ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+  ASSERT_EQ(plugin->init(resources, std::move(args), compile_context), 0);
   ASSERT_EQ(resources.size(), 3);
 
   OomdContext ctx;
   ctx.setCgroupContext(
-      CgroupPath(args["cgroup_fs"], "above"),
+      CgroupPath(compile_context.cgroupFs(), "above"),
       CgroupContext{.nr_dying_descendants = 200});
   ctx.setCgroupContext(
-      CgroupPath(args["cgroup_fs"], "above1"),
+      CgroupPath(compile_context.cgroupFs(), "above1"),
       CgroupContext{.nr_dying_descendants = 300});
   ctx.setCgroupContext(
-      CgroupPath(args["cgroup_fs"], "below"),
+      CgroupPath(compile_context.cgroupFs(), "below"),
       CgroupContext{.nr_dying_descendants = 90});
   EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::CONTINUE);
 }
@@ -1208,34 +1240,35 @@ TEST(KillMemoryGrowth, KillsBigCgroup) {
 
   Engine::MonitoredResources resources;
   Engine::PluginArgs args;
-  args["cgroup_fs"] = "oomd/fixtures/plugins/kill_by_memory_size_or_growth";
+  const PluginConstructionContext compile_context(
+      "oomd/fixtures/plugins/kill_by_memory_size_or_growth");
   args["cgroup"] = "one_big/*";
   args["post_action_delay"] = "0";
 
-  ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+  ASSERT_EQ(plugin->init(resources, std::move(args), compile_context), 0);
   ASSERT_EQ(resources.size(), 1);
 
   OomdContext ctx;
   ctx.setCgroupContext(
-      CgroupPath(args["cgroup_fs"], "one_big/cgroup1"),
+      CgroupPath(compile_context.cgroupFs(), "one_big/cgroup1"),
       CgroupContext{
           .current_usage = 60,
           .average_usage = 60,
       });
   ctx.setCgroupContext(
-      CgroupPath(args["cgroup_fs"], "one_big/cgroup2"),
+      CgroupPath(compile_context.cgroupFs(), "one_big/cgroup2"),
       CgroupContext{
           .current_usage = 20,
           .average_usage = 20,
       });
   ctx.setCgroupContext(
-      CgroupPath(args["cgroup_fs"], "one_big/cgroup3"),
+      CgroupPath(compile_context.cgroupFs(), "one_big/cgroup3"),
       CgroupContext{
           .current_usage = 20,
           .average_usage = 20,
       });
   ctx.setCgroupContext(
-      CgroupPath(args["cgroup_fs"], "sibling/cgroup1"),
+      CgroupPath(compile_context.cgroupFs(), "sibling/cgroup1"),
       CgroupContext{
           .current_usage = 20,
           .average_usage = 20,
@@ -1255,11 +1288,12 @@ TEST(KillMemoryGrowth, KillsBigCgroupGrowth) {
 
   Engine::MonitoredResources resources;
   Engine::PluginArgs args;
-  args["cgroup_fs"] = "oomd/fixtures/plugins/kill_by_memory_size_or_growth";
+  const PluginConstructionContext compile_context(
+      "oomd/fixtures/plugins/kill_by_memory_size_or_growth");
   args["cgroup"] = "growth_big/*";
   args["post_action_delay"] = "0";
 
-  ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+  ASSERT_EQ(plugin->init(resources, std::move(args), compile_context), 0);
   ASSERT_EQ(resources.size(), 1);
 
   OomdContext ctx;
@@ -1268,19 +1302,19 @@ TEST(KillMemoryGrowth, KillsBigCgroupGrowth) {
   //
   // cgroup3 should be killed even though (30 / (21+20+30) < .5)
   ctx.setCgroupContext(
-      CgroupPath(args["cgroup_fs"], "growth_big/cgroup1"),
+      CgroupPath(compile_context.cgroupFs(), "growth_big/cgroup1"),
       CgroupContext{
           .current_usage = 21,
           .average_usage = 20,
       });
   ctx.setCgroupContext(
-      CgroupPath(args["cgroup_fs"], "growth_big/cgroup2"),
+      CgroupPath(compile_context.cgroupFs(), "growth_big/cgroup2"),
       CgroupContext{
           .current_usage = 20,
           .average_usage = 20,
       });
   ctx.setCgroupContext(
-      CgroupPath(args["cgroup_fs"], "growth_big/cgroup3"),
+      CgroupPath(compile_context.cgroupFs(), "growth_big/cgroup3"),
       CgroupContext{
           .current_usage = 30,
           .average_usage = 30,
@@ -1293,7 +1327,7 @@ TEST(KillMemoryGrowth, KillsBigCgroupGrowth) {
   // Now lower average usage to artificially "boost" growth rate to trigger
   // growth kill
   ctx.setCgroupContext(
-      CgroupPath(args["cgroup_fs"], "growth_big/cgroup1"),
+      CgroupPath(compile_context.cgroupFs(), "growth_big/cgroup1"),
       CgroupContext{
           .current_usage = 21,
           .average_usage = 5,
@@ -1302,7 +1336,7 @@ TEST(KillMemoryGrowth, KillsBigCgroupGrowth) {
   // Do the same thing for a sibling cgroup, but set the growth higher. This
   // tests that sibling removal occurs for growth kills too.
   ctx.setCgroupContext(
-      CgroupPath(args["cgroup_fs"], "sibling/cgroup1"),
+      CgroupPath(compile_context.cgroupFs(), "sibling/cgroup1"),
       CgroupContext{
           .current_usage = 99,
           .average_usage = 5,
@@ -1320,34 +1354,35 @@ TEST(KillMemoryGrowth, KillsBigCgroupMultiCgroup) {
 
   Engine::MonitoredResources resources;
   Engine::PluginArgs args;
-  args["cgroup_fs"] = "oomd/fixtures/plugins/kill_by_memory_size_or_growth";
+  const PluginConstructionContext compile_context(
+      "oomd/fixtures/plugins/kill_by_memory_size_or_growth");
   args["cgroup"] = "one_big/*,sibling/*";
   args["post_action_delay"] = "0";
 
-  ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+  ASSERT_EQ(plugin->init(resources, std::move(args), compile_context), 0);
   ASSERT_EQ(resources.size(), 2);
 
   OomdContext ctx;
   ctx.setCgroupContext(
-      CgroupPath(args["cgroup_fs"], "one_big/cgroup1"),
+      CgroupPath(compile_context.cgroupFs(), "one_big/cgroup1"),
       CgroupContext{
           .current_usage = 60,
           .average_usage = 60,
       });
   ctx.setCgroupContext(
-      CgroupPath(args["cgroup_fs"], "one_big/cgroup2"),
+      CgroupPath(compile_context.cgroupFs(), "one_big/cgroup2"),
       CgroupContext{
           .current_usage = 20,
           .average_usage = 20,
       });
   ctx.setCgroupContext(
-      CgroupPath(args["cgroup_fs"], "one_big/cgroup3"),
+      CgroupPath(compile_context.cgroupFs(), "one_big/cgroup3"),
       CgroupContext{
           .current_usage = 20,
           .average_usage = 20,
       });
   ctx.setCgroupContext(
-      CgroupPath(args["cgroup_fs"], "sibling/cgroup1"),
+      CgroupPath(compile_context.cgroupFs(), "sibling/cgroup1"),
       CgroupContext{
           .current_usage = 100,
           .average_usage = 100,
@@ -1366,29 +1401,30 @@ TEST(KillMemoryGrowth, DoesntKillBigCgroupInDry) {
 
   Engine::MonitoredResources resources;
   Engine::PluginArgs args;
-  args["cgroup_fs"] = "oomd/fixtures/plugins/kill_by_memory_size_or_growth";
+  const PluginConstructionContext compile_context(
+      "oomd/fixtures/plugins/kill_by_memory_size_or_growth");
   args["cgroup"] = "one_big/*";
   args["post_action_delay"] = "0";
   args["dry"] = "true";
 
-  ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+  ASSERT_EQ(plugin->init(resources, std::move(args), compile_context), 0);
   ASSERT_EQ(resources.size(), 1);
 
   OomdContext ctx;
   ctx.setCgroupContext(
-      CgroupPath(args["cgroup_fs"], "one_big/cgroup1"),
+      CgroupPath(compile_context.cgroupFs(), "one_big/cgroup1"),
       CgroupContext{
           .current_usage = 60,
           .average_usage = 60,
       });
   ctx.setCgroupContext(
-      CgroupPath(args["cgroup_fs"], "one_big/cgroup2"),
+      CgroupPath(compile_context.cgroupFs(), "one_big/cgroup2"),
       CgroupContext{
           .current_usage = 20,
           .average_usage = 20,
       });
   ctx.setCgroupContext(
-      CgroupPath(args["cgroup_fs"], "one_big/cgroup3"),
+      CgroupPath(compile_context.cgroupFs(), "one_big/cgroup3"),
       CgroupContext{
           .current_usage = 20,
           .average_usage = 20,
@@ -1403,22 +1439,23 @@ TEST(KillSwapUsage, KillsBigSwapCgroup) {
 
   Engine::MonitoredResources resources;
   Engine::PluginArgs args;
-  args["cgroup_fs"] = "oomd/fixtures/plugins/kill_by_swap_usage";
+  const PluginConstructionContext compile_context(
+      "oomd/fixtures/plugins/kill_by_swap_usage");
   args["cgroup"] = "one_big/*";
   args["post_action_delay"] = "0";
 
-  ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+  ASSERT_EQ(plugin->init(resources, std::move(args), compile_context), 0);
   ASSERT_EQ(resources.size(), 1);
 
   OomdContext ctx;
   ctx.setCgroupContext(
-      CgroupPath(args["cgroup_fs"], "one_big/cgroup1"),
+      CgroupPath(compile_context.cgroupFs(), "one_big/cgroup1"),
       CgroupContext{.swap_usage = 20});
   ctx.setCgroupContext(
-      CgroupPath(args["cgroup_fs"], "one_big/cgroup2"),
+      CgroupPath(compile_context.cgroupFs(), "one_big/cgroup2"),
       CgroupContext{.swap_usage = 60});
   ctx.setCgroupContext(
-      CgroupPath(args["cgroup_fs"], "one_big/cgroup3"),
+      CgroupPath(compile_context.cgroupFs(), "one_big/cgroup3"),
       CgroupContext{.swap_usage = 40});
   EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
   EXPECT_THAT(plugin->killed, Contains(789));
@@ -1433,34 +1470,35 @@ TEST(KillSwapUsage, ThresholdTest) {
 
   Engine::MonitoredResources resources;
   Engine::PluginArgs args;
-  args["cgroup_fs"] = "oomd/fixtures/plugins/kill_by_swap_usage";
+  const PluginConstructionContext compile_context(
+      "oomd/fixtures/plugins/kill_by_swap_usage");
   args["meminfo_location"] = "oomd/fixtures/plugins/kill_by_swap_usage/meminfo";
   args["cgroup"] = "one_big/*";
   args["post_action_delay"] = "0";
   args["threshold"] = "20%";
 
-  ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+  ASSERT_EQ(plugin->init(resources, std::move(args), compile_context), 0);
 
   OomdContext ctx;
   ctx.setCgroupContext(
-      CgroupPath(args["cgroup_fs"], "one_big/cgroup1"),
+      CgroupPath(compile_context.cgroupFs(), "one_big/cgroup1"),
       CgroupContext{.swap_usage = 1});
   ctx.setCgroupContext(
-      CgroupPath(args["cgroup_fs"], "one_big/cgroup2"),
+      CgroupPath(compile_context.cgroupFs(), "one_big/cgroup2"),
       CgroupContext{.swap_usage = 2});
   ctx.setCgroupContext(
-      CgroupPath(args["cgroup_fs"], "one_big/cgroup3"),
+      CgroupPath(compile_context.cgroupFs(), "one_big/cgroup3"),
       CgroupContext{.swap_usage = 3});
   EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::CONTINUE);
 
   ctx.setCgroupContext(
-      CgroupPath(args["cgroup_fs"], "one_big/cgroup1"),
+      CgroupPath(compile_context.cgroupFs(), "one_big/cgroup1"),
       CgroupContext{.swap_usage = 20 << 10});
   ctx.setCgroupContext(
-      CgroupPath(args["cgroup_fs"], "one_big/cgroup2"),
+      CgroupPath(compile_context.cgroupFs(), "one_big/cgroup2"),
       CgroupContext{.swap_usage = 60 << 10});
   ctx.setCgroupContext(
-      CgroupPath(args["cgroup_fs"], "one_big/cgroup3"),
+      CgroupPath(compile_context.cgroupFs(), "one_big/cgroup3"),
       CgroupContext{.swap_usage = 40 << 10});
   EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
   EXPECT_THAT(plugin->killed, Contains(789));
@@ -1475,25 +1513,26 @@ TEST(KillSwapUsage, KillsBigSwapCgroupMultiCgroup) {
 
   Engine::MonitoredResources resources;
   Engine::PluginArgs args;
-  args["cgroup_fs"] = "oomd/fixtures/plugins/kill_by_swap_usage";
+  const PluginConstructionContext compile_context(
+      "oomd/fixtures/plugins/kill_by_swap_usage");
   args["cgroup"] = "one_big/*,sibling/*";
   args["post_action_delay"] = "0";
 
-  ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+  ASSERT_EQ(plugin->init(resources, std::move(args), compile_context), 0);
   ASSERT_EQ(resources.size(), 2);
 
   OomdContext ctx;
   ctx.setCgroupContext(
-      CgroupPath(args["cgroup_fs"], "one_big/cgroup1"),
+      CgroupPath(compile_context.cgroupFs(), "one_big/cgroup1"),
       CgroupContext{.swap_usage = 20});
   ctx.setCgroupContext(
-      CgroupPath(args["cgroup_fs"], "one_big/cgroup2"),
+      CgroupPath(compile_context.cgroupFs(), "one_big/cgroup2"),
       CgroupContext{.swap_usage = 60});
   ctx.setCgroupContext(
-      CgroupPath(args["cgroup_fs"], "one_big/cgroup3"),
+      CgroupPath(compile_context.cgroupFs(), "one_big/cgroup3"),
       CgroupContext{.swap_usage = 40});
   ctx.setCgroupContext(
-      CgroupPath(args["cgroup_fs"], "sibling/cgroup1"),
+      CgroupPath(compile_context.cgroupFs(), "sibling/cgroup1"),
       CgroupContext{.swap_usage = 70});
   EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
   EXPECT_THAT(plugin->killed, Contains(555));
@@ -1509,23 +1548,24 @@ TEST(KillSwapUsage, DoesntKillBigSwapCgroupDry) {
 
   Engine::MonitoredResources resources;
   Engine::PluginArgs args;
-  args["cgroup_fs"] = "oomd/fixtures/plugins/kill_by_swap_usage";
+  const PluginConstructionContext compile_context(
+      "oomd/fixtures/plugins/kill_by_swap_usage");
   args["cgroup"] = "one_big/*";
   args["post_action_delay"] = "0";
   args["dry"] = "true";
 
-  ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+  ASSERT_EQ(plugin->init(resources, std::move(args), compile_context), 0);
   ASSERT_EQ(resources.size(), 1);
 
   OomdContext ctx;
   ctx.setCgroupContext(
-      CgroupPath(args["cgroup_fs"], "one_big/cgroup1"),
+      CgroupPath(compile_context.cgroupFs(), "one_big/cgroup1"),
       CgroupContext{.swap_usage = 20});
   ctx.setCgroupContext(
-      CgroupPath(args["cgroup_fs"], "one_big/cgroup2"),
+      CgroupPath(compile_context.cgroupFs(), "one_big/cgroup2"),
       CgroupContext{.swap_usage = 60});
   ctx.setCgroupContext(
-      CgroupPath(args["cgroup_fs"], "one_big/cgroup3"),
+      CgroupPath(compile_context.cgroupFs(), "one_big/cgroup3"),
       CgroupContext{.swap_usage = 40});
   EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
   EXPECT_EQ(plugin->killed.size(), 0);
@@ -1537,21 +1577,25 @@ TEST(KillSwapUsage, DoesntKillNoSwap) {
 
   Engine::MonitoredResources resources;
   Engine::PluginArgs args;
-  args["cgroup_fs"] = "oomd/fixtures/plugins/kill_by_swap_usage";
+  const PluginConstructionContext compile_context(
+      "oomd/fixtures/plugins/kill_by_swap_usage");
   args["cgroup"] = "one_big/*";
   args["post_action_delay"] = "0";
   args["dry"] = "true";
 
-  ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+  ASSERT_EQ(plugin->init(resources, std::move(args), compile_context), 0);
   ASSERT_EQ(resources.size(), 1);
 
   OomdContext ctx;
   ctx.setCgroupContext(
-      CgroupPath(args["cgroup_fs"], "one_big/cgroup1"), CgroupContext{});
+      CgroupPath(compile_context.cgroupFs(), "one_big/cgroup1"),
+      CgroupContext{});
   ctx.setCgroupContext(
-      CgroupPath(args["cgroup_fs"], "one_big/cgroup2"), CgroupContext{});
+      CgroupPath(compile_context.cgroupFs(), "one_big/cgroup2"),
+      CgroupContext{});
   ctx.setCgroupContext(
-      CgroupPath(args["cgroup_fs"], "one_big/cgroup3"), CgroupContext{});
+      CgroupPath(compile_context.cgroupFs(), "one_big/cgroup3"),
+      CgroupContext{});
   EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::CONTINUE);
   EXPECT_EQ(plugin->killed.size(), 0);
 }
@@ -1562,35 +1606,36 @@ TEST(KillPressure, KillsHighestPressure) {
 
   Engine::MonitoredResources resources;
   Engine::PluginArgs args;
-  args["cgroup_fs"] = "oomd/fixtures/plugins/kill_by_pressure";
+  const PluginConstructionContext compile_context(
+      "oomd/fixtures/plugins/kill_by_pressure");
   args["cgroup"] = "one_high/*";
   args["resource"] = "io";
   args["post_action_delay"] = "0";
 
-  ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+  ASSERT_EQ(plugin->init(resources, std::move(args), compile_context), 0);
   ASSERT_EQ(resources.size(), 1);
 
   OomdContext ctx;
   ctx.setCgroupContext(
-      CgroupPath(args["cgroup_fs"], "one_high/cgroup1"),
+      CgroupPath(compile_context.cgroupFs(), "one_high/cgroup1"),
       CgroupContext{.io_pressure = ResourcePressure{
                         .sec_10 = 60,
                         .sec_60 = 60,
                     }});
   ctx.setCgroupContext(
-      CgroupPath(args["cgroup_fs"], "one_high/cgroup2"),
+      CgroupPath(compile_context.cgroupFs(), "one_high/cgroup2"),
       CgroupContext{.io_pressure = ResourcePressure{
                         .sec_10 = 50,
                         .sec_60 = 70,
                     }});
   ctx.setCgroupContext(
-      CgroupPath(args["cgroup_fs"], "one_high/cgroup3"),
+      CgroupPath(compile_context.cgroupFs(), "one_high/cgroup3"),
       CgroupContext{.io_pressure = ResourcePressure{
                         .sec_10 = 80,
                         .sec_60 = 80,
                     }});
   ctx.setCgroupContext(
-      CgroupPath(args["cgroup_fs"], "sibling/cgroup1"),
+      CgroupPath(compile_context.cgroupFs(), "sibling/cgroup1"),
       CgroupContext{.io_pressure = ResourcePressure{
                         .sec_10 = 99,
                         .sec_60 = 99,
@@ -1610,35 +1655,36 @@ TEST(KillPressure, KillsHighestPressureMultiCgroup) {
 
   Engine::MonitoredResources resources;
   Engine::PluginArgs args;
-  args["cgroup_fs"] = "oomd/fixtures/plugins/kill_by_pressure";
+  const PluginConstructionContext compile_context(
+      "oomd/fixtures/plugins/kill_by_pressure");
   args["cgroup"] = "one_high/*,sibling/*";
   args["resource"] = "io";
   args["post_action_delay"] = "0";
 
-  ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+  ASSERT_EQ(plugin->init(resources, std::move(args), compile_context), 0);
   ASSERT_EQ(resources.size(), 2);
 
   OomdContext ctx;
   ctx.setCgroupContext(
-      CgroupPath(args["cgroup_fs"], "one_high/cgroup1"),
+      CgroupPath(compile_context.cgroupFs(), "one_high/cgroup1"),
       CgroupContext{.io_pressure = ResourcePressure{
                         .sec_10 = 60,
                         .sec_60 = 60,
                     }});
   ctx.setCgroupContext(
-      CgroupPath(args["cgroup_fs"], "one_high/cgroup2"),
+      CgroupPath(compile_context.cgroupFs(), "one_high/cgroup2"),
       CgroupContext{.io_pressure = ResourcePressure{
                         .sec_10 = 50,
                         .sec_60 = 70,
                     }});
   ctx.setCgroupContext(
-      CgroupPath(args["cgroup_fs"], "one_high/cgroup3"),
+      CgroupPath(compile_context.cgroupFs(), "one_high/cgroup3"),
       CgroupContext{.io_pressure = ResourcePressure{
                         .sec_10 = 80,
                         .sec_60 = 80,
                     }});
   ctx.setCgroupContext(
-      CgroupPath(args["cgroup_fs"], "sibling/cgroup1"),
+      CgroupPath(compile_context.cgroupFs(), "sibling/cgroup1"),
       CgroupContext{.io_pressure = ResourcePressure{
                         .sec_10 = 99,
                         .sec_60 = 99,
@@ -1658,36 +1704,37 @@ TEST(KillPressure, DoesntKillsHighestPressureDry) {
 
   Engine::MonitoredResources resources;
   Engine::PluginArgs args;
-  args["cgroup_fs"] = "oomd/fixtures/plugins/kill_by_pressure";
+  const PluginConstructionContext compile_context(
+      "oomd/fixtures/plugins/kill_by_pressure");
   args["cgroup"] = "one_high/*";
   args["resource"] = "io";
   args["post_action_delay"] = "0";
   args["dry"] = "true";
 
-  ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+  ASSERT_EQ(plugin->init(resources, std::move(args), compile_context), 0);
   ASSERT_EQ(resources.size(), 1);
 
   OomdContext ctx;
   ctx.setCgroupContext(
-      CgroupPath(args["cgroup_fs"], "one_high/cgroup1"),
+      CgroupPath(compile_context.cgroupFs(), "one_high/cgroup1"),
       CgroupContext{.io_pressure = ResourcePressure{
                         .sec_10 = 60,
                         .sec_60 = 60,
                     }});
   ctx.setCgroupContext(
-      CgroupPath(args["cgroup_fs"], "one_high/cgroup2"),
+      CgroupPath(compile_context.cgroupFs(), "one_high/cgroup2"),
       CgroupContext{.io_pressure = ResourcePressure{
                         .sec_10 = 50,
                         .sec_60 = 70,
                     }});
   ctx.setCgroupContext(
-      CgroupPath(args["cgroup_fs"], "one_high/cgroup3"),
+      CgroupPath(compile_context.cgroupFs(), "one_high/cgroup3"),
       CgroupContext{.io_pressure = ResourcePressure{
                         .sec_10 = 80,
                         .sec_60 = 80,
                     }});
   ctx.setCgroupContext(
-      CgroupPath(args["cgroup_fs"], "sibling/cgroup1"),
+      CgroupPath(compile_context.cgroupFs(), "sibling/cgroup1"),
       CgroupContext{.io_pressure = ResourcePressure{
                         .sec_10 = 99,
                         .sec_60 = 99,
@@ -1703,8 +1750,9 @@ TEST(Stop, Stops) {
 
   Engine::MonitoredResources resources;
   Engine::PluginArgs args;
+  const PluginConstructionContext compile_context("/sys/fs/cgroup");
 
-  ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+  ASSERT_EQ(plugin->init(resources, std::move(args), compile_context), 0);
   ASSERT_EQ(resources.size(), 0);
 
   OomdContext ctx;
@@ -1732,10 +1780,10 @@ TEST_F(SenpaiTest, MemHigh) {
 
   Engine::MonitoredResources resources;
   Engine::PluginArgs args;
-  args["cgroup_fs"] = tempFixtureDir_ + "/cgroup";
+  const PluginConstructionContext compile_context(tempFixtureDir_ + "/cgroup");
   args["cgroup"] = "senpai_test.slice";
 
-  ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+  ASSERT_EQ(plugin->init(resources, std::move(args), compile_context), 0);
   ASSERT_EQ(resources.size(), 1);
 
   OomdContext ctx;
@@ -1766,10 +1814,10 @@ TEST_F(SenpaiTest, MemHighTmp) {
 
   Engine::MonitoredResources resources;
   Engine::PluginArgs args;
-  args["cgroup_fs"] = tempFixtureDir_ + "/cgroup";
+  const PluginConstructionContext compile_context(tempFixtureDir_ + "/cgroup");
   args["cgroup"] = "senpai_test.slice";
 
-  ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+  ASSERT_EQ(plugin->init(resources, std::move(args), compile_context), 0);
   ASSERT_EQ(resources.size(), 1);
 
   OomdContext ctx;
@@ -1804,12 +1852,12 @@ TEST_F(SenpaiTest, MemMin) {
 
   Engine::MonitoredResources resources;
   Engine::PluginArgs args;
-  args["cgroup_fs"] = tempFixtureDir_ + "/cgroup";
+  const PluginConstructionContext compile_context(tempFixtureDir_ + "/cgroup");
   args["cgroup"] = "senpai_test.slice";
   args["limit_min_bytes"] = "0";
   args["interval"] = "0"; // make update faster
 
-  ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+  ASSERT_EQ(plugin->init(resources, std::move(args), compile_context), 0);
   ASSERT_EQ(resources.size(), 1);
 
   OomdContext ctx;

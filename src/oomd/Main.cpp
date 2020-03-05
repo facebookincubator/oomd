@@ -376,7 +376,9 @@ int main(int argc, char** argv) {
       return 1;
     }
 
-    auto engine = Oomd::Config2::compile(*ir);
+    Oomd::PluginConstructionContext compile_context(cgroup_fs);
+
+    auto engine = Oomd::Config2::compile(*ir, compile_context);
     if (!engine) {
       OLOG << "Config is not valid";
       return 1;
@@ -403,7 +405,9 @@ int main(int argc, char** argv) {
     return EXIT_CANT_RECOVER;
   }
 
-  auto engine = Oomd::Config2::compile(*ir);
+  Oomd::PluginConstructionContext compile_context(cgroup_fs);
+
+  auto engine = Oomd::Config2::compile(*ir, compile_context);
   if (!engine) {
     OLOG << "Config failed to compile";
     return EXIT_CANT_RECOVER;

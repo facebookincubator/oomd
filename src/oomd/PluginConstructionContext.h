@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019-present, Facebook, Inc.
+ * Copyright (C) 2018-present, Facebook, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -17,33 +17,25 @@
 
 #pragma once
 
-#include "oomd/engine/BasePlugin.h"
-
 #include <string>
-#include <unordered_set>
 
 namespace Oomd {
 
-class AdjustCgroup : public Engine::BasePlugin {
+class PluginConstructionContext {
  public:
-  int init(
-      Engine::MonitoredResources& resources,
-      const Engine::PluginArgs& args,
-      const PluginConstructionContext& context) override;
+  PluginConstructionContext(const std::string& cgroup_fs);
+  ~PluginConstructionContext() = default;
+  PluginConstructionContext(const PluginConstructionContext& other) = default;
+  PluginConstructionContext(PluginConstructionContext&& other) = default;
+  PluginConstructionContext& operator=(const PluginConstructionContext& other) =
+      default;
+  PluginConstructionContext& operator=(PluginConstructionContext&& other) =
+      default;
 
-  Engine::PluginRet run(OomdContext& /* unused */) override;
-
-  static AdjustCgroup* create() {
-    return new AdjustCgroup();
-  }
+  const std::string& cgroupFs() const;
 
  private:
-  std::unordered_set<CgroupPath> cgroups_;
-  bool memory_scale_set_{false};
-  float memory_scale_;
-  bool memory_adj_set_{false};
-  int64_t memory_adj_;
-  bool debug_{false};
+  std::string cgroup_fs_;
 };
 
 } // namespace Oomd

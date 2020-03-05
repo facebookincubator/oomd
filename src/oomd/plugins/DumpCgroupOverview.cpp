@@ -28,7 +28,6 @@
 #include "oomd/util/Util.h"
 
 namespace {
-auto constexpr kCgroupFs = "/sys/fs/cgroup";
 auto constexpr kPgscanSwap = "pgscan_kswapd";
 auto constexpr kPgscanDirect = "pgscan_direct";
 
@@ -66,11 +65,10 @@ REGISTER_PLUGIN(dump_cgroup_overview, DumpCgroupOverview::create);
 
 int DumpCgroupOverview::init(
     Engine::MonitoredResources& resources,
-    const Engine::PluginArgs& args) {
+    const Engine::PluginArgs& args,
+    const PluginConstructionContext& context) {
   if (args.find("cgroup") != args.end()) {
-    auto cgroup_fs =
-        (args.find("cgroup_fs") != args.end() ? args.at("cgroup_fs")
-                                              : kCgroupFs);
+    const auto& cgroup_fs = context.cgroupFs();
     auto cgroups = Util::split(args.at("cgroup"), ',');
     for (const auto& c : cgroups) {
       resources.emplace(cgroup_fs, c);

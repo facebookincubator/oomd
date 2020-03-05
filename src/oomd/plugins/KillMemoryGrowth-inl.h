@@ -28,20 +28,15 @@
 #include "oomd/util/Fs.h"
 #include "oomd/util/Util.h"
 
-namespace {
-auto constexpr kCgroupFs = "/sys/fs/cgroup";
-} // namespace
-
 namespace Oomd {
 
 template <typename Base>
 int KillMemoryGrowth<Base>::init(
     Engine::MonitoredResources& resources,
-    const Engine::PluginArgs& args) {
+    const Engine::PluginArgs& args,
+    const PluginConstructionContext& context) {
   if (args.find("cgroup") != args.end()) {
-    auto cgroup_fs =
-        (args.find("cgroup_fs") != args.end() ? args.at("cgroup_fs")
-                                              : kCgroupFs);
+    const auto& cgroup_fs = context.cgroupFs();
 
     auto cgroups = Util::split(args.at("cgroup"), ',');
     for (const auto& c : cgroups) {

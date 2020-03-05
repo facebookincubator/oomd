@@ -22,6 +22,7 @@
 #include <unordered_set>
 
 #include "oomd/OomdContext.h"
+#include "oomd/PluginConstructionContext.h"
 #include "oomd/include/CgroupPath.h"
 #include "oomd/include/Types.h"
 
@@ -49,7 +50,10 @@ class BasePlugin {
    *
    * @return 0 on successful initialization.
    */
-  virtual int init(MonitoredResources& resources, const PluginArgs& args) = 0;
+  virtual int init(
+      MonitoredResources& resources,
+      const PluginArgs& args,
+      const PluginConstructionContext& context) = 0;
 
   /*
    * This is the main work method every plugin will implement.

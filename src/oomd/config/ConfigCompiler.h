@@ -19,6 +19,7 @@
 
 #include <optional>
 
+#include "oomd/PluginConstructionContext.h"
 #include "oomd/config/ConfigTypes.h"
 #include "oomd/engine/Engine.h"
 
@@ -35,7 +36,9 @@ struct DropInUnit {
  * validation on the IR. If the IR is invalid, @method compile will
  * print error messages and return a nullptr.
  */
-std::unique_ptr<Engine::Engine> compile(const IR::Root& root);
+std::unique_ptr<Engine::Engine> compile(
+    const IR::Root& root,
+    const PluginConstructionContext& context);
 
 /*
  * Compiles a drop in ruleset against a @class IR::Root config. Has
@@ -45,7 +48,8 @@ std::unique_ptr<Engine::Engine> compile(const IR::Root& root);
  */
 std::optional<DropInUnit> compileDropIn(
     const IR::Root& root,
-    const IR::Root& dropin);
+    const IR::Root& dropin,
+    const PluginConstructionContext& context);
 
 } // namespace Config2
 } // namespace Oomd

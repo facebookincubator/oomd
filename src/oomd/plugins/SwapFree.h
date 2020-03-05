@@ -27,7 +27,8 @@ class SwapFree : public Oomd::Engine::BasePlugin {
  public:
   int init(
       Engine::MonitoredResources& /* unused */,
-      const Engine::PluginArgs& args) override;
+      const Engine::PluginArgs& args,
+      const PluginConstructionContext& /* unused */) override;
 
   Engine::PluginRet run(OomdContext& /* unused */) override;
 

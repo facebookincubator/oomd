@@ -23,7 +23,6 @@
 #include "oomd/util/ScopeGuard.h"
 #include "oomd/util/Util.h"
 
-static constexpr auto kCgroupFs = "/sys/fs/cgroup/";
 static constexpr auto kPgscan = "pgscan";
 
 namespace Oomd {
@@ -32,11 +31,10 @@ REGISTER_PLUGIN(memory_reclaim, MemoryReclaim::create);
 
 int MemoryReclaim::init(
     Engine::MonitoredResources& resources,
-    const Engine::PluginArgs& args) {
+    const Engine::PluginArgs& args,
+    const PluginConstructionContext& context) {
   if (args.find("cgroup") != args.end()) {
-    auto cgroup_fs =
-        (args.find("cgroup_fs") != args.end() ? args.at("cgroup_fs")
-                                              : kCgroupFs);
+    const auto& cgroup_fs = context.cgroupFs();
 
     auto cgroups = Util::split(args.at("cgroup"), ',');
     for (const auto& c : cgroups) {

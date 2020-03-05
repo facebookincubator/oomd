@@ -31,7 +31,8 @@ namespace {
 template <typename T>
 std::unique_ptr<Oomd::Engine::BasePlugin> compilePlugin(
     Oomd::Engine::MonitoredResources& resources,
-    const T& plugin) {
+    const T& plugin,
+    const Oomd::PluginConstructionContext& context) {
   if (plugin.name.empty()) {
     OLOG << "Plugin is missing name";
     return nullptr;
@@ -46,7 +47,7 @@ std::unique_ptr<Oomd::Engine::BasePlugin> compilePlugin(
 
   instance->setName(plugin.name);
 
-  int ret = instance->init(resources, plugin.args);
+  int ret = instance->init(resources, plugin.args, context);
   if (ret != 0) {
     OLOG << "Plugin=" << plugin.name << " failed to init() with code=" << ret;
     return nullptr;
@@ -57,7 +58,8 @@ std::unique_ptr<Oomd::Engine::BasePlugin> compilePlugin(
 
 std::unique_ptr<Oomd::Engine::DetectorGroup> compileDetectorGroup(
     Oomd::Engine::MonitoredResources& resources,
-    const Oomd::Config2::IR::DetectorGroup& group) {
+    const Oomd::Config2::IR::DetectorGroup& group,
+    const Oomd::PluginConstructionContext& context) {
   std::vector<std::unique_ptr<Oomd::Engine::BasePlugin>> detectors;
 
   if (group.name.empty()) {
@@ -71,8 +73,8 @@ std::unique_ptr<Oomd::Engine::DetectorGroup> compileDetectorGroup(
   }
 
   for (const auto& detector : group.detectors) {
-    auto compiled_plugin =
-        compilePlugin<Oomd::Config2::IR::Detector>(resources, detector);
+    auto compiled_plugin = compilePlugin<Oomd::Config2::IR::Detector>(
+        resources, detector, context);
     if (!compiled_plugin) {
       return nullptr;
     }
@@ -87,7 +89,8 @@ std::unique_ptr<Oomd::Engine::DetectorGroup> compileDetectorGroup(
 std::unique_ptr<Oomd::Engine::Ruleset> compileRuleset(
     Oomd::Engine::MonitoredResources& resources,
     const Oomd::Config2::IR::Ruleset& ruleset,
-    bool dropin) {
+    bool dropin,
+    const Oomd::PluginConstructionContext& context) {
   uint32_t silenced_logs = 0;
   std::vector<std::unique_ptr<Oomd::Engine::DetectorGroup>> detector_groups;
   std::vector<std::unique_ptr<Oomd::Engine::BasePlugin>> actions;
@@ -123,7 +126,7 @@ std::unique_ptr<Oomd::Engine::Ruleset> compileRuleset(
   }
 
   for (const auto& dg : ruleset.dgs) {
-    auto compiled_detectorgroup = compileDetectorGroup(resources, dg);
+    auto compiled_detectorgroup = compileDetectorGroup(resources, dg, context);
     if (!compiled_detectorgroup) {
       return nullptr;
     }
@@ -133,7 +136,7 @@ std::unique_ptr<Oomd::Engine::Ruleset> compileRuleset(
 
   for (const auto& action : ruleset.acts) {
     auto compiled_action =
-        compilePlugin<Oomd::Config2::IR::Action>(resources, action);
+        compilePlugin<Oomd::Config2::IR::Action>(resources, action, context);
     if (!compiled_action) {
       return nullptr;
     }
@@ -156,12 +159,14 @@ std::unique_ptr<Oomd::Engine::Ruleset> compileRuleset(
 namespace Oomd {
 namespace Config2 {
 
-std::unique_ptr<Engine::Engine> compile(const IR::Root& root) {
+std::unique_ptr<Engine::Engine> compile(
+    const IR::Root& root,
+    const PluginConstructionContext& context) {
   Engine::MonitoredResources resources;
   std::vector<std::unique_ptr<Engine::Ruleset>> rulesets;
 
   for (const auto& ruleset : root.rulesets) {
-    auto compiled_ruleset = compileRuleset(resources, ruleset, false);
+    auto compiled_ruleset = compileRuleset(resources, ruleset, false, context);
     if (!compiled_ruleset) {
       return nullptr;
     }
@@ -175,7 +180,8 @@ std::unique_ptr<Engine::Engine> compile(const IR::Root& root) {
 
 std::optional<DropInUnit> compileDropIn(
     const IR::Root& root,
-    const IR::Root& dropin) {
+    const IR::Root& dropin,
+    const PluginConstructionContext& context) {
   DropInUnit ret;
 
   for (const auto& dropin_rs : dropin.rulesets) {
@@ -186,12 +192,13 @@ std::optional<DropInUnit> compileDropIn(
         found_target = true;
 
         Engine::MonitoredResources dummy;
-        auto target = compileRuleset(dummy, rs, false);
+        auto target = compileRuleset(dummy, rs, false, context);
         if (!target) {
           return std::nullopt;
         }
 
-        auto compiled_drop = compileRuleset(ret.resources, dropin_rs, true);
+        auto compiled_drop =
+            compileRuleset(ret.resources, dropin_rs, true, context);
         if (!compiled_drop) {
           return std::nullopt;
         }

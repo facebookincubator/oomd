@@ -58,7 +58,8 @@ TEST(SystemdRestart, RestartService) {
   args["post_action_delay"] = "0";
   args["dry"] = "false";
 
-  ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+  const PluginConstructionContext compile_context("/sys/fs/cgroup");
+  ASSERT_EQ(plugin->init(resources, std::move(args), compile_context), 0);
 
   OomdContext ctx;
   EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
@@ -74,8 +75,8 @@ TEST(SystemdRestart, RestartServiceDry) {
   args["service"] = "some.service";
   args["post_action_delay"] = "0";
   args["dry"] = "true";
-
-  ASSERT_EQ(plugin->init(resources, std::move(args)), 0);
+  const PluginConstructionContext compile_context("/sys/fs/cgroup");
+  ASSERT_EQ(plugin->init(resources, std::move(args), compile_context), 0);
 
   OomdContext ctx;
   EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);

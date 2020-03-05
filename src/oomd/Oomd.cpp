@@ -35,6 +35,7 @@
 #include <unordered_set>
 
 #include "oomd/Log.h"
+#include "oomd/PluginConstructionContext.h"
 #include "oomd/config/ConfigCompiler.h"
 #include "oomd/config/JsonConfigParser.h"
 #include "oomd/include/Assert.h"
@@ -566,7 +567,8 @@ void Oomd::processDropInAdd(const std::string& file) {
     return;
   }
 
-  auto unit = Config2::compileDropIn(*ir_root_, *dropin_root);
+  const PluginConstructionContext compile_context(cgroup_fs_);
+  auto unit = Config2::compileDropIn(*ir_root_, *dropin_root, compile_context);
   if (!unit.has_value()) {
     OLOG << "Could not compile drop in config";
     OLOG << "Failed to inject drop in config into engine";

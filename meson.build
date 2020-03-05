@@ -19,6 +19,7 @@ version_h = vcs_tag(
 versiondep = declare_dependency(sources : version_h)
 
 srcs = files('''
+    src/oomd/PluginConstructionContext.cpp
     src/oomd/Log.cpp
     src/oomd/Oomd.cpp
     src/oomd/OomdContext.cpp

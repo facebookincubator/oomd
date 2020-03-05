@@ -16,7 +16,6 @@ it would probably not be very useful in many cases.
     threshold
     duration
     fast_fall_ratio=0.85 (optional)
-    cgroup_fs=/sys/fs/cgroup (optional)
 
 ### Description
 
@@ -75,7 +74,6 @@ If `threshold_anon` is specified, CONTINUE if anonymous memory usage >
     resource
     threshold
     duration
-    cgroup_fs=/sys/fs/cgroup (optional)
 
 ### Description
 
@@ -207,7 +205,6 @@ Always returns CONTINUE.
     min_growth_ratio=1.25 (optional)
     growing_size_percentile=80 (optional)
     post_action_delay=15 (optional)
-    cgroup_fs=/sys/fs/cgroup (optional)
     dry=false (optional)
 
 ### Description
@@ -257,10 +254,6 @@ Sleeps for `post_action_delay` following a kill.
 `dry` follows the same semantics and options as
 `kill_by_memory_size_or_growth`
 
-Note that there is no `cgroup_fs` option. This plugin does not inspect
-cgroup states beyond what the core runtime provides. The core runtime
-knows about cgroup_fs location via the cmd line args.
-
 Kills the child with the largest swap usage.
 
 cgroups that are killed have the "trusted.oomd_kill" xattr set to the number
@@ -275,7 +268,6 @@ STOP if killed something (even if dry=true), CONTINUE otherwise.
     cgroup
     resource
     post_action_delay=15 (optional)
-    cgroup_fs=/sys/fs/cgroup (optional)
     dry=false (optional)
 
 ### Description
@@ -303,7 +295,6 @@ STOP if killed something (even if dry=true), CONTINUE otherwise.
 
     cgroup
     post_action_delay=15 (optional)
-    cgroup_fs=/sys/fs/cgroup (optional)
     dry=false (optional)
 
 ### Description

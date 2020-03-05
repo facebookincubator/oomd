@@ -27,7 +27,8 @@ class NrDyingDescendants : public Oomd::Engine::BasePlugin {
  public:
   int init(
       Engine::MonitoredResources& resources,
-      const Engine::PluginArgs& args) override;
+      const Engine::PluginArgs& args,
+      const PluginConstructionContext& context) override;
 
   Engine::PluginRet run(OomdContext& ctx) override;
 

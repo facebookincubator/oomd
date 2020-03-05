@@ -18,7 +18,8 @@ the following two methods:
 
       virtual int init(
           MonitoredResources& resources,
-          const PluginArgs& args) = 0;
+          const PluginArgs& args,
+          const PluginConstructionContext& context) = 0;
 
       /* where PluginArgs is an alias of
          std::unordered_map<std::string, std::string> */
@@ -41,6 +42,10 @@ place any cgroups they are instructed to possibly kill into `resources`.
 `const PluginArgs& args` is a map of arguments that are provided to the plugin.
 Each plugin, as defined by the config schema, is allowed to have a JSON object
 containing string->string key/value pairs representing the configuration.
+
+`const PluginConstructionContext& context` holds other init()-time context.
+`context->cgroupFs()` is the cgroup fs that oomd will monitor, as set from the
+--cgroup-fs command line flag, defaulting to /sys/fs/cgroup.
 
 If plugin initialization is success, the plugin must return zero. A non-zero
 return value will fail the config compilation process (and usually exit the
@@ -125,7 +130,8 @@ section.
      public:
       int init(
           Engine::MonitoredResources& /* unused */,
-          const Engine::PluginArgs& /* unused */) override {
+          const Engine::PluginArgs& /* unused */,
+          const PluginConstructionContext& /* unused */) override {
         return 0;
       }
 

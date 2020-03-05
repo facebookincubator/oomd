@@ -29,7 +29,8 @@ class KillIOCost : public Base {
  public:
   int init(
       Engine::MonitoredResources& resources,
-      const Engine::PluginArgs& args) override;
+      const Engine::PluginArgs& args,
+      const PluginConstructionContext& context) override;
 
   Engine::PluginRet run(OomdContext& ctx) override;
 
@@ -46,9 +47,6 @@ class KillIOCost : public Base {
   int post_action_delay_{15};
   bool dry_{false};
   bool debug_{false};
-
- private:
-  static auto constexpr kCgroupFs = "/sys/fs/cgroup";
 };
 
 } // namespace Oomd

@@ -26,7 +26,8 @@ class SystemdRestart : public Base {
  public:
   int init(
       Engine::MonitoredResources& resources,
-      const Engine::PluginArgs& args) override;
+      const Engine::PluginArgs& args,
+      const PluginConstructionContext& /* unused */) override;
 
   Engine::PluginRet run(OomdContext& /* unused */) override;
 

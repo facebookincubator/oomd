@@ -45,7 +45,8 @@ class ContinuePlugin : public BasePlugin {
  public:
   int init(
       Engine::MonitoredResources& /* unused */,
-      const PluginArgs& /* unused */) override {
+      const PluginArgs& /* unused */,
+      const PluginConstructionContext& /* unused */) override {
     return 0;
   }
 
@@ -64,7 +65,8 @@ class StopPlugin : public BasePlugin {
  public:
   int init(
       Engine::MonitoredResources& /* unused */,
-      const PluginArgs& /* unused */) override {
+      const PluginArgs& /* unused */,
+      const PluginConstructionContext& /* unused */) override {
     return 0;
   }
 
@@ -83,7 +85,8 @@ class IncrementCountPlugin : public BasePlugin {
  public:
   int init(
       Engine::MonitoredResources& /* unused */,
-      const PluginArgs& /* unused */) override {
+      const PluginArgs& /* unused */,
+      const PluginConstructionContext& /* unused */) override {
     return 0;
   }
 
@@ -103,7 +106,8 @@ class StoreCountPlugin : public BasePlugin {
  public:
   int init(
       Engine::MonitoredResources& /* unused */,
-      const PluginArgs& /* unused */) override {
+      const PluginArgs& /* unused */,
+      const PluginConstructionContext& /* unused */) override {
     return 0;
   }
 
@@ -123,8 +127,9 @@ class RegistrationPlugin : public BasePlugin {
  public:
   int init(
       Engine::MonitoredResources& resources,
-      const PluginArgs& /* unused */) override {
-    resources.emplace(kRandomCgroupFs, kRandomCgroupDependency);
+      const PluginArgs& /* unused */,
+      const PluginConstructionContext& context) override {
+    resources.emplace(context.cgroupFs(), kRandomCgroupDependency);
     return 0;
   }
 
@@ -143,7 +148,8 @@ class NoInitPlugin : public BasePlugin {
  public:
   int init(
       Engine::MonitoredResources& /* unused */,
-      const PluginArgs& /* unused */) override {
+      const PluginArgs& /* unused */,
+      const PluginConstructionContext& /* unused */) override {
     return 1;
   }
 
@@ -175,7 +181,8 @@ class CompilerTest : public ::testing::Test {
   }
 
   std::unique_ptr<::Oomd::Engine::Engine> compile() {
-    return Config2::compile(root);
+    const PluginConstructionContext compile_context(kRandomCgroupFs);
+    return Config2::compile(root, compile_context);
   }
 
   OomdContext context;
@@ -190,11 +197,13 @@ class DropInCompilerTest : public ::testing::Test {
   }
 
   std::unique_ptr<::Oomd::Engine::Engine> compileBase() {
-    return compile(root);
+    const PluginConstructionContext compile_context(kRandomCgroupFs);
+    return compile(root, compile_context);
   }
 
   std::optional<DropInUnit> compileDropIn() {
-    return ::Oomd::Config2::compileDropIn(root, dropin_ir);
+    const PluginConstructionContext compile_context(kRandomCgroupFs);
+    return ::Oomd::Config2::compileDropIn(root, dropin_ir, compile_context);
   }
 
   OomdContext context;
