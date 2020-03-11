@@ -63,10 +63,12 @@ int BaseKillPlugin::getAndTryToKillPids(
         break;
       }
     }
+    nr_killed += tryToKillPids(pids);
     if (f.bad()) {
       OLOG << "Error while processing file " << path;
+      // Most likely the cgroup is dead and gone
+      break;
     }
-    nr_killed += tryToKillPids(pids);
   }
 
   if (recursive) {
