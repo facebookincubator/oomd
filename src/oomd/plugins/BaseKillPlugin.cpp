@@ -217,7 +217,7 @@ void BaseKillPlugin::logKill(
   std::ostringstream oss;
   oss << std::setprecision(2) << std::fixed;
   oss << context.pressure.sec_10 << " " << context.pressure.sec_60 << " "
-      << context.pressure.sec_600 << " " << killed_cgroup.relativePath() << " "
+      << context.pressure.sec_300 << " " << killed_cgroup.relativePath() << " "
       << context.current_usage << " "
       << "ruleset:[" << action_context.ruleset << "] "
       << "detectorgroup:[" << action_context.detectorgroup << "] "

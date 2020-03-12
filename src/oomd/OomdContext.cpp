@@ -136,10 +136,10 @@ void OomdContext::dumpOomdContext(
 
       if (!(ms.second.pressure.sec_10 >= press_min ||
             ms.second.pressure.sec_60 >= press_min ||
-            ms.second.pressure.sec_600 >= press_min ||
+            ms.second.pressure.sec_300 >= press_min ||
             ms.second.io_pressure.sec_10 >= press_min ||
             ms.second.io_pressure.sec_60 >= press_min ||
-            ms.second.io_pressure.sec_600 >= press_min ||
+            ms.second.io_pressure.sec_300 >= press_min ||
             ms.second.current_usage > mem_min ||
             ms.second.average_usage > mem_min ||
             ms.second.swap_usage > swap_min)) {
@@ -149,10 +149,10 @@ void OomdContext::dumpOomdContext(
 
     OLOG << "name=" << ms.first.relativePath();
     OLOG << "  pressure=" << ms.second.pressure.sec_10 << ":"
-         << ms.second.pressure.sec_60 << ":" << ms.second.pressure.sec_600
+         << ms.second.pressure.sec_60 << ":" << ms.second.pressure.sec_300
          << "-" << ms.second.io_pressure.sec_10 << ":"
          << ms.second.io_pressure.sec_60 << ":"
-         << ms.second.io_pressure.sec_600;
+         << ms.second.io_pressure.sec_300;
     OLOG << "  mem=" << (ms.second.current_usage >> 20) << "MB"
          << " mem_avg=" << (ms.second.average_usage >> 20) << "MB"
          << " mem_low=" << (ms.second.memory_low >> 20) << "MB"

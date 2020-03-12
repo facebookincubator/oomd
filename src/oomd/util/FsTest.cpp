@@ -222,7 +222,7 @@ TEST_F(FsTest, ReadMemoryPressure) {
 
   EXPECT_FLOAT_EQ(pressure.sec_10, 4.44);
   EXPECT_FLOAT_EQ(pressure.sec_60, 5.55);
-  EXPECT_FLOAT_EQ(pressure.sec_600, 6.66);
+  EXPECT_FLOAT_EQ(pressure.sec_300, 6.66);
 
   // old experimental format
   auto dir2 = dir + "/service2.service";
@@ -230,7 +230,7 @@ TEST_F(FsTest, ReadMemoryPressure) {
 
   EXPECT_FLOAT_EQ(pressure2.sec_10, 4.44);
   EXPECT_FLOAT_EQ(pressure2.sec_60, 5.55);
-  EXPECT_FLOAT_EQ(pressure2.sec_600, 6.66);
+  EXPECT_FLOAT_EQ(pressure2.sec_300, 6.66);
 
   // old experimental format w/ debug info on
   auto dir3 = dir + "/service3.service";
@@ -238,7 +238,7 @@ TEST_F(FsTest, ReadMemoryPressure) {
 
   EXPECT_FLOAT_EQ(pressure3.sec_10, 4.44);
   EXPECT_FLOAT_EQ(pressure3.sec_60, 5.55);
-  EXPECT_FLOAT_EQ(pressure3.sec_600, 6.66);
+  EXPECT_FLOAT_EQ(pressure3.sec_300, 6.66);
 }
 
 TEST_F(FsTest, ReadMemoryPressureSome) {
@@ -248,7 +248,7 @@ TEST_F(FsTest, ReadMemoryPressureSome) {
 
   EXPECT_FLOAT_EQ(pressure.sec_10, 1.11);
   EXPECT_FLOAT_EQ(pressure.sec_60, 2.22);
-  EXPECT_FLOAT_EQ(pressure.sec_600, 3.33);
+  EXPECT_FLOAT_EQ(pressure.sec_300, 3.33);
 
   // old experimental format
   auto dir2 = dir + "/service2.service";
@@ -256,7 +256,7 @@ TEST_F(FsTest, ReadMemoryPressureSome) {
 
   EXPECT_FLOAT_EQ(pressure2.sec_10, 1.11);
   EXPECT_FLOAT_EQ(pressure2.sec_60, 2.22);
-  EXPECT_FLOAT_EQ(pressure2.sec_600, 3.33);
+  EXPECT_FLOAT_EQ(pressure2.sec_300, 3.33);
 }
 
 TEST_F(FsTest, GetVmstat) {
@@ -303,7 +303,7 @@ TEST_F(FsTest, ReadIoPressure) {
 
   EXPECT_FLOAT_EQ(pressure.sec_10, 4.45);
   EXPECT_FLOAT_EQ(pressure.sec_60, 5.56);
-  EXPECT_FLOAT_EQ(pressure.sec_600, 6.67);
+  EXPECT_FLOAT_EQ(pressure.sec_300, 6.67);
 }
 
 TEST_F(FsTest, ReadIoPressureSome) {
@@ -312,7 +312,7 @@ TEST_F(FsTest, ReadIoPressureSome) {
 
   EXPECT_FLOAT_EQ(pressure.sec_10, 1.12);
   EXPECT_FLOAT_EQ(pressure.sec_60, 2.23);
-  EXPECT_FLOAT_EQ(pressure.sec_600, 3.34);
+  EXPECT_FLOAT_EQ(pressure.sec_300, 3.34);
 }
 
 TEST_F(FsTest, IsUnderParentPath) {

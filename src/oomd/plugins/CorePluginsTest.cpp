@@ -308,7 +308,7 @@ TEST(PresureRisingBeyond, DetectsHighMemPressure) {
       CgroupPath(compile_context.cgroupFs(), "high_pressure"),
       CgroupContext{.pressure =
                         ResourcePressure{
-                            .sec_10 = 99.99, .sec_60 = 99.99, .sec_600 = 99.99},
+                            .sec_10 = 99.99, .sec_60 = 99.99, .sec_300 = 99.99},
                     .current_usage = 987654321});
 
   EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::CONTINUE);
@@ -336,7 +336,7 @@ TEST(PresureRisingBeyond, NoDetectLowMemPressure) {
       CgroupPath(compile_context.cgroupFs(), "low_pressure"),
       CgroupContext{
           .pressure =
-              ResourcePressure{.sec_10 = 1.11, .sec_60 = 1.11, .sec_600 = 1.11},
+              ResourcePressure{.sec_10 = 1.11, .sec_60 = 1.11, .sec_300 = 1.11},
           .current_usage = 987654321});
 
   EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
@@ -364,13 +364,13 @@ TEST(PresureRisingBeyond, DetectsHighMemPressureMultiCgroup) {
       CgroupPath(compile_context.cgroupFs(), "high_pressure"),
       CgroupContext{.pressure =
                         ResourcePressure{
-                            .sec_10 = 99.99, .sec_60 = 99.99, .sec_600 = 99.99},
+                            .sec_10 = 99.99, .sec_60 = 99.99, .sec_300 = 99.99},
                     .current_usage = 987654321});
   ctx.setCgroupContext(
       CgroupPath(compile_context.cgroupFs(), "low_pressure"),
       CgroupContext{
           .pressure =
-              ResourcePressure{.sec_10 = 1.11, .sec_60 = 1.11, .sec_600 = 1.11},
+              ResourcePressure{.sec_10 = 1.11, .sec_60 = 1.11, .sec_300 = 1.11},
           .current_usage = 987654321});
 
   EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::CONTINUE);
@@ -398,13 +398,13 @@ TEST(PresureRisingBeyond, DetectsHighMemPressureWildcard) {
       CgroupPath(compile_context.cgroupFs(), "high_pressure"),
       CgroupContext{.pressure =
                         ResourcePressure{
-                            .sec_10 = 99.99, .sec_60 = 99.99, .sec_600 = 99.99},
+                            .sec_10 = 99.99, .sec_60 = 99.99, .sec_300 = 99.99},
                     .current_usage = 987654321});
   ctx.setCgroupContext(
       CgroupPath(compile_context.cgroupFs(), "low_pressure"),
       CgroupContext{
           .pressure =
-              ResourcePressure{.sec_10 = 1.11, .sec_60 = 1.11, .sec_600 = 1.11},
+              ResourcePressure{.sec_10 = 1.11, .sec_60 = 1.11, .sec_300 = 1.11},
           .current_usage = 987654321});
 
   EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::CONTINUE);
@@ -431,7 +431,7 @@ TEST(PressureAbove, DetectsHighMemPressure) {
       CgroupPath(compile_context.cgroupFs(), "high_pressure"),
       CgroupContext{.pressure =
                         ResourcePressure{
-                            .sec_10 = 99.99, .sec_60 = 99.99, .sec_600 = 99.99},
+                            .sec_10 = 99.99, .sec_60 = 99.99, .sec_300 = 99.99},
                     .current_usage = 987654321});
 
   EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::CONTINUE);
@@ -458,7 +458,7 @@ TEST(PressureAbove, NoDetectLowMemPressure) {
       CgroupPath(compile_context.cgroupFs(), "low_pressure"),
       CgroupContext{
           .pressure =
-              ResourcePressure{.sec_10 = 1.11, .sec_60 = 1.11, .sec_600 = 1.11},
+              ResourcePressure{.sec_10 = 1.11, .sec_60 = 1.11, .sec_300 = 1.11},
           .current_usage = 987654321});
 
   EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
@@ -485,13 +485,13 @@ TEST(PressureAbove, DetectsHighMemPressureMultiCgroup) {
       CgroupPath(compile_context.cgroupFs(), "high_pressure"),
       CgroupContext{.pressure =
                         ResourcePressure{
-                            .sec_10 = 99.99, .sec_60 = 99.99, .sec_600 = 99.99},
+                            .sec_10 = 99.99, .sec_60 = 99.99, .sec_300 = 99.99},
                     .current_usage = 987654321});
   ctx.setCgroupContext(
       CgroupPath(compile_context.cgroupFs(), "low_pressure"),
       CgroupContext{
           .pressure =
-              ResourcePressure{.sec_10 = 1.11, .sec_60 = 1.11, .sec_600 = 1.11},
+              ResourcePressure{.sec_10 = 1.11, .sec_60 = 1.11, .sec_300 = 1.11},
           .current_usage = 987654321});
 
   EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::CONTINUE);
@@ -518,13 +518,13 @@ TEST(PressureAbove, DetectsHighMemPressureWildcard) {
       CgroupPath(compile_context.cgroupFs(), "high_pressure"),
       CgroupContext{.pressure =
                         ResourcePressure{
-                            .sec_10 = 99.99, .sec_60 = 99.99, .sec_600 = 99.99},
+                            .sec_10 = 99.99, .sec_60 = 99.99, .sec_300 = 99.99},
                     .current_usage = 987654321});
   ctx.setCgroupContext(
       CgroupPath(compile_context.cgroupFs(), "low_pressure"),
       CgroupContext{
           .pressure =
-              ResourcePressure{.sec_10 = 1.11, .sec_60 = 1.11, .sec_600 = 1.11},
+              ResourcePressure{.sec_10 = 1.11, .sec_60 = 1.11, .sec_300 = 1.11},
           .current_usage = 987654321});
 
   EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::CONTINUE);
@@ -1639,7 +1639,7 @@ TEST(KillPressure, KillsHighestPressure) {
       CgroupContext{.io_pressure = ResourcePressure{
                         .sec_10 = 99,
                         .sec_60 = 99,
-                        .sec_600 = 99,
+                        .sec_300 = 99,
                     }});
   EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
   EXPECT_THAT(plugin->killed, Contains(111));
@@ -1688,7 +1688,7 @@ TEST(KillPressure, KillsHighestPressureMultiCgroup) {
       CgroupContext{.io_pressure = ResourcePressure{
                         .sec_10 = 99,
                         .sec_60 = 99,
-                        .sec_600 = 99,
+                        .sec_300 = 99,
                     }});
   EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
   EXPECT_THAT(plugin->killed, Contains(888));
@@ -1738,7 +1738,7 @@ TEST(KillPressure, DoesntKillsHighestPressureDry) {
       CgroupContext{.io_pressure = ResourcePressure{
                         .sec_10 = 99,
                         .sec_60 = 99,
-                        .sec_600 = 99,
+                        .sec_300 = 99,
                     }});
   EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
   EXPECT_EQ(plugin->killed.size(), 0);

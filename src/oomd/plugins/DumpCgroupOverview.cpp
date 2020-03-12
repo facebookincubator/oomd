@@ -53,7 +53,7 @@ void dumpCgroupOverview(
   oss << std::setprecision(2) << std::fixed;
   oss << "cgroup=" << path.relativePath() << " total=" << current / 1024 / 1024
       << "MB pressure=" << pressure.sec_10 << ":" << pressure.sec_60 << ":"
-      << pressure.sec_600 << " swapfree=" << swapfree / 1024 / 1024 << "MB/"
+      << pressure.sec_300 << " swapfree=" << swapfree / 1024 / 1024 << "MB/"
       << swaptotal / 1024 / 1024 << "MB pgscan=" << pgscan;
   OLOG << oss.str();
 }

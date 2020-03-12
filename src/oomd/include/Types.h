@@ -57,7 +57,7 @@ struct IOCostCoeffs {
 struct ResourcePressure {
   float sec_10{0};
   float sec_60{0};
-  float sec_600{0};
+  float sec_300{0};
   std::optional<std::chrono::microseconds> total{std::nullopt};
 };
 

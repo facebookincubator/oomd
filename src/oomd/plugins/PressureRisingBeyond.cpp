@@ -104,10 +104,10 @@ Engine::PluginRet PressureRisingBeyond::run(OomdContext& ctx) {
         // No default case to catch for future additions to ResourceType
     }
 
-    // Do a weighted comparison (we care more about 10s, then 60s, then 600s)
-    if (rp.sec_10 * 3 + rp.sec_60 * 2 + rp.sec_600 >
+    // Do a weighted comparison (we care more about 10s, then 60s, then 300s)
+    if (rp.sec_10 * 3 + rp.sec_60 * 2 + rp.sec_300 >
         current_pressure.sec_10 * 3 + current_pressure.sec_60 * 2 +
-            current_pressure.sec_600) {
+            current_pressure.sec_300) {
       current_pressure = rp;
       current_memory_usage = state_pair.second.current_usage;
     }
