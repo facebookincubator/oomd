@@ -106,30 +106,6 @@ bool& Stats::isInitInternal() {
 
 bool Stats::startSocket() {
   std::array<char, 64> err_buf = {};
-  size_t dir_end = stats_socket_path_.find_last_of("/");
-  // Iteratively checks if dirs in path exist, creates them if not
-  if (dir_end != std::string::npos) {
-    std::string dirs = stats_socket_path_.substr(0, dir_end);
-    size_t pos = 0;
-    if (dirs[0] == '/') {
-      pos++;
-    }
-    while (pos < dirs.size()) {
-      pos = dirs.find('/', pos);
-      if (pos == std::string::npos) {
-        pos = dir_end;
-      }
-      std::string curr_path = dirs.substr(0, pos);
-      int res = ::mkdir(curr_path.c_str(), S_IRWXU | S_IRWXG | S_IRWXO);
-      if (res != 0 && errno != EEXIST) {
-        OLOG << "Making socket dir error: "
-             << ::strerror_r(errno, err_buf.data(), err_buf.size()) << ": "
-             << curr_path;
-        return false;
-      }
-      pos++;
-    }
-  }
 
   sockfd_ = ::socket(AF_UNIX, SOCK_STREAM, 0);
   if (sockfd_ < 0) {

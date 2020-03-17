@@ -48,10 +48,6 @@ It can be also be queried from a different process using the StatsClient class.
 
   Command line flags:
 
-#####  `-s [SOCKET_PATH]`
-
-  If a custom socket path was chosen for the stats collection, include it here.
-
 ##### `-d`
 
   Dumps all accumulated stats to stdout in a JSON string.
