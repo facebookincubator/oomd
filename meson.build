@@ -92,6 +92,7 @@ executable('oomd',
            files('src/oomd/Main.cpp'),
            include_directories : inc,
            cpp_args : cpp_args,
+           link_args : ['-lstdc++fs'],
            dependencies : deps,
            install: true,
            link_whole : oomd_lib)

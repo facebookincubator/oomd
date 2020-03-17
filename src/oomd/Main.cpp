@@ -16,9 +16,15 @@
  */
 
 #include <json/value.h>
+#include <sys/file.h>
 #include <sys/types.h>
 #include <sys/unistd.h>
 #include <cstring>
+#ifdef MESON_BUILD
+#include <filesystem>
+#else
+#include <experimental/filesystem>
+#endif
 #include <fstream>
 #include <iostream>
 #include <sstream>
@@ -47,9 +53,17 @@
 #define GIT_VERSION "unknown"
 #endif
 
+#ifdef MESON_BUILD
+namespace fs = std::filesystem;
+#else
+namespace fs = std::experimental::filesystem;
+#endif
+
 static constexpr auto kConfigFilePath = "/etc/oomd.json";
 static constexpr auto kCgroupFsRoot = "/sys/fs/cgroup";
-static constexpr auto kSocketPath = "/run/oomd/oomd-stats.socket";
+static constexpr auto kRuntimeDir = "/run/oomd";
+static constexpr auto kRuntimeLock = "oomd.lock";
+static constexpr auto kStatsSocket = "oomd-stats.socket";
 static constexpr auto kKmsgPath = "/dev/kmsg";
 static const struct Oomd::IOCostCoeffs default_hdd_coeffs = {
     .read_iops = 1.31e-3,
@@ -80,7 +94,7 @@ static void printUsage() {
          "  --check-config, -c CONFIG  Check config file (default: /etc/oomd.json)\n"
          "  --list-plugins, -l         List all available plugins\n"
          "  --drop-in-dir, -w DIR      Directory to watch for drop in configs\n"
-         "  --socket-path, -s PATH     Specify stats socket path (default: /run/oomd/oomd-stats.socket)\n"
+         "  --runtime-dir, -D PATH     Directory for runtime files (default: /run/oomd)\n"
          "  --dump-stats, -d           Dump accumulated stats\n"
          "  --reset-stats, -r          Reset stats collection\n"
          "  --device DEVS              Comma separated <major>:<minor> pairs for IO cost calculation (default: none)\n"
@@ -170,6 +184,39 @@ static void initializeCoreStats() {
   }
 }
 
+static bool initRuntimeDir(const fs::path& runtime_dir) {
+  std::array<char, 64> err_buf = {};
+  std::error_code ec;
+
+  // Ignore return value of fs::create_directories because it indicates
+  // whether directories were created or not. We don't care about this
+  // information, only whether or not the directories exist without error
+  // after the call.
+  fs::create_directories(runtime_dir);
+  if (ec) {
+    OLOG << "Failed to create runtime directory=" << runtime_dir << ": " << ec;
+    return false;
+  }
+
+  fs::path lockfile = runtime_dir / kRuntimeLock;
+
+  // Don't bother storing file lock FD. Just let it close when process exits.
+  int lockfd = ::open(lockfile.c_str(), O_CREAT, S_IRUSR | S_IWUSR);
+  if (lockfd < 0) {
+    OLOG << "Failed to open lock file=" << lockfile << ": "
+         << ::strerror_r(errno, err_buf.data(), err_buf.size());
+    return false;
+  }
+
+  if (::flock(lockfd, LOCK_EX | LOCK_NB)) {
+    OLOG << "Failed to acquire exclusive runtime lock=" << lockfile << ": "
+         << ::strerror_r(errno, err_buf.data(), err_buf.size());
+    return false;
+  }
+
+  return true;
+}
+
 enum MainOptions {
   OPT_DEVICE = 256, // avoid collision with char
   OPT_SSD_COEFFS,
@@ -180,7 +227,8 @@ int main(int argc, char** argv) {
   std::string flag_conf_file = kConfigFilePath;
   std::string cgroup_fs = kCgroupFsRoot;
   std::string drop_in_dir;
-  std::string stats_socket_path = kSocketPath;
+  std::string runtime_dir = std::string(kRuntimeDir);
+  std::string stats_socket_path = runtime_dir + "/" + kStatsSocket;
   std::string dev_id;
   std::string kmsg_path = kKmsgPath;
   int interval = 5;
@@ -194,7 +242,7 @@ int main(int argc, char** argv) {
   struct Oomd::IOCostCoeffs hdd_coeffs = default_hdd_coeffs;
   struct Oomd::IOCostCoeffs ssd_coeffs = default_ssd_coeffs;
 
-  const char* const short_options = "hvC:w:i:f:c:ls:dr";
+  const char* const short_options = "hvC:w:i:f:c:lD:dr";
   option long_options[] = {
       option{"help", no_argument, nullptr, 'h'},
       option{"version", no_argument, nullptr, 'v'},
@@ -204,7 +252,7 @@ int main(int argc, char** argv) {
       option{"check-config", required_argument, nullptr, 'c'},
       option{"list-plugins", no_argument, nullptr, 'l'},
       option{"drop-in-dir", required_argument, nullptr, 'w'},
-      option{"socket-path", required_argument, nullptr, 's'},
+      option{"runtime-dir", required_argument, nullptr, 'D'},
       option{"dump-stats", no_argument, nullptr, 'd'},
       option{"reset-stats", no_argument, nullptr, 'r'},
       option{"device", required_argument, nullptr, OPT_DEVICE},
@@ -257,8 +305,9 @@ int main(int argc, char** argv) {
       case 'f':
         cgroup_fs = std::string(optarg);
         break;
-      case 's':
-        stats_socket_path = std::string(optarg);
+      case 'D':
+        runtime_dir = std::string(optarg);
+        stats_socket_path = runtime_dir + "/" + kStatsSocket;
         break;
       case 'd':
         should_dump_stats = true;
@@ -378,6 +427,14 @@ int main(int argc, char** argv) {
     }
 
     return 0;
+  }
+
+  //
+  // Daemon code below here
+  //
+
+  if (!initRuntimeDir(runtime_dir)) {
+    return 1;
   }
 
   // NB: do not start stats module unless we are going to daemonize
