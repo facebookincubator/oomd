@@ -363,13 +363,6 @@ int main(int argc, char** argv) {
     return 1;
   }
 
-  if (!Oomd::Stats::init(stats_socket_path)) {
-    OLOG << "Stats module failed to initialize";
-    return 1;
-  }
-
-  initializeCoreStats();
-
   if (should_check_config) {
     auto ir = parseConfig(flag_conf_file);
     if (!ir) {
@@ -386,6 +379,14 @@ int main(int argc, char** argv) {
 
     return 0;
   }
+
+  // NB: do not start stats module unless we are going to daemonize
+  if (!Oomd::Stats::init(stats_socket_path)) {
+    OLOG << "Stats module failed to initialize";
+    return 1;
+  }
+
+  initializeCoreStats();
 
   if (!system_reqs_met()) {
     std::cerr << "System requirements not met\n";
