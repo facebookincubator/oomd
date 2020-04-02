@@ -24,6 +24,10 @@ of flexibility where each workload can have custom protection rules.
 Furthermore, time spent livedlocked in kernelspace is minimized. In practice at
 Facebook, we've regularly seen 30 minute host lockups go away entirely.
 
+## Installing on Debian or Ubuntu
+
+`# apt install oomd`
+
 ## Installing from RPMs on Fedora
 
 RPMs are currently available for Fedora 30+ from a COPR repository.
