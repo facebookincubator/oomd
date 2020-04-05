@@ -24,7 +24,7 @@ of flexibility where each workload can have custom protection rules.
 Furthermore, time spent livedlocked in kernelspace is minimized. In practice at
 Facebook, we've regularly seen 30 minute host lockups go away entirely.
 
-## Installing on Debian or Ubuntu
+## Installing on Debian 11+ or Ubuntu 20.04+
 
 `# apt install oomd`
 
