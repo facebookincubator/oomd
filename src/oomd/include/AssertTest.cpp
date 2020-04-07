@@ -22,8 +22,6 @@
 
 #include "oomd/include/Assert.h"
 
-using namespace testing;
-
 TEST(OomdAssertTest, Death) {
   // Shouldn't die
   OCHECK(true);

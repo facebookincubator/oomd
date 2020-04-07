@@ -14,7 +14,6 @@
 #include <oomd/util/Util.h>
 
 using namespace Oomd;
-using namespace testing;
 
 class FixtureTest : public ::testing::Test {
  protected:

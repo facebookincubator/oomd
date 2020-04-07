@@ -22,7 +22,6 @@
 
 #include "oomd/fixtures/FsFixture.h"
 #include "oomd/util/Fs.h"
-#include "oomd/util/Util.h"
 
 using namespace Oomd;
 using namespace testing;

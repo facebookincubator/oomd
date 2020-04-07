@@ -27,7 +27,6 @@
 #include "oomd/OomdContext.h"
 
 using namespace Oomd;
-using namespace testing;
 
 class MockLog : public LogBase {
  public:

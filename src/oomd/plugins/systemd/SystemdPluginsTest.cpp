@@ -23,7 +23,6 @@
 #include "oomd/plugins/systemd/SystemdRestart.h"
 
 using namespace Oomd;
-using namespace testing;
 
 namespace Oomd {
 class BaseSystemdPluginMock : public BaseSystemdPlugin {

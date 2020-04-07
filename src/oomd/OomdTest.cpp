@@ -26,7 +26,6 @@
 #include "oomd/util/Fs.h"
 
 using namespace Oomd;
-using namespace testing;
 
 // TODO: Use std::filesystem once it doesn't require header/ifdef/linker
 // shenanigans to reliably work on modernish GCC/Clang

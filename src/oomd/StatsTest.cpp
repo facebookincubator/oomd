@@ -24,11 +24,9 @@
 #include <iostream>
 #include "oomd/StatsClient.h"
 
-#include "oomd/util/ScopeGuard.h"
 #include "oomd/util/Util.h"
 
 using namespace Oomd;
-using namespace testing;
 
 namespace {
 std::optional<Json::Value> parseJson(const std::string& input) {

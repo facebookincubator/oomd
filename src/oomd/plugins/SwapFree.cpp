@@ -19,7 +19,6 @@
 
 #include "oomd/Log.h"
 #include "oomd/PluginRegistry.h"
-#include "oomd/include/Assert.h"
 
 namespace Oomd {
 

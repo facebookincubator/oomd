@@ -23,7 +23,6 @@
 #include <exception>
 
 using namespace Oomd;
-using namespace testing;
 
 TEST(ScopeGuardTest, InnerScope) {
   int x = 5;

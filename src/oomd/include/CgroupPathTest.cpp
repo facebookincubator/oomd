@@ -22,7 +22,6 @@
 
 #include "oomd/include/CgroupPath.h"
 
-using namespace testing;
 using namespace Oomd;
 
 TEST(CgroupPathTest, ConstructorsTest) {

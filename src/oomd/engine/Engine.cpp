@@ -21,7 +21,6 @@
 
 #include "oomd/Log.h"
 #include "oomd/Stats.h"
-#include "oomd/include/Assert.h"
 #include "oomd/include/CoreStats.h"
 
 namespace Oomd {

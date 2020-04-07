@@ -24,7 +24,6 @@
 #include "oomd/config/JsonConfigParser.h"
 
 using namespace Oomd::Config2;
-using namespace testing;
 
 constexpr auto kConfig_1_0_0 = "oomd/fixtures/oomd.json";
 
