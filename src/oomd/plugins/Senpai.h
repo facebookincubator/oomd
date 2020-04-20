@@ -82,7 +82,7 @@ class Senpai : public Engine::BasePlugin {
   bool has_memory_high_tmp_{true};
 
   // cgroup size limits
-  uint64_t limit_min_bytes_{1ull << 30};
+  uint64_t limit_min_bytes_{100ull << 20};
   uint64_t limit_max_bytes_{500ull << 30};
   // pressure target - stall time over sampling period
   uint64_t interval_{6};
