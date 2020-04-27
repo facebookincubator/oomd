@@ -63,6 +63,33 @@ PsiFormat getPsiFormat(const std::vector<std::string>& lines) {
 
 namespace Oomd {
 
+Fs::Fd Fs::Fd::open(const std::string& path) {
+  return Fd(::open(path.c_str(), O_RDONLY));
+}
+
+Fs::Fd Fs::Fd::openat(const DirFd& dirfd, const std::string& path) {
+  return Fd(::openat(dirfd.fd(), path.c_str(), O_RDONLY));
+}
+
+void Fs::Fd::close() {
+  if (isValid()) {
+    ::close(fd_);
+  }
+}
+
+bool Fs::Fd::checkValid() {
+  struct stat buf;
+  if (::fstat(fd_, &buf) != 0) {
+    this->close();
+    fd_ = -1;
+  }
+  return isValid();
+}
+
+Fs::DirFd Fs::DirFd::open(const std::string& path) {
+  return DirFd(::open(path.c_str(), O_RDONLY | O_DIRECTORY));
+}
+
 struct Fs::DirEnts Fs::readDir(const std::string& path, int flags) {
   DIR* d;
   struct Fs::DirEnts de;
@@ -226,37 +253,62 @@ std::vector<std::string> Fs::readFileByLine(const std::string& path) {
   return v;
 }
 
-std::vector<std::string> Fs::readControllers(const std::string& path) {
-  std::vector<std::string> controllers;
-  auto lines = readFileByLine(path + "/" + kControllersFile);
-  if (!lines.size()) {
-    return controllers;
+std::vector<std::string> Fs::readFileByLine(Fd&& fd) {
+  if (!fd.isValid()) {
+    return {};
   }
-
-  controllers = Util::split(lines[0], ' ');
-
-  return controllers;
+  auto fp = fdopen(fd.fd(), "r");
+  if (fp == nullptr) {
+    return {};
+  }
+  std::vector<std::string> v;
+  char* line = nullptr;
+  size_t len = 0;
+  ssize_t read;
+  while ((read = ::getline(&line, &len, fp)) != -1) {
+    OCHECK(line != nullptr);
+    if (read > 0 && line[read - 1] == '\n') {
+      v.emplace_back(line, read - 1);
+    } else {
+      v.emplace_back(line);
+    }
+  }
+  ::free(line);
+  ::fclose(fp);
+  return v;
 }
 
-std::vector<int> Fs::getPids(const std::string& path, bool recursive) {
+std::vector<std::string> Fs::readControllers(const std::string& path) {
+  auto lines = readFileByLine(path + "/" + kControllersFile);
+  if (!lines.size()) {
+    return {};
+  }
+  return Util::split(lines[0], ' ');
+}
+
+std::vector<std::string> Fs::readControllersAt(const DirFd& dirfd) {
+  auto lines = readFileByLine(Fs::Fd::openat(dirfd, kControllersFile));
+  if (!lines.size()) {
+    return {};
+  }
+  return Util::split(lines[0], ' ');
+}
+
+std::vector<int> Fs::getPids(const std::string& path) {
   std::vector<int> pids;
-  auto de = readDir(path, DE_FILE | DE_DIR);
-  if (std::any_of(de.files.begin(), de.files.end(), [](const std::string& s) {
-        return s == kProcsFile;
-      })) {
-    auto str_pids = readFileByLine(path + "/" + kProcsFile);
-    for (const auto& sp : str_pids) {
-      pids.push_back(std::stoi(sp));
-    }
+  auto str_pids = readFileByLine(path + "/" + kProcsFile);
+  for (const auto& sp : str_pids) {
+    pids.push_back(std::stoi(sp));
   }
+  return pids;
+}
 
-  if (recursive) {
-    for (const auto& dir : de.dirs) {
-      auto recursive_pids = getPids(path + "/" + dir, true);
-      pids.insert(pids.end(), recursive_pids.begin(), recursive_pids.end());
-    }
+std::vector<int> Fs::getPidsAt(const DirFd& dirfd) {
+  std::vector<int> pids;
+  auto str_pids = readFileByLine(Fs::Fd::openat(dirfd, kProcsFile));
+  for (const auto& sp : str_pids) {
+    pids.push_back(std::stoi(sp));
   }
-
   return pids;
 }
 
@@ -270,11 +322,9 @@ std::string Fs::pressureTypeToString(PressureType type) {
   throw std::runtime_error("Invalid PressureType. Code should not be reached");
 }
 
-ResourcePressure Fs::readRespressure(
-    const std::string& path,
+ResourcePressure Fs::readRespressureFromLines(
+    const std::vector<std::string>& lines,
     PressureType type) {
-  auto lines = readFileByLine(path);
-
   auto type_name = pressureTypeToString(type);
   size_t pressure_line_index = 0;
   switch (type) {
@@ -294,20 +344,15 @@ ResourcePressure Fs::readRespressure(
       // full avg10=0.22 avg60=0.16 avg300=1.08 total=58464525
       std::vector<std::string> toks =
           Util::split(lines[pressure_line_index], ' ');
-      OCHECK_EXCEPT(
-          toks[0] == type_name, bad_control_file(path + ": invalid format"));
+      OCHECK_EXCEPT(toks[0] == type_name, bad_control_file("invalid format"));
       std::vector<std::string> avg10 = Util::split(toks[1], '=');
-      OCHECK_EXCEPT(
-          avg10[0] == "avg10", bad_control_file(path + ": invalid format"));
+      OCHECK_EXCEPT(avg10[0] == "avg10", bad_control_file("invalid format"));
       std::vector<std::string> avg60 = Util::split(toks[2], '=');
-      OCHECK_EXCEPT(
-          avg60[0] == "avg60", bad_control_file(path + ": invalid format"));
+      OCHECK_EXCEPT(avg60[0] == "avg60", bad_control_file("invalid format"));
       std::vector<std::string> avg300 = Util::split(toks[3], '=');
-      OCHECK_EXCEPT(
-          avg300[0] == "avg300", bad_control_file(path + ": invalid format"));
+      OCHECK_EXCEPT(avg300[0] == "avg300", bad_control_file("invalid format"));
       std::vector<std::string> total = Util::split(toks[4], '=');
-      OCHECK_EXCEPT(
-          total[0] == "total", bad_control_file(path + ": invalid format"));
+      OCHECK_EXCEPT(total[0] == "total", bad_control_file("invalid format"));
 
       return ResourcePressure{
           std::stof(avg10[1]),
@@ -324,8 +369,7 @@ ResourcePressure Fs::readRespressure(
       // full 0.00 0.03 0.05
       std::vector<std::string> toks =
           Util::split(lines[pressure_line_index + 1], ' ');
-      OCHECK_EXCEPT(
-          toks[0] == type_name, bad_control_file(path + ": invalid format"));
+      OCHECK_EXCEPT(toks[0] == type_name, bad_control_file("invalid format"));
 
       return ResourcePressure{
           std::stof(toks[1]),
@@ -336,45 +380,56 @@ ResourcePressure Fs::readRespressure(
     }
     case PsiFormat::MISSING:
       // Missing the control file
-      throw bad_control_file(path + ": missing file");
+      throw bad_control_file("missing file");
     case PsiFormat::INVALID:
-      throw bad_control_file(path + ": invalid format");
+      throw bad_control_file("invalid format");
   }
 
   // To silence g++ compiler warning about enums
   throw std::runtime_error("Not all enums handled");
 }
 
+int64_t Fs::readRootMemcurrent() {
+  auto meminfo = getMeminfo("/proc/meminfo");
+  return meminfo["MemTotal"] - meminfo["MemFree"];
+}
+
 int64_t Fs::readMemcurrent(const std::string& path) {
-  if (path == "/") {
-    auto meminfo = getMeminfo("/proc/meminfo");
-    return meminfo["MemTotal"] - meminfo["MemFree"];
-  } else {
-    auto lines = readFileByLine(path + "/" + kMemCurrentFile);
-    OCHECK_EXCEPT(lines.size() == 1, bad_control_file(path + ": missing file"));
-    return static_cast<int64_t>(std::stoll(lines[0]));
+  auto lines = readFileByLine(path + "/" + kMemCurrentFile);
+  OCHECK_EXCEPT(lines.size() == 1, bad_control_file(path + ": missing file"));
+  return static_cast<int64_t>(std::stoll(lines[0]));
+}
+
+int64_t Fs::readMemcurrentAt(const DirFd& dirfd) {
+  auto lines = readFileByLine(Fs::Fd::openat(dirfd, kMemCurrentFile));
+  OCHECK_EXCEPT(lines.size() == 1, bad_control_file("missing file"));
+  return static_cast<int64_t>(std::stoll(lines[0]));
+}
+
+ResourcePressure Fs::readRootMempressure(PressureType type) {
+  try {
+    auto lines = readFileByLine("/proc/pressure/memory");
+    return readRespressureFromLines(lines, type);
+  } catch (const bad_control_file& e) {
+    auto lines = readFileByLine("/proc/mempressure");
+    return readRespressureFromLines(lines, type);
   }
 }
 
 ResourcePressure Fs::readMempressure(
     const std::string& path,
     PressureType type) {
-  if (path == "/") {
-    try {
-      return readRespressure("/proc/pressure/memory", type);
-    } catch (const bad_control_file& e) {
-      return readRespressure("/proc/mempressure", type);
-    }
-  } else {
-    return readRespressure(path + "/" + kMemPressureFile, type);
-  }
+  auto lines = readFileByLine(path + "/" + kMemPressureFile);
+  return readRespressureFromLines(lines, type);
 }
 
-int64_t Fs::readMinMaxLowHigh(
-    const std::string& path,
-    const std::string& file) {
-  auto lines = readFileByLine(path + "/" + file);
-  OCHECK_EXCEPT(lines.size() == 1, bad_control_file(path + ": missing file"));
+ResourcePressure Fs::readMempressureAt(const DirFd& dirfd, PressureType type) {
+  auto lines = readFileByLine(Fs::Fd::openat(dirfd, kMemPressureFile));
+  return readRespressureFromLines(lines, type);
+}
+
+int64_t Fs::readMinMaxLowHighFromLines(const std::vector<std::string>& lines) {
+  OCHECK_EXCEPT(lines.size() == 1, bad_control_file("missing file"));
   if (lines[0] == "max") {
     return std::numeric_limits<int64_t>::max();
   }
@@ -382,31 +437,63 @@ int64_t Fs::readMinMaxLowHigh(
 }
 
 int64_t Fs::readMemlow(const std::string& path) {
-  return Fs::readMinMaxLowHigh(path, kMemLowFile);
+  auto lines = readFileByLine(path + "/" + kMemLowFile);
+  return Fs::readMinMaxLowHighFromLines(lines);
+}
+
+int64_t Fs::readMemlowAt(const DirFd& dirfd) {
+  auto lines = readFileByLine(Fs::Fd::openat(dirfd, kMemLowFile));
+  return Fs::readMinMaxLowHighFromLines(lines);
 }
 
 int64_t Fs::readMemhigh(const std::string& path) {
-  return Fs::readMinMaxLowHigh(path, kMemHighFile);
+  auto lines = readFileByLine(path + "/" + kMemHighFile);
+  return Fs::readMinMaxLowHighFromLines(lines);
+}
+
+int64_t Fs::readMemhighAt(const DirFd& dirfd) {
+  auto lines = readFileByLine(Fs::Fd::openat(dirfd, kMemHighFile));
+  return Fs::readMinMaxLowHighFromLines(lines);
 }
 
 int64_t Fs::readMemmax(const std::string& path) {
-  return Fs::readMinMaxLowHigh(path, kMemMaxFile);
+  auto lines = readFileByLine(path + "/" + kMemMaxFile);
+  return Fs::readMinMaxLowHighFromLines(lines);
 }
 
-int64_t Fs::readMemhightmp(const std::string& path) {
-  auto lines = readFileByLine(path + "/" + kMemHighTmpFile);
-  OCHECK_EXCEPT(lines.size() == 1, bad_control_file(path + ": missing file"));
+int64_t Fs::readMemmaxAt(const DirFd& dirfd) {
+  auto lines = readFileByLine(Fs::Fd::openat(dirfd, kMemMaxFile));
+  return Fs::readMinMaxLowHighFromLines(lines);
+}
+
+int64_t Fs::readMemhightmpFromLines(const std::vector<std::string>& lines) {
+  OCHECK_EXCEPT(lines.size() == 1, bad_control_file("missing file"));
   auto tokens = Util::split(lines[0], ' ');
-  OCHECK_EXCEPT(
-      tokens.size() == 2, bad_control_file(path + ": invalid format"));
+  OCHECK_EXCEPT(tokens.size() == 2, bad_control_file("invalid format"));
   if (tokens[0] == "max") {
     return std::numeric_limits<int64_t>::max();
   }
   return static_cast<int64_t>(std::stoll(tokens[0]));
 }
 
+int64_t Fs::readMemhightmp(const std::string& path) {
+  auto lines = readFileByLine(path + "/" + kMemHighTmpFile);
+  return readMemhightmpFromLines(lines);
+}
+
+int64_t Fs::readMemhightmpAt(const DirFd& dirfd) {
+  auto lines = readFileByLine(Fs::Fd::openat(dirfd, kMemHighTmpFile));
+  return readMemhightmpFromLines(lines);
+}
+
 int64_t Fs::readMemmin(const std::string& path) {
-  return Fs::readMinMaxLowHigh(path, kMemMinFile);
+  auto lines = readFileByLine(path + "/" + kMemMinFile);
+  return Fs::readMinMaxLowHighFromLines(lines);
+}
+
+int64_t Fs::readMemminAt(const DirFd& dirfd) {
+  auto lines = readFileByLine(Fs::Fd::openat(dirfd, kMemMinFile));
+  return Fs::readMinMaxLowHighFromLines(lines);
 }
 
 int64_t Fs::readSwapCurrent(const std::string& path) {
@@ -418,6 +505,12 @@ int64_t Fs::readSwapCurrent(const std::string& path) {
   } else {
     return 0;
   }
+}
+
+int64_t Fs::readSwapCurrentAt(const DirFd& dirfd) {
+  auto lines = readFileByLine(Fs::Fd::openat(dirfd, kMemSwapCurrentFile));
+  // The swap controller can be disabled via CONFIG_MEMCG_SWAP=n
+  return lines.size() == 1 ? static_cast<int64_t>(std::stoll(lines[0])) : 0;
 }
 
 std::unordered_map<std::string, int64_t> Fs::getVmstat(
@@ -460,13 +553,12 @@ std::unordered_map<std::string, int64_t> Fs::getMeminfo(
   return map;
 }
 
-std::unordered_map<std::string, int64_t> Fs::getMemstatLike(
-    const std::string& file) {
+std::unordered_map<std::string, int64_t> Fs::getMemstatLikeFromLines(
+    const std::vector<std::string>& lines) {
   char name[256] = {0};
   uint64_t val;
   std::unordered_map<std::string, int64_t> map;
 
-  auto lines = readFileByLine(file);
   for (const auto& line : lines) {
     int ret = sscanf(line.c_str(), "%255s %" SCNu64 "\n", name, &val);
     if (ret == 2) {
@@ -479,22 +571,33 @@ std::unordered_map<std::string, int64_t> Fs::getMemstatLike(
 
 std::unordered_map<std::string, int64_t> Fs::getMemstat(
     const std::string& path) {
-  return getMemstatLike(path + "/" + kMemStatFile);
+  auto lines = readFileByLine(path + "/" + kMemStatFile);
+  return getMemstatLikeFromLines(lines);
+}
+
+std::unordered_map<std::string, int64_t> Fs::getMemstatAt(const DirFd& dirfd) {
+  auto lines = readFileByLine(Fs::Fd::openat(dirfd, kMemStatFile));
+  return getMemstatLikeFromLines(lines);
+}
+
+ResourcePressure Fs::readRootIopressure(PressureType type) {
+  auto lines = readFileByLine("/proc/pressure/io");
+  return readRespressureFromLines(lines, type);
 }
 
 ResourcePressure Fs::readIopressure(
     const std::string& path,
     PressureType type) {
-  if (path == "/") {
-    return readRespressure("/proc/pressure/io", type);
-  } else {
-    return readRespressure(path + "/" + kIoPressureFile, type);
-  }
+  auto lines = readFileByLine(path + "/" + kIoPressureFile);
+  return readRespressureFromLines(lines, type);
 }
 
-IOStat Fs::readIostat(const std::string& path) {
-  const auto& io_stat_path = path + "/" + kIoStatFile;
-  auto lines = readFileByLine(io_stat_path);
+ResourcePressure Fs::readIopressureAt(const DirFd& dirfd, PressureType type) {
+  auto lines = readFileByLine(Fs::Fd::openat(dirfd, kIoPressureFile));
+  return readRespressureFromLines(lines, type);
+}
+
+IOStat Fs::readIostatFromLines(const std::vector<std::string>& lines) {
   std::vector<DeviceIOStat> io_stat;
   io_stat.reserve(lines.size());
 
@@ -517,11 +620,21 @@ IOStat Fs::readIostat(const std::string& path) {
         &dev_io_stat.dbytes,
         &dev_io_stat.dios);
 
-    OCHECK_EXCEPT(ret == 8, bad_control_file(path + ": invalid format"));
+    OCHECK_EXCEPT(ret == 8, bad_control_file("invalid format"));
     dev_io_stat.dev_id = std::to_string(major) + ":" + std::to_string(minor);
     io_stat.push_back(dev_io_stat);
   }
   return io_stat;
+}
+
+IOStat Fs::readIostat(const std::string& path) {
+  auto lines = readFileByLine(path + "/" + kIoStatFile);
+  return readIostatFromLines(lines);
+}
+
+IOStat Fs::readIostatAt(const DirFd& dirfd) {
+  auto lines = readFileByLine(Fs::Fd::openat(dirfd, kIoStatFile));
+  return readIostatFromLines(lines);
 }
 
 void Fs::writeMemhigh(const std::string& path, int64_t value) {
@@ -564,7 +677,15 @@ void Fs::writeMemhightmp(
 }
 
 int64_t Fs::getNrDyingDescendants(const std::string& path) {
-  auto map = getMemstatLike(path + "/" + kCgroupStatFile);
+  auto lines = readFileByLine(path + "/" + kCgroupStatFile);
+  auto map = getMemstatLikeFromLines(lines);
+  // Will return 0 for missing entries
+  return map["nr_dying_descendants"];
+}
+
+int64_t Fs::getNrDyingDescendantsAt(const DirFd& dirfd) {
+  auto lines = readFileByLine(Fs::Fd::openat(dirfd, kCgroupStatFile));
+  auto map = getMemstatLikeFromLines(lines);
   // Will return 0 for missing entries
   return map["nr_dying_descendants"];
 }

@@ -216,7 +216,11 @@ ResourcePressure Oomd::readIopressureWarnOnce(const std::string& path) {
 
   try {
     if (!warned_io_pressure_.count(path)) {
-      io_pressure = Fs::readIopressure(path);
+      if (path == "/") {
+        io_pressure = Fs::readRootIopressure();
+      } else {
+        io_pressure = Fs::readIopressure(path);
+      }
     }
   } catch (const std::exception& ex) {
     warned_io_pressure_.emplace(path);
@@ -229,9 +233,9 @@ ResourcePressure Oomd::readIopressureWarnOnce(const std::string& path) {
 bool Oomd::updateContextRoot(const CgroupPath& path, OomdContext& ctx) {
   // Note we not not collect _every_ piece of data that makes
   // sense for the root host. Feel free to add more as needed.
-  auto pressures = Fs::readMempressure("/");
+  auto pressures = Fs::readRootMempressure();
   auto io_pressure = readIopressureWarnOnce("/");
-  auto current = Fs::readMemcurrent("/");
+  auto current = Fs::readRootMemcurrent();
   auto nr_dying_descendants = Fs::getNrDyingDescendants(path.cgroupFs());
 
   ctx.setCgroupContext(

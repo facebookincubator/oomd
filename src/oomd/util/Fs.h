@@ -71,6 +71,57 @@ class Fs {
     FULL,
   };
 
+  class DirFd;
+  /*
+   * Wrapper class for file descriptor that supports auto closing.
+   * Fd is opened read-only as currently that's the only use case.
+   */
+  class Fd {
+   public:
+    static Fd open(const std::string& path);
+    static Fd openat(const DirFd& dirfd, const std::string& path);
+
+    Fd() = default;
+    Fd(const Fd& other) = delete;
+    Fd(Fd&& other) noexcept {
+      *this = std::move(other);
+    }
+    Fd& operator=(const Fd& other) = delete;
+    Fd& operator=(Fd&& other) {
+      fd_ = other.fd_;
+      other.fd_ = -1;
+      return *this;
+    }
+    ~Fd() {
+      this->close();
+    }
+
+    int fd() const {
+      return fd_;
+    }
+    bool isValid() const {
+      return fd_ >= 0;
+    }
+    // Check with FS if the fd is still valid and invalidate if necessary.
+    bool checkValid();
+
+   protected:
+    explicit Fd(int fd) : fd_(fd) {}
+    void close();
+    int fd_{-1};
+  };
+
+  /*
+   * Wrapper class for directory file descriptor that supports auto closing.
+   */
+  class DirFd : public Fd {
+   public:
+    static DirFd open(const std::string& path);
+
+   protected:
+    explicit DirFd(int fd) : Fd(fd) {}
+  };
+
   /*
    * Reads a directory and returns the names of the requested entry types
    * Won't return any dotfiles (including ./ and ../)
@@ -98,33 +149,57 @@ class Fs {
 
   /* Reads a file and returns a newline separated vector of strings */
   static std::vector<std::string> readFileByLine(const std::string& path);
+  /*
+   * Same as variant taking string as argument except rvalue Fd is used, which
+   * will be closed right after the call as it is read as a whole and we don't
+   * seek offsets on Fd.
+   */
+  static std::vector<std::string> readFileByLine(Fd&& fd);
 
   static std::vector<std::string> readControllers(const std::string& path);
+  static std::vector<std::string> readControllersAt(const DirFd& dirfd);
 
-  static std::vector<int> getPids(
-      const std::string& path,
-      bool recursive = false);
+  static std::vector<int> getPids(const std::string& path);
+  static std::vector<int> getPidsAt(const DirFd& dirfd);
 
   static std::string pressureTypeToString(PressureType type);
   /* Helpers to read PSI files */
-  static ResourcePressure readRespressure(
-      const std::string& path,
+  static ResourcePressure readRespressureFromLines(
+      const std::vector<std::string>& lines,
       PressureType type = PressureType::FULL);
+  static int64_t readRootMemcurrent();
   static int64_t readMemcurrent(const std::string& path);
+  static int64_t readMemcurrentAt(const DirFd& dirfd);
+  static ResourcePressure readRootMempressure(
+      PressureType type = PressureType::FULL);
   static ResourcePressure readMempressure(
       const std::string& path,
       PressureType type = PressureType::FULL);
-  static int64_t readMinMaxLowHigh(
-      const std::string& path,
-      const std::string& file);
+  static ResourcePressure readMempressureAt(
+      const DirFd& dirfd,
+      PressureType type = PressureType::FULL);
+  static int64_t readMinMaxLowHighFromLines(
+      const std::vector<std::string>& lines);
+  static int64_t readMemhightmpFromLines(const std::vector<std::string>& lines);
   static int64_t readMemlow(const std::string& path);
+  static int64_t readMemlowAt(const DirFd& dirfd);
   static int64_t readMemhigh(const std::string& path);
+  static int64_t readMemhighAt(const DirFd& dirfd);
   static int64_t readMemmax(const std::string& path);
+  static int64_t readMemmaxAt(const DirFd& dirfd);
   static int64_t readMemhightmp(const std::string& path);
+  static int64_t readMemhightmpAt(const DirFd& dirfd);
   static int64_t readMemmin(const std::string& path);
+  static int64_t readMemminAt(const DirFd& dirfd);
   static int64_t readSwapCurrent(const std::string& path);
+  static int64_t readSwapCurrentAt(const DirFd& dirfd);
+  static ResourcePressure readRootIopressure(
+      PressureType type = PressureType::FULL);
   static ResourcePressure readIopressure(
       const std::string& path,
+      PressureType type = PressureType::FULL);
+  static ResourcePressure readIopressureAt(
+      const DirFd& dirfd,
       PressureType type = PressureType::FULL);
 
   static void writeMemhigh(const std::string& path, int64_t value);
@@ -134,8 +209,10 @@ class Fs {
       std::chrono::microseconds duration);
 
   static int64_t getNrDyingDescendants(const std::string& path);
+  static int64_t getNrDyingDescendantsAt(const DirFd& dirfd);
 
   static IOStat readIostat(const std::string& path);
+  static IOStat readIostatAt(const DirFd& dirfd);
 
   static std::unordered_map<std::string, int64_t> getVmstat(
       const std::string& path = "/proc/vmstat");
@@ -145,6 +222,8 @@ class Fs {
 
   static std::unordered_map<std::string, int64_t> getMemstat(
       const std::string& path);
+  static std::unordered_map<std::string, int64_t> getMemstatAt(
+      const DirFd& dirfd);
 
   // Return root part of cgroup2 from /proc/mounts/
   static std::string getCgroup2MountPoint(
@@ -170,8 +249,9 @@ class Fs {
   static bool hasGlob(const std::string& s);
 
  private:
-  static std::unordered_map<std::string, int64_t> getMemstatLike(
-      const std::string& file);
+  static std::unordered_map<std::string, int64_t> getMemstatLikeFromLines(
+      const std::vector<std::string>& lines);
+  static IOStat readIostatFromLines(const std::vector<std::string>& lines);
 };
 
 } // namespace Oomd
