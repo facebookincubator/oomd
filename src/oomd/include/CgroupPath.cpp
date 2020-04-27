@@ -78,6 +78,20 @@ CgroupPath CgroupPath::getChild(const std::string& path) const {
   return child;
 }
 
+std::vector<CgroupPath> CgroupPath::resolveWildcard() const {
+  std::vector<CgroupPath> ret;
+  for (const auto& path : Fs::glob(absolutePath(), /* dir_only */ true)) {
+    if (path.find(cgroup_fs_) == 0) {
+      if (path.size() == cgroup_fs_.size()) {
+        ret.emplace_back(cgroup_fs_, "");
+      } else if (path[cgroup_fs_.size()] == '/') {
+        ret.emplace_back(cgroup_fs_, path.substr(cgroup_fs_.size() + 1));
+      }
+    }
+  }
+  return ret;
+}
+
 bool CgroupPath::operator==(const CgroupPath& other) const {
   return this->absolutePath() == other.absolutePath();
 }

@@ -41,6 +41,11 @@ class CgroupPath {
 
   CgroupPath getParent() const;
   CgroupPath getChild(const std::string& path) const;
+  /*
+   * Resolve the glob pattern in this CgroupPath to a vector of CgroupPaths that
+   * exist, share the same cgroup fs, and are directories.
+   */
+  std::vector<CgroupPath> resolveWildcard() const;
 
   bool operator==(const CgroupPath& other) const;
   bool operator!=(const CgroupPath& other) const;

@@ -21,6 +21,7 @@
 #include <unordered_map>
 
 #include "oomd/include/CgroupPath.h"
+#include "oomd/util/Fixture.h"
 
 using namespace Oomd;
 
@@ -101,4 +102,28 @@ TEST(CgroupPathTest, HashTest) {
 
   CgroupPath p3("/sys/fs/cgroup", "system.slice");
   EXPECT_EQ(m[p3], 1);
+}
+
+TEST(CgroupPathTest, ResolveWildcardTest) {
+  using F = Fixture;
+  auto tempDir = F::mkdtempChecked();
+  auto [name, fixture] = F::makeDir(
+      "wildcard_root",
+      {F::makeFile("a.txt", "content of a\n"),
+       F::makeDir("b_dir", {}),
+       F::makeFile("c.txt", "content of c\n"),
+       F::makeDir(
+           "d_dir",
+           {
+               F::makeFile("e.txt", "content of e\n"),
+               F::makeDir("e_dir", {}),
+           })});
+  fixture.materialize(tempDir, name);
+
+  CgroupPath p1(tempDir, "wildcard_root/**");
+  auto resolved = p1.resolveWildcard();
+  EXPECT_EQ(resolved.size(), 2);
+  using ::testing::Contains;
+  EXPECT_THAT(resolved, Contains(CgroupPath(tempDir, "wildcard_root/b_dir")));
+  EXPECT_THAT(resolved, Contains(CgroupPath(tempDir, "wildcard_root/d_dir")));
 }
