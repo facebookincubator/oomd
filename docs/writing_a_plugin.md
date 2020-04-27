@@ -26,6 +26,10 @@ the following two methods:
 
       virtual PluginRet run(OomdContext& context) = 0;
 
+and optionally implement:
+
+      virtual void prerun(OomdContext& context){}
+
 ### init(..)
 
 The `init(..)` method is called by the config compiler. The config compiler
@@ -67,6 +71,14 @@ imply doing all of those things are a productive idea).
 that the core oomd runtime has been instructed to monitor. This means that
 cgroups other plugins placed into `resources` in `init(..)` will also be
 available.
+
+### prerun(..)
+
+`prerun(..)` is called by the core oomd runtime each event loop tick, before
+`run(..)` has been called on any plugin. It is guaranteed to be invoked as long
+as the plugin is enabled, even if it is an action plugin and not triggered.
+Therefore, it is designed to execute stateful logic, such as calculating sliding
+window metrics, storing time when a threshold is exceeded, etc.
 
 ## Plugin registration
 

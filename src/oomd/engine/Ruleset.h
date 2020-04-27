@@ -52,6 +52,11 @@ class Ruleset {
   void markDropInUntargeted();
 
   /*
+   * Prerun all plugins in this ruleset.
+   */
+  void prerun(OomdContext& context);
+
+  /*
    * Runs the all the DetectorGroup's. If any of them fires, then begin
    * running the action chain.
    *

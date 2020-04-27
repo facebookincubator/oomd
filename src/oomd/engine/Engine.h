@@ -52,6 +52,11 @@ class Engine {
   void removeDropInConfig(size_t tag);
 
   /*
+   * Preruns every @class Ruleset once.
+   */
+  void prerun(OomdContext& context);
+
+  /*
    * Runs every @class Ruleset once.
    */
   void runOnce(OomdContext& context);

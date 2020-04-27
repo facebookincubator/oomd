@@ -35,6 +35,11 @@ class DetectorGroup {
   ~DetectorGroup() = default;
 
   /*
+   * Prerun all plugins in this detector group.
+   */
+  void prerun(OomdContext& context);
+
+  /*
    * @return true if no @class Detector returns PluginRet::STOP.
    */
   bool check(OomdContext& context, uint32_t silenced_logs);

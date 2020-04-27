@@ -703,6 +703,9 @@ int Oomd::run() {
 
       updateContext(resources_, ctx);
 
+      // Prerun all the plugins
+      engine_->prerun(ctx);
+
       // Run all the plugins
       engine_->runOnce(ctx);
 

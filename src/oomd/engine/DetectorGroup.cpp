@@ -28,6 +28,12 @@ DetectorGroup::DetectorGroup(
     std::vector<std::unique_ptr<BasePlugin>> detectors)
     : name_(name), detectors_(std::move(detectors)) {}
 
+void DetectorGroup::prerun(OomdContext& context) {
+  for (const auto& detector : detectors_) {
+    detector->prerun(context);
+  }
+}
+
 bool DetectorGroup::check(OomdContext& context, uint32_t silenced_logs) {
   // Note we're running all Detectors so that any detectors keeping sliding
   // windows can update their window

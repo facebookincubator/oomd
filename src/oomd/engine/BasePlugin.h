@@ -56,6 +56,16 @@ class BasePlugin {
       const PluginConstructionContext& context) = 0;
 
   /*
+   * This is always run at the beginning of the event loop before run() has
+   * been called on any plugin.
+   *
+   * This is the ideal place to generate and store state inside object instance
+   * because it is guaranteed to be called each interval, but run() may not.
+   * Therefore, this function should be lightweight, i.e. no sleep() inside.
+   */
+  virtual void prerun(OomdContext& context){};
+
+  /*
    * This is the main work method every plugin will implement.
    *
    * If part of a detector chain, a PluginRet::STOP will terminate and fail

@@ -32,6 +32,8 @@ using namespace Oomd::Engine;
 using namespace testing;
 
 namespace {
+int prerun_count;
+int prerun_stored_count;
 int count;
 int stored_count;
 } // namespace
@@ -48,6 +50,10 @@ class ContinuePlugin : public BasePlugin {
       const PluginArgs& /* unused */,
       const PluginConstructionContext& /* unused */) override {
     return 0;
+  }
+
+  void prerun(OomdContext& /* unused */) override {
+    ++prerun_count;
   }
 
   PluginRet run(OomdContext& /* unused */) override {
@@ -70,6 +76,10 @@ class StopPlugin : public BasePlugin {
     return 0;
   }
 
+  void prerun(OomdContext& /* unused */) override {
+    ++prerun_count;
+  }
+
   PluginRet run(OomdContext& /* unused */) override {
     return PluginRet::STOP;
   }
@@ -88,6 +98,10 @@ class IncrementCountPlugin : public BasePlugin {
       const PluginArgs& /* unused */,
       const PluginConstructionContext& /* unused */) override {
     return 0;
+  }
+
+  void prerun(OomdContext& /* unused */) override {
+    ++prerun_count;
   }
 
   PluginRet run(OomdContext& /* unused */) override {
@@ -111,8 +125,13 @@ class StoreCountPlugin : public BasePlugin {
     return 0;
   }
 
+  void prerun(OomdContext& /* unused */) override {
+    ++prerun_count;
+  }
+
   PluginRet run(OomdContext& /* unused */) override {
     stored_count = count;
+    prerun_stored_count = prerun_count;
     return PluginRet::CONTINUE;
   }
 
@@ -133,6 +152,10 @@ class RegistrationPlugin : public BasePlugin {
     return 0;
   }
 
+  void prerun(OomdContext& /* unused */) override {
+    ++prerun_count;
+  }
+
   PluginRet run(OomdContext& /* unused */) override {
     return PluginRet::CONTINUE;
   }
@@ -151,6 +174,10 @@ class NoInitPlugin : public BasePlugin {
       const PluginArgs& /* unused */,
       const PluginConstructionContext& /* unused */) override {
     return 1;
+  }
+
+  void prerun(OomdContext& /* unused */) override {
+    ++prerun_count;
   }
 
   PluginRet run(OomdContext& /* unused */) override {
@@ -176,6 +203,8 @@ REGISTER_PLUGIN(NoInit, NoInitPlugin::create);
 class CompilerTest : public ::testing::Test {
  public:
   CompilerTest() {
+    prerun_count = 0;
+    prerun_stored_count = 0;
     count = 0;
     stored_count = 0;
   }
@@ -192,6 +221,8 @@ class CompilerTest : public ::testing::Test {
 class DropInCompilerTest : public ::testing::Test {
  public:
   DropInCompilerTest() {
+    prerun_count = 0;
+    prerun_stored_count = 0;
     count = 0;
     stored_count = 0;
   }
@@ -273,6 +304,63 @@ TEST_F(CompilerTest, IncrementCountNoop) {
   }
 
   EXPECT_EQ(count, 0);
+}
+
+TEST_F(DropInCompilerTest, PrerunCount) {
+  IR::Plugin cont{.name = "Continue"};
+  IR::Plugin stop{.name = "Stop"};
+  // Each enabled plugin will prerun() once, including action that's not taken.
+  root.rulesets = {
+      // 2 / 0 plugins with/without dropin
+      IR::Ruleset{.name = "disabled_dropin_target",
+                  .dgs = {IR::DetectorGroup{.name = "group1",
+                                            .detectors = {IR::Detector{cont}}}},
+                  .acts = {IR::Action{cont}},
+                  .dropin = IR::DropIn{.disable_on_drop_in = true,
+                                       .actiongroup_enabled = true}},
+      // 3 plugins (action won't be taken as we stop early)
+      IR::Ruleset{.name = "enabled_dropin_target",
+                  .dgs = {IR::DetectorGroup{
+                      .name = "group1",
+                      .detectors = {IR::Detector{stop}, IR::Detector{cont}}}},
+                  .acts = {IR::Action{cont}},
+                  .dropin = IR::DropIn{.disable_on_drop_in = false,
+                                       .actiongroup_enabled = true}},
+      // 2 plugins (StoreCount stores prerun_count)
+      IR::Ruleset{.name = "rs",
+                  .dgs = {IR::DetectorGroup{.name = "group1",
+                                            .detectors = {IR::Detector{cont}}}},
+                  .acts = {IR::Action{IR::Plugin{.name = "StoreCount"}}}},
+  };
+  // Plugins from dropin should also be prerun()
+  dropin_ir.rulesets = {
+      // 1 + 2 = 3 plugins
+      IR::Ruleset{.name = "disabled_dropin_target",
+                  .acts = {IR::Action{IR::Plugin{.name = "IncrementCount"}},
+                           IR::Action{IR::Plugin{.name = "IncrementCount"}}}},
+      // 2 + 3 = 5 plugins
+      IR::Ruleset{.name = "enabled_dropin_target",
+                  .acts = {IR::Action{IR::Plugin{.name = "IncrementCount"}},
+                           IR::Action{IR::Plugin{.name = "IncrementCount"}},
+                           IR::Action{IR::Plugin{.name = "IncrementCount"}}}},
+  };
+
+  auto engine = compileBase();
+  ASSERT_TRUE(engine);
+  engine->prerun(context);
+  engine->runOnce(context);
+  EXPECT_EQ(prerun_count, 2 + 3 + 2);
+
+  auto dropin = compileDropIn();
+  ASSERT_TRUE(dropin.has_value());
+  EXPECT_EQ(dropin->rulesets.size(), 2);
+
+  EXPECT_TRUE(engine->addDropInConfig(0, std::move(dropin->rulesets.at(0))));
+  EXPECT_TRUE(engine->addDropInConfig(1, std::move(dropin->rulesets.at(1))));
+  prerun_count = 0;
+  engine->prerun(context);
+  engine->runOnce(context);
+  EXPECT_EQ(prerun_count, 0 + 3 + 2 + 3 + 5);
 }
 
 TEST_F(CompilerTest, MonitoredResources) {

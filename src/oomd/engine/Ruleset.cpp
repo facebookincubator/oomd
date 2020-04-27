@@ -81,6 +81,18 @@ void Ruleset::markDropInUntargeted() {
   }
 }
 
+void Ruleset::prerun(OomdContext& context) {
+  if (!enabled_) {
+    return;
+  }
+  for (const auto& dg : detector_groups_) {
+    dg->prerun(context);
+  }
+  for (const auto& action : action_group_) {
+    action->prerun(context);
+  }
+}
+
 uint32_t Ruleset::runOnce(OomdContext& context) {
   if (!enabled_) {
     return 0;
@@ -90,6 +102,10 @@ uint32_t Ruleset::runOnce(OomdContext& context) {
   //
   // Note we're still check()'ing the detector groups so that any detectors
   // keeping sliding windows can update their window
+  //
+  // TODO(lnyng): Use prerun() for detector plugins to generate states, i.e.
+  // store sliding window metrics, so we can break early in this loop. Need to
+  // make sure time between prerun() and run() is short.
   bool run_actions = false;
   for (const auto& dg : detector_groups_) {
     if (dg->check(context, silenced_logs_) && !run_actions) {

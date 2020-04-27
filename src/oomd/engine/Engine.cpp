@@ -94,6 +94,18 @@ void Engine::removeDropInConfig(size_t tag) {
   }
 }
 
+void Engine::prerun(OomdContext& context) {
+  for (const auto& base : rulesets_) {
+    for (const auto& dropin : base.dropins) {
+      if (dropin.ruleset) {
+        dropin.ruleset->prerun(context);
+      }
+    }
+
+    base.ruleset->prerun(context);
+  }
+}
+
 void Engine::runOnce(OomdContext& context) {
   uint32_t nr_dropins_run = 0;
 
