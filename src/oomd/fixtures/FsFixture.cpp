@@ -228,11 +228,12 @@ const auto kEntFsData = F::makeDir(
         F::makeDir("dir2", {F::makeFile("empty")}),
         F::makeDir("dir3", {F::makeFile("empty")}),
         F::makeDir(
-            "wildcard/this/path",
+            "wildcard",
             {
-                F::makeDir("is/going/to/be/long", {F::makeFile("file")}),
-                F::makeDir("isNOT/going/to/be/long", {F::makeFile("file")}),
-                F::makeDir("WAH/going/to/be/long", {F::makeFile("file")}),
+                F::makeDir("dir1", {F::makeFile("file")}),
+                F::makeDir("dir2", {F::makeFile("file")}),
+                F::makeDir("different_dir", {F::makeFile("file")}),
+                F::makeFile("file"),
             }),
         F::makeFile("file1"),
         F::makeFile("file2"),

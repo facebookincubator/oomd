@@ -88,7 +88,7 @@ int Senpai::init(
 Engine::PluginRet Senpai::run(OomdContext& ctx) {
   std::set<std::string> resolved_cgroups;
   for (const auto& cgroup : cgroups_) {
-    auto resolved = Fs::resolveWildcardPath(cgroup);
+    auto resolved = Fs::glob(cgroup.absolutePath());
     for (auto&& cg : std::move(resolved)) {
       if (Fs::isDir(cg)) {
         resolved_cgroups.emplace(cg);

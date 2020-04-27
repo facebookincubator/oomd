@@ -24,7 +24,6 @@
 #include <unordered_set>
 #include <vector>
 
-#include "oomd/include/CgroupPath.h"
 #include "oomd/include/Types.h"
 
 namespace Oomd {
@@ -137,8 +136,9 @@ class Fs {
    * Takes a fully qualified and wildcarded path and returns a set of
    * resolved fully qualified paths.
    */
-  static std::unordered_set<std::string> resolveWildcardPath(
-      const CgroupPath& path);
+  static std::vector<std::string> glob(
+      const std::string& pattern,
+      bool dir_only = false);
 
   /*
    * Path aware prefix removal.
@@ -245,8 +245,6 @@ class Fs {
   static DeviceType getDeviceType(
       const std::string& dev_id,
       const std::string& path = "/sys/dev/block");
-
-  static bool hasGlob(const std::string& s);
 
  private:
   static std::unordered_map<std::string, int64_t> getMemstatLikeFromLines(

@@ -60,7 +60,7 @@ std::unordered_set<Oomd::CgroupPath> resolveCgroupPaths(
     // (in resolveWildcardPath) every time is. If it's a big penalty,
     // we could search `absolutePath` for any fnmatch operators and
     // only resolve if we find symbols.
-    auto resolved_paths = Oomd::Fs::resolveWildcardPath(cgroup);
+    auto resolved_paths = Oomd::Fs::glob(cgroup.absolutePath());
 
     for (const auto& resolved_path : resolved_paths) {
       size_t idx = 0;

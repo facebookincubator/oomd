@@ -20,6 +20,7 @@
 #include <dirent.h>
 #include <fcntl.h>
 #include <fnmatch.h>
+#include <glob.h>
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -147,81 +148,24 @@ bool Fs::isDir(const std::string& path) {
   return false;
 }
 
-/*
- * Return if a string might have something special for fnmatch.
- *
- * This function is simple and can return false-positives, but not
- * false-negatives -- that is, true means "maybe", and false means false.
- * That's ok, since this is only used for optimisations.
- */
-bool Fs::hasGlob(const std::string& s) {
-  return s.find_first_of("*[?") != std::string::npos;
-}
-
-std::unordered_set<std::string> Fs::resolveWildcardPath(
-    const CgroupPath& cgpath) {
-  std::string path = cgpath.absolutePath();
-  std::unordered_set<std::string> ret;
-  if (path.empty()) {
-    return ret;
+std::vector<std::string> Fs::glob(const std::string& pattern, bool dir_only) {
+  glob_t globbuf;
+  std::vector<std::string> ret;
+  int flags = GLOB_NOSORT | GLOB_BRACE;
+  if (dir_only) {
+    flags |= GLOB_ONLYDIR;
   }
-
-  auto parts = Util::split(path, '/');
-  OCHECK_EXCEPT(!parts.empty(), "No parts in " + path);
-
-  std::deque<std::pair<std::string, size_t>> queue;
-
-  // Add initial path piece to begin search on. Start at root.
-  queue.emplace_back("/", 0);
-
-  // Perform a DFS on the entire search space. Note that we pattern
-  // match at each level of the provided path to eliminate "dead"
-  // branches. The algorithm is still O(N) but in practice this will
-  // prevent us from enumerating every entry in the root filesystem.
-  //
-  // We choose DFS because we predict the FS tree is wider than it
-  // is tall. DFS will use less space than BFS in this case because
-  // it does not need to store every node at each level of the tree.
-  while (!queue.empty()) {
-    const auto front = queue.front(); // copy
-    queue.pop_front();
-
-    // Optimisation: If there's no glob and we're not at the end, it must be
-    // intended to be a single dir. It doesn't matter if it actually *is* in
-    // reality, because if it doesn't exist we'll fail later on.
-    if (front.second < parts.size() - 1 && !Fs::hasGlob(parts[front.second])) {
-      queue.emplace_front(
-          front.first + parts[front.second] + "/", front.second + 1);
-      continue;
-    }
-
-    // We can't continue BFS if we've hit a regular file
-    if (!isDir(front.first)) {
-      continue;
-    }
-
-    auto de = readDir(front.first, DE_FILE | DE_DIR);
-    de.files.reserve(de.files.size() + de.dirs.size());
-    de.files.insert(de.files.end(), de.dirs.begin(), de.dirs.end());
-
-    for (const auto& entry : de.files) {
-      if (::fnmatch(parts[front.second].c_str(), entry.c_str(), 0) == 0) {
-        if (front.second == parts.size() - 1) {
-          // We have reached a leaf, add it to the return set
-          ret.emplace(front.first + entry);
-        } else if (front.second < parts.size() - 1) {
-          // There are still more parts of the provided path to search.
-          //
-          // Note that we add the '/' at the end of the new path. This makes
-          // the recursive case easier, as the recursive case need only
-          // add the next part of the path on. Also note the 'emplace_front'
-          // that makes the deque into a stack (thus the DFS).
-          queue.emplace_front(front.first + entry + "/", front.second + 1);
-        }
+  if (0 == ::glob(pattern.c_str(), flags, nullptr, &globbuf)) {
+    for (size_t i = 0; i < globbuf.gl_pathc; i++) {
+      std::string path(globbuf.gl_pathv[i]);
+      // GLOB_ONLYDIR is a hint and we need to double check
+      if (dir_only && !isDir(path)) {
+        continue;
       }
+      ret.emplace_back(std::move(path));
     }
   }
-
+  ::globfree(&globbuf);
   return ret;
 }
 

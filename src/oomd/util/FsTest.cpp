@@ -114,27 +114,33 @@ TEST_F(FsTest, FindFiles) {
   EXPECT_THAT(de.files, Not(Contains(std::string("file5"))));
 }
 
-TEST_F(FsTest, ResolveWildcardedPath) {
+TEST_F(FsTest, Glob) {
   auto dir = fixture_.fsDataDir();
   dir += "/wildcard";
 
-  CgroupPath wildcarded_path_some(dir, "/this/path/is*/going/to/be/long/file");
-  auto resolved = Fs::resolveWildcardPath(wildcarded_path_some);
+  auto wildcarded_path_some = dir + "/dir*";
+  auto resolved = Fs::glob(wildcarded_path_some);
   ASSERT_EQ(resolved.size(), 2);
-  EXPECT_THAT(resolved, Contains(dir + "/this/path/is/going/to/be/long/file"));
-  EXPECT_THAT(
-      resolved, Contains(dir + "/this/path/isNOT/going/to/be/long/file"));
+  EXPECT_THAT(resolved, Contains(dir + "/dir1"));
+  EXPECT_THAT(resolved, Contains(dir + "/dir2"));
 
-  CgroupPath wildcarded_path_all(dir, "/this/path/*/going/to/be/long/file");
-  resolved = Fs::resolveWildcardPath(wildcarded_path_all);
+  auto wildcarded_path_dir_only = dir + "/*";
+  resolved = Fs::glob(wildcarded_path_dir_only, /* dir_only */ true);
   ASSERT_EQ(resolved.size(), 3);
-  EXPECT_THAT(resolved, Contains(dir + "/this/path/is/going/to/be/long/file"));
-  EXPECT_THAT(
-      resolved, Contains(dir + "/this/path/isNOT/going/to/be/long/file"));
-  EXPECT_THAT(resolved, Contains(dir + "/this/path/WAH/going/to/be/long/file"));
+  EXPECT_THAT(resolved, Contains(dir + "/dir1"));
+  EXPECT_THAT(resolved, Contains(dir + "/dir2"));
+  EXPECT_THAT(resolved, Contains(dir + "/different_dir"));
 
-  CgroupPath nonexistent_path(dir, "/not/a/valid/dir");
-  resolved = Fs::resolveWildcardPath(nonexistent_path);
+  auto wildcarded_path_all = dir + "/*";
+  resolved = Fs::glob(wildcarded_path_all);
+  ASSERT_EQ(resolved.size(), 4);
+  EXPECT_THAT(resolved, Contains(dir + "/dir1"));
+  EXPECT_THAT(resolved, Contains(dir + "/dir2"));
+  EXPECT_THAT(resolved, Contains(dir + "/different_dir"));
+  EXPECT_THAT(resolved, Contains(dir + "/file"));
+
+  auto nonexistent_path = dir + "/not/a/valid/dir";
+  resolved = Fs::glob(nonexistent_path);
   ASSERT_EQ(resolved.size(), 0);
 }
 
