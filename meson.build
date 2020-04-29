@@ -34,7 +34,6 @@ srcs = files('''
     src/oomd/engine/Ruleset.cpp
     src/oomd/include/Assert.cpp
     src/oomd/include/CgroupPath.cpp
-    src/oomd/plugins/AdjustCgroup.cpp
     src/oomd/plugins/BaseKillPlugin.cpp
     src/oomd/plugins/ContinuePlugin.cpp
     src/oomd/plugins/StopPlugin.cpp

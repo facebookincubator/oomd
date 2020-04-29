@@ -101,34 +101,6 @@ class FixtureTest : public testing::Test {
   std::string tempFixtureDir_;
 };
 
-TEST(AdjustCgroupPlugin, AdjustCgroupMemory) {
-  auto plugin = createPlugin("adjust_cgroup");
-  ASSERT_NE(plugin, nullptr);
-
-  Engine::MonitoredResources resources;
-  Engine::PluginArgs args;
-  args["cgroup"] = "adjust_cgroup";
-  args["memory_scale"] = "1.5";
-  args["memory"] = "-8M";
-  args["debug"] = "1";
-  const PluginConstructionContext compile_context("oomd/fixtures/cgroup");
-  ASSERT_EQ(plugin->init(resources, std::move(args), compile_context), 0);
-  ASSERT_EQ(resources.size(), 1);
-
-  OomdContext ctx;
-  auto cgroup_path = CgroupPath(compile_context.cgroupFs(), "adjust_cgroup");
-  ctx.setCgroupContext(
-      cgroup_path,
-      CgroupContext{.current_usage = 64 << 20, .memory_protection = 16 << 20});
-  auto& cgroup_ctx = ctx.getCgroupContext(cgroup_path);
-
-  EXPECT_EQ(cgroup_ctx.effective_usage(), (64 << 20) - (16 << 20));
-  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::CONTINUE);
-  EXPECT_EQ(
-      cgroup_ctx.effective_usage(),
-      (int64_t)((64 << 20) * 1.5 - (16 << 20) - (8 << 20)));
-}
-
 TEST(BaseKillPlugin, TryToKillCgroupKillsNonRecursive) {
   BaseKillPluginShim plugin;
   EXPECT_EQ(
