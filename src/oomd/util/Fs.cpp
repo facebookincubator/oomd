@@ -19,7 +19,6 @@
 
 #include <dirent.h>
 #include <fcntl.h>
-#include <fnmatch.h>
 #include <glob.h>
 #include <string.h>
 #include <sys/stat.h>
