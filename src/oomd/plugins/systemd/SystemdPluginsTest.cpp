@@ -51,14 +51,13 @@ TEST(SystemdRestart, RestartService) {
   auto plugin = std::make_shared<SystemdRestart<BaseSystemdPluginMock>>();
   ASSERT_NE(plugin, nullptr);
 
-  Engine::MonitoredResources resources;
   Engine::PluginArgs args;
   args["service"] = "some.service";
   args["post_action_delay"] = "0";
   args["dry"] = "false";
 
   const PluginConstructionContext compile_context("/sys/fs/cgroup");
-  ASSERT_EQ(plugin->init(resources, std::move(args), compile_context), 0);
+  ASSERT_EQ(plugin->init(std::move(args), compile_context), 0);
 
   OomdContext ctx;
   EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
@@ -69,13 +68,12 @@ TEST(SystemdRestart, RestartServiceDry) {
   auto plugin = std::make_shared<SystemdRestart<BaseSystemdPluginMock>>();
   ASSERT_NE(plugin, nullptr);
 
-  Engine::MonitoredResources resources;
   Engine::PluginArgs args;
   args["service"] = "some.service";
   args["post_action_delay"] = "0";
   args["dry"] = "true";
   const PluginConstructionContext compile_context("/sys/fs/cgroup");
-  ASSERT_EQ(plugin->init(resources, std::move(args), compile_context), 0);
+  ASSERT_EQ(plugin->init(std::move(args), compile_context), 0);
 
   OomdContext ctx;
   EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);

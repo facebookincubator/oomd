@@ -39,14 +39,12 @@ int stored_count;
 } // namespace
 
 static constexpr auto kRandomCgroupFs = "/some/random/fs";
-static constexpr auto kRandomCgroupDependency = "/some/random/cgroup";
 
 namespace Oomd {
 
 class ContinuePlugin : public BasePlugin {
  public:
   int init(
-      Engine::MonitoredResources& /* unused */,
       const PluginArgs& /* unused */,
       const PluginConstructionContext& /* unused */) override {
     return 0;
@@ -70,7 +68,6 @@ class ContinuePlugin : public BasePlugin {
 class StopPlugin : public BasePlugin {
  public:
   int init(
-      Engine::MonitoredResources& /* unused */,
       const PluginArgs& /* unused */,
       const PluginConstructionContext& /* unused */) override {
     return 0;
@@ -94,7 +91,6 @@ class StopPlugin : public BasePlugin {
 class IncrementCountPlugin : public BasePlugin {
  public:
   int init(
-      Engine::MonitoredResources& /* unused */,
       const PluginArgs& /* unused */,
       const PluginConstructionContext& /* unused */) override {
     return 0;
@@ -119,7 +115,6 @@ class IncrementCountPlugin : public BasePlugin {
 class StoreCountPlugin : public BasePlugin {
  public:
   int init(
-      Engine::MonitoredResources& /* unused */,
       const PluginArgs& /* unused */,
       const PluginConstructionContext& /* unused */) override {
     return 0;
@@ -142,35 +137,9 @@ class StoreCountPlugin : public BasePlugin {
   ~StoreCountPlugin() override = default;
 };
 
-class RegistrationPlugin : public BasePlugin {
- public:
-  int init(
-      Engine::MonitoredResources& resources,
-      const PluginArgs& /* unused */,
-      const PluginConstructionContext& context) override {
-    resources.emplace(context.cgroupFs(), kRandomCgroupDependency);
-    return 0;
-  }
-
-  void prerun(OomdContext& /* unused */) override {
-    ++prerun_count;
-  }
-
-  PluginRet run(OomdContext& /* unused */) override {
-    return PluginRet::CONTINUE;
-  }
-
-  static RegistrationPlugin* create() {
-    return new RegistrationPlugin();
-  }
-
-  ~RegistrationPlugin() override = default;
-};
-
 class NoInitPlugin : public BasePlugin {
  public:
   int init(
-      Engine::MonitoredResources& /* unused */,
       const PluginArgs& /* unused */,
       const PluginConstructionContext& /* unused */) override {
     return 1;
@@ -195,7 +164,6 @@ REGISTER_PLUGIN(Continue, ContinuePlugin::create);
 REGISTER_PLUGIN(Stop, StopPlugin::create);
 REGISTER_PLUGIN(IncrementCount, IncrementCountPlugin::create);
 REGISTER_PLUGIN(StoreCount, StoreCountPlugin::create);
-REGISTER_PLUGIN(Registration, RegistrationPlugin::create);
 REGISTER_PLUGIN(NoInit, NoInitPlugin::create);
 
 } // namespace Oomd
@@ -361,22 +329,6 @@ TEST_F(DropInCompilerTest, PrerunCount) {
   engine->prerun(context);
   engine->runOnce(context);
   EXPECT_EQ(prerun_count, 0 + 3 + 2 + 3 + 5);
-}
-
-TEST_F(CompilerTest, MonitoredResources) {
-  IR::Detector cont;
-  cont.name = "Continue";
-  IR::Action reg;
-  reg.name = "Registration";
-  IR::DetectorGroup dgroup{"group1", {std::move(cont)}};
-  IR::Ruleset ruleset{"ruleset1", {std::move(dgroup)}, {std::move(reg)}};
-  root.rulesets.emplace_back(std::move(ruleset));
-
-  auto engine = compile();
-  ASSERT_TRUE(engine);
-  EXPECT_THAT(
-      engine->getMonitoredResources(),
-      Contains(CgroupPath(kRandomCgroupFs, kRandomCgroupDependency)));
 }
 
 TEST_F(CompilerTest, NoInitPlugin) {

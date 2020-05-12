@@ -33,7 +33,7 @@ class OomdContext;
  * Storage class for cgroup states. Data are retrieved from cgroupfs on access
  * and cached until refresh() is called.
  */
-class NewCgroupContext {
+class CgroupContext {
  public:
   // Error type when retrieving CgroupContext fields
   enum class Error {
@@ -53,7 +53,7 @@ class NewCgroupContext {
    * As OomdContext is guaranteed to last longer than CgroupContext, use
    * raw reference instead of smart pointer.
    */
-  NewCgroupContext(OomdContext& ctx, const CgroupPath& cgroup);
+  CgroupContext(OomdContext& ctx, const CgroupPath& cgroup);
 
   /*
    * Check if cgroup still exists and archive current data for temporal

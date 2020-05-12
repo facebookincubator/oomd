@@ -27,7 +27,6 @@ namespace Oomd {
 class MemoryAbove : public Oomd::Engine::BasePlugin {
  public:
   int init(
-      Engine::MonitoredResources& resources,
       const Engine::PluginArgs& args,
       const PluginConstructionContext& context) override;
 

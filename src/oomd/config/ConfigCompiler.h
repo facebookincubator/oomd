@@ -27,7 +27,6 @@ namespace Oomd {
 namespace Config2 {
 
 struct DropInUnit {
-  Engine::MonitoredResources resources;
   std::vector<std::unique_ptr<Engine::Ruleset>> rulesets;
 };
 
@@ -42,9 +41,8 @@ std::unique_ptr<Engine::Engine> compile(
 
 /*
  * Compiles a drop in ruleset against a @class IR::Root config. Has
- * the same semantics as @method compile. The compiled ruleset and
- * @class Engine::MonitoredResources must be injected into an
- * existing @class Engine::Engine.
+ * the same semantics as @method compile. The compiled ruleset
+ * must be injected into an existing @class Engine::Engine.
  */
 std::optional<DropInUnit> compileDropIn(
     const IR::Root& root,

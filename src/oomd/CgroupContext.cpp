@@ -17,17 +17,17 @@
 
 #include "oomd/CgroupContext.h"
 
-#include "oomd/NewOomdContext.h"
+#include "oomd/OomdContext.h"
 
 namespace Oomd {
 
-NewCgroupContext::NewCgroupContext(OomdContext& ctx, const CgroupPath& cgroup)
+CgroupContext::CgroupContext(OomdContext& ctx, const CgroupPath& cgroup)
     : ctx_(ctx),
       cgroup_(cgroup),
       cgroup_dir_(Fs::DirFd::open(cgroup.absolutePath())),
       data_(std::make_unique<CgroupData>()) {}
 
-bool NewCgroupContext::refresh() {
+bool CgroupContext::refresh() {
   // Check if cgroup still exists
   if (!cgroup_dir_.checkValid()) {
     return false;
@@ -49,21 +49,21 @@ bool NewCgroupContext::refresh() {
  * Because data_ is a pointer, we can do this lazy set and get with const
  * function signature.
  */
-#define __PROXY(field, expr, rettype)                 \
-  rettype NewCgroupContext::field(Error* err) const { \
-    if (!data_->field) {                              \
-      try {                                           \
-        data_->field = (expr);                        \
-      } catch (const Fs::bad_control_file&) {         \
-        if (err) {                                    \
-          *err = Error::INVALID_CGROUP;               \
-        }                                             \
-      }                                               \
-    }                                                 \
-    return data_->field;                              \
+#define __PROXY(field, expr, rettype)              \
+  rettype CgroupContext::field(Error* err) const { \
+    if (!data_->field) {                           \
+      try {                                        \
+        data_->field = (expr);                     \
+      } catch (const Fs::bad_control_file&) {      \
+        if (err) {                                 \
+          *err = Error::INVALID_CGROUP;            \
+        }                                          \
+      }                                            \
+    }                                              \
+    return data_->field;                           \
   }
 
-#define FIELD_TYPE(field) decltype(NewCgroupContext::CgroupData::field)
+#define FIELD_TYPE(field) decltype(CgroupContext::CgroupData::field)
 #define PROXY(field, expr) __PROXY(field, expr, FIELD_TYPE(field))
 #define PROXY_CONST_REF(field, expr) \
   __PROXY(field, expr, const FIELD_TYPE(field)&)
@@ -86,7 +86,7 @@ PROXY(memory_protection, getMemoryProtection(err))
 PROXY(io_cost_rate, getIoCostRate(err))
 PROXY(average_usage, getAverageUsage(err))
 
-std::optional<int64_t> NewCgroupContext::anon_usage(Error* err) const {
+std::optional<int64_t> CgroupContext::anon_usage(Error* err) const {
   if (const auto& stat = memory_stat(err)) {
     if (auto anon = stat->find("anon"); anon != stat->end()) {
       return anon->second;
@@ -97,7 +97,7 @@ std::optional<int64_t> NewCgroupContext::anon_usage(Error* err) const {
   return 0;
 }
 
-std::optional<int64_t> NewCgroupContext::effective_usage(
+std::optional<int64_t> CgroupContext::effective_usage(
     Error* err,
     int64_t memory_scale,
     int64_t memory_adj) const {
@@ -107,29 +107,29 @@ std::optional<int64_t> NewCgroupContext::effective_usage(
   return *current_usage() * memory_scale - *memory_protection() + memory_adj;
 }
 
-std::vector<std::string> NewCgroupContext::getChildren() const {
+std::vector<std::string> CgroupContext::getChildren() const {
   return Fs::readDir(cgroup_.absolutePath(), Fs::DE_DIR).dirs;
 }
 
-ResourcePressure NewCgroupContext::getMemPressure() const {
+ResourcePressure CgroupContext::getMemPressure() const {
   return cgroup_.isRoot() ? Fs::readRootMempressure()
                           : Fs::readMempressureAt(cgroup_dir_);
 }
 
-ResourcePressure NewCgroupContext::getIoPressure() const {
+ResourcePressure CgroupContext::getIoPressure() const {
   return cgroup_.isRoot() ? Fs::readRootIopressure()
                           : Fs::readIopressureAt(cgroup_dir_);
 }
 
-int64_t NewCgroupContext::getMemcurrent() const {
+int64_t CgroupContext::getMemcurrent() const {
   return cgroup_.isRoot() ? Fs::readRootMemcurrent()
                           : Fs::readMemcurrentAt(cgroup_dir_);
 }
 
 namespace {
 std::optional<int64_t> rawProtection(
-    const NewCgroupContext& ctx,
-    NewCgroupContext::Error* err = nullptr) {
+    const CgroupContext& ctx,
+    CgroupContext::Error* err = nullptr) {
   if (!ctx.current_usage(err) || !ctx.memory_min(err) || !ctx.memory_low(err)) {
     return std::nullopt;
   }
@@ -138,10 +138,10 @@ std::optional<int64_t> rawProtection(
 }
 
 std::optional<int64_t> normalizedProtection(
-    const NewCgroupContext& ctx,
-    const NewCgroupContext& parent_ctx,
+    const CgroupContext& ctx,
+    const CgroupContext& parent_ctx,
     int64_t protection_sum,
-    NewCgroupContext::Error* err = nullptr) {
+    CgroupContext::Error* err = nullptr) {
   if (protection_sum == 0) {
     // If the cgroup isn't using any memory then it's trivially true it's
     // not receiving any protection
@@ -174,7 +174,7 @@ std::optional<int64_t> normalizedProtection(
  * Then, P(cgrp) = R(cgrp) * min(1.0, P(parent) / (Sum of L(child) for each
  * children of parent))
  */
-std::optional<int64_t> NewCgroupContext::getMemoryProtection(Error* err) const {
+std::optional<int64_t> CgroupContext::getMemoryProtection(Error* err) const {
   if (cgroup_.isRoot()) {
     return current_usage(err);
   }
@@ -210,7 +210,7 @@ std::optional<int64_t> NewCgroupContext::getMemoryProtection(Error* err) const {
   return normalizedProtection(*this, *parent_ctx, protection_sum, err);
 }
 
-std::optional<double> NewCgroupContext::getIoCostCumulative(Error* err) const {
+std::optional<double> CgroupContext::getIoCostCumulative(Error* err) const {
   if (!io_stat(err)) {
     return std::nullopt;
   }
@@ -242,7 +242,7 @@ std::optional<double> NewCgroupContext::getIoCostCumulative(Error* err) const {
   return cost;
 }
 
-std::optional<int64_t> NewCgroupContext::getAverageUsage(Error* err) const {
+std::optional<int64_t> CgroupContext::getAverageUsage(Error* err) const {
   if (!current_usage(err)) {
     return std::nullopt;
   }
@@ -251,7 +251,7 @@ std::optional<int64_t> NewCgroupContext::getAverageUsage(Error* err) const {
   return prev_avg * ((decay - 1) / decay) + (*current_usage() / decay);
 }
 
-std::optional<double> NewCgroupContext::getIoCostRate(Error* err) const {
+std::optional<double> CgroupContext::getIoCostRate(Error* err) const {
   if (!io_cost_cumulative(err)) {
     return std::nullopt;
   }

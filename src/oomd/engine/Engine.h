@@ -31,9 +31,7 @@ namespace Engine {
 
 class Engine {
  public:
-  Engine(
-      MonitoredResources resources,
-      std::vector<std::unique_ptr<Ruleset>> rulesets);
+  explicit Engine(std::vector<std::unique_ptr<Ruleset>> rulesets);
   ~Engine() = default;
 
   /*
@@ -61,14 +59,6 @@ class Engine {
    */
   void runOnce(OomdContext& context);
 
-  /*
-   * This resources instance is passed to all plugins that will run
-   * inside this engine. Plugins can then declare what resources they
-   * need with the engine. Then the oomd runtime can extract what resources
-   * it will need to poll.
-   */
-  const MonitoredResources& getMonitoredResources() const;
-
  private:
   struct DropInRuleset {
     size_t tag{0}; // required field
@@ -80,7 +70,6 @@ class Engine {
     std::deque<DropInRuleset> dropins;
   };
 
-  MonitoredResources resources_;
   std::vector<BaseRuleset> rulesets_;
 };
 

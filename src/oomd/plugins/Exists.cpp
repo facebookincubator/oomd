@@ -33,7 +33,6 @@ namespace Oomd {
 REGISTER_PLUGIN(exists, Exists::create);
 
 int Exists::init(
-    Engine::MonitoredResources& resources,
     const Engine::PluginArgs& args,
     const PluginConstructionContext& context) {
   if (args.find("cgroup") != args.end()) {
@@ -41,7 +40,6 @@ int Exists::init(
 
     auto cgroups = Util::split(args.at("cgroup"), ',');
     for (const auto& c : cgroups) {
-      resources.emplace(cgroup_fs, c);
       cgroups_.emplace(cgroup_fs, c);
     }
   } else {
@@ -73,12 +71,9 @@ Engine::PluginRet Exists::run(OomdContext& ctx) {
   bool exists = false;
 
   for (const auto& cgroup : cgroups_) {
-    for (const auto& path : ctx.cgroups()) {
-      if (!::fnmatch(
-              cgroup.absolutePath().c_str(), path.absolutePath().c_str(), 0)) {
-        exists = true;
-        goto out;
-      }
+    if (cgroup.resolveWildcard().size()) {
+      exists = true;
+      goto out;
     }
   }
 

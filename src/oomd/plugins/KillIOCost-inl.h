@@ -31,7 +31,6 @@ namespace Oomd {
 
 template <typename Base>
 int KillIOCost<Base>::init(
-    Engine::MonitoredResources& resources,
     const Engine::PluginArgs& args,
     const PluginConstructionContext& context) {
   if (args.find("cgroup") != args.end()) {
@@ -39,7 +38,6 @@ int KillIOCost<Base>::init(
 
     auto cgroups = Util::split(args.at("cgroup"), ',');
     for (const auto& c : cgroups) {
-      resources.emplace(cgroup_fs, c);
       cgroups_.emplace(cgroup_fs, c);
     }
   } else {
@@ -79,6 +77,14 @@ int KillIOCost<Base>::init(
 }
 
 template <typename Base>
+void KillIOCost<Base>::prerun(OomdContext& ctx) {
+  for (const CgroupContext& cgroup_ctx : ctx.addToCacheAndGet(cgroups_)) {
+    // Make sure temporal counters be available when run() is invoked
+    cgroup_ctx.io_cost_rate();
+  }
+}
+
+template <typename Base>
 Engine::PluginRet KillIOCost<Base>::run(OomdContext& ctx) {
   bool ret = tryToKillSomething(ctx);
 
@@ -92,25 +98,22 @@ Engine::PluginRet KillIOCost<Base>::run(OomdContext& ctx) {
 
 template <typename Base>
 bool KillIOCost<Base>::tryToKillSomething(OomdContext& ctx) {
-  auto io_cost_sorted = ctx.reverseSort(
-      [](const CgroupContext& cgroup_ctx) { return cgroup_ctx.io_cost_rate; });
-  if (debug_) {
-    OomdContext::dumpOomdContext(io_cost_sorted, !debug_);
-    OLOG << "Removed sibling cgroups";
-  }
-  OomdContext::removeSiblingCgroups(cgroups_, io_cost_sorted);
-  OomdContext::dumpOomdContext(io_cost_sorted, !debug_);
+  auto io_cost_sorted =
+      ctx.reverseSort(cgroups_, [](const CgroupContext& cgroup_ctx) {
+        return cgroup_ctx.io_cost_rate().value_or(0);
+      });
+  OomdContext::dump(io_cost_sorted, !debug_);
 
-  for (const auto& state_pair : io_cost_sorted) {
-    OLOG << "Picked \"" << state_pair.first.relativePath() << "\" ("
-         << state_pair.second.current_usage / 1024 / 1024
+  for (const CgroupContext& cgroup_ctx : io_cost_sorted) {
+    OLOG << "Picked \"" << cgroup_ctx.cgroup().relativePath() << "\" ("
+         << cgroup_ctx.current_usage().value_or(0) / 1024 / 1024
          << "MB) based on io cost generation at "
-         << state_pair.second.io_cost_rate;
+         << cgroup_ctx.io_cost_rate().value_or(0);
     if (auto kill_uuid = Base::tryToKillCgroup(
-            state_pair.first.absolutePath(), true, dry_)) {
+            cgroup_ctx.cgroup().absolutePath(), true, dry_)) {
       Base::logKill(
-          state_pair.first,
-          state_pair.second,
+          cgroup_ctx.cgroup(),
+          cgroup_ctx,
           ctx.getActionContext(),
           *kill_uuid,
           dry_);

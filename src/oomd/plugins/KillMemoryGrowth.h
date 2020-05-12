@@ -28,10 +28,10 @@ template <typename Base = BaseKillPlugin>
 class KillMemoryGrowth : public Base {
  public:
   int init(
-      Engine::MonitoredResources& resources,
       const Engine::PluginArgs& args,
       const PluginConstructionContext& context) override;
 
+  void prerun(OomdContext& ctx) override;
   Engine::PluginRet run(OomdContext& ctx) override;
 
   static KillMemoryGrowth* create() {

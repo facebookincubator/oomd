@@ -31,7 +31,6 @@ namespace Oomd {
 
 template <typename Base>
 int KillPressure<Base>::init(
-    Engine::MonitoredResources& resources,
     const Engine::PluginArgs& args,
     const PluginConstructionContext& context) {
   if (args.find("cgroup") != args.end()) {
@@ -39,7 +38,6 @@ int KillPressure<Base>::init(
 
     auto cgroups = Util::split(args.at("cgroup"), ',');
     for (const auto& c : cgroups) {
-      resources.emplace(cgroup_fs, c);
       cgroups_.emplace(cgroup_fs, c);
     }
   } else {
@@ -106,51 +104,52 @@ Engine::PluginRet KillPressure<Base>::run(OomdContext& ctx) {
 template <typename Base>
 bool KillPressure<Base>::tryToKillSomething(OomdContext& ctx) {
   auto pressure_sorted =
-      ctx.reverseSort([this](const CgroupContext& cgroup_ctx) {
+      ctx.reverseSort(cgroups_, [&](const CgroupContext& cgroup_ctx) {
         int average = 0;
         switch (resource_) {
           case ResourceType::IO:
-            average = cgroup_ctx.io_pressure.sec_10 / 2 +
-                cgroup_ctx.io_pressure.sec_60 / 2;
+            if (const auto& pressure = cgroup_ctx.io_pressure()) {
+              average = pressure->sec_10 / 2 + pressure->sec_60 / 2;
+            }
             break;
           case ResourceType::MEMORY:
-            average =
-                cgroup_ctx.pressure.sec_10 / 2 + cgroup_ctx.pressure.sec_60 / 2;
+            if (const auto& pressure = cgroup_ctx.mem_pressure()) {
+              average = pressure->sec_10 / 2 + pressure->sec_60 / 2;
+            }
             break;
         }
 
         return average;
       });
-  if (debug_) {
-    OomdContext::dumpOomdContext(pressure_sorted, !debug_);
-    OLOG << "Removed sibling cgroups";
-  }
-  OomdContext::removeSiblingCgroups(cgroups_, pressure_sorted);
-  OomdContext::dumpOomdContext(pressure_sorted, !debug_);
+  OomdContext::dump(pressure_sorted, !debug_);
 
-  for (const auto& state_pair : pressure_sorted) {
+  for (const CgroupContext& cgroup_ctx : pressure_sorted) {
     float pressure10 = 0;
     float pressure60 = 0;
     switch (resource_) {
       case ResourceType::IO:
-        pressure10 = state_pair.second.io_pressure.sec_10;
-        pressure60 = state_pair.second.io_pressure.sec_60;
+        if (const auto& pressure = cgroup_ctx.io_pressure()) {
+          pressure10 = pressure->sec_10;
+          pressure60 = pressure->sec_60;
+        }
         break;
       case ResourceType::MEMORY:
-        pressure10 = state_pair.second.pressure.sec_10;
-        pressure60 = state_pair.second.pressure.sec_60;
+        if (const auto& pressure = cgroup_ctx.mem_pressure()) {
+          pressure10 = pressure->sec_10;
+          pressure60 = pressure->sec_60;
+        }
         break;
     }
 
-    OLOG << "Picked \"" << state_pair.first.relativePath() << "\" ("
-         << state_pair.second.current_usage / 1024 / 1024
+    OLOG << "Picked \"" << cgroup_ctx.cgroup().relativePath() << "\" ("
+         << cgroup_ctx.current_usage().value_or(0) / 1024 / 1024
          << "MB) based on pressure generation at "
          << "10s=" << pressure10 << " 60s=" << pressure60;
     if (auto kill_uuid = Base::tryToKillCgroup(
-            state_pair.first.absolutePath(), true, dry_)) {
+            cgroup_ctx.cgroup().absolutePath(), true, dry_)) {
       Base::logKill(
-          state_pair.first,
-          state_pair.second,
+          cgroup_ctx.cgroup(),
+          cgroup_ctx,
           ctx.getActionContext(),
           *kill_uuid,
           dry_);

@@ -27,7 +27,6 @@ namespace Oomd {
 class MemoryReclaim : public Engine::BasePlugin {
  public:
   int init(
-      Engine::MonitoredResources& /* unused */,
       const Engine::PluginArgs& args,
       const PluginConstructionContext& context) override;
 

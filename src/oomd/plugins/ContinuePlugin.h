@@ -24,7 +24,6 @@ namespace Oomd {
 class ContinuePlugin : public Engine::BasePlugin {
  public:
   int init(
-      Engine::MonitoredResources& /* unused */,
       const Engine::PluginArgs& /* unused */,
       const PluginConstructionContext& /* unused */) override {
     return 0;

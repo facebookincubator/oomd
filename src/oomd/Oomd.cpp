@@ -23,16 +23,11 @@
 #include <sys/epoll.h>
 #include <sys/inotify.h>
 #include <sys/timerfd.h>
-#include <algorithm>
-#include <cmath>
 #include <cstdlib>
 #include <cstring>
 #include <fstream>
-#include <functional>
-#include <iomanip>
 #include <sstream>
 #include <thread>
-#include <unordered_set>
 
 #include "oomd/Log.h"
 #include "oomd/PluginConstructionContext.h"
@@ -44,44 +39,6 @@
 #include "oomd/util/Util.h"
 
 static constexpr auto kMaxEvents = 10;
-
-namespace {
-/*
- * Helper function that resolves a set of wildcarded cgroup paths.
- *
- * @returns a set of resolved cgroup paths
- */
-std::unordered_set<Oomd::CgroupPath> resolveCgroupPaths(
-    const std::unordered_set<Oomd::CgroupPath>& cgroups) {
-  std::unordered_set<Oomd::CgroupPath> ret;
-
-  for (const auto& cgroup : cgroups) {
-    // TODO: see what the performance penalty of walking the FS
-    // (in resolveWildcardPath) every time is. If it's a big penalty,
-    // we could search `absolutePath` for any fnmatch operators and
-    // only resolve if we find symbols.
-    auto resolved_paths = Oomd::Fs::glob(cgroup.absolutePath());
-
-    for (const auto& resolved_path : resolved_paths) {
-      size_t idx = 0;
-
-      // Use idx to mark where non-cgroupfs part of path begins
-      idx += cgroup.cgroupFs().size();
-      if (resolved_path.size() > cgroup.cgroupFs().size()) {
-        // Remove '/' after cgroupfs in path
-        idx += 1;
-      }
-
-      if (idx <= resolved_path.size()) {
-        std::string cgroup_relative = resolved_path.substr(idx);
-        ret.emplace(cgroup.cgroupFs(), std::move(cgroup_relative));
-      }
-    }
-  }
-
-  return ret;
-}
-} // namespace
 
 namespace Oomd {
 
@@ -98,37 +55,13 @@ Oomd::Oomd(
       cgroup_fs_(cgroup_fs),
       ir_root_(std::move(ir_root)),
       engine_(std::move(engine)),
-      drop_in_dir_(drop_in_dir),
-      io_devs_(io_devs),
-      hdd_coeffs_(hdd_coeffs),
-      ssd_coeffs_(ssd_coeffs) {
-  // Ensure that each monitored cgroup's cgroup fs is the same as the one
-  // passed in by the command line
-  if (engine_) { // Tests will pass in a nullptr
-    // First ensure cgroup fs is uniform
-    for (const auto& cgroup : engine_->getMonitoredResources()) {
-      if (cgroup.cgroupFs() != cgroup_fs_) {
-        resources_.emplace(cgroup_fs_, cgroup.relativePath());
-      } else {
-        resources_.emplace(cgroup);
-      }
-    }
-
-    // Then make sure all parent cgroups are pulled in as well. This is
-    // necessary so plugins can walk a prepopulated tree.
-    for (const auto& cgroup : resources_) {
-      if (cgroup.isRoot()) {
-        continue;
-      }
-
-      CgroupPath parent = cgroup.getParent();
-      while (!parent.isRoot()) {
-        resources_.emplace(parent);
-        parent = parent.getParent();
-      }
-    }
-  }
-
+      drop_in_dir_(drop_in_dir) {
+  ContextParams params{
+      .io_devs = io_devs,
+      .hdd_coeffs = hdd_coeffs,
+      .ssd_coeffs = ssd_coeffs,
+  };
+  ctx_ = OomdContext(params);
   // Sanitize the drop in dir a little
   if (drop_in_dir_.size() && drop_in_dir_.at(drop_in_dir_.size() - 1) == '/') {
     // Delete the trailing '/'
@@ -136,252 +69,7 @@ Oomd::Oomd(
   }
 }
 
-int64_t Oomd::calculateProtection(
-    const CgroupPath& cgroup,
-    OomdContext& ctx,
-    std::unordered_map<CgroupPath, int64_t>& cache) {
-  if (cache.find(cgroup) != cache.end()) {
-    return cache.at(cgroup);
-  }
-
-  auto node = ctx.getCgroupNode(cgroup);
-  OCHECK_EXCEPT(node, std::runtime_error("cgroup missing from OomdContext"));
-
-  auto l_func = [](const CgroupContext& c) -> double {
-    return std::min(c.current_usage, std::max(c.memory_min, c.memory_low));
-  };
-
-  std::function<double(const std::shared_ptr<CgroupNode>)> p_func =
-      [&](const std::shared_ptr<CgroupNode> node) -> double {
-    auto parent = node->parent.lock();
-    if (parent->path.isRoot()) {
-      // We're at a top level cgroup where P(cgrp) == L(cgrp)
-      return l_func(node->ctx);
-    }
-
-    double l_sum_children = 0;
-    for (const auto& child : parent->children) {
-      l_sum_children += l_func(child->ctx);
-    }
-
-    // If the cgroup isn't using any memory then it's trivially true it's
-    // not receiving any protection
-    if (l_sum_children == 0) {
-      return 0;
-    }
-
-    return std::min(
-        l_func(node->ctx), p_func(parent) * l_func(node->ctx) / l_sum_children);
-  };
-
-  int64_t ret = p_func(node);
-  cache[cgroup] = ret;
-
-  return ret;
-}
-
-double Oomd::calculateIOCostCumulative(const IOStat& io_stat) {
-  double cost_cumulative = 0.0;
-
-  // calculate the sum of cumulative io cost on all devices.
-  for (auto& stat : io_stat) {
-    // only keep stats from devices we care
-    if (io_devs_.find(stat.dev_id) == io_devs_.end()) {
-      continue;
-    }
-    IOCostCoeffs coeffs;
-    switch (io_devs_.at(stat.dev_id)) {
-      case DeviceType::SSD:
-        coeffs = ssd_coeffs_;
-        break;
-      case DeviceType::HDD:
-        coeffs = hdd_coeffs_;
-        break;
-    }
-    // Dot product between dev io stat and io cost coeffs. A more sensible way
-    // is to do dot product between rate of change (bandwidth, iops) with coeffs
-    // but since the coeffs are constant, we can calculate rate of change later.
-    cost_cumulative += stat.rios * coeffs.read_iops +
-        stat.rbytes * coeffs.readbw + stat.wios * coeffs.write_iops +
-        stat.wbytes * coeffs.writebw + stat.dios * coeffs.trim_iops +
-        stat.dbytes * coeffs.trimbw;
-  }
-  return cost_cumulative;
-}
-
-ResourcePressure Oomd::readIopressureWarnOnce(const std::string& path) {
-  ResourcePressure io_pressure;
-  // Older kernels don't have io.pressure, nan them out
-  io_pressure = {std::nanf(""), std::nanf(""), std::nanf("")};
-
-  try {
-    if (!warned_io_pressure_.count(path)) {
-      if (path == "/") {
-        io_pressure = Fs::readRootIopressure();
-      } else {
-        io_pressure = Fs::readIopressure(path);
-      }
-    }
-  } catch (const std::exception& ex) {
-    warned_io_pressure_.emplace(path);
-    OLOG << "IO pressure unavailable on " << path << ": " << ex.what();
-  }
-
-  return io_pressure;
-}
-
-bool Oomd::updateContextRoot(const CgroupPath& path, OomdContext& ctx) {
-  // Note we not not collect _every_ piece of data that makes
-  // sense for the root host. Feel free to add more as needed.
-  auto pressures = Fs::readRootMempressure();
-  auto io_pressure = readIopressureWarnOnce("/");
-  auto current = Fs::readRootMemcurrent();
-  auto nr_dying_descendants = Fs::getNrDyingDescendants(path.cgroupFs());
-
-  ctx.setCgroupContext(
-      path,
-      {.pressure = pressures,
-       .io_pressure = io_pressure,
-       .current_usage = current,
-       .nr_dying_descendants = nr_dying_descendants});
-
-  return true;
-}
-
-bool Oomd::updateContextCgroup(const CgroupPath& path, OomdContext& ctx) {
-  std::string absolute_cgroup_path = path.absolutePath();
-
-  // Warn once if memory controller is not enabled on target cgroup
-  auto controllers = Fs::readControllers(absolute_cgroup_path);
-  if (!std::any_of(controllers.begin(), controllers.end(), [](std::string& s) {
-        return s == "memory";
-      })) {
-    if (!warned_mem_controller_.count(absolute_cgroup_path)) {
-      OLOG << "WARNING: cgroup memory controller not enabled on "
-           << absolute_cgroup_path << ". oomd will ignore it.";
-      warned_mem_controller_.emplace(absolute_cgroup_path);
-    }
-
-    // Can't extract much info if memory controller isn't enabled
-    return false;
-  }
-
-  auto current = Fs::readMemcurrent(absolute_cgroup_path);
-  auto pressures = Fs::readMempressure(absolute_cgroup_path);
-  auto memlow = Fs::readMemlow(absolute_cgroup_path);
-  auto memmin = Fs::readMemmin(absolute_cgroup_path);
-  auto memhigh = Fs::readMemhigh(absolute_cgroup_path);
-  auto memmax = Fs::readMemmax(absolute_cgroup_path);
-  auto swap_current = Fs::readSwapCurrent(absolute_cgroup_path);
-  auto memory_stats = Fs::getMemstat(absolute_cgroup_path);
-  auto anon_usage = memory_stats["anon"];
-  auto io_pressure = readIopressureWarnOnce(absolute_cgroup_path);
-  int64_t memhigh_tmp = 0;
-  try {
-    memhigh_tmp = Fs::readMemhightmp(absolute_cgroup_path);
-  } catch (const Fs::bad_control_file& ex) {
-  }
-  double io_cost_cumulative = 0;
-  if (io_devs_.size() != 0) {
-    IOStat io_stat;
-    if (std::any_of(controllers.begin(), controllers.end(), [](std::string& s) {
-          return s == "io";
-        })) {
-      io_stat = Fs::readIostat(absolute_cgroup_path);
-    } else {
-      if (!warned_io_stat_.count(absolute_cgroup_path)) {
-        warned_io_stat_.emplace(absolute_cgroup_path);
-        OLOG << "WARNING: cgroup io controller unavailable on "
-             << absolute_cgroup_path << ". io cost will be zero.";
-      }
-      io_stat = {};
-    }
-    io_cost_cumulative = calculateIOCostCumulative(io_stat);
-  }
-  auto nr_dying_descendants = Fs::getNrDyingDescendants(absolute_cgroup_path);
-
-  ctx.setCgroupContext(
-      path,
-      {.pressure = pressures,
-       .io_pressure = io_pressure,
-       .current_usage = current,
-       .memory_low = memlow,
-       .swap_usage = swap_current,
-       .anon_usage = anon_usage,
-       .memory_min = memmin,
-       .memory_high = memhigh,
-       .memory_high_tmp = memhigh_tmp,
-       .memory_max = memmax,
-       .io_cost_cumulative = io_cost_cumulative,
-       .nr_dying_descendants = nr_dying_descendants});
-
-  return true;
-}
-
-void Oomd::updateContext(
-    const std::unordered_set<CgroupPath>& cgroups,
-    OomdContext& ctx) {
-  OomdContext new_ctx;
-  // Caching results helps reduce tree walks
-  std::unordered_map<CgroupPath, int64_t> protection_cache;
-
-  auto resolved = resolveCgroupPaths(cgroups);
-  for (const auto& resolved_cgroup : resolved) {
-    // Only care about subtree cgroups, not the cgroup files
-    if (!Fs::isDir(resolved_cgroup.absolutePath())) {
-      continue;
-    }
-
-    // Despite checking just above if the cgroup directory is valid,
-    // we can still race with a cgroup disappearing. When that happens,
-    // simply abort updating the cgroup.
-    try {
-      if (resolved_cgroup.isRoot()) {
-        updateContextRoot(resolved_cgroup, new_ctx);
-      } else {
-        updateContextCgroup(resolved_cgroup, new_ctx);
-      }
-    } catch (const Fs::bad_control_file& ex) {
-      OLOG << "Caught bad_control_file: " << ex.what() << ". This is OK -- "
-           << "cgroups can disappear when a managed process exits";
-      continue;
-    }
-  }
-
-  // Update values that depend on the rest of OomdContext being up to date
-  for (auto& key : new_ctx.cgroups()) {
-    // This information isn't really relevant to the root host. Skip it.
-    if (key.isRoot()) {
-      continue;
-    }
-
-    auto new_cgroup_ctx = new_ctx.getCgroupContext(key); // copy
-
-    float prev_avg = 0;
-    // make the initial io cost zero
-    double prev_io_cost_cum = new_cgroup_ctx.io_cost_cumulative;
-    if (ctx.hasCgroupContext(key)) {
-      prev_avg = ctx.getCgroupContext(key).average_usage;
-      prev_io_cost_cum = ctx.getCgroupContext(key).io_cost_cumulative;
-    }
-
-    // Update running average
-    new_cgroup_ctx.average_usage =
-        prev_avg * ((average_size_decay_ - 1) / average_size_decay_) +
-        (new_cgroup_ctx.current_usage / average_size_decay_);
-
-    // Update io cost
-    new_cgroup_ctx.io_cost_rate =
-        (new_cgroup_ctx.io_cost_cumulative - prev_io_cost_cum) /
-        interval_.count();
-
-    // Update protection overage
-    new_cgroup_ctx.memory_protection =
-        calculateProtection(key, new_ctx, protection_cache);
-
-    new_ctx.setCgroupContext(key, new_cgroup_ctx);
-  }
-
+void Oomd::updateContext() {
   // Update information about swapfree
   SystemContext system_ctx;
   auto swaps = Fs::readFileByLine("/proc/swaps");
@@ -398,11 +86,9 @@ void Oomd::updateContext(
     system_ctx.swapused += std::stoll(parts[2]) * 1024; // Values are in KB
   }
 
-  new_ctx.setSystemContext(system_ctx);
-  // update object state
-  ctx = std::move(new_ctx);
+  ctx_.setSystemContext(system_ctx);
+  ctx_.refresh();
 }
-
 int Oomd::deregisterDropInWatcherFromEventLoop() {
   char buf[1024];
   int ret = 0;
@@ -581,9 +267,7 @@ void Oomd::processDropInAdd(const std::string& file) {
 
   size_t tag = std::hash<std::string>{}(file);
   for (size_t i = 0; i < unit->rulesets.size(); ++i) {
-    if (engine_->addDropInConfig(tag, std::move(unit->rulesets.at(i)))) {
-      resources_.insert(unit->resources.cbegin(), unit->resources.cend());
-    } else {
+    if (!engine_->addDropInConfig(tag, std::move(unit->rulesets.at(i)))) {
       OLOG << "Failed to inject drop in config into engine";
       return;
     }
@@ -678,7 +362,6 @@ int Oomd::processEventLoop() {
 }
 
 int Oomd::run() {
-  OomdContext ctx;
   int ret;
 
   if (!engine_) {
@@ -701,13 +384,13 @@ int Oomd::run() {
         return ret;
       }
 
-      updateContext(resources_, ctx);
+      updateContext();
 
       // Prerun all the plugins
-      engine_->prerun(ctx);
+      engine_->prerun(ctx_);
 
       // Run all the plugins
-      engine_->runOnce(ctx);
+      engine_->runOnce(ctx_);
 
     } catch (const std::exception& ex) {
       OLOG << "Caught exception: " << ex.what();

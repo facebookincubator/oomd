@@ -30,7 +30,6 @@ namespace {
 
 template <typename T>
 std::unique_ptr<Oomd::Engine::BasePlugin> compilePlugin(
-    Oomd::Engine::MonitoredResources& resources,
     const T& plugin,
     const Oomd::PluginConstructionContext& context) {
   if (plugin.name.empty()) {
@@ -47,7 +46,7 @@ std::unique_ptr<Oomd::Engine::BasePlugin> compilePlugin(
 
   instance->setName(plugin.name);
 
-  int ret = instance->init(resources, plugin.args, context);
+  int ret = instance->init(plugin.args, context);
   if (ret != 0) {
     OLOG << "Plugin=" << plugin.name << " failed to init() with code=" << ret;
     return nullptr;
@@ -57,7 +56,6 @@ std::unique_ptr<Oomd::Engine::BasePlugin> compilePlugin(
 }
 
 std::unique_ptr<Oomd::Engine::DetectorGroup> compileDetectorGroup(
-    Oomd::Engine::MonitoredResources& resources,
     const Oomd::Config2::IR::DetectorGroup& group,
     const Oomd::PluginConstructionContext& context) {
   std::vector<std::unique_ptr<Oomd::Engine::BasePlugin>> detectors;
@@ -73,8 +71,8 @@ std::unique_ptr<Oomd::Engine::DetectorGroup> compileDetectorGroup(
   }
 
   for (const auto& detector : group.detectors) {
-    auto compiled_plugin = compilePlugin<Oomd::Config2::IR::Detector>(
-        resources, detector, context);
+    auto compiled_plugin =
+        compilePlugin<Oomd::Config2::IR::Detector>(detector, context);
     if (!compiled_plugin) {
       return nullptr;
     }
@@ -87,7 +85,6 @@ std::unique_ptr<Oomd::Engine::DetectorGroup> compileDetectorGroup(
 }
 
 std::unique_ptr<Oomd::Engine::Ruleset> compileRuleset(
-    Oomd::Engine::MonitoredResources& resources,
     const Oomd::Config2::IR::Ruleset& ruleset,
     bool dropin,
     const Oomd::PluginConstructionContext& context) {
@@ -126,7 +123,7 @@ std::unique_ptr<Oomd::Engine::Ruleset> compileRuleset(
   }
 
   for (const auto& dg : ruleset.dgs) {
-    auto compiled_detectorgroup = compileDetectorGroup(resources, dg, context);
+    auto compiled_detectorgroup = compileDetectorGroup(dg, context);
     if (!compiled_detectorgroup) {
       return nullptr;
     }
@@ -136,7 +133,7 @@ std::unique_ptr<Oomd::Engine::Ruleset> compileRuleset(
 
   for (const auto& action : ruleset.acts) {
     auto compiled_action =
-        compilePlugin<Oomd::Config2::IR::Action>(resources, action, context);
+        compilePlugin<Oomd::Config2::IR::Action>(action, context);
     if (!compiled_action) {
       return nullptr;
     }
@@ -162,11 +159,10 @@ namespace Config2 {
 std::unique_ptr<Engine::Engine> compile(
     const IR::Root& root,
     const PluginConstructionContext& context) {
-  Engine::MonitoredResources resources;
   std::vector<std::unique_ptr<Engine::Ruleset>> rulesets;
 
   for (const auto& ruleset : root.rulesets) {
-    auto compiled_ruleset = compileRuleset(resources, ruleset, false, context);
+    auto compiled_ruleset = compileRuleset(ruleset, false, context);
     if (!compiled_ruleset) {
       return nullptr;
     }
@@ -174,8 +170,7 @@ std::unique_ptr<Engine::Engine> compile(
     rulesets.emplace_back(std::move(compiled_ruleset));
   }
 
-  return std::make_unique<Engine::Engine>(
-      std::move(resources), std::move(rulesets));
+  return std::make_unique<Engine::Engine>(std::move(rulesets));
 }
 
 std::optional<DropInUnit> compileDropIn(
@@ -191,14 +186,12 @@ std::optional<DropInUnit> compileDropIn(
       if (rs.name == dropin_rs.name) {
         found_target = true;
 
-        Engine::MonitoredResources dummy;
-        auto target = compileRuleset(dummy, rs, false, context);
+        auto target = compileRuleset(rs, false, context);
         if (!target) {
           return std::nullopt;
         }
 
-        auto compiled_drop =
-            compileRuleset(ret.resources, dropin_rs, true, context);
+        auto compiled_drop = compileRuleset(dropin_rs, true, context);
         if (!compiled_drop) {
           return std::nullopt;
         }

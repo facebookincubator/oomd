@@ -31,18 +31,16 @@ namespace {
 auto constexpr kPgscanSwap = "pgscan_kswapd";
 auto constexpr kPgscanDirect = "pgscan_direct";
 
-void dumpCgroupOverview(
-    const Oomd::CgroupPath& path,
-    const Oomd::CgroupContext& cgroup_ctx,
-    bool always) {
+void dumpCgroupOverview(const Oomd::CgroupContext& cgroup_ctx, bool always) {
   // Only log on exceptional cases
-  const auto& pressure = cgroup_ctx.pressure;
+  auto pressure = cgroup_ctx.mem_pressure().value_or(Oomd::ResourcePressure{});
   bool should_dump = (always || (pressure.sec_10 >= 1 && pressure.sec_60 > 0));
   if (!should_dump) {
     return;
   }
 
-  const int64_t current = cgroup_ctx.current_usage;
+  const auto& path = cgroup_ctx.cgroup();
+  const int64_t current = cgroup_ctx.current_usage().value_or(0);
   auto meminfo = Oomd::Fs::getMeminfo();
   const int64_t swapfree = meminfo["SwapFree"];
   const int64_t swaptotal = meminfo["SwapTotal"];
@@ -64,14 +62,12 @@ namespace Oomd {
 REGISTER_PLUGIN(dump_cgroup_overview, DumpCgroupOverview::create);
 
 int DumpCgroupOverview::init(
-    Engine::MonitoredResources& resources,
     const Engine::PluginArgs& args,
     const PluginConstructionContext& context) {
   if (args.find("cgroup") != args.end()) {
     const auto& cgroup_fs = context.cgroupFs();
     auto cgroups = Util::split(args.at("cgroup"), ',');
     for (const auto& c : cgroups) {
-      resources.emplace(cgroup_fs, c);
       cgroups_.emplace(cgroup_fs, c);
     }
   } else {
@@ -90,23 +86,8 @@ int DumpCgroupOverview::init(
 }
 
 Engine::PluginRet DumpCgroupOverview::run(OomdContext& ctx) {
-  std::unordered_set<CgroupPath> resolved_cgroups;
-  for (const auto& cgroup : cgroups_) {
-    auto resolved_raw_paths = Fs::glob(cgroup.absolutePath());
-    for (const auto& raw : resolved_raw_paths) {
-      resolved_cgroups.emplace(
-          cgroup.cgroupFs(), raw.substr(cgroup.cgroupFs().size()));
-    }
-  }
-
-  for (const auto& resolved : resolved_cgroups) {
-    try {
-      const CgroupContext& cgroup_ctx = ctx.getCgroupContext(resolved);
-      dumpCgroupOverview(resolved, cgroup_ctx, always_);
-    } catch (const std::invalid_argument& ex) {
-      // cgroup is ignored or omitted
-      continue;
-    }
+  for (const CgroupContext& cgroup_ctx : ctx.addToCacheAndGet(cgroups_)) {
+    dumpCgroupOverview(cgroup_ctx, always_);
   }
 
   return Engine::PluginRet::CONTINUE;

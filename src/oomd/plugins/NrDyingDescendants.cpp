@@ -26,7 +26,6 @@ namespace Oomd {
 REGISTER_PLUGIN(nr_dying_descendants, NrDyingDescendants::create);
 
 int NrDyingDescendants::init(
-    Engine::MonitoredResources& resources,
     const Engine::PluginArgs& args,
     const PluginConstructionContext& context) {
   if (args.find("cgroup") != args.end()) {
@@ -34,7 +33,6 @@ int NrDyingDescendants::init(
 
     auto cgroups = Util::split(args.at("cgroup"), ',');
     for (const auto& c : cgroups) {
-      resources.emplace(cgroup_fs, c);
       cgroups_.emplace(cgroup_fs, c);
     }
   } else {
@@ -77,17 +75,15 @@ int NrDyingDescendants::init(
 }
 
 Engine::PluginRet NrDyingDescendants::run(OomdContext& ctx) {
-  auto cgroups = ctx.reverseSort();
-  OomdContext::removeSiblingCgroups(cgroups_, cgroups);
-
-  for (const auto& [name, cgroup_ctx] : cgroups) {
-    int64_t nr = cgroup_ctx.nr_dying_descendants;
-    if ((lte_ && nr <= count_) || (!lte_ && nr > count_)) {
-      if (debug_) {
-        OLOG << "nr_dying_descendants=" << nr << (lte_ ? " <= " : " > ")
-             << "count=" << count_;
+  for (const CgroupContext& cgroup_ctx : ctx.addToCacheAndGet(cgroups_)) {
+    if (auto nr = cgroup_ctx.nr_dying_descendants()) {
+      if ((lte_ && *nr <= count_) || (!lte_ && *nr > count_)) {
+        if (debug_) {
+          OLOG << "nr_dying_descendants=" << *nr << (lte_ ? " <= " : " > ")
+               << "count=" << count_;
+        }
+        return Engine::PluginRet::CONTINUE;
       }
-      return Engine::PluginRet::CONTINUE;
     }
   }
 

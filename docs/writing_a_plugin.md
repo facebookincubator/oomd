@@ -80,6 +80,11 @@ as the plugin is enabled, even if it is an action plugin and not triggered.
 Therefore, it is designed to execute stateful logic, such as calculating sliding
 window metrics, storing time when a threshold is exceeded, etc.
 
+If the plugin may rely on temporal cgroup counters such as average usage and io
+cost rate (see `CgroupContext.h`) in `run(..)`, it must implement `prerun(..)`
+to retrieve temporal counters for all of its cgroups to keep them from getting
+stale. See `KillIOCost` for example.
+
 ## Plugin registration
 
 You might have wondered, how does the config compiler know which plugin name

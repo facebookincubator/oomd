@@ -19,6 +19,8 @@
 #include <gtest/gtest.h>
 
 #include "oomd/OomdContext.h"
+#include "oomd/util/Fixture.h"
+#include "oomd/util/TestHelper.h"
 
 using namespace Oomd;
 using namespace testing;
@@ -27,143 +29,146 @@ class OomdContextTest : public ::testing::Test {
  public:
   OomdContextTest() = default;
   OomdContext ctx;
+
+ protected:
+  using F = Fixture;
+  void SetUp() override {
+    tempdir_ = F::mkdtempChecked();
+  }
+  void TearDown() override {
+    F::rmrChecked(tempdir_);
+  }
+  std::string tempdir_;
 };
 
-TEST_F(OomdContextTest, MoveConstructor) {
-  CgroupPath path("/sys/fs/cgroup", "asdf");
-  EXPECT_FALSE(ctx.hasCgroupContext(path));
+namespace std {
+// Check if two reference_wrappers are exactly the same
+bool operator==(
+    const OomdContext::ConstCgroupContextRef& lhs,
+    const OomdContext::ConstCgroupContextRef& rhs) {
+  return std::addressof(lhs.get()) == std::addressof(rhs.get());
+};
+} // namespace std
 
+TEST_F(OomdContextTest, MoveConstructor) {
+  CgroupPath path(tempdir_, "asdf");
+  EXPECT_FALSE(ctx.addToCacheAndGet(path));
   OomdContext other;
-  other.setCgroupContext(path, CgroupContext{{}, {}, 1, 2, 3});
+  TestHelper::setCgroupData(
+      other,
+      path,
+      TestHelper::CgroupData{
+          .current_usage = 1, .memory_low = 2, .average_usage = 3});
 
   ctx = std::move(other);
+  F::materialize(F::makeDir(tempdir_, {F::makeDir("asdf")}));
 
-  ASSERT_TRUE(ctx.hasCgroupContext(path));
-  auto moved_cgroup_ctx = ctx.getCgroupContext(path);
-  EXPECT_EQ(moved_cgroup_ctx.current_usage, 1);
-  EXPECT_EQ(moved_cgroup_ctx.average_usage, 2);
-  EXPECT_EQ(moved_cgroup_ctx.memory_low, 3);
-}
-
-TEST_F(OomdContextTest, HasCgroupCheck) {
-  CgroupPath path("/sys/fs/cgroup", "asdf");
-
-  EXPECT_FALSE(ctx.hasCgroupContext(path));
-  ctx.setCgroupContext(path, CgroupContext{});
-  EXPECT_TRUE(ctx.hasCgroupContext(path));
+  ASSERT_THAT(ctx.cgroups(), ElementsAre(path));
+  auto moved_cgroup_ctx = ctx.addToCacheAndGet(path);
+  ASSERT_TRUE(moved_cgroup_ctx);
+  EXPECT_EQ(moved_cgroup_ctx->get().current_usage(), 1);
+  EXPECT_EQ(moved_cgroup_ctx->get().memory_low(), 2);
+  EXPECT_EQ(moved_cgroup_ctx->get().average_usage(), 3);
 }
 
 TEST_F(OomdContextTest, CgroupKeys) {
-  CgroupPath p1("/sys/fs/cgroup", "asdf");
-  CgroupPath p2("/sys/fs/cgroup", "wow");
+  F::materialize(F::makeDir(tempdir_, {F::makeDir("asdf"), F::makeDir("wow")}));
+  CgroupPath p1(tempdir_, "asdf");
+  CgroupPath p2(tempdir_, "wow");
 
   EXPECT_EQ(ctx.cgroups().size(), 0);
-  ctx.setCgroupContext(p1, CgroupContext{});
-  ctx.setCgroupContext(p2, CgroupContext{});
-  EXPECT_EQ(ctx.cgroups().size(), 2);
-  EXPECT_THAT(ctx.cgroups(), Contains(p1));
-  EXPECT_THAT(ctx.cgroups(), Contains(p2));
+  EXPECT_TRUE(ctx.addToCacheAndGet(p1));
+  EXPECT_TRUE(ctx.addToCacheAndGet(p2));
+  EXPECT_THAT(ctx.cgroups(), UnorderedElementsAre(p1, p2));
 }
 
 TEST_F(OomdContextTest, CgroupKeyRoot) {
-  CgroupPath root("/sys/fs/cgroup", "/");
-  ctx.setCgroupContext(root, CgroupContext{.current_usage = 12345});
-  EXPECT_EQ(ctx.cgroups().size(), 1);
-  EXPECT_EQ(ctx.getCgroupContext(root).current_usage, 12345);
+  CgroupPath root(tempdir_, "/");
+  EXPECT_TRUE(ctx.addToCacheAndGet(root));
+  EXPECT_THAT(ctx.cgroups(), ElementsAre(root));
 }
 
-TEST_F(OomdContextTest, SetCgroup) {
-  CgroupPath p1("/sys/fs/cgroup", "asdf");
-  ctx.setCgroupContext(p1, CgroupContext{});
-  EXPECT_EQ(ctx.getCgroupContext(p1).memory_low, 0);
+TEST_F(OomdContextTest, GetMultiple) {
+  F::materialize(F::makeDir(
+      tempdir_,
+      {F::makeDir("dir1"),
+       F::makeDir("dir2"),
+       F::makeDir("dir3"),
+       F::makeFile("file1")}));
+  CgroupPath p1(tempdir_, "dir1");
+  CgroupPath p2(tempdir_, "dir2");
+  CgroupPath p3(tempdir_, "dir3");
+  CgroupPath p4(tempdir_, "file1");
+  CgroupPath p5(tempdir_, "NOT_EXIST");
 
-  ctx.setCgroupContext(p1, CgroupContext{{}, {}, 0, 0, 222});
-  EXPECT_EQ(ctx.getCgroupContext(p1).memory_low, 222);
+  auto cgroups = ctx.addToCacheAndGet({p1, p2, p3, p4, p5});
+  auto cg1 = ctx.addToCacheAndGet(p1);
+  auto cg2 = ctx.addToCacheAndGet(p2);
+  auto cg3 = ctx.addToCacheAndGet(p3);
+  ASSERT_TRUE(cg1);
+  ASSERT_TRUE(cg2);
+  ASSERT_TRUE(cg3);
+  EXPECT_THAT(cgroups, UnorderedElementsAre(*cg1, *cg2, *cg3));
 
-  CgroupPath p2("/sys/fs/cgroup", "A/B/C");
-  ctx.setCgroupContext(p2, CgroupContext{});
-  CgroupPath p2_parent = p2.getParent();
-  CgroupPath p2_parent_parent = p2_parent.getParent();
-  EXPECT_TRUE(ctx.hasCgroupContext(p2));
-  EXPECT_FALSE(ctx.hasCgroupContext(p2_parent));
-  EXPECT_FALSE(ctx.hasCgroupContext(p2_parent_parent));
-}
-
-TEST_F(OomdContextTest, DeepNesting) {
-  CgroupPath p1("/sys/fs/cgroup", "A");
-  CgroupPath p2("/sys/fs/cgroup", "A/B");
-  CgroupPath p3("/sys/fs/cgroup", "A/B/C");
-  CgroupPath p4("/sys/fs/cgroup", "A/B/D");
-  CgroupPath p5("/sys/fs/cgroup", "A/B/D/E");
-
-  ctx.setCgroupContext(p1, CgroupContext{{}, {}, 1});
-  ctx.setCgroupContext(p2, CgroupContext{{}, {}, 2});
-  ctx.setCgroupContext(p3, CgroupContext{{}, {}, 3});
-  ctx.setCgroupContext(p4, CgroupContext{{}, {}, 4});
-  ctx.setCgroupContext(p5, CgroupContext{{}, {}, 5});
-
-  EXPECT_TRUE(ctx.hasCgroupContext(p1));
-  EXPECT_TRUE(ctx.hasCgroupContext(p2));
-  EXPECT_TRUE(ctx.hasCgroupContext(p3));
-  EXPECT_TRUE(ctx.hasCgroupContext(p4));
-  EXPECT_TRUE(ctx.hasCgroupContext(p5));
-
-  EXPECT_EQ(ctx.getCgroupContext(p1).current_usage, 1);
-  EXPECT_EQ(ctx.getCgroupContext(p2).current_usage, 2);
-  EXPECT_EQ(ctx.getCgroupContext(p3).current_usage, 3);
-  EXPECT_EQ(ctx.getCgroupContext(p4).current_usage, 4);
-  EXPECT_EQ(ctx.getCgroupContext(p5).current_usage, 5);
-}
-
-TEST_F(OomdContextTest, TreeWalk) {
-  CgroupPath p1("/sys/fs/cgroup", "A");
-  CgroupPath p2("/sys/fs/cgroup", "A/B");
-  CgroupPath p3("/sys/fs/cgroup", "A/B/C");
-  CgroupPath p4("/sys/fs/cgroup", "A/B/C/D");
-
-  ctx.setCgroupContext(p1, CgroupContext{});
-  ctx.setCgroupContext(p2, CgroupContext{});
-  ctx.setCgroupContext(p3, CgroupContext{});
-  ctx.setCgroupContext(p4, CgroupContext{});
-
-  auto pp4 = ctx.getCgroupNode(p4);
-  ASSERT_TRUE(pp4->parent.lock());
-  EXPECT_EQ(pp4->parent.lock()->path, p3);
-  ASSERT_TRUE(pp4->parent.lock()->parent.lock());
-  EXPECT_EQ(pp4->parent.lock()->parent.lock()->path, p2);
-  ASSERT_TRUE(pp4->parent.lock()->parent.lock()->parent.lock());
-  EXPECT_EQ(pp4->parent.lock()->parent.lock()->parent.lock()->path, p1);
-  ASSERT_TRUE(pp4->parent.lock()->parent.lock()->parent.lock()->parent.lock());
-  EXPECT_TRUE(pp4->parent.lock()
-                  ->parent.lock()
-                  ->parent.lock()
-                  ->parent.lock()
-                  ->path.isRoot());
+  CgroupPath p6(tempdir_, "*");
+  EXPECT_THAT(
+      ctx.addToCacheAndGet(std::unordered_set<CgroupPath>{p6}),
+      UnorderedElementsAreArray(cgroups));
+  // Check no duplicates
+  EXPECT_THAT(
+      ctx.addToCacheAndGet({p1, p2, p3, p4, p5, p6}),
+      UnorderedElementsAreArray(cgroups));
+  // Check empty result
+  EXPECT_EQ(ctx.addToCacheAndGet({p4, p5}).size(), 0);
+  EXPECT_EQ(ctx.addToCacheAndGet({}).size(), 0);
 }
 
 TEST_F(OomdContextTest, SortContext) {
-  CgroupPath p1("/sys/fs/cgroup", "biggest");
-  CgroupPath p2("/sys/fs/cgroup", "smallest");
-  CgroupPath p3("/sys/fs/cgroup", "asdf");
-  CgroupPath p4("/sys/fs/cgroup", "fdsa");
+  F::materialize(F::makeDir(
+      tempdir_,
+      {F::makeDir(
+           "biggest",
+           {F::makeFile("memory.current", "99999999\n"),
+            F::makeFile("memory.low", "1\n")}),
+       F::makeDir(
+           "smallest",
+           {F::makeFile("memory.current", "1\n"),
+            F::makeFile("memory.low", "4\n")}),
+       F::makeDir(
+           "asdf",
+           {F::makeFile("memory.current", "88888888\n"),
+            F::makeFile("memory.low", "2\n")}),
+       F::makeDir(
+           "fdsa",
+           {F::makeFile("memory.current", "77777777\n"),
+            F::makeFile("memory.low", "3\n")})}));
+  CgroupPath p1(tempdir_, "biggest");
+  CgroupPath p2(tempdir_, "smallest");
+  CgroupPath p3(tempdir_, "asdf");
+  CgroupPath p4(tempdir_, "fdsa");
 
-  ctx.setCgroupContext(p1, {{}, {}, 99999999, 0, 1});
-  ctx.setCgroupContext(p2, {{}, {}, 1, 988888888888, 4});
-  ctx.setCgroupContext(p3, {{}, {}, 88888888, 289349817823, 2});
-  ctx.setCgroupContext(p4, {{}, {}, 77777777, 6, 3});
+  auto sorted =
+      ctx.reverseSort({p1, p2, p3, p4}, [](const CgroupContext& cgroup_ctx) {
+        return cgroup_ctx.current_usage().value_or(0);
+      });
 
-  auto sorted = ctx.reverseSort(
-      [](const CgroupContext& cgroup_ctx) { return cgroup_ctx.current_usage; });
+  auto cg1 = ctx.addToCacheAndGet(p1);
+  auto cg2 = ctx.addToCacheAndGet(p2);
+  auto cg3 = ctx.addToCacheAndGet(p3);
+  auto cg4 = ctx.addToCacheAndGet(p4);
+  ASSERT_TRUE(cg1);
+  ASSERT_TRUE(cg2);
+  ASSERT_TRUE(cg3);
+  ASSERT_TRUE(cg4);
 
-  ASSERT_EQ(sorted.size(), 4);
-  EXPECT_EQ(sorted.at(0).first, p1);
-  EXPECT_EQ(sorted.at(3).first, p2);
+  EXPECT_THAT(sorted, ElementsAre(*cg1, *cg3, *cg4, *cg2));
 
-  OomdContext::reverseSort(sorted, [](const CgroupContext& cgroup_ctx) {
-    return cgroup_ctx.memory_low;
+  CgroupPath p5(tempdir_, "*est");
+  CgroupPath p6(tempdir_, "{biggest,smallest,asdf,fdsa}");
+  CgroupPath p7(tempdir_, "NOT_EXIST");
+  sorted = ctx.reverseSort({p5, p6, p7}, [](const CgroupContext& cgroup_ctx) {
+    return cgroup_ctx.memory_low().value_or(0);
   });
 
-  ASSERT_EQ(sorted.size(), 4);
-  EXPECT_EQ(sorted.at(0).first, p2);
-  EXPECT_EQ(sorted.at(3).first, p1);
+  EXPECT_THAT(sorted, ElementsAre(*cg2, *cg4, *cg3, *cg1));
 }
