@@ -56,6 +56,11 @@ class Fixture {
   static DirEntryPair makeDir(
       const std::string& name,
       std::unordered_map<std::string, DirEntry> entries = {});
+  static void materialize(
+      const DirEntryPair& pair,
+      const std::string& path = "") {
+    pair.second.materialize(path, pair.first);
+  }
 
   // utility functions that interact with file system
   static std::string mkdtempChecked();
