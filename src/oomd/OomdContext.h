@@ -25,6 +25,7 @@
 #include <unordered_set>
 #include <vector>
 
+#include "oomd/CgroupContext.h"
 #include "oomd/include/CgroupPath.h"
 #include "oomd/include/Types.h"
 
@@ -35,89 +36,70 @@ struct ActionContext {
   std::string detectorgroup;
 };
 
-struct CgroupNode {
-  explicit CgroupNode(CgroupPath p);
-  ~CgroupNode() = default;
-
-  CgroupPath path;
-  CgroupContext ctx;
-  // Is this node holding actual data or are we simply a branch for a leaf
-  bool isEmptyBranch{false};
-  std::weak_ptr<CgroupNode> parent;
-  std::vector<std::shared_ptr<CgroupNode>> children;
+struct ContextParams {
+  // TODO(dlxu): migrate to ring buffer for raw datapoints so plugins
+  // can calculate weighted average themselves
+  double average_size_decay{4.0};
+  // root io device IDs (<major>:<minor>) and their device types (SSD/HDD)
+  std::unordered_map<std::string, DeviceType> io_devs;
+  IOCostCoeffs hdd_coeffs;
+  IOCostCoeffs ssd_coeffs;
 };
 
 class OomdContext {
  public:
-  OomdContext() {} // = default warns about dynamic exceptions
+  // Immutable CgroupContext type returned from public APIs, which has life time
+  // valid for the interval being accessed. Plugins should never store it.
+  using ConstCgroupContextRef = std::reference_wrapper<const CgroupContext>;
+
+  explicit OomdContext(const ContextParams& params = {}) : params_(params) {}
   ~OomdContext() = default;
   OomdContext(OomdContext&& other) noexcept = default;
   OomdContext& operator=(OomdContext&& other) = default;
 
-  /*
-   * @returns whether or not OomdContext holds a particular cgroup
-   */
-  bool hasCgroupContext(const CgroupPath& path) const;
-
-  /*
-   * @returns all the stored cgroup paths
-   */
   std::vector<CgroupPath> cgroups() const;
 
-  /*
-   * @returns a CgroupContext reference associated with @param name
-   * @throws std::invalid_argument for missing cgroup
-   */
-  const CgroupContext& getCgroupContext(const CgroupPath& path) const;
+  const ContextParams& getParams() const {
+    return params_;
+  }
 
   /*
-   * Mutable variant of getCgroupContext(). Use only when necessary.
+   * Add a cgroup to cache if not already exist, and return the result. If it's
+   * invalid, return std::nullopt.
    */
-  CgroupContext& getMutableCgroupContext(const CgroupPath& path) const;
+  std::optional<ConstCgroupContextRef> addToCacheAndGet(
+      const CgroupPath& cgroup);
 
   /*
-   * @returns a CgroupNode* if cgroup is present, nullptr otherwise
+   * Add a set of cgroups to cache if not already exist, and return the result.
+   * Cgroup paths may contain glob pattern, which will be expanded if valid.
+   * Returned CgroupContexts are all valid and won't contain duplicate.
    */
-  std::shared_ptr<CgroupNode> getCgroupNode(const CgroupPath& path) const;
+  std::vector<ConstCgroupContextRef> addToCacheAndGet(
+      const std::unordered_set<CgroupPath>& cgroups);
 
   /*
-   * Assigns a mapping of cgroup -> CgroupContext
+   * Add a set of cgroups to cache, and return the resulting CgroupContext
+   * sorting in descending order by the get_key functor, which accepts a const
+   * reference of CgroupContext and returns something comparable.
    */
-  void setCgroupContext(const CgroupPath& path, CgroupContext context);
-
-  /*
-   * Manipulates CgroupContexts into helpful other helpful datastructures
-   *
-   * @param getKey is a lambda that accesses the key you want to reverse sort by
-   */
-  std::vector<std::pair<CgroupPath, CgroupContext>> reverseSort(
-      std::function<double(const CgroupContext& cgroup_ctx)> getKey = nullptr);
-
-  /*
-   * In place sorts @param vec. Similar to @method
-   * reverseSort(std::function<...>)
-   */
-  static void reverseSort(
-      std::vector<std::pair<CgroupPath, CgroupContext>>& vec,
-      std::function<double(const CgroupContext& cgroup_ctx)> getKey);
-
-  /*
-   * Removes all cgroups from @param vec that do not match @param ours.
-   *
-   * This is useful in plugins that are assigned a set of cgroups to monitor.
-   * Those plugins often need a way to remove all the cgroups they do not
-   * care about.
-   */
-  static void removeSiblingCgroups(
-      const std::unordered_set<CgroupPath>& ours,
-      std::vector<std::pair<CgroupPath, Oomd::CgroupContext>>& vec);
+  template <class Functor>
+  std::vector<ConstCgroupContextRef> reverseSort(
+      const std::unordered_set<CgroupPath>& cgroups,
+      Functor&& get_key) {
+    auto sorted = addToCacheAndGet(cgroups);
+    std::sort(sorted.begin(), sorted.end(), [&](const auto& a, const auto& b) {
+      return get_key(a.get()) > get_key(b.get());
+    });
+    return sorted;
+  }
 
   /*
    * Dumps OomdContext state to stderr
    */
   void dump();
-  static void dumpOomdContext(
-      const std::vector<std::pair<CgroupPath, CgroupContext>>& vec,
+  static void dump(
+      const std::vector<ConstCgroupContextRef>& vec,
       const bool skip_negligible = false);
 
   /*
@@ -133,18 +115,17 @@ class OomdContext {
   const SystemContext& getSystemContext() const;
   void setSystemContext(const SystemContext& context);
 
- private:
-  std::shared_ptr<CgroupNode> addToTree(
-      const CgroupPath& path,
-      CgroupContext ctx);
-  std::shared_ptr<CgroupNode> addToTreeHelper(
-      const CgroupPath& path,
-      CgroupContext ctx);
-  std::shared_ptr<CgroupNode> findInTree(const CgroupPath& path) const;
+  /*
+   * Refresh all cgroups and remove ones no longer exist.
+   */
+  void refresh();
 
-  std::shared_ptr<CgroupNode> root_{nullptr};
-  // Read cache so we don't have to walk the tree for read ops
-  std::unordered_map<CgroupPath, std::shared_ptr<CgroupNode>> memory_state_;
+ private:
+  // Test only
+  friend class TestHelper;
+
+  struct ContextParams params_;
+  std::unordered_map<CgroupPath, CgroupContext> cgroups_;
   ActionContext action_context_;
   SystemContext system_ctx_;
 };

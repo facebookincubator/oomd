@@ -33,7 +33,6 @@ namespace Oomd {
 REGISTER_PLUGIN(senpai, Senpai::create);
 
 int Senpai::init(
-    Engine::MonitoredResources& resources,
     const Engine::PluginArgs& args,
     const PluginConstructionContext& context) {
   if (args.find("cgroup") != args.end()) {
@@ -42,7 +41,6 @@ int Senpai::init(
     auto cgroups = Util::split(args.at("cgroup"), ',');
     for (const auto& c : cgroups) {
       cgroups_.emplace(cgroup_fs, c);
-      resources.emplace(cgroup_fs, c);
     }
   } else {
     OLOG << "Argument=cgroup not present";

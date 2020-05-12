@@ -72,34 +72,6 @@ struct ResourcePressure {
   }
 };
 
-// If you update this class with something that could be valuable to know
-// when debugging, please remember to update OomdContext::dumpOomdContext
-// as well.
-class CgroupContext {
- public:
-  ResourcePressure pressure;
-  ResourcePressure io_pressure;
-  int64_t current_usage{0};
-  int64_t average_usage{0};
-  int64_t memory_low{0};
-  int64_t memory_protection{0};
-  int64_t swap_usage{0};
-  int64_t anon_usage{0};
-  int64_t memory_min{0};
-  int64_t memory_high{0};
-  int64_t memory_high_tmp{0};
-  int64_t memory_max{0};
-  float memory_scale{1};
-  int64_t memory_adj{0};
-  double io_cost_cumulative{0}; // Dot product between io stat and coeffs
-  double io_cost_rate{0}; // change of cumulative divided by interval in seconds
-  int64_t nr_dying_descendants{0};
-
-  int64_t effective_usage() const {
-    return current_usage * memory_scale - memory_protection + memory_adj;
-  }
-};
-
 struct SystemContext {
   uint64_t swaptotal{0};
   uint64_t swapused{0};

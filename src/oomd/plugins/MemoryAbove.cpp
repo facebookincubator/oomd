@@ -31,7 +31,6 @@ namespace Oomd {
 REGISTER_PLUGIN(memory_above, MemoryAbove::create);
 
 int MemoryAbove::init(
-    Engine::MonitoredResources& resources,
     const Engine::PluginArgs& args,
     const PluginConstructionContext& context) {
   if (args.find("cgroup") != args.end()) {
@@ -39,7 +38,6 @@ int MemoryAbove::init(
 
     auto cgroups = Util::split(args.at("cgroup"), ',');
     for (const auto& c : cgroups) {
-      resources.emplace(cgroup_fs, c);
       cgroups_.emplace(cgroup_fs, c);
     }
   } else {
@@ -93,23 +91,17 @@ Engine::PluginRet MemoryAbove::run(OomdContext& ctx) {
   using std::chrono::steady_clock;
   int64_t current_memory_usage = 0;
   std::string current_cgroup;
-  for (const auto& cgroup : cgroups_) {
-    try {
-      auto cgroup_ctx = ctx.getCgroupContext(cgroup);
-      if (debug_) {
-        OLOG << "cgroup \"" << cgroup.relativePath() << "\" "
-             << "memory.current=" << cgroup_ctx.current_usage
-             << "memory.stat (anon)=" << cgroup_ctx.anon_usage;
-      }
-      auto usage = is_anon_ ? cgroup_ctx.anon_usage : cgroup_ctx.current_usage;
-      if (current_memory_usage < usage) {
-        current_memory_usage = usage;
-        current_cgroup = cgroup.relativePath();
-      }
-    } catch (const std::exception& ex) {
-      OLOG << "Failed to get cgroup \"" << cgroup.relativePath() << "\" "
-           << "context: " << ex.what();
-      continue;
+  for (const CgroupContext& cgroup_ctx : ctx.addToCacheAndGet(cgroups_)) {
+    if (debug_) {
+      OLOG << "cgroup \"" << cgroup_ctx.cgroup().relativePath() << "\" "
+           << "memory.current=" << cgroup_ctx.current_usage().value_or(0)
+           << "memory.stat (anon)=" << cgroup_ctx.anon_usage().value_or(0);
+    }
+    auto usage = is_anon_ ? cgroup_ctx.anon_usage().value_or(0)
+                          : cgroup_ctx.current_usage().value_or(0);
+    if (current_memory_usage < usage) {
+      current_memory_usage = usage;
+      current_cgroup = cgroup_ctx.cgroup().relativePath();
     }
   }
 

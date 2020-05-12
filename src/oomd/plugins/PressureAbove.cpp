@@ -31,14 +31,12 @@ namespace Oomd {
 REGISTER_PLUGIN(pressure_above, PressureAbove::create);
 
 int PressureAbove::init(
-    Engine::MonitoredResources& resources,
     const Engine::PluginArgs& args,
     const PluginConstructionContext& context) {
   if (args.find("cgroup") != args.end()) {
     const auto& cgroup_fs = context.cgroupFs();
     auto cgroups = Util::split(args.at("cgroup"), ',');
     for (const auto& c : cgroups) {
-      resources.emplace(cgroup_fs, c);
       cgroups_.emplace(cgroup_fs, c);
     }
   } else {
@@ -82,17 +80,15 @@ Engine::PluginRet PressureAbove::run(OomdContext& ctx) {
 
   ResourcePressure current_pressure;
   int64_t current_memory_usage = 0;
-  auto sorted_cgroups = ctx.reverseSort();
-  OomdContext::removeSiblingCgroups(cgroups_, sorted_cgroups);
 
-  for (const auto& state_pair : sorted_cgroups) {
+  for (const CgroupContext& cgroup_ctx : ctx.addToCacheAndGet(cgroups_)) {
     ResourcePressure rp;
     switch (resource_) {
       case ResourceType::IO:
-        rp = state_pair.second.io_pressure;
+        rp = cgroup_ctx.io_pressure().value_or(rp);
         break;
       case ResourceType::MEMORY:
-        rp = state_pair.second.pressure;
+        rp = cgroup_ctx.mem_pressure().value_or(rp);
         break;
         // No default to catch new additions in ResourceType
     }
@@ -102,7 +98,7 @@ Engine::PluginRet PressureAbove::run(OomdContext& ctx) {
         current_pressure.sec_10 * 3 + current_pressure.sec_60 * 2 +
             current_pressure.sec_300) {
       current_pressure = rp;
-      current_memory_usage = state_pair.second.current_usage;
+      current_memory_usage = cgroup_ctx.current_usage().value_or(0);
     }
   }
 

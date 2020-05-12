@@ -34,15 +34,11 @@ enum class PluginRet {
   STOP,
 };
 
-using MonitoredResources = std::unordered_set<CgroupPath>;
 using PluginArgs = std::unordered_map<std::string, std::string>;
 
 class BasePlugin {
  public:
   /*
-   * Plugins can register cgroups they want monitored by adding paths to
-   * @param resources.
-   *
    * Config arguments are passed via @param args. If some required args are
    * missing, the plugin can return a non-zero value and oomd will abort
    * initialization.
@@ -51,7 +47,6 @@ class BasePlugin {
    * @return 0 on successful initialization.
    */
   virtual int init(
-      MonitoredResources& resources,
       const PluginArgs& args,
       const PluginConstructionContext& context) = 0;
 

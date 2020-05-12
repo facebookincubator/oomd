@@ -26,10 +26,7 @@
 namespace Oomd {
 namespace Engine {
 
-Engine::Engine(
-    MonitoredResources resources,
-    std::vector<std::unique_ptr<Ruleset>> rulesets)
-    : resources_(std::move(resources)) {
+Engine::Engine(std::vector<std::unique_ptr<Ruleset>> rulesets) {
   for (auto& rs : rulesets) {
     if (rs) {
       rulesets_.emplace_back(BaseRuleset{.ruleset = std::move(rs)});
@@ -122,10 +119,6 @@ void Engine::runOnce(OomdContext& context) {
   }
 
   Oomd::incrementStat(CoreStats::kNumDropInFired, nr_dropins_run);
-}
-
-const MonitoredResources& Engine::getMonitoredResources() const {
-  return resources_;
 }
 
 } // namespace Engine

@@ -30,7 +30,6 @@ namespace Oomd {
 REGISTER_PLUGIN(memory_reclaim, MemoryReclaim::create);
 
 int MemoryReclaim::init(
-    Engine::MonitoredResources& resources,
     const Engine::PluginArgs& args,
     const PluginConstructionContext& context) {
   if (args.find("cgroup") != args.end()) {
@@ -38,7 +37,6 @@ int MemoryReclaim::init(
 
     auto cgroups = Util::split(args.at("cgroup"), ',');
     for (const auto& c : cgroups) {
-      resources.emplace(cgroup_fs, c);
       cgroups_.emplace(cgroup_fs, c);
     }
   } else {
@@ -60,13 +58,13 @@ int MemoryReclaim::init(
 Engine::PluginRet MemoryReclaim::run(OomdContext& ctx) {
   using std::chrono::steady_clock;
 
-  auto resolved_cgroups = ctx.reverseSort();
-  OomdContext::removeSiblingCgroups(cgroups_, resolved_cgroups);
-
   int64_t pgscan = 0;
-  for (const auto& cg : resolved_cgroups) {
-    auto memstat = Fs::getMemstat(cg.first.absolutePath());
-    pgscan += memstat[kPgscan];
+  for (const CgroupContext& cgroup_ctx : ctx.addToCacheAndGet(cgroups_)) {
+    if (const auto& memstat = cgroup_ctx.memory_stat()) {
+      if (auto pos = memstat->find(kPgscan); pos != memstat->end()) {
+        pgscan += pos->second;
+      }
+    }
   }
 
   OOMD_SCOPE_EXIT {

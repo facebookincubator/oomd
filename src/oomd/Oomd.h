@@ -17,18 +17,13 @@
 
 #pragma once
 
-#include <atomic>
 #include <chrono>
 #include <memory>
 #include <string>
 #include <unordered_map>
-#include <unordered_set>
-#include <utility>
-#include <vector>
 
 #include "oomd/config/ConfigTypes.h"
 #include "oomd/engine/Engine.h"
-#include "oomd/include/CgroupPath.h"
 
 namespace Oomd {
 
@@ -45,38 +40,10 @@ class Oomd {
       const IOCostCoeffs& ssd_coeffs = {});
   virtual ~Oomd() = default;
 
-  /*
-   * This method updates @param ctx with the status of all the cgroups
-   * in @param cgroups.
-   */
-  void updateContext(
-      const std::unordered_set<CgroupPath>& cgroups,
-      OomdContext& ctx);
-
+  void updateContext();
   int run();
 
  private:
-  /*
-   * Calculate @param cgroup memory protection, taking into account actual
-   * distribution of memory protection.
-   *
-   * Let's say L(cgrp) is the protection amount a cgroup has according to its
-   * own config, P(cgrp) is the amount of actual protection it gets.
-   *
-   * Let L(cgrp) = min(cgrp.memory.current, max(cgrp.memory.min,
-   * cgrp.memory.low))
-   *
-   * Then, P(cgpr) = min(L(cgrp), P(parent) * L(cgrp) / (Sum of L(child))) for
-   * each child of parent)
-   */
-  int64_t calculateProtection(
-      const CgroupPath& cgroup,
-      OomdContext& ctx,
-      std::unordered_map<CgroupPath, int64_t>& cache);
-  double calculateIOCostCumulative(const IOStat& io_stat);
-  ResourcePressure readIopressureWarnOnce(const std::string& path);
-  bool updateContextRoot(const CgroupPath& path, OomdContext& ctx);
-  bool updateContextCgroup(const CgroupPath& path, OomdContext& ctx);
   int prepDropInWatcher(const std::string& dir);
   int prepDropInWatcherEventLoop(const std::string& dir);
   int deregisterDropInWatcherFromEventLoop();
@@ -95,20 +62,11 @@ class Oomd {
   // runtime settings
   std::chrono::seconds interval_{0};
   std::string cgroup_fs_;
-  const double average_size_decay_{
-      4}; // TODO(dlxu): migrate to ring buffer for raw datapoints so plugins
-          // can calculate weighted average themselves
   std::unique_ptr<Config2::IR::Root> ir_root_;
   std::unique_ptr<Engine::Engine> engine_;
-  Engine::MonitoredResources resources_;
-  std::unordered_set<std::string> warned_io_pressure_;
-  std::unordered_set<std::string> warned_io_stat_;
-  std::unordered_set<std::string> warned_mem_controller_;
   std::string drop_in_dir_;
-  // root io device IDs (<major>:<minor>) and their device types (SSD/HDD)
-  std::unordered_map<std::string, DeviceType> io_devs_;
-  IOCostCoeffs hdd_coeffs_;
-  IOCostCoeffs ssd_coeffs_;
+
+  OomdContext ctx_;
 };
 
 } // namespace Oomd

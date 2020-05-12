@@ -214,11 +214,12 @@ void BaseKillPlugin::logKill(
     const ActionContext& action_context,
     const std::string& kill_uuid,
     bool dry) const {
+  auto mem_pressure = context.mem_pressure().value_or(ResourcePressure{});
   std::ostringstream oss;
   oss << std::setprecision(2) << std::fixed;
-  oss << context.pressure.sec_10 << " " << context.pressure.sec_60 << " "
-      << context.pressure.sec_300 << " " << killed_cgroup.relativePath() << " "
-      << context.current_usage << " "
+  oss << mem_pressure.sec_10 << " " << mem_pressure.sec_60 << " "
+      << mem_pressure.sec_300 << " " << killed_cgroup.relativePath() << " "
+      << context.current_usage().value_or(0) << " "
       << "ruleset:[" << action_context.ruleset << "] "
       << "detectorgroup:[" << action_context.detectorgroup << "] "
       << "killer:" << (dry ? "(dry)" : "") << getName() << " v2";
@@ -227,5 +228,4 @@ void BaseKillPlugin::logKill(
 
   dumpKillInfo(killed_cgroup, context, action_context, kill_uuid, dry);
 }
-
 } // namespace Oomd

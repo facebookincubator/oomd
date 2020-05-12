@@ -25,7 +25,6 @@ namespace Oomd {
 REGISTER_PLUGIN(swap_free, SwapFree::create);
 
 int SwapFree::init(
-    Engine::MonitoredResources& /* unused */,
     const Engine::PluginArgs& args,
     const PluginConstructionContext& /* unused */) {
   if (args.find("threshold_pct") != args.end()) {

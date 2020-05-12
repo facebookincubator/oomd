@@ -32,7 +32,6 @@ namespace Oomd {
 
 template <typename Base>
 int KillMemoryGrowth<Base>::init(
-    Engine::MonitoredResources& resources,
     const Engine::PluginArgs& args,
     const PluginConstructionContext& context) {
   if (args.find("cgroup") != args.end()) {
@@ -40,7 +39,6 @@ int KillMemoryGrowth<Base>::init(
 
     auto cgroups = Util::split(args.at("cgroup"), ',');
     for (const auto& c : cgroups) {
-      resources.emplace(cgroup_fs, c);
       cgroups_.emplace(cgroup_fs, c);
     }
   } else {
@@ -113,6 +111,14 @@ int KillMemoryGrowth<Base>::init(
 }
 
 template <typename Base>
+void KillMemoryGrowth<Base>::prerun(OomdContext& ctx) {
+  for (const CgroupContext& cgroup_ctx : ctx.addToCacheAndGet(cgroups_)) {
+    // Make sure temporal counters be available when run() is invoked
+    cgroup_ctx.average_usage();
+  }
+}
+
+template <typename Base>
 Engine::PluginRet KillMemoryGrowth<Base>::run(OomdContext& ctx) {
   // First try to kill by size, respecting size_threshold. Failing that,
   // try to kill by growth. Failing that, try to kill by size, ignoring
@@ -137,40 +143,38 @@ template <typename Base>
 bool KillMemoryGrowth<Base>::tryToKillBySize(
     OomdContext& ctx,
     bool ignore_threshold) {
-  // Sort all the cgroups by (size - memory.low) and remove all the cgroups
-  // we are not assigned to kill
-  auto size_sorted = ctx.reverseSort([](const CgroupContext& cgroup_ctx) {
-    return cgroup_ctx.effective_usage();
-  });
-  OomdContext::removeSiblingCgroups(cgroups_, size_sorted);
-  OomdContext::dumpOomdContext(size_sorted, !debug_);
+  auto size_sorted =
+      ctx.reverseSort(cgroups_, [](const CgroupContext& cgroup_ctx) {
+        return cgroup_ctx.effective_usage().value_or(0);
+      });
+  OomdContext::dump(size_sorted, !debug_);
 
   int64_t cur_memcurrent = 0;
-  for (const auto& state_pair : size_sorted) {
-    cur_memcurrent += state_pair.second.current_usage;
+  for (const CgroupContext& cgroup_ctx : size_sorted) {
+    cur_memcurrent += cgroup_ctx.current_usage().value_or(0);
   }
 
   // First try to kill the biggest cgroup over it's assigned memory.low
-  for (const auto& state_pair : size_sorted) {
+  for (const CgroupContext& cgroup_ctx : size_sorted) {
     if (!ignore_threshold &&
-        state_pair.second.current_usage <
+        cgroup_ctx.current_usage().value_or(0) <
             (cur_memcurrent * (static_cast<double>(size_threshold_) / 100))) {
       OLOG << "Skipping size heuristic kill on "
-           << state_pair.first.relativePath() << " b/c not big enough";
+           << cgroup_ctx.cgroup().relativePath() << " b/c not big enough";
       break;
     }
 
-    OLOG << "Picked \"" << state_pair.first.relativePath() << "\" ("
-         << state_pair.second.current_usage / 1024 / 1024
+    OLOG << "Picked \"" << cgroup_ctx.cgroup().relativePath() << "\" ("
+         << cgroup_ctx.current_usage().value_or(0) / 1024 / 1024
          << "MB) based on size > " << size_threshold_ << "% of total "
          << cur_memcurrent / 1024 / 1024 << "MB"
          << (ignore_threshold ? " (size threshold overridden)" : "");
 
     if (auto kill_uuid = Base::tryToKillCgroup(
-            state_pair.first.absolutePath(), true, dry_)) {
+            cgroup_ctx.cgroup().absolutePath(), true, dry_)) {
       Base::logKill(
-          state_pair.first,
-          state_pair.second,
+          cgroup_ctx.cgroup(),
+          cgroup_ctx,
           ctx.getActionContext(),
           *kill_uuid,
           dry_);
@@ -185,47 +189,49 @@ template <typename Base>
 bool KillMemoryGrowth<Base>::tryToKillByGrowth(OomdContext& ctx) {
   // Pick the top P(growing_size_percentile_) and sort them by the growth rate
   // (current usage / avg usage) and try to kill the highest one.
-  auto growth_sorted = ctx.reverseSort([](const CgroupContext& cgroup_ctx) {
-    return cgroup_ctx.effective_usage();
-  });
-  OomdContext::removeSiblingCgroups(cgroups_, growth_sorted);
+  auto growth_sorted =
+      ctx.reverseSort(cgroups_, [](const CgroupContext& cgroup_ctx) {
+        return cgroup_ctx.effective_usage().value_or(0);
+      });
   const size_t nr = std::ceil(
       growth_sorted.size() *
       (100 - static_cast<double>(growing_size_percentile_)) / 100);
   while (growth_sorted.size() > nr) {
     growth_sorted.pop_back();
   }
-  OomdContext::reverseSort(growth_sorted, [](const CgroupContext& cgroup_ctx) {
-    return static_cast<double>(cgroup_ctx.current_usage) /
-        cgroup_ctx.average_usage;
-  });
-  OomdContext::dumpOomdContext(growth_sorted, !debug_);
+  auto get_growth = [](const CgroupContext& cgroup_ctx) {
+    return static_cast<double>(cgroup_ctx.current_usage().value_or(0)) /
+        cgroup_ctx.average_usage().value_or(1);
+  };
+  std::sort(
+      growth_sorted.begin(),
+      growth_sorted.end(),
+      [&](const auto& a, const auto& b) {
+        return get_growth(a) > get_growth(b);
+      });
+  OomdContext::dump(growth_sorted, !debug_);
 
-  for (const auto& state_pair : growth_sorted) {
-    float growth_ratio = static_cast<double>(state_pair.second.current_usage) /
-        state_pair.second.average_usage;
-    if (growth_ratio < min_growth_ratio_) {
+  for (const CgroupContext& cgroup_ctx : growth_sorted) {
+    if (get_growth(cgroup_ctx) < min_growth_ratio_) {
       OLOG << "Skipping growth heuristic kill on "
-           << state_pair.first.relativePath() << " b/c growth is less than "
+           << cgroup_ctx.cgroup().relativePath() << " b/c growth is less than "
            << min_growth_ratio_;
       break;
     }
 
     std::ostringstream oss;
     oss << std::setprecision(2) << std::fixed;
-    oss << "Picked \"" << state_pair.first.relativePath() << "\" ("
-        << state_pair.second.current_usage / 1024 / 1024
-        << "MB) based on growth rate "
-        << static_cast<double>(state_pair.second.current_usage) /
-            state_pair.second.average_usage
-        << " among P" << growing_size_percentile_ << " largest";
+    oss << "Picked \"" << cgroup_ctx.cgroup().relativePath() << "\" ("
+        << cgroup_ctx.current_usage().value_or(0) / 1024 / 1024
+        << "MB) based on growth rate " << get_growth(cgroup_ctx) << " among P"
+        << growing_size_percentile_ << " largest";
     OLOG << oss.str();
 
     if (auto kill_uuid = Base::tryToKillCgroup(
-            state_pair.first.absolutePath(), true, dry_)) {
+            cgroup_ctx.cgroup().absolutePath(), true, dry_)) {
       Base::logKill(
-          state_pair.first,
-          state_pair.second,
+          cgroup_ctx.cgroup(),
+          cgroup_ctx,
           ctx.getActionContext(),
           *kill_uuid,
           dry_);

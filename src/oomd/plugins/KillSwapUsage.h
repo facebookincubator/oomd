@@ -27,7 +27,6 @@ template <typename Base = BaseKillPlugin>
 class KillSwapUsage : public Base {
  public:
   int init(
-      Engine::MonitoredResources& resources,
       const Engine::PluginArgs& args,
       const PluginConstructionContext& context) override;
 

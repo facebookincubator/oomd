@@ -25,7 +25,6 @@ template <typename Base = BaseSystemdPlugin>
 class SystemdRestart : public Base {
  public:
   int init(
-      Engine::MonitoredResources& resources,
       const Engine::PluginArgs& args,
       const PluginConstructionContext& /* unused */) override;
 

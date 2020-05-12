@@ -26,7 +26,6 @@ namespace Oomd {
 
 template <typename Base>
 int SystemdRestart<Base>::init(
-    Engine::MonitoredResources& resources,
     const Engine::PluginArgs& args,
     const PluginConstructionContext& /* unused */) {
   if (args.find("service") != args.end()) {

@@ -26,7 +26,6 @@ namespace Oomd {
 class Exists : public Oomd::Engine::BasePlugin {
  public:
   int init(
-      Engine::MonitoredResources& resources,
       const Engine::PluginArgs& args,
       const PluginConstructionContext& context) override;
 

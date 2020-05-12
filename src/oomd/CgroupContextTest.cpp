@@ -20,7 +20,7 @@
 
 #include "oomd/CgroupContext.h"
 #include "oomd/Log.h"
-#include "oomd/NewOomdContext.h"
+#include "oomd/OomdContext.h"
 #include "oomd/util/Fixture.h"
 
 using namespace Oomd;
@@ -191,9 +191,9 @@ TEST_F(CgroupContextTest, DistinguishRecreate) {
   // fs, the dir fd is still open (fstat ok). Either way, files under it won't
   // be accessible, and all reads should returns nullopt and set error to
   // INVALID_CGROUP.
-  auto err = NewCgroupContext::Error::NO_ERROR;
+  auto err = CgroupContext::Error::NO_ERROR;
   EXPECT_EQ(cgroup_ctx->get().current_usage(&err), std::nullopt);
-  EXPECT_EQ(err, NewCgroupContext::Error::INVALID_CGROUP);
+  EXPECT_EQ(err, CgroupContext::Error::INVALID_CGROUP);
 }
 
 /*

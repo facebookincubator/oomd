@@ -19,6 +19,7 @@ version_h = vcs_tag(
 versiondep = declare_dependency(sources : version_h)
 
 srcs = files('''
+    src/oomd/CgroupContext.cpp
     src/oomd/PluginConstructionContext.cpp
     src/oomd/Log.cpp
     src/oomd/Oomd.cpp
@@ -127,11 +128,11 @@ install_man('man/oomd.1')
 # Meson version 0.47.0.  Ubuntu 18.04 provides only Meson version 0.45.1.
 core_tests = [
   ['config',   files('src/oomd/config/JsonConfigParserTest.cpp')],
-  ['oomd',     files('src/oomd/OomdTest.cpp')],
   ['util',     files('src/oomd/util/FixtureTest.cpp',
                      'src/oomd/util/FsTest.cpp',
                      'src/oomd/util/ScopeGuardTest.cpp',
                      'src/oomd/util/UtilTest.cpp')],
+  ['cgctx',    files('src/oomd/CgroupContextTest.cpp')],
   ['context',  files('src/oomd/OomdContextTest.cpp')],
   ['log',      files('src/oomd/LogTest.cpp')],
   ['assert',   files('src/oomd/include/AssertTest.cpp')],

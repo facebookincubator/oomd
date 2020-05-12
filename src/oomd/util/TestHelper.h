@@ -18,7 +18,7 @@
 #pragma once
 
 #include "oomd/CgroupContext.h"
-#include "oomd/NewOomdContext.h"
+#include "oomd/OomdContext.h"
 
 namespace Oomd {
 
@@ -28,13 +28,13 @@ namespace Oomd {
  */
 class TestHelper {
  public:
-  using CgroupData = NewCgroupContext::CgroupData;
+  using CgroupData = CgroupContext::CgroupData;
 
-  static CgroupData& getDataRef(const NewCgroupContext& cgroup_ctx) {
+  static CgroupData& getDataRef(const CgroupContext& cgroup_ctx) {
     return *cgroup_ctx.data_;
   }
 
-  static std::unordered_map<CgroupPath, NewCgroupContext>& getCgroupsRef(
+  static std::unordered_map<CgroupPath, CgroupContext>& getCgroupsRef(
       OomdContext& ctx) {
     return ctx.cgroups_;
   }
