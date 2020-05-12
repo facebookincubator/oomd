@@ -48,18 +48,6 @@ class FsTest : public ::testing::Test {
   FsFixture fixture_{};
 };
 
-namespace Oomd {
-bool operator==(const DeviceIOStat& lhs, const DeviceIOStat& rhs) {
-  return lhs.dev_id == rhs.dev_id && lhs.rbytes == rhs.rbytes &&
-      lhs.wbytes == rhs.wbytes && lhs.rios == rhs.rios &&
-      lhs.wios == rhs.wios && lhs.dbytes == rhs.dbytes && lhs.dios == rhs.dios;
-}
-bool operator==(const ResourcePressure& lhs, const ResourcePressure& rhs) {
-  return lhs.sec_10 == rhs.sec_10 && lhs.sec_60 == rhs.sec_60 &&
-      lhs.sec_300 == rhs.sec_300 && lhs.total == rhs.total;
-}
-} // namespace Oomd
-
 TEST_F(FsTest, FindDirectories) {
   auto dir = fixture_.fsDataDir();
   auto de = Fs::readDir(dir, Fs::DE_DIR);

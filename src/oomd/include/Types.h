@@ -41,6 +41,12 @@ struct DeviceIOStat {
   int64_t wios{0};
   int64_t dbytes{0};
   int64_t dios{0};
+
+  bool operator==(const DeviceIOStat& rhs) const {
+    return dev_id == rhs.dev_id && rbytes == rhs.rbytes &&
+        wbytes == rhs.wbytes && rios == rhs.rios && wios == rhs.wios &&
+        dbytes == rhs.dbytes && dios == rhs.dios;
+  }
 };
 
 using IOStat = std::vector<DeviceIOStat>;
@@ -59,6 +65,11 @@ struct ResourcePressure {
   float sec_60{0};
   float sec_300{0};
   std::optional<std::chrono::microseconds> total{std::nullopt};
+
+  bool operator==(const ResourcePressure& rhs) const {
+    return sec_10 == rhs.sec_10 && sec_60 == rhs.sec_60 &&
+        sec_300 == rhs.sec_300 && total == rhs.total;
+  }
 };
 
 // If you update this class with something that could be valuable to know
