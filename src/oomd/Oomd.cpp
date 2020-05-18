@@ -393,6 +393,8 @@ int Oomd::run() {
       engine_->runOnce(ctx_);
 
     } catch (const std::exception& ex) {
+      // In case logging was disabled before exception is thrown
+      OLOG << LogStream::Control::ENABLE;
       OLOG << "Caught exception: " << ex.what();
       return 1;
     }
