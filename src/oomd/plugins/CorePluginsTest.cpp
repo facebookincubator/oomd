@@ -1253,6 +1253,282 @@ TEST_F(KillMemoryGrowthTest, KillsBigCgroup) {
       plugin->killed, Not(Contains(888))); // make sure there's no siblings
 }
 
+TEST_F(KillMemoryGrowthTest, PreferredOverridesSize) {
+  // Same as KillsBigCgroup, but with .kill_preferences set
+
+  auto plugin = std::make_shared<KillMemoryGrowth<BaseKillPluginMock>>();
+  ASSERT_NE(plugin, nullptr);
+
+  Engine::PluginArgs args;
+  const PluginConstructionContext compile_context(
+      "oomd/fixtures/plugins/kill_by_memory_size_or_growth");
+  args["cgroup"] = "one_big/*";
+  args["post_action_delay"] = "0";
+
+  ASSERT_EQ(plugin->init(std::move(args), compile_context), 0);
+
+  OomdContext ctx;
+  TestHelper::setCgroupData(
+      ctx,
+      CgroupPath(compile_context.cgroupFs(), "one_big/cgroup1"),
+      CgroupData{
+          .current_usage = 60,
+          .average_usage = 60,
+      });
+  TestHelper::setCgroupData(
+      ctx,
+      CgroupPath(compile_context.cgroupFs(), "one_big/cgroup2"),
+      CgroupData{
+          .current_usage = 20,
+          .average_usage = 20,
+          .kill_preference = KillPreference::PREFER,
+      });
+  TestHelper::setCgroupData(
+      ctx,
+      CgroupPath(compile_context.cgroupFs(), "one_big/cgroup3"),
+      CgroupData{
+          .current_usage = 20,
+          .average_usage = 20,
+      });
+  TestHelper::setCgroupData(
+      ctx,
+      CgroupPath(compile_context.cgroupFs(), "sibling/cgroup1"),
+      CgroupData{
+          .current_usage = 20,
+          .average_usage = 20,
+      });
+  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
+  EXPECT_THAT(plugin->killed, Contains(789));
+  EXPECT_THAT(plugin->killed, Not(Contains(123)));
+  EXPECT_THAT(plugin->killed, Not(Contains(456)));
+  EXPECT_THAT(plugin->killed, Not(Contains(111)));
+  EXPECT_THAT(
+      plugin->killed, Not(Contains(888))); // make sure there's no siblings
+}
+
+TEST_F(KillMemoryGrowthTest, AvoidedOverridesSize) {
+  // Same as KillsBigCgroup, but with .kill_preferences set
+
+  auto plugin = std::make_shared<KillMemoryGrowth<BaseKillPluginMock>>();
+  ASSERT_NE(plugin, nullptr);
+
+  Engine::PluginArgs args;
+  const PluginConstructionContext compile_context(
+      "oomd/fixtures/plugins/kill_by_memory_size_or_growth");
+  args["cgroup"] = "one_big/*";
+  args["post_action_delay"] = "0";
+
+  ASSERT_EQ(plugin->init(std::move(args), compile_context), 0);
+
+  OomdContext ctx;
+  TestHelper::setCgroupData(
+      ctx,
+      CgroupPath(compile_context.cgroupFs(), "one_big/cgroup1"),
+      CgroupData{
+          .current_usage = 60,
+          .average_usage = 60,
+          .kill_preference = KillPreference::AVOID,
+      });
+  TestHelper::setCgroupData(
+      ctx,
+      CgroupPath(compile_context.cgroupFs(), "one_big/cgroup2"),
+      CgroupData{
+          .current_usage = 30,
+          .average_usage = 30,
+      });
+  TestHelper::setCgroupData(
+      ctx,
+      CgroupPath(compile_context.cgroupFs(), "one_big/cgroup3"),
+      CgroupData{
+          .current_usage = 20,
+          .average_usage = 20,
+      });
+  TestHelper::setCgroupData(
+      ctx,
+      CgroupPath(compile_context.cgroupFs(), "sibling/cgroup1"),
+      CgroupData{
+          .current_usage = 20,
+          .average_usage = 20,
+      });
+  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
+  EXPECT_THAT(plugin->killed, Contains(789));
+  EXPECT_THAT(plugin->killed, Not(Contains(123)));
+  EXPECT_THAT(plugin->killed, Not(Contains(456)));
+  EXPECT_THAT(plugin->killed, Not(Contains(111)));
+  EXPECT_THAT(
+      plugin->killed, Not(Contains(888))); // make sure there's no siblings
+}
+
+TEST_F(KillMemoryGrowthTest, AvoidedNoEffect) {
+  // Same as KillsBigCgroup, but with .kill_preferences set. Avoiding cgroups
+  // we would not have killed anyway has no effect.
+
+  auto plugin = std::make_shared<KillMemoryGrowth<BaseKillPluginMock>>();
+  ASSERT_NE(plugin, nullptr);
+
+  Engine::PluginArgs args;
+  const PluginConstructionContext compile_context(
+      "oomd/fixtures/plugins/kill_by_memory_size_or_growth");
+  args["cgroup"] = "one_big/*";
+  args["post_action_delay"] = "0";
+
+  ASSERT_EQ(plugin->init(std::move(args), compile_context), 0);
+
+  OomdContext ctx;
+  TestHelper::setCgroupData(
+      ctx,
+      CgroupPath(compile_context.cgroupFs(), "one_big/cgroup1"),
+      CgroupData{
+          .current_usage = 60,
+          .average_usage = 60,
+      });
+  TestHelper::setCgroupData(
+      ctx,
+      CgroupPath(compile_context.cgroupFs(), "one_big/cgroup2"),
+      CgroupData{
+          .current_usage = 30,
+          .average_usage = 30,
+          .kill_preference = KillPreference::AVOID,
+      });
+  TestHelper::setCgroupData(
+      ctx,
+      CgroupPath(compile_context.cgroupFs(), "one_big/cgroup3"),
+      CgroupData{
+          .current_usage = 20,
+          .average_usage = 20,
+          .kill_preference = KillPreference::AVOID,
+      });
+  TestHelper::setCgroupData(
+      ctx,
+      CgroupPath(compile_context.cgroupFs(), "sibling/cgroup1"),
+      CgroupData{
+          .current_usage = 20,
+          .average_usage = 20,
+      });
+  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
+  EXPECT_THAT(plugin->killed, Contains(123));
+  EXPECT_THAT(plugin->killed, Contains(456));
+  EXPECT_THAT(plugin->killed, Not(Contains(789)));
+  EXPECT_THAT(plugin->killed, Not(Contains(111)));
+  EXPECT_THAT(
+      plugin->killed, Not(Contains(888))); // make sure there's no siblings
+}
+
+TEST_F(KillMemoryGrowthTest, PreferredNoEffect) {
+  // Same as KillsBigCgroup, but with .kill_preferences set. Preferring all
+  // cgroups is the same as preferring none of them.
+
+  auto plugin = std::make_shared<KillMemoryGrowth<BaseKillPluginMock>>();
+  ASSERT_NE(plugin, nullptr);
+
+  Engine::PluginArgs args;
+  const PluginConstructionContext compile_context(
+      "oomd/fixtures/plugins/kill_by_memory_size_or_growth");
+  args["cgroup"] = "one_big/*";
+  args["post_action_delay"] = "0";
+
+  ASSERT_EQ(plugin->init(std::move(args), compile_context), 0);
+
+  OomdContext ctx;
+  TestHelper::setCgroupData(
+      ctx,
+      CgroupPath(compile_context.cgroupFs(), "one_big/cgroup1"),
+      CgroupData{
+          .current_usage = 60,
+          .average_usage = 60,
+          .kill_preference = KillPreference::PREFER,
+      });
+  TestHelper::setCgroupData(
+      ctx,
+      CgroupPath(compile_context.cgroupFs(), "one_big/cgroup2"),
+      CgroupData{
+          .current_usage = 30,
+          .average_usage = 30,
+          .kill_preference = KillPreference::PREFER,
+      });
+  TestHelper::setCgroupData(
+      ctx,
+      CgroupPath(compile_context.cgroupFs(), "one_big/cgroup3"),
+      CgroupData{
+          .current_usage = 20,
+          .average_usage = 20,
+          .kill_preference = KillPreference::PREFER,
+      });
+  TestHelper::setCgroupData(
+      ctx,
+      CgroupPath(compile_context.cgroupFs(), "sibling/cgroup1"),
+      CgroupData{
+          .current_usage = 20,
+          .average_usage = 20,
+          .kill_preference = KillPreference::PREFER,
+      });
+  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
+  EXPECT_THAT(plugin->killed, Contains(123));
+  EXPECT_THAT(plugin->killed, Contains(456));
+  EXPECT_THAT(plugin->killed, Not(Contains(789)));
+  EXPECT_THAT(plugin->killed, Not(Contains(111)));
+  EXPECT_THAT(
+      plugin->killed, Not(Contains(888))); // make sure there's no siblings
+}
+
+TEST_F(KillMemoryGrowthTest, KillsOneOfPreferred) {
+  // Same as KillsBigCgroup, but with .kill_preferences set. When multiple
+  // cgroups are preferred, we choose between them with the same rules we use
+  // when no cgroups are preferred.
+
+  auto plugin = std::make_shared<KillMemoryGrowth<BaseKillPluginMock>>();
+  ASSERT_NE(plugin, nullptr);
+
+  Engine::PluginArgs args;
+  const PluginConstructionContext compile_context(
+      "oomd/fixtures/plugins/kill_by_memory_size_or_growth");
+  args["cgroup"] = "one_big/*";
+  args["post_action_delay"] = "0";
+
+  ASSERT_EQ(plugin->init(std::move(args), compile_context), 0);
+
+  OomdContext ctx;
+  TestHelper::setCgroupData(
+      ctx,
+      CgroupPath(compile_context.cgroupFs(), "one_big/cgroup1"),
+      CgroupData{
+          .current_usage = 60,
+          .average_usage = 60,
+          .kill_preference = KillPreference::PREFER,
+      });
+  TestHelper::setCgroupData(
+      ctx,
+      CgroupPath(compile_context.cgroupFs(), "one_big/cgroup2"),
+      CgroupData{
+          .current_usage = 30,
+          .average_usage = 30,
+          .kill_preference = KillPreference::AVOID,
+      });
+  TestHelper::setCgroupData(
+      ctx,
+      CgroupPath(compile_context.cgroupFs(), "one_big/cgroup3"),
+      CgroupData{
+          .current_usage = 20,
+          .average_usage = 20,
+          .kill_preference = KillPreference::PREFER,
+      });
+  TestHelper::setCgroupData(
+      ctx,
+      CgroupPath(compile_context.cgroupFs(), "sibling/cgroup1"),
+      CgroupData{
+          .current_usage = 20,
+          .average_usage = 20,
+          .kill_preference = KillPreference::PREFER,
+      });
+  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
+  EXPECT_THAT(plugin->killed, Contains(123));
+  EXPECT_THAT(plugin->killed, Contains(456));
+  EXPECT_THAT(plugin->killed, Not(Contains(111)));
+  EXPECT_THAT(plugin->killed, Not(Contains(789)));
+  EXPECT_THAT(
+      plugin->killed, Not(Contains(888))); // make sure there's no siblings
+}
+
 TEST_F(KillMemoryGrowthTest, KillsBigCgroupGrowth) {
   auto plugin = std::make_shared<KillMemoryGrowth<BaseKillPluginMock>>();
   ASSERT_NE(plugin, nullptr);
@@ -1295,6 +1571,7 @@ TEST_F(KillMemoryGrowthTest, KillsBigCgroupGrowth) {
   EXPECT_THAT(plugin->killed, Contains(111));
   EXPECT_THAT(plugin->killed, Not(Contains(123)));
   EXPECT_THAT(plugin->killed, Not(Contains(456)));
+  EXPECT_THAT(plugin->killed, Not(Contains(789)));
 
   // Now lower average usage to artificially "boost" growth rate to trigger
   // growth kill
@@ -1318,9 +1595,119 @@ TEST_F(KillMemoryGrowthTest, KillsBigCgroupGrowth) {
 
   EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
   EXPECT_THAT(plugin->killed, Not(Contains(888)));
+  EXPECT_THAT(plugin->killed, Not(Contains(789)));
   EXPECT_THAT(plugin->killed, Contains(123));
   EXPECT_THAT(plugin->killed, Contains(456));
 }
+
+TEST_F(KillMemoryGrowthTest, KillsByPreferredGrowth) {
+  // Preferred cgroups that wont be targeted until the growth kill phase are
+  // killed before non-prefer cgroups targeted in the size w/ threshold phase.
+
+  auto plugin = std::make_shared<KillMemoryGrowth<BaseKillPluginMock>>();
+  ASSERT_NE(plugin, nullptr);
+
+  Engine::PluginArgs args;
+  const PluginConstructionContext compile_context(
+      "oomd/fixtures/plugins/kill_by_memory_size_or_growth");
+  args["cgroup"] = "growth_big/*";
+  args["post_action_delay"] = "0";
+  args["debug"] = "1";
+
+  ASSERT_EQ(plugin->init(std::move(args), compile_context), 0);
+
+  OomdContext ctx;
+
+  TestHelper::setCgroupData(
+      ctx,
+      CgroupPath(compile_context.cgroupFs(), "growth_big/cgroup1"),
+      CgroupData{
+          .current_usage = 21 << 20,
+          .average_usage = 5 << 20,
+          .kill_preference = KillPreference::PREFER,
+      });
+  TestHelper::setCgroupData(
+      ctx,
+      CgroupPath(compile_context.cgroupFs(), "growth_big/cgroup2"),
+      CgroupData{
+          .current_usage = 99 << 20,
+          .average_usage = 5 << 20,
+          .kill_preference = KillPreference::PREFER,
+      });
+  TestHelper::setCgroupData(
+      ctx,
+      CgroupPath(compile_context.cgroupFs(), "growth_big/cgroup3"),
+      CgroupData{
+          .current_usage = 1000 << 20,
+          .average_usage = 1000 << 20,
+      });
+  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
+  EXPECT_THAT(plugin->killed, Contains(789));
+  EXPECT_THAT(plugin->killed, Not(Contains(123)));
+  EXPECT_THAT(plugin->killed, Not(Contains(456)));
+  EXPECT_THAT(plugin->killed, Not(Contains(888)));
+}
+
+// If without preferences we'd kill A from {A, B, C}, any additional
+// preferences where A is PREFER should still target A.
+// For example, if we PREFER A and B, we would not expect to start killing B,
+// since A would have been killed without preferences, and A is not lower
+// preference than anyone else.
+class KillMemoryGrowthConsistentWithPreference
+    : public CorePluginsTest,
+      public WithParamInterface<KillPreference> {};
+
+TEST_P(KillMemoryGrowthConsistentWithPreference, SizeThreshold) {
+  KillPreference maybe_prefer = GetParam();
+
+  auto plugin = std::make_shared<KillMemoryGrowth<BaseKillPluginMock>>();
+  ASSERT_NE(plugin, nullptr);
+
+  Engine::PluginArgs args;
+  const PluginConstructionContext compile_context(
+      "oomd/fixtures/plugins/kill_by_memory_size_or_growth");
+  args["cgroup"] = "growth_big/*";
+  args["post_action_delay"] = "0";
+
+  ASSERT_EQ(plugin->init(std::move(args), compile_context), 0);
+
+  OomdContext ctx;
+
+  TestHelper::setCgroupData(
+      ctx,
+      CgroupPath(compile_context.cgroupFs(), "growth_big/cgroup1"),
+      CgroupData{
+          .current_usage = 21,
+          .average_usage = 5,
+          .kill_preference = maybe_prefer,
+      });
+  TestHelper::setCgroupData(
+      ctx,
+      CgroupPath(compile_context.cgroupFs(), "growth_big/cgroup2"),
+      CgroupData{
+          .current_usage = 99,
+          .average_usage = 5,
+          .kill_preference = maybe_prefer,
+      });
+  TestHelper::setCgroupData(
+      ctx,
+      CgroupPath(compile_context.cgroupFs(), "growth_big/cgroup3"),
+      CgroupData{
+          .current_usage = 30,
+          .average_usage = 30,
+      });
+  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
+  EXPECT_THAT(plugin->killed, Contains(789));
+  EXPECT_THAT(plugin->killed, Not(Contains(111)));
+  EXPECT_THAT(plugin->killed, Not(Contains(123)));
+  EXPECT_THAT(plugin->killed, Not(Contains(456)));
+  EXPECT_THAT(plugin->killed, Not(Contains(888)));
+}
+
+INSTANTIATE_TEST_CASE_P(
+    NoPrefVsPrefer,
+    KillMemoryGrowthConsistentWithPreference,
+    Values(KillPreference::NORMAL, KillPreference::PREFER));
 
 TEST_F(KillMemoryGrowthTest, KillsBigCgroupMultiCgroup) {
   auto plugin = std::make_shared<KillMemoryGrowth<BaseKillPluginMock>>();

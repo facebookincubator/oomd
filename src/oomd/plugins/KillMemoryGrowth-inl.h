@@ -123,13 +123,7 @@ Engine::PluginRet KillMemoryGrowth<Base>::run(OomdContext& ctx) {
   // First try to kill by size, respecting size_threshold. Failing that,
   // try to kill by growth. Failing that, try to kill by size, ignoring
   // size_threshold.
-  bool ret = tryToKillBySize(ctx, false);
-  if (!ret) {
-    ret = tryToKillByGrowth(ctx);
-  }
-  if (!ret) {
-    ret = tryToKillBySize(ctx, true);
-  }
+  bool ret = tryToKillSomething(ctx);
 
   if (ret) {
     std::this_thread::sleep_for(std::chrono::seconds(post_action_delay_));
@@ -140,92 +134,107 @@ Engine::PluginRet KillMemoryGrowth<Base>::run(OomdContext& ctx) {
 }
 
 template <typename Base>
-bool KillMemoryGrowth<Base>::tryToKillBySize(
-    OomdContext& ctx,
-    bool ignore_threshold) {
-  auto size_sorted =
+bool KillMemoryGrowth<Base>::tryToKillSomething(OomdContext& ctx) {
+  const auto usage_sorted =
       ctx.reverseSort(cgroups_, [](const CgroupContext& cgroup_ctx) {
         return cgroup_ctx.effective_usage().value_or(0);
       });
-  OomdContext::dump(size_sorted, !debug_);
 
+  if (usage_sorted.size() < 1) {
+    return false;
+  }
+
+  // Only the top P(growing_size_percentile_) cgroups by usage are eligible for
+  // killing by growth.
+  const size_t nr = std::ceil(
+      usage_sorted.size() *
+      (100 - static_cast<double>(growing_size_percentile_)) / 100);
+  const int64_t growth_kill_min_effective_usage_threshold =
+      usage_sorted[nr - 1].get().effective_usage().value_or(0);
+
+  // Compute phase 1's threshold in bytes from size_threshold_, which is given
+  // as a pct of total
   int64_t cur_memcurrent = 0;
-  for (const CgroupContext& cgroup_ctx : size_sorted) {
+  for (const CgroupContext& cgroup_ctx : usage_sorted) {
     cur_memcurrent += cgroup_ctx.current_usage().value_or(0);
   }
+  int64_t size_threshold_in_bytes =
+      cur_memcurrent * (static_cast<double>(size_threshold_) / 100);
 
-  // First try to kill the biggest cgroup over it's assigned memory.low
-  for (const CgroupContext& cgroup_ctx : size_sorted) {
-    if (!ignore_threshold &&
-        cgroup_ctx.current_usage().value_or(0) <
-            (cur_memcurrent * (static_cast<double>(size_threshold_) / 100))) {
-      OLOG << "Skipping size heuristic kill on "
-           << cgroup_ctx.cgroup().relativePath() << " b/c not big enough";
-      break;
-    }
-
-    OLOG << "Picked \"" << cgroup_ctx.cgroup().relativePath() << "\" ("
-         << cgroup_ctx.current_usage().value_or(0) / 1024 / 1024
-         << "MB) based on size > " << size_threshold_ << "% of total "
-         << cur_memcurrent / 1024 / 1024 << "MB"
-         << (ignore_threshold ? " (size threshold overridden)" : "");
-
-    if (auto kill_uuid = Base::tryToKillCgroup(
-            cgroup_ctx.cgroup().absolutePath(), true, dry_)) {
-      Base::logKill(
-          cgroup_ctx.cgroup(),
-          cgroup_ctx,
-          ctx.getActionContext(),
-          *kill_uuid,
-          dry_);
-      return true;
-    }
-  }
-
-  return false;
-}
-
-template <typename Base>
-bool KillMemoryGrowth<Base>::tryToKillByGrowth(OomdContext& ctx) {
-  // Pick the top P(growing_size_percentile_) and sort them by the growth rate
-  // (current usage / avg usage) and try to kill the highest one.
-  auto growth_sorted =
-      ctx.reverseSort(cgroups_, [](const CgroupContext& cgroup_ctx) {
-        return cgroup_ctx.effective_usage().value_or(0);
-      });
-  const size_t nr = std::ceil(
-      growth_sorted.size() *
-      (100 - static_cast<double>(growing_size_percentile_)) / 100);
-  while (growth_sorted.size() > nr) {
-    growth_sorted.pop_back();
-  }
   auto get_growth = [](const CgroupContext& cgroup_ctx) {
     return static_cast<double>(cgroup_ctx.current_usage().value_or(0)) /
         cgroup_ctx.average_usage().value_or(1);
   };
-  std::sort(
-      growth_sorted.begin(),
-      growth_sorted.end(),
-      [&](const auto& a, const auto& b) {
-        return get_growth(a) > get_growth(b);
-      });
-  OomdContext::dump(growth_sorted, !debug_);
 
-  for (const CgroupContext& cgroup_ctx : growth_sorted) {
-    if (get_growth(cgroup_ctx) < min_growth_ratio_) {
-      OLOG << "Skipping growth heuristic kill on "
-           << cgroup_ctx.cgroup().relativePath() << " b/c growth is less than "
-           << min_growth_ratio_;
-      break;
+  auto rank_cgroup = [=](const CgroupContext& cgroup_ctx) {
+    int64_t current_usage = cgroup_ctx.current_usage().value_or(0);
+    int64_t effective_usage = cgroup_ctx.effective_usage().value_or(0);
+    float growth_ratio = get_growth(cgroup_ctx);
+
+    bool size_phase_eligible = current_usage >= size_threshold_in_bytes;
+    auto growth_phase_eligible = growth_ratio >= min_growth_ratio_ &&
+        effective_usage >= growth_kill_min_effective_usage_threshold;
+
+    // KillMemoryGrowth has 3 phases: cgroups above a usage threshold are
+    // targeted first, then cgroups above a growth threshold, and finally the
+    // rest. Phase is lower priority than kill_preference; a PREFER cgroup
+    // passing no thresholds will be targeted before an AVOID cgroup above the
+    // mem threshold. Tuples sort lexicographically, and cgroups ineligible for
+    // a phase get a 0 for that phase, so all cgroups in size_phase come before
+    // all cgroups only in growth phase, which come before those in neither
+    // (kill_preference aside).
+    return std::make_tuple(
+        cgroup_ctx.kill_preference().value_or(KillPreference::NORMAL),
+        size_phase_eligible ? effective_usage : 0,
+        growth_phase_eligible ? growth_ratio : 0,
+        effective_usage);
+  };
+
+  const auto ranked = ctx.reverseSort(cgroups_, rank_cgroup);
+  OomdContext::dump(ranked, !debug_);
+
+  // try to kill from highest ranked to lowest, until one works
+  for (const CgroupContext& cgroup_ctx : ranked) {
+    // Skip trying to kill an empty cgroup, which would unfairly increment the
+    // empty cgroup's kill counters and pollute the logs. We get into a
+    // situation where we try to kill empty cgroups when a cgroup marked PREFER
+    // is not the source of pressure: KillMemoryGrowth will kill the PREFER
+    // cgroup first, but that won't fix the problem so it will kill again; on
+    // the second time around, it first targets the now-empty PREFER cgroup
+    // before moving on to a better victim.
+    if (!cgroup_ctx.is_populated().value_or(true)) {
+      continue;
     }
 
-    std::ostringstream oss;
-    oss << std::setprecision(2) << std::fixed;
-    oss << "Picked \"" << cgroup_ctx.cgroup().relativePath() << "\" ("
-        << cgroup_ctx.current_usage().value_or(0) / 1024 / 1024
-        << "MB) based on growth rate " << get_growth(cgroup_ctx) << " among P"
-        << growing_size_percentile_ << " largest";
-    OLOG << oss.str();
+    int64_t size_threshold_phase_value, growth_threshold_phase_value;
+    std::tie(
+        std::ignore,
+        size_threshold_phase_value,
+        growth_threshold_phase_value,
+        std::ignore) = rank_cgroup(cgroup_ctx);
+    bool kill_size_threshold_phase = (size_threshold_phase_value != 0);
+    bool kill_growth_threshold_phase =
+        !kill_size_threshold_phase && growth_threshold_phase_value != 0;
+
+    if (kill_growth_threshold_phase) {
+      std::ostringstream oss;
+      oss << std::setprecision(2) << std::fixed;
+      oss << "Picked \"" << cgroup_ctx.cgroup().relativePath() << "\" ("
+          << cgroup_ctx.current_usage().value_or(0) / 1024 / 1024
+          << "MB) based on growth rate " << get_growth(cgroup_ctx) << " among P"
+          << growing_size_percentile_ << " largest,"
+          << " with kill preference "
+          << cgroup_ctx.kill_preference().value_or(KillPreference::NORMAL);
+
+    } else {
+      OLOG << "Picked \"" << cgroup_ctx.cgroup().relativePath() << "\" ("
+           << cgroup_ctx.current_usage().value_or(0) / 1024 / 1024
+           << "MB) based on size > " << size_threshold_ << "% of total "
+           << cur_memcurrent / 1024 / 1024 << "MB"
+           << (!kill_size_threshold_phase ? " (size threshold overridden)" : "")
+           << " with kill preference "
+           << cgroup_ctx.kill_preference().value_or(KillPreference::NORMAL);
+    }
 
     if (auto kill_uuid = Base::tryToKillCgroup(
             cgroup_ctx.cgroup().absolutePath(), true, dry_)) {

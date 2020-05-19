@@ -255,6 +255,33 @@ std::vector<int> Fs::getPidsAt(const DirFd& dirfd) {
   return pids;
 }
 
+bool Fs::readIsPopulatedFromLines(const std::vector<std::string>& lines) {
+  for (const auto& line : lines) {
+    std::vector<std::string> toks = Util::split(line, ' ');
+    if (toks.size() == 2 && toks[0] == "populated") {
+      if (toks[1] == "1") {
+        return true;
+      } else if (toks[1] == "0") {
+        return false;
+      } else {
+        throw bad_control_file("invalid format");
+      }
+    }
+  }
+
+  throw bad_control_file("invalid format");
+}
+
+bool Fs::readIsPopulated(const std::string& path) {
+  auto lines = readFileByLine(path + "/" + kEventsFile);
+  return readIsPopulatedFromLines(lines);
+}
+
+bool Fs::readIsPopulatedAt(const DirFd& dirfd) {
+  auto lines = readFileByLine(Fs::Fd::openat(dirfd, kEventsFile));
+  return readIsPopulatedFromLines(lines);
+}
+
 std::string Fs::pressureTypeToString(PressureType type) {
   switch (type) {
     case PressureType::SOME:
@@ -633,6 +660,16 @@ int64_t Fs::getNrDyingDescendantsAt(const DirFd& dirfd) {
   return map["nr_dying_descendants"];
 }
 
+KillPreference Fs::readKillPreferenceAt(const DirFd& path) {
+  if (Fs::hasxattrAt(path, kOomdPreferXAttr)) {
+    return KillPreference::PREFER;
+  } else if (Fs::hasxattrAt(path, kOomdAvoidXAttr)) {
+    return KillPreference::AVOID;
+  } else {
+    return KillPreference::NORMAL;
+  }
+}
+
 bool Fs::setxattr(
     const std::string& path,
     const std::string& attr,
@@ -655,6 +692,14 @@ std::string Fs::getxattr(const std::string& path, const std::string& attr) {
   val.resize(size);
   ::getxattr(path.c_str(), attr.c_str(), &val[0], val.size());
   return val;
+}
+
+bool Fs::hasxattr(const std::string& path, const std::string& attr) {
+  return ::getxattr(path.c_str(), attr.c_str(), nullptr, 0) >= 0;
+}
+
+bool Fs::hasxattrAt(const DirFd& dirfd, const std::string& attr) {
+  return ::fgetxattr(dirfd.fd(), attr.c_str(), nullptr, 0) >= 0;
 }
 
 bool Fs::isUnderParentPath(

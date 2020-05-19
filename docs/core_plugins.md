@@ -201,6 +201,14 @@ they aren't contributing the pressure anyway.
 cgroups that are killed have the "trusted.oomd_kill" xattr set to the number
 of SIGKILLs sent to resident processes.
 
+cgroups with the "trusted.oomd_prefer" xattr set will be killed before any other
+cgroups, even if others are better choices by the above logic. A cgroup with
+"trusted.oomd_avoid" will not be killed unless there are no other cgroups to
+kill. If multiple cgroups are "trusted.oomd_prefer"ed, the above logic will be
+used to pick between them. If a cgroup has both of these xattrs it is considered
+"prefer". The xattrs must be set on cgroups targeted in the `cgroup` arg;
+they will have no effect if set on ancestors of the targeted cgroups.
+
 STOP if killed something (even if dry=true). CONTINUE otherwise.
 
 ## kill_by_swap_usage

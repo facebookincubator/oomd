@@ -19,6 +19,7 @@
 
 #include <chrono>
 #include <cstdint>
+#include <iostream>
 #include <vector>
 
 namespace Oomd {
@@ -76,5 +77,25 @@ struct SystemContext {
   uint64_t swaptotal{0};
   uint64_t swapused{0};
 };
+
+enum struct KillPreference {
+  PREFER = 1,
+  NORMAL = 0,
+  AVOID = -1,
+};
+inline std::ostream& operator<<(std::ostream& os, KillPreference kp) {
+  switch (kp) {
+    case KillPreference::PREFER:
+      os << "PREFER";
+      break;
+    case KillPreference::NORMAL:
+      os << "NORMAL";
+      break;
+    case KillPreference::AVOID:
+      os << "AVOID";
+      break;
+  }
+  return os;
+}
 
 } // namespace Oomd

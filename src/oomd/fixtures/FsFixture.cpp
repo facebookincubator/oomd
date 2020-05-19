@@ -161,15 +161,21 @@ const auto kEntCgroup = F::makeDir(
                     "full 4.44 5.55 6.66\n")}),
             F::makeDir(
                 "service3.service",
-                {F::makeFile(
-                    "memory.pressure",
-                    "aggr 128544748770\n"
-                    "some 1.11 2.22 3.33\n"
-                    "full 4.44 5.55 6.66\n"
-                    "0 0 0\n"
-                    "0 0 0\n"
-                    "0 0 0\n"
-                    "0 0 0\n")}),
+                {
+                    F::makeFile(
+                        "memory.pressure",
+                        "aggr 128544748770\n"
+                        "some 1.11 2.22 3.33\n"
+                        "full 4.44 5.55 6.66\n"
+                        "0 0 0\n"
+                        "0 0 0\n"
+                        "0 0 0\n"
+                        "0 0 0\n"),
+                    F::makeFile(
+                        "cgroup.events",
+                        "populated 0\n"
+                        "frozen 0\n"),
+                }),
             F::makeDir(
                 "slice1.slice",
                 {F::makeDir(
@@ -186,6 +192,10 @@ const auto kEntCgroup = F::makeDir(
                          "34\n")})}),
             F::makeFile("cgroup.controllers", "cpu io memory pids\n"),
             F::makeFile("cgroup.procs", "123\n"),
+            F::makeFile(
+                "cgroup.events",
+                "populated 1\n"
+                "frozen 0\n"),
             F::makeFile(
                 "cgroup.stat",
                 "nr_descendants 34\n"

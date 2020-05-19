@@ -92,6 +92,8 @@ class CgroupContext {
   std::optional<int64_t> memory_high_tmp(Error* err = nullptr) const;
   std::optional<int64_t> memory_max(Error* err = nullptr) const;
   std::optional<int64_t> nr_dying_descendants(Error* err = nullptr) const;
+  std::optional<bool> is_populated(Error* err = nullptr) const;
+  std::optional<KillPreference> kill_preference(Error* err = nullptr) const;
   // memory_{min,low} taking into account the distribution of it
   std::optional<int64_t> memory_protection(Error* err = nullptr) const;
   // Dot product between io stat and coeffs
@@ -140,6 +142,8 @@ class CgroupContext {
     std::optional<int64_t> memory_high_tmp;
     std::optional<int64_t> memory_max;
     std::optional<int64_t> nr_dying_descendants;
+    std::optional<bool> is_populated;
+    std::optional<KillPreference> kill_preference;
     // Cached derived data
     std::optional<int64_t> memory_protection;
     std::optional<double> io_cost_cumulative;

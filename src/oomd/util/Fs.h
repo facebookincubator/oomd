@@ -40,6 +40,7 @@ class Fs {
   static constexpr auto kControllersFile = "cgroup.controllers";
   static constexpr auto kSubtreeControlFile = "cgroup.subtree_control";
   static constexpr auto kProcsFile = "cgroup.procs";
+  static constexpr auto kEventsFile = "cgroup.events";
   static constexpr auto kMemCurrentFile = "memory.current";
   static constexpr auto kMemPressureFile = "memory.pressure";
   static constexpr auto kMemLowFile = "memory.low";
@@ -54,6 +55,8 @@ class Fs {
   static constexpr auto kIoStatFile = "io.stat";
   static constexpr auto kDeviceTypeDir = "queue";
   static constexpr auto kDeviceTypeFile = "rotational";
+  static constexpr auto kOomdPreferXAttr = "trusted.oomd_prefer";
+  static constexpr auto kOomdAvoidXAttr = "trusted.oomd_avoid";
 
   struct DirEnts {
     std::vector<std::string> dirs;
@@ -162,6 +165,10 @@ class Fs {
   static std::vector<int> getPids(const std::string& path);
   static std::vector<int> getPidsAt(const DirFd& dirfd);
 
+  static bool readIsPopulatedFromLines(const std::vector<std::string>& lines);
+  static bool readIsPopulated(const std::string& path);
+  static bool readIsPopulatedAt(const DirFd& dirfd);
+
   static std::string pressureTypeToString(PressureType type);
   /* Helpers to read PSI files */
   static ResourcePressure readRespressureFromLines(
@@ -211,6 +218,8 @@ class Fs {
   static int64_t getNrDyingDescendants(const std::string& path);
   static int64_t getNrDyingDescendantsAt(const DirFd& dirfd);
 
+  static KillPreference readKillPreferenceAt(const DirFd& path);
+
   static IOStat readIostat(const std::string& path);
   static IOStat readIostatAt(const DirFd& dirfd);
 
@@ -240,6 +249,9 @@ class Fs {
       const std::string& attr,
       const std::string& val);
   static std::string getxattr(const std::string& path, const std::string& attr);
+
+  static bool hasxattr(const std::string& path, const std::string& attr);
+  static bool hasxattrAt(const DirFd& dirfd, const std::string& attr);
 
   // Return if device is SSD or HDD given its id in <major>:<minor> format
   static DeviceType getDeviceType(

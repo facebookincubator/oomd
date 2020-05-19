@@ -178,6 +178,22 @@ TEST_F(FsTest, GetPids) {
   EXPECT_EQ(Fs::getPidsAt(dir2), pids2);
 }
 
+TEST_F(FsTest, ReadIsPopulated) {
+  auto path = fixture_.cgroupDataDir();
+  EXPECT_EQ(Fs::readIsPopulated(path), true);
+
+  auto dir = Fs::DirFd::open(path);
+  EXPECT_TRUE(dir.isValid());
+  EXPECT_EQ(Fs::readIsPopulatedAt(dir), true);
+
+  auto path2 = fixture_.cgroupDataDir() + "/service3.service";
+  EXPECT_EQ(Fs::readIsPopulated(path2), false);
+
+  auto dir2 = Fs::DirFd::open(path2);
+  EXPECT_TRUE(dir2.isValid());
+  EXPECT_EQ(Fs::readIsPopulatedAt(dir2), false);
+}
+
 TEST_F(FsTest, GetNrDying) {
   auto path = fixture_.cgroupDataDir();
   int64_t nr = Fs::getNrDyingDescendants(path);
