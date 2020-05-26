@@ -1280,8 +1280,8 @@ TEST_F(KillMemoryGrowthTest, PreferredOverridesSize) {
       CgroupPath(compile_context.cgroupFs(), "one_big/cgroup2"),
       CgroupData{
           .current_usage = 20,
-          .average_usage = 20,
           .kill_preference = KillPreference::PREFER,
+          .average_usage = 20,
       });
   TestHelper::setCgroupData(
       ctx,
@@ -1326,8 +1326,8 @@ TEST_F(KillMemoryGrowthTest, AvoidedOverridesSize) {
       CgroupPath(compile_context.cgroupFs(), "one_big/cgroup1"),
       CgroupData{
           .current_usage = 60,
-          .average_usage = 60,
           .kill_preference = KillPreference::AVOID,
+          .average_usage = 60,
       });
   TestHelper::setCgroupData(
       ctx,
@@ -1387,16 +1387,16 @@ TEST_F(KillMemoryGrowthTest, AvoidedNoEffect) {
       CgroupPath(compile_context.cgroupFs(), "one_big/cgroup2"),
       CgroupData{
           .current_usage = 30,
-          .average_usage = 30,
           .kill_preference = KillPreference::AVOID,
+          .average_usage = 30,
       });
   TestHelper::setCgroupData(
       ctx,
       CgroupPath(compile_context.cgroupFs(), "one_big/cgroup3"),
       CgroupData{
           .current_usage = 20,
-          .average_usage = 20,
           .kill_preference = KillPreference::AVOID,
+          .average_usage = 20,
       });
   TestHelper::setCgroupData(
       ctx,
@@ -1435,32 +1435,32 @@ TEST_F(KillMemoryGrowthTest, PreferredNoEffect) {
       CgroupPath(compile_context.cgroupFs(), "one_big/cgroup1"),
       CgroupData{
           .current_usage = 60,
-          .average_usage = 60,
           .kill_preference = KillPreference::PREFER,
+          .average_usage = 60,
       });
   TestHelper::setCgroupData(
       ctx,
       CgroupPath(compile_context.cgroupFs(), "one_big/cgroup2"),
       CgroupData{
           .current_usage = 30,
-          .average_usage = 30,
           .kill_preference = KillPreference::PREFER,
+          .average_usage = 30,
       });
   TestHelper::setCgroupData(
       ctx,
       CgroupPath(compile_context.cgroupFs(), "one_big/cgroup3"),
       CgroupData{
           .current_usage = 20,
-          .average_usage = 20,
           .kill_preference = KillPreference::PREFER,
+          .average_usage = 20,
       });
   TestHelper::setCgroupData(
       ctx,
       CgroupPath(compile_context.cgroupFs(), "sibling/cgroup1"),
       CgroupData{
           .current_usage = 20,
-          .average_usage = 20,
           .kill_preference = KillPreference::PREFER,
+          .average_usage = 20,
       });
   EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
   EXPECT_THAT(plugin->killed, Contains(123));
@@ -1493,32 +1493,32 @@ TEST_F(KillMemoryGrowthTest, KillsOneOfPreferred) {
       CgroupPath(compile_context.cgroupFs(), "one_big/cgroup1"),
       CgroupData{
           .current_usage = 60,
-          .average_usage = 60,
           .kill_preference = KillPreference::PREFER,
+          .average_usage = 60,
       });
   TestHelper::setCgroupData(
       ctx,
       CgroupPath(compile_context.cgroupFs(), "one_big/cgroup2"),
       CgroupData{
           .current_usage = 30,
-          .average_usage = 30,
           .kill_preference = KillPreference::AVOID,
+          .average_usage = 30,
       });
   TestHelper::setCgroupData(
       ctx,
       CgroupPath(compile_context.cgroupFs(), "one_big/cgroup3"),
       CgroupData{
           .current_usage = 20,
-          .average_usage = 20,
           .kill_preference = KillPreference::PREFER,
+          .average_usage = 20,
       });
   TestHelper::setCgroupData(
       ctx,
       CgroupPath(compile_context.cgroupFs(), "sibling/cgroup1"),
       CgroupData{
           .current_usage = 20,
-          .average_usage = 20,
           .kill_preference = KillPreference::PREFER,
+          .average_usage = 20,
       });
   EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
   EXPECT_THAT(plugin->killed, Contains(123));
@@ -1623,16 +1623,16 @@ TEST_F(KillMemoryGrowthTest, KillsByPreferredGrowth) {
       CgroupPath(compile_context.cgroupFs(), "growth_big/cgroup1"),
       CgroupData{
           .current_usage = 21 << 20,
-          .average_usage = 5 << 20,
           .kill_preference = KillPreference::PREFER,
+          .average_usage = 5 << 20,
       });
   TestHelper::setCgroupData(
       ctx,
       CgroupPath(compile_context.cgroupFs(), "growth_big/cgroup2"),
       CgroupData{
           .current_usage = 99 << 20,
-          .average_usage = 5 << 20,
           .kill_preference = KillPreference::PREFER,
+          .average_usage = 5 << 20,
       });
   TestHelper::setCgroupData(
       ctx,
@@ -1678,16 +1678,16 @@ TEST_P(KillMemoryGrowthConsistentWithPreference, SizeThreshold) {
       CgroupPath(compile_context.cgroupFs(), "growth_big/cgroup1"),
       CgroupData{
           .current_usage = 21,
-          .average_usage = 5,
           .kill_preference = maybe_prefer,
+          .average_usage = 5,
       });
   TestHelper::setCgroupData(
       ctx,
       CgroupPath(compile_context.cgroupFs(), "growth_big/cgroup2"),
       CgroupData{
           .current_usage = 99,
-          .average_usage = 5,
           .kill_preference = maybe_prefer,
+          .average_usage = 5,
       });
   TestHelper::setCgroupData(
       ctx,
