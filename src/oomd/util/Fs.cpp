@@ -71,23 +71,19 @@ Fs::Fd Fs::Fd::openat(const DirFd& dirfd, const std::string& path) {
   return Fd(::openat(dirfd.fd(), path.c_str(), O_RDONLY));
 }
 
-void Fs::Fd::close() {
+void Fs::Fd::close() const {
   if (isValid()) {
     ::close(fd_);
   }
 }
 
-bool Fs::Fd::checkValid() {
-  struct stat buf;
-  if (::fstat(fd_, &buf) != 0) {
-    this->close();
-    fd_ = -1;
-  }
-  return isValid();
-}
-
 Fs::DirFd Fs::DirFd::open(const std::string& path) {
   return DirFd(::open(path.c_str(), O_RDONLY | O_DIRECTORY));
+}
+
+bool Fs::isCgroupValid(const DirFd& dirfd) {
+  // If cgroup.controllers file exists, the cgroup should still be valid
+  return ::faccessat(dirfd.fd(), kControllersFile, F_OK, 0) == 0;
 }
 
 struct Fs::DirEnts Fs::readDir(const std::string& path, int flags) {

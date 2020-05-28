@@ -174,25 +174,30 @@ TEST_F(CgroupContextTest, MemoryProtection) {
 TEST_F(CgroupContextTest, DistinguishRecreate) {
   F::materialize(F::makeDir(
       tempDir_,
-      {F::makeDir("system.slice", {F::makeFile("memory.current", "123\n")})}));
+      {F::makeDir(
+          "system.slice",
+          // Dummy file to make cgroup valid
+          {F::makeFile("cgroup.controllers"),
+           F::makeFile("memory.current", "123\n")})}));
 
-  auto cgroup_ctx = ctx_.addToCacheAndGet(CgroupPath(tempDir_, "system.slice"));
-  ASSERT_TRUE(cgroup_ctx);
-  ASSERT_EQ(cgroup_ctx->get().current_usage(), 123);
+  CgroupContext cgroup_ctx(ctx_, CgroupPath(tempDir_, "system.slice"));
+  ASSERT_TRUE(cgroup_ctx.isValid());
+  ASSERT_EQ(cgroup_ctx.current_usage(), 123);
 
   // Remove cgroup and recreate one with the exact same name
   F::rmrChecked(tempDir_ + "/system.slice");
   F::materialize(F::makeDir(
       tempDir_,
-      {F::makeDir("system.slice", {F::makeFile("memory.current", "234\n")})}));
+      {F::makeDir(
+          "system.slice",
+          {F::makeFile("cgroup.controllers"),
+           F::makeFile("memory.current", "234\n")})}));
 
-  ctx_.refresh();
-  // With real cgroup the CgroupContext should already be invalid, but with mock
-  // fs, the dir fd is still open (fstat ok). Either way, files under it won't
-  // be accessible, and all reads should returns nullopt and set error to
-  // INVALID_CGROUP.
+  // This CgroupContext should no longer be valid
+  EXPECT_FALSE(cgroup_ctx.refresh());
+  // Files under removed-and-recreated cgroup should no longer be accessible
   auto err = CgroupContext::Error::NO_ERROR;
-  EXPECT_EQ(cgroup_ctx->get().current_usage(&err), std::nullopt);
+  EXPECT_EQ(cgroup_ctx.current_usage(&err), std::nullopt);
   EXPECT_EQ(err, CgroupContext::Error::INVALID_CGROUP);
 }
 
@@ -207,7 +212,9 @@ TEST_F(CgroupContextTest, DataLifeCycle) {
       tempDir_,
       {F::makeDir(
           "system.slice",
-          {F::makeFile(
+          // Dummy file to make cgroup valid
+          {F::makeFile("cgroup.controllers"),
+           F::makeFile(
                "cgroup.stat",
                {"nr_descendants 2\n"
                 "nr_dying_descendants 1\n"}),
@@ -242,10 +249,8 @@ TEST_F(CgroupContextTest, DataLifeCycle) {
            F::makeDir("service2.service", {}),
            F::makeDir("service3.service", {})})}));
 
-  auto cgroup_ctx_opt =
-      ctx_.addToCacheAndGet(CgroupPath(tempDir_, "system.slice"));
-  ASSERT_TRUE(cgroup_ctx_opt);
-  const auto& cgroup_ctx = cgroup_ctx_opt->get();
+  CgroupContext cgroup_ctx(ctx_, CgroupPath(tempDir_, "system.slice"));
+  ASSERT_TRUE(cgroup_ctx.isValid());
 
   std::decay_t<decltype(cgroup_ctx.children())> children;
   std::decay_t<decltype(cgroup_ctx.mem_pressure())> mem_pressure;
@@ -406,7 +411,7 @@ TEST_F(CgroupContextTest, DataLifeCycle) {
   EXPECT_EQ(cgroup_ctx.io_cost_rate(), io_cost_rate);
 
   // Call refresh() to clear cache and retrieve values again
-  ctx_.refresh();
+  ASSERT_TRUE(cgroup_ctx.refresh());
   set_and_check_fields();
 
   // Data are now updated

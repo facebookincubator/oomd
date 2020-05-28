@@ -28,15 +28,10 @@ CgroupContext::CgroupContext(OomdContext& ctx, const CgroupPath& cgroup)
       data_(std::make_unique<CgroupData>()) {}
 
 bool CgroupContext::refresh() {
-  // Check if cgroup still exists
-  if (!cgroup_dir_.checkValid()) {
-    return false;
-  }
-
   archive_ = {.average_usage = data_->average_usage,
               .io_cost_cumulative = data_->io_cost_cumulative};
   *data_ = {};
-  return true;
+  return Fs::isCgroupValid(cgroup_dir_);
 }
 
 /*

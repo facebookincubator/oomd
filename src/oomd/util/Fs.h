@@ -104,12 +104,10 @@ class Fs {
     bool isValid() const {
       return fd_ >= 0;
     }
-    // Check with FS if the fd is still valid and invalidate if necessary.
-    bool checkValid();
 
    protected:
     explicit Fd(int fd) : fd_(fd) {}
-    void close();
+    void close() const;
     int fd_{-1};
   };
 
@@ -123,6 +121,8 @@ class Fs {
    protected:
     explicit DirFd(int fd) : Fd(fd) {}
   };
+
+  static bool isCgroupValid(const DirFd& dirfd);
 
   /*
    * Reads a directory and returns the names of the requested entry types
