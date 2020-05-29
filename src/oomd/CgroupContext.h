@@ -70,6 +70,12 @@ class CgroupContext {
     return cgroup_;
   }
 
+  // Use by plugins to identify a CgroupContext across intervals. CgroupPath,
+  // cgroup dir_fd, and memory address can all be recycled if cgroup has been
+  // recreated. This id is guaranteed to be unique to each cgroup, but semantics
+  // is implementation details.
+  using Id = uint64_t;
+
   // Accessors to cgroup fields. If error is encountered, std::nullopt will be
   // returned and err set to corresponding error enum if it's not nullptr.
   // Otherwise, err will stay the same and an optional with value returned.
@@ -84,6 +90,7 @@ class CgroupContext {
   const std::optional<std::unordered_map<std::string, int64_t>>& memory_stat(
       Error* err = nullptr) const;
   const std::optional<IOStat>& io_stat(Error* err = nullptr) const;
+  std::optional<Id> id(Error* err = nullptr) const;
   std::optional<int64_t> current_usage(Error* err = nullptr) const;
   std::optional<int64_t> swap_usage(Error* err = nullptr) const;
   std::optional<int64_t> memory_low(Error* err = nullptr) const;
@@ -134,6 +141,7 @@ class CgroupContext {
     std::optional<ResourcePressure> io_pressure;
     std::optional<std::unordered_map<std::string, int64_t>> memory_stat;
     std::optional<IOStat> io_stat;
+    std::optional<Id> id;
     std::optional<int64_t> current_usage;
     std::optional<int64_t> swap_usage;
     std::optional<int64_t> memory_low;

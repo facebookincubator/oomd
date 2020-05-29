@@ -71,6 +71,14 @@ Fs::Fd Fs::Fd::openat(const DirFd& dirfd, const std::string& path) {
   return Fd(::openat(dirfd.fd(), path.c_str(), O_RDONLY));
 }
 
+std::optional<uint64_t> Fs::Fd::inode() const {
+  struct ::stat buf;
+  if (::fstat(fd_, &buf) == 0) {
+    return static_cast<uint64_t>(buf.st_ino);
+  }
+  return std::nullopt;
+}
+
 void Fs::Fd::close() const {
   if (isValid()) {
     ::close(fd_);

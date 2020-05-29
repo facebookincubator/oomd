@@ -98,6 +98,21 @@ TEST_F(CgroupContextTest, MonitorRootHost) {
   EXPECT_GT(cgroup_ctx->get().current_usage(), 0);
 }
 
+TEST_F(CgroupContextTest, UniqueId) {
+  F::materialize(F::makeDir(
+      tempDir_,
+      {F::makeDir("A"), F::makeDir("B"), F::makeDir("C"), F::makeDir("D")}));
+  std::unordered_set<CgroupContext::Id> ids;
+
+  for (const CgroupContext& cgroup_ctx : ctx_.addToCacheAndGet(
+           std::unordered_set<CgroupPath>{CgroupPath(tempDir_, "*")})) {
+    if (auto id = cgroup_ctx.id()) {
+      ids.emplace(*id);
+    }
+  }
+  EXPECT_EQ(ids.size(), 4);
+}
+
 TEST_F(CgroupContextTest, MemoryProtection) {
   F::materialize(F::makeDir(
       tempDir_,

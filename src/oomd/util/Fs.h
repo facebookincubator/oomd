@@ -104,6 +104,8 @@ class Fs {
     bool isValid() const {
       return fd_ >= 0;
     }
+    // Return inode of the fd, or nullopt if anything fails
+    std::optional<uint64_t> inode() const;
 
    protected:
     explicit Fd(int fd) : fd_(fd) {}
