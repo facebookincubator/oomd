@@ -2150,8 +2150,8 @@ TEST_F(SenpaiTest, MemHigh) {
   auto plugin = createPlugin("senpai");
   ASSERT_NE(plugin, nullptr);
 
-  auto cgroup = F::makeDir(
-      "cgroup",
+  F::materialize(F::makeDir(
+      tempdir_,
       {F::makeDir(
           "senpai_test.slice",
           {F::makeFile("memory.high", "max\n"),
@@ -2159,19 +2159,17 @@ TEST_F(SenpaiTest, MemHigh) {
            F::makeFile(
                "memory.pressure",
                "some avg10=0.00 avg60=0.00 avg300=0.00 total=0\n"
-               "full avg10=0.00 avg60=0.00 avg300=0.00 total=0\n")})});
-  cgroup.second.materialize(tempdir_, cgroup.first);
+               "full avg10=0.00 avg60=0.00 avg300=0.00 total=0\n")})}));
 
   Engine::PluginArgs args;
-  const PluginConstructionContext compile_context(tempdir_ + "/cgroup");
+  const PluginConstructionContext compile_context(tempdir_);
   args["cgroup"] = "senpai_test.slice";
 
   ASSERT_EQ(plugin->init(std::move(args), compile_context), 0);
 
   OomdContext ctx;
   EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::CONTINUE);
-  EXPECT_EQ(
-      Fs::readMemhigh(tempdir_ + "/cgroup/senpai_test.slice"), 1073741824);
+  EXPECT_EQ(Fs::readMemhigh(tempdir_ + "/senpai_test.slice"), 1073741824);
 }
 
 // Senpai should use memory.high.tmp whenever available, and memory.high not
@@ -2180,8 +2178,8 @@ TEST_F(SenpaiTest, MemHighTmp) {
   auto plugin = createPlugin("senpai");
   ASSERT_NE(plugin, nullptr);
 
-  auto cgroup = F::makeDir(
-      "cgroup",
+  F::materialize(F::makeDir(
+      tempdir_,
       {F::makeDir(
           "senpai_test.slice",
           {F::makeFile("memory.high.tmp", "max 0\n"),
@@ -2190,21 +2188,19 @@ TEST_F(SenpaiTest, MemHighTmp) {
            F::makeFile(
                "memory.pressure",
                "some avg10=0.00 avg60=0.00 avg300=0.00 total=0\n"
-               "full avg10=0.00 avg60=0.00 avg300=0.00 total=0\n")})});
-  cgroup.second.materialize(tempdir_, cgroup.first);
+               "full avg10=0.00 avg60=0.00 avg300=0.00 total=0\n")})}));
 
   Engine::PluginArgs args;
-  const PluginConstructionContext compile_context(tempdir_ + "/cgroup");
+  const PluginConstructionContext compile_context(tempdir_);
   args["cgroup"] = "senpai_test.slice";
 
   ASSERT_EQ(plugin->init(std::move(args), compile_context), 0);
 
   OomdContext ctx;
   EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::CONTINUE);
+  EXPECT_EQ(Fs::readMemhightmp(tempdir_ + "/senpai_test.slice"), 1073741824);
   EXPECT_EQ(
-      Fs::readMemhightmp(tempdir_ + "/cgroup/senpai_test.slice"), 1073741824);
-  EXPECT_EQ(
-      Fs::readMemhigh(tempdir_ + "/cgroup/senpai_test.slice"),
+      Fs::readMemhigh(tempdir_ + "/senpai_test.slice"),
       std::numeric_limits<int64_t>::max());
 }
 
@@ -2215,21 +2211,22 @@ TEST_F(SenpaiTest, MemMin) {
 
   // Create a fake cgroup structure that won't change memory.current or pressure
   // Effectively senpai will always lower memory.high.
-  auto cgroup = F::makeDir(
-      "cgroup",
+  F::materialize(F::makeDir(
+      tempdir_,
       {F::makeDir(
           "senpai_test.slice",
-          {F::makeFile("memory.high", "max\n"),
+          // Dummy file to keep cgroup valid after refresh()
+          {F::makeFile("cgroup.controllers"),
+           F::makeFile("memory.high", "max\n"),
            F::makeFile("memory.current", "1073741824\n"),
            F::makeFile(
                "memory.pressure",
                "some avg10=0.00 avg60=0.00 avg300=0.00 total=0\n"
                "full avg10=0.00 avg60=0.00 avg300=0.00 total=0\n"),
-           F::makeFile("memory.min", "1048576000\n")})});
-  cgroup.second.materialize(tempdir_, cgroup.first);
+           F::makeFile("memory.min", "1048576000\n")})}));
 
   Engine::PluginArgs args;
-  const PluginConstructionContext compile_context(tempdir_ + "/cgroup");
+  const PluginConstructionContext compile_context(tempdir_);
   args["cgroup"] = "senpai_test.slice";
   args["limit_min_bytes"] = "0";
   args["interval"] = "0"; // make update faster
@@ -2240,7 +2237,27 @@ TEST_F(SenpaiTest, MemMin) {
   // Run senpai for 100 cycles. It should be enough to lower memory.high a bit
   for (int i = 0; i < 100; i++) {
     EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::CONTINUE);
+    ctx.refresh();
   }
-  EXPECT_EQ(
-      Fs::readMemhigh(tempdir_ + "/cgroup/senpai_test.slice"), 1048576000);
+  EXPECT_EQ(Fs::readMemhigh(tempdir_ + "/senpai_test.slice"), 1048576000);
+}
+
+TEST_F(SenpaiTest, InvalidCgroup) {
+  auto plugin = createPlugin("senpai");
+  ASSERT_NE(plugin, nullptr);
+
+  // Create a cgroup without any content, which looks the same as cgroup removed
+  // after added to OomdContext.
+  F::materialize(F::makeDir(tempdir_, {F::makeDir("senpai_test.slice")}));
+
+  Engine::PluginArgs args;
+  const PluginConstructionContext compile_context(tempdir_);
+  args["cgroup"] = "senpai_test.slice";
+  args["interval"] = "0"; // make update faster
+
+  ASSERT_EQ(plugin->init(std::move(args), compile_context), 0);
+
+  // Invalid cgroup should be handled properly and shouldn't crash oomd.
+  OomdContext ctx;
+  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::CONTINUE);
 }

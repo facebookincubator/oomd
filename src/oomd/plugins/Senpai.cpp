@@ -17,14 +17,11 @@
 
 #include "oomd/plugins/Senpai.h"
 
-#include <sys/stat.h>
-
 #include <iomanip>
 #include <sstream>
 
 #include "oomd/Log.h"
 #include "oomd/PluginRegistry.h"
-#include "oomd/Stats.h"
 #include "oomd/util/Fs.h"
 #include "oomd/util/Util.h"
 
@@ -84,96 +81,128 @@ int Senpai::init(
 }
 
 Engine::PluginRet Senpai::run(OomdContext& ctx) {
-  std::set<std::string> resolved_cgroups;
-  for (const auto& cgroup : cgroups_) {
-    auto resolved = Fs::glob(cgroup.absolutePath());
-    for (auto&& cg : std::move(resolved)) {
-      if (Fs::isDir(cg)) {
-        resolved_cgroups.emplace(cg);
+  auto resolved_cgroups = ctx.reverseSort(
+      cgroups_,
+      [](const CgroupContext& cgroup_ctx) { return cgroup_ctx.id(); });
+  // Use reverse iterator after reverseSort to make it normal order
+  auto resolvedIt = resolved_cgroups.crbegin();
+  auto trackedIt = tracked_cgroups_.begin();
+
+  // Iterate both tracked cgroups and resolved cgroups in increasing id order
+  while (resolvedIt != resolved_cgroups.crend()) {
+    const CgroupContext& cgroup_ctx = *resolvedIt;
+    // Use id to identify CgroupContext across intervals, as path, dir_fd, and
+    // memory address could all be recycled upon cgroup recreation.
+    auto id_opt = cgroup_ctx.id();
+    if (!id_opt) {
+      continue;
+    }
+    if (trackedIt == tracked_cgroups_.end() || *id_opt < trackedIt->first) {
+      // Resolved cgroup not in tracked map, track it
+      // New cgroups will be polled after a "tick" has elapsed
+      if (auto new_cgroup_state_opt = initializeCgroup(cgroup_ctx)) {
+        tracked_cgroups_.emplace_hint(
+            trackedIt, *id_opt, *new_cgroup_state_opt);
       }
+      ++resolvedIt;
+    } else if (*cgroup_ctx.id() > trackedIt->first) {
+      trackedIt = tracked_cgroups_.erase(trackedIt);
+    } else {
+      // Keep the tracked cgroups if they are still valid after tick
+      trackedIt = tick(cgroup_ctx, trackedIt->second)
+          ? std::next(trackedIt)
+          : tracked_cgroups_.erase(trackedIt);
+      ++resolvedIt;
     }
   }
-
-  auto new_cgroups = addRemoveTrackedCgroups(resolved_cgroups);
-  for (auto& cg : tracked_cgroups_) {
-    tick(cg.first, cg.second);
-  }
-
-  // new cgroups will be polled after a "tick" has elapsed, so add
-  // them to the tracked group at the end here
-  tracked_cgroups_.merge(std::move(new_cgroups));
+  tracked_cgroups_.erase(trackedIt, tracked_cgroups_.end());
   return Engine::PluginRet::CONTINUE;
 }
 
 Senpai::CgroupState::CgroupState(
-    uint64_t start_limit,
+    int64_t start_limit,
     std::chrono::microseconds total,
-    uint64_t start_ticks,
-    const std::string& path)
+    int64_t start_ticks)
     : limit{start_limit}, last_total{total}, ticks{start_ticks} {}
 
 namespace {
-std::chrono::microseconds getTotal(const std::string& name) {
-  // Senpai reads pressure.some to get early notice that a workload
-  // may be under resource pressure
-  const auto pressure =
-      Oomd::Fs::readMempressure(name, Oomd::Fs::PressureType::SOME);
+// Get the total pressure (some) from a cgroup, or nullopt if cgroup is invalid
+std::optional<std::chrono::microseconds> getPressureTotalSome(
+    const CgroupContext& cgroup_ctx) {
+  try {
+    // Senpai reads pressure.some to get early notice that a workload
+    // may be under resource pressure
+    const auto pressure = Oomd::Fs::readMempressureAt(
+        cgroup_ctx.fd(), Oomd::Fs::PressureType::SOME);
 
-  if (!pressure.total) {
-    throw std::runtime_error("Senpai enabled but no total pressure info");
+    if (!pressure.total) {
+      throw std::runtime_error("Senpai enabled but no total pressure info");
+    }
+
+    return pressure.total.value();
+  } catch (const Fs::bad_control_file&) {
   }
-
-  return pressure.total.value();
+  return std::nullopt;
 }
 
-uint64_t getCurrent(const std::string& name) {
-  return static_cast<uint64_t>(Oomd::Fs::readMemcurrent(name));
+// Check if the system support memory.high.tmp cgroup control file. If the given
+// cgroup supports it, the system supports it. The result is then stored and
+// further calls won't access filesystem. If the cgroup is no longer valid and
+// no stored result exists, nullopt is returned.
+std::optional<bool> hasMemoryHighTmp(const CgroupContext& cgroup_ctx) {
+  static std::optional<bool> has_memory_high_tmp = std::nullopt;
+  if (!has_memory_high_tmp.has_value()) {
+    if (auto memhightmp = cgroup_ctx.memory_high_tmp()) {
+      has_memory_high_tmp = true;
+    } else if (auto memhigh = cgroup_ctx.memory_high()) {
+      // If memory.high exists but memory.high.tmp doesn't, it's not supported
+      has_memory_high_tmp = false;
+    }
+    // If neither exist, cgroup is invalid. Nothing changed.
+  }
+  return has_memory_high_tmp;
 }
 
-uint64_t getMemMin(const std::string& name) {
-  return static_cast<uint64_t>(Oomd::Fs::readMemmin(name));
+// Read from memory.high.tmp (preferred) or memory.high of a given cgroup.
+// Return nullopt if cgroup is no longer valid.
+std::optional<int64_t> readMemhigh(const CgroupContext& cgroup_ctx) {
+  if (auto has_memory_high_tmp = hasMemoryHighTmp(cgroup_ctx)) {
+    return *has_memory_high_tmp ? cgroup_ctx.memory_high_tmp()
+                                : cgroup_ctx.memory_high();
+  }
+  return std::nullopt;
+}
+
+// Write to memory.high.tmp (preferred) or memory.high of a given cgroup.
+// Return if the cgroup is still valid.
+bool writeMemhigh(const CgroupContext& cgroup_ctx, int64_t value) {
+  if (auto has_memory_high_tmp = hasMemoryHighTmp(cgroup_ctx)) {
+    try {
+      if (*has_memory_high_tmp) {
+        Oomd::Fs::writeMemhightmpAt(
+            cgroup_ctx.fd(), value, std::chrono::seconds(20));
+      } else {
+        Oomd::Fs::writeMemhighAt(cgroup_ctx.fd(), value);
+      }
+      return true;
+    } catch (const Fs::bad_control_file&) {
+    }
+  }
+  return false;
 }
 } // namespace
-std::map<std::string, Senpai::CgroupState> Senpai::addRemoveTrackedCgroups(
-    const std::set<std::string>& resolved_cgroups) {
-  std::map<std::string, CgroupState> new_cgroups;
-  auto resolvedIt = resolved_cgroups.cbegin();
-  auto trackedIt = tracked_cgroups_.begin();
-  while (resolvedIt != resolved_cgroups.cend()) {
-    if (trackedIt == tracked_cgroups_.end()) {
-      // The rest of the resolved cgroups are not tracked, track them
-      for (auto it = resolvedIt; it != resolved_cgroups.cend(); ++it) {
-        auto state = initializeCgroup(*it);
-        new_cgroups.emplace(std::move(*it), std::move(state));
-      }
-      return new_cgroups;
-    }
 
-    if (*resolvedIt < trackedIt->first) {
-      // Resolved cgroup not in tracked map, track it
-      auto state = initializeCgroup(*resolvedIt);
-      new_cgroups.emplace(std::move(*resolvedIt), std::move(state));
-      ++resolvedIt;
-    } else {
-      if (trackedIt->first < *resolvedIt) {
-        // tracked cgroup not found, erase it
-        trackedIt = tracked_cgroups_.erase(trackedIt);
-      } else {
-        ++resolvedIt;
-        ++trackedIt;
-      }
-    }
+// Update state of a cgroup. Return if the cgroup is still valid.
+bool Senpai::tick(const CgroupContext& cgroup_ctx, CgroupState& state) {
+  auto name = cgroup_ctx.cgroup().absolutePath();
+  auto limit_opt = readMemhigh(cgroup_ctx);
+  if (!limit_opt) {
+    return false;
   }
-  tracked_cgroups_.erase(trackedIt, tracked_cgroups_.end());
-  return new_cgroups;
-}
-
-void Senpai::tick(const std::string& name, CgroupState& state) {
-  auto limit = static_cast<uint64_t>(readMemhigh(name));
-  auto total = getTotal(name);
+  auto limit = *limit_opt;
   auto factor = 0.0;
 
-  if (limit != state.limit) {
+  if (*limit_opt != state.limit) {
     // Something else changed limits on this cgroup or it was
     // recreated in-between ticks - reset the state and return,
     // unfortuantely, the rest of this logic is still racy after this
@@ -183,24 +212,36 @@ void Senpai::tick(const std::string& name, CgroupState& state) {
         << " does not match recorded state " << state.limit
         << ". Resetting cgroup";
     OLOG << oss.str();
-    state = initializeCgroup(name);
-    return;
+    if (auto state_opt = initializeCgroup(cgroup_ctx)) {
+      state = *state_opt;
+      return true;
+    }
+    return false;
   }
-
-  // Make sure memory.high don't go below memory.min
-  auto limit_min_bytes = std::max(limit_min_bytes_, getMemMin(name));
 
   // Adjust cgroup limit by factor
   auto adjust = [&](double factor) {
+    auto memmin_opt = cgroup_ctx.memory_min();
+    if (!memmin_opt) {
+      return false;
+    }
+    // Make sure memory.high don't go below memory.min
+    auto limit_min_bytes = std::max(limit_min_bytes_, *memmin_opt);
+
     state.limit += state.limit * factor;
     state.limit =
         std::max(limit_min_bytes, std::min(limit_max_bytes_, state.limit));
     // Memory high is always a multiple of 4K
     state.limit &= ~0xFFF;
-    writeMemhigh(name, state.limit);
     state.ticks = interval_;
     state.cumulative = std::chrono::microseconds{0};
+    return writeMemhigh(cgroup_ctx, state.limit);
   };
+  auto total_opt = getPressureTotalSome(cgroup_ctx);
+  if (!total_opt) {
+    return false;
+  }
+  auto total = *total_opt;
   auto delta = total - state.last_total;
   state.last_total = total;
   state.cumulative += delta;
@@ -216,7 +257,9 @@ void Senpai::tick(const std::string& name, CgroupState& state) {
     factor = error / coeff_backoff_;
     factor *= factor;
     factor = std::min(factor * max_backoff_, max_backoff_);
-    adjust(factor);
+    if (!adjust(factor)) {
+      return false;
+    }
   } else if (state.ticks) {
     --state.ticks;
   } else {
@@ -230,7 +273,9 @@ void Senpai::tick(const std::string& name, CgroupState& state) {
     factor *= factor;
     factor = std::min(factor * max_probe_, max_probe_);
     factor = -factor;
-    adjust(factor);
+    if (!adjust(factor)) {
+      return false;
+    }
   }
 
   std::ostringstream oss;
@@ -239,34 +284,24 @@ void Senpai::tick(const std::string& name, CgroupState& state) {
       << " deltaus " << delta.count() << " cumus " << cumulative << " ticks "
       << state.ticks << std::defaultfloat << " adjust " << factor;
   OLOG << oss.str();
+  return true;
 }
 
-Senpai::CgroupState Senpai::initializeCgroup(const std::string& path) {
-  auto start_limit = getCurrent(path);
-  writeMemhigh(path, start_limit);
-  return CgroupState(start_limit, getTotal(path), interval_, path);
-}
-
-int64_t Senpai::readMemhigh(const std::string& path) {
-  if (has_memory_high_tmp_) {
-    try {
-      return Oomd::Fs::readMemhightmp(path);
-    } catch (const Fs::bad_control_file&) {
-      has_memory_high_tmp_ = false;
-    }
+// Initialize a CgroupState. Return nullopt if cgroup no longer valid.
+std::optional<Senpai::CgroupState> Senpai::initializeCgroup(
+    const CgroupContext& cgroup_ctx) {
+  auto current_opt = cgroup_ctx.current_usage();
+  if (!current_opt) {
+    return std::nullopt;
   }
-  return Oomd::Fs::readMemhigh(path);
+  auto total_opt = getPressureTotalSome(cgroup_ctx);
+  if (!total_opt) {
+    return std::nullopt;
+  }
+  if (!writeMemhigh(cgroup_ctx, *current_opt)) {
+    return std::nullopt;
+  }
+  return CgroupState(*current_opt, *total_opt, interval_);
 }
 
-void Senpai::writeMemhigh(const std::string& path, int64_t value) {
-  if (has_memory_high_tmp_) {
-    try {
-      Oomd::Fs::writeMemhightmp(path, value, std::chrono::seconds(20));
-      return;
-    } catch (const Fs::bad_control_file&) {
-      has_memory_high_tmp_ = false;
-    }
-  }
-  Oomd::Fs::writeMemhigh(path, value);
-}
 } // namespace Oomd
