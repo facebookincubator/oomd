@@ -485,3 +485,29 @@ TEST_F(FsTest, ReadIostat) {
   EXPECT_TRUE(dir.isValid());
   EXPECT_EQ(Fs::readIostatAt(dir), io_stat);
 }
+
+TEST_F(FsTest, WriteMemoryHigh) {
+  using F = Fixture;
+  auto path = fixture_.cgroupDataDir() + "/write_test";
+  F::materialize(F::makeDir(path, {F::makeFile("memory.high")}));
+
+  Fs::writeMemhigh(path, 12345);
+  EXPECT_EQ(Fs::readMemhigh(path), 12345);
+
+  auto dir = Fs::DirFd::open(path);
+  Fs::writeMemhighAt(dir, 54321);
+  EXPECT_EQ(Fs::readMemhighAt(dir), 54321);
+}
+
+TEST_F(FsTest, WriteMemoryHighTmp) {
+  using F = Fixture;
+  auto path = fixture_.cgroupDataDir() + "/write_test";
+  F::materialize(F::makeDir(path, {F::makeFile("memory.high.tmp")}));
+
+  Fs::writeMemhightmp(path, 12345, std::chrono::microseconds{300000});
+  EXPECT_EQ(Fs::readMemhightmp(path), 12345);
+
+  auto dir = Fs::DirFd::open(path);
+  Fs::writeMemhightmpAt(dir, 54321, std::chrono::microseconds{400000});
+  EXPECT_EQ(Fs::readMemhightmpAt(dir), 54321);
+}

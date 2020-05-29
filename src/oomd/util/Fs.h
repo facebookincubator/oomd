@@ -80,8 +80,9 @@ class Fs {
    */
   class Fd {
    public:
-    static Fd open(const std::string& path);
-    static Fd openat(const DirFd& dirfd, const std::string& path);
+    static Fd open(const std::string& path, bool read_only = true);
+    static Fd
+    openat(const DirFd& dirfd, const std::string& path, bool read_only = true);
 
     Fd() = default;
     Fd(const Fd& other) = delete;
@@ -212,8 +213,13 @@ class Fs {
       PressureType type = PressureType::FULL);
 
   static void writeMemhigh(const std::string& path, int64_t value);
+  static void writeMemhighAt(const DirFd& dirfd, int64_t value);
   static void writeMemhightmp(
       const std::string& path,
+      int64_t value,
+      std::chrono::microseconds duration);
+  static void writeMemhightmpAt(
+      const DirFd& dirfd,
       int64_t value,
       std::chrono::microseconds duration);
 
@@ -264,6 +270,7 @@ class Fs {
   static std::unordered_map<std::string, int64_t> getMemstatLikeFromLines(
       const std::vector<std::string>& lines);
   static IOStat readIostatFromLines(const std::vector<std::string>& lines);
+  static void writeControlFileAt(Fd&& fd, const std::string& content);
 };
 
 } // namespace Oomd

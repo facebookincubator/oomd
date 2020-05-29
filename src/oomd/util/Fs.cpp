@@ -63,12 +63,15 @@ PsiFormat getPsiFormat(const std::vector<std::string>& lines) {
 
 namespace Oomd {
 
-Fs::Fd Fs::Fd::open(const std::string& path) {
-  return Fd(::open(path.c_str(), O_RDONLY));
+Fs::Fd Fs::Fd::open(const std::string& path, bool read_only) {
+  int flags = read_only ? O_RDONLY : O_WRONLY;
+  return Fd(::open(path.c_str(), flags));
 }
 
-Fs::Fd Fs::Fd::openat(const DirFd& dirfd, const std::string& path) {
-  return Fd(::openat(dirfd.fd(), path.c_str(), O_RDONLY));
+Fs::Fd
+Fs::Fd::openat(const DirFd& dirfd, const std::string& path, bool read_only) {
+  int flags = read_only ? O_RDONLY : O_WRONLY;
+  return Fd(::openat(dirfd.fd(), path.c_str(), flags));
 }
 
 std::optional<uint64_t> Fs::Fd::inode() const {
@@ -611,43 +614,45 @@ IOStat Fs::readIostatAt(const DirFd& dirfd) {
   return readIostatFromLines(lines);
 }
 
-void Fs::writeMemhigh(const std::string& path, int64_t value) {
+void Fs::writeControlFileAt(Fd&& fd, const std::string& content) {
   char buf[1024];
   buf[0] = '\0';
-  auto file_name = path + "/" + kMemHighFile;
-  auto fd = ::open(file_name.c_str(), O_WRONLY);
-  if (fd < 0) {
+  if (!fd.isValid()) {
     throw bad_control_file(
-        file_name + ": open failed: " + ::strerror_r(errno, buf, sizeof(buf)));
+        std::string{"open failed: "} + ::strerror_r(errno, buf, sizeof(buf)));
   }
-  auto val_str = std::to_string(value);
-  auto ret = Util::writeFull(fd, val_str.c_str(), val_str.size());
-  ::close(fd);
+  auto ret = Util::writeFull(fd.fd(), content.c_str(), content.size());
   if (ret < 0) {
     throw bad_control_file(
-        file_name + ": write failed: " + ::strerror_r(errno, buf, sizeof(buf)));
+        std::string{"write failed: "} + ::strerror_r(errno, buf, sizeof(buf)));
   }
+}
+
+void Fs::writeMemhigh(const std::string& path, int64_t value) {
+  auto val_str = std::to_string(value);
+  writeControlFileAt(Fs::Fd::open(path + "/" + kMemHighFile, false), val_str);
+}
+
+void Fs::writeMemhighAt(const DirFd& dirfd, int64_t value) {
+  auto val_str = std::to_string(value);
+  writeControlFileAt(Fs::Fd::openat(dirfd, kMemHighFile, false), val_str);
 }
 
 void Fs::writeMemhightmp(
     const std::string& path,
     int64_t value,
     std::chrono::microseconds duration) {
-  char buf[1024];
-  buf[0] = '\0';
-  auto file_name = path + "/" + kMemHighTmpFile;
-  auto fd = ::open(file_name.c_str(), O_WRONLY);
-  if (fd < 0) {
-    throw bad_control_file(
-        file_name + ": open failed: " + ::strerror_r(errno, buf, sizeof(buf)));
-  }
   auto val_str = std::to_string(value) + " " + std::to_string(duration.count());
-  auto ret = Util::writeFull(fd, val_str.c_str(), val_str.size());
-  ::close(fd);
-  if (ret < 0) {
-    throw bad_control_file(
-        file_name + ": write failed: " + ::strerror_r(errno, buf, sizeof(buf)));
-  }
+  writeControlFileAt(
+      Fs::Fd::open(path + "/" + kMemHighTmpFile, false), val_str);
+}
+
+void Fs::writeMemhightmpAt(
+    const DirFd& dirfd,
+    int64_t value,
+    std::chrono::microseconds duration) {
+  auto val_str = std::to_string(value) + " " + std::to_string(duration.count());
+  writeControlFileAt(Fs::Fd::openat(dirfd, kMemHighTmpFile, false), val_str);
 }
 
 int64_t Fs::getNrDyingDescendants(const std::string& path) {
