@@ -181,7 +181,7 @@ TEST_F(CgroupContextTest, DistinguishRecreate) {
            F::makeFile("memory.current", "123\n")})}));
 
   CgroupContext cgroup_ctx(ctx_, CgroupPath(tempDir_, "system.slice"));
-  ASSERT_TRUE(cgroup_ctx.isValid());
+  ASSERT_TRUE(cgroup_ctx.fd().isValid());
   ASSERT_EQ(cgroup_ctx.current_usage(), 123);
 
   // Remove cgroup and recreate one with the exact same name
@@ -250,7 +250,7 @@ TEST_F(CgroupContextTest, DataLifeCycle) {
            F::makeDir("service3.service", {})})}));
 
   CgroupContext cgroup_ctx(ctx_, CgroupPath(tempDir_, "system.slice"));
-  ASSERT_TRUE(cgroup_ctx.isValid());
+  ASSERT_TRUE(cgroup_ctx.fd().isValid());
 
   std::decay_t<decltype(cgroup_ctx.children())> children;
   std::decay_t<decltype(cgroup_ctx.mem_pressure())> mem_pressure;

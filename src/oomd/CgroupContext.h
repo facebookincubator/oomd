@@ -62,8 +62,8 @@ class CgroupContext {
    */
   bool refresh();
 
-  bool isValid() const {
-    return cgroup_dir_.isValid();
+  const Fs::DirFd& fd() const {
+    return cgroup_dir_;
   }
 
   const CgroupPath& cgroup() const {

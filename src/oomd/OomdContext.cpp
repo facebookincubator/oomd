@@ -39,7 +39,7 @@ std::optional<OomdContext::ConstCgroupContextRef> OomdContext::addToCacheAndGet(
     return pos->second;
   }
   auto ctx = CgroupContext(*this, cgroup);
-  if (!ctx.isValid()) {
+  if (!ctx.fd().isValid()) {
     return std::nullopt;
   }
   return cgroups_.emplace(cgroup, std::move(ctx)).first->second;
