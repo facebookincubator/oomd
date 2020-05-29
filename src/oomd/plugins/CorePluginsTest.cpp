@@ -2146,7 +2146,7 @@ TEST_F(StopTest, Stops) {
 class SenpaiTest : public CorePluginsTest {};
 
 // Senpai should use memory.high when memory.high.tmp is not available
-TEST_F(SenpaiTest, MemHigh) {
+TEST_F(SenpaiTest, FallbackMemHigh) {
   auto plugin = createPlugin("senpai");
   ASSERT_NE(plugin, nullptr);
 
@@ -2174,7 +2174,7 @@ TEST_F(SenpaiTest, MemHigh) {
 
 // Senpai should use memory.high.tmp whenever available, and memory.high not
 // touched
-TEST_F(SenpaiTest, MemHighTmp) {
+TEST_F(SenpaiTest, PreferMemHighTmp) {
   auto plugin = createPlugin("senpai");
   ASSERT_NE(plugin, nullptr);
 
@@ -2205,7 +2205,7 @@ TEST_F(SenpaiTest, MemHighTmp) {
 }
 
 // Senpai should not set memory.high[.tmp] below memory.min
-TEST_F(SenpaiTest, MemMin) {
+TEST_F(SenpaiTest, LimitMemMin) {
   auto plugin = createPlugin("senpai");
   ASSERT_NE(plugin, nullptr);
 
@@ -2240,6 +2240,52 @@ TEST_F(SenpaiTest, MemMin) {
     ctx.refresh();
   }
   EXPECT_EQ(Fs::readMemhigh(tempdir_ + "/senpai_test.slice"), 1048576000);
+}
+
+// Senpai should not set memory.high.tmp above memory.high
+TEST_F(SenpaiTest, LimitMemHigh) {
+  auto plugin = createPlugin("senpai");
+  ASSERT_NE(plugin, nullptr);
+
+  F::materialize(F::makeDir(
+      tempdir_,
+      {F::makeDir(
+          "senpai_test.slice",
+          // Dummy file to keep cgroup valid after refresh()
+          {F::makeFile("cgroup.controllers"),
+           // 4k higher than memory.current
+           F::makeFile("memory.high", "1073745920\n"),
+           F::makeFile("memory.high.tmp", "max 0\n"),
+           F::makeFile("memory.current", "1073741824\n"),
+           F::makeFile(
+               "memory.pressure",
+               "some avg10=0.00 avg60=0.00 avg300=0.00 total=0\n"
+               "full avg10=0.00 avg60=0.00 avg300=0.00 total=0\n"),
+           F::makeFile("memory.min", "0\n")})}));
+
+  Engine::PluginArgs args;
+  const PluginConstructionContext compile_context(tempdir_);
+  args["cgroup"] = "senpai_test.slice";
+  args["limit_min_bytes"] = "0";
+  args["interval"] = "0"; // make update faster
+
+  ASSERT_EQ(plugin->init(std::move(args), compile_context), 0);
+
+  OomdContext ctx;
+  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::CONTINUE);
+  // First tick, senpai sets memory.high.tmp to memory.current
+  EXPECT_EQ(Fs::readMemhightmp(tempdir_ + "/senpai_test.slice"), 1073741824);
+
+  ctx.refresh();
+  // Increase memory.pressure so senpai will backoff
+  F::materialize(F::makeFile(
+      tempdir_ + "/senpai_test.slice/memory.pressure",
+      "some avg10=0.00 avg60=0.00 avg300=0.00 total=20000\n"
+      "full avg10=0.00 avg60=0.00 avg300=0.00 total=0\n"));
+  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::CONTINUE);
+  // Second tick, senpai backs off by increasing memory.high.tmp, but capped at
+  // memory.high
+  EXPECT_EQ(Fs::readMemhightmp(tempdir_ + "/senpai_test.slice"), 1073745920);
 }
 
 TEST_F(SenpaiTest, InvalidCgroup) {

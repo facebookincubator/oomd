@@ -228,9 +228,20 @@ bool Senpai::tick(const CgroupContext& cgroup_ctx, CgroupState& state) {
     // Make sure memory.high don't go below memory.min
     auto limit_min_bytes = std::max(limit_min_bytes_, *memmin_opt);
 
+    // Don't let memory.high.tmp go above memory.high as kernel ignores the
+    // latter when the former is set.
+    auto limit_max_bytes = limit_max_bytes_;
+    if (hasMemoryHighTmp(cgroup_ctx)) {
+      if (auto memhigh_opt = cgroup_ctx.memory_high()) {
+        limit_max_bytes = std::min(limit_max_bytes, *memhigh_opt);
+      } else {
+        return false;
+      }
+    }
+
     state.limit += state.limit * factor;
     state.limit =
-        std::max(limit_min_bytes, std::min(limit_max_bytes_, state.limit));
+        std::max(limit_min_bytes, std::min(limit_max_bytes, state.limit));
     // Memory high is always a multiple of 4K
     state.limit &= ~0xFFF;
     state.ticks = interval_;
