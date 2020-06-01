@@ -144,28 +144,28 @@ std::optional<std::chrono::microseconds> getPressureTotalSome(
   }
   return std::nullopt;
 }
+} // namespace
 
 // Check if the system support memory.high.tmp cgroup control file. If the given
 // cgroup supports it, the system supports it. The result is then stored and
 // further calls won't access filesystem. If the cgroup is no longer valid and
 // no stored result exists, nullopt is returned.
-std::optional<bool> hasMemoryHighTmp(const CgroupContext& cgroup_ctx) {
-  static std::optional<bool> has_memory_high_tmp = std::nullopt;
-  if (!has_memory_high_tmp.has_value()) {
+std::optional<bool> Senpai::hasMemoryHighTmp(const CgroupContext& cgroup_ctx) {
+  if (!has_memory_high_tmp_.has_value()) {
     if (auto memhightmp = cgroup_ctx.memory_high_tmp()) {
-      has_memory_high_tmp = true;
+      has_memory_high_tmp_ = true;
     } else if (auto memhigh = cgroup_ctx.memory_high()) {
       // If memory.high exists but memory.high.tmp doesn't, it's not supported
-      has_memory_high_tmp = false;
+      has_memory_high_tmp_ = false;
     }
     // If neither exist, cgroup is invalid. Nothing changed.
   }
-  return has_memory_high_tmp;
+  return has_memory_high_tmp_;
 }
 
 // Read from memory.high.tmp (preferred) or memory.high of a given cgroup.
 // Return nullopt if cgroup is no longer valid.
-std::optional<int64_t> readMemhigh(const CgroupContext& cgroup_ctx) {
+std::optional<int64_t> Senpai::readMemhigh(const CgroupContext& cgroup_ctx) {
   if (auto has_memory_high_tmp = hasMemoryHighTmp(cgroup_ctx)) {
     return *has_memory_high_tmp ? cgroup_ctx.memory_high_tmp()
                                 : cgroup_ctx.memory_high();
@@ -175,7 +175,7 @@ std::optional<int64_t> readMemhigh(const CgroupContext& cgroup_ctx) {
 
 // Write to memory.high.tmp (preferred) or memory.high of a given cgroup.
 // Return if the cgroup is still valid.
-bool writeMemhigh(const CgroupContext& cgroup_ctx, int64_t value) {
+bool Senpai::writeMemhigh(const CgroupContext& cgroup_ctx, int64_t value) {
   if (auto has_memory_high_tmp = hasMemoryHighTmp(cgroup_ctx)) {
     try {
       if (*has_memory_high_tmp) {
@@ -190,7 +190,6 @@ bool writeMemhigh(const CgroupContext& cgroup_ctx, int64_t value) {
   }
   return false;
 }
-} // namespace
 
 // Update state of a cgroup. Return if the cgroup is still valid.
 bool Senpai::tick(const CgroupContext& cgroup_ctx, CgroupState& state) {
@@ -231,7 +230,7 @@ bool Senpai::tick(const CgroupContext& cgroup_ctx, CgroupState& state) {
     // Don't let memory.high.tmp go above memory.high as kernel ignores the
     // latter when the former is set.
     auto limit_max_bytes = limit_max_bytes_;
-    if (hasMemoryHighTmp(cgroup_ctx)) {
+    if (hasMemoryHighTmp(cgroup_ctx).value_or(false)) {
       if (auto memhigh_opt = cgroup_ctx.memory_high()) {
         limit_max_bytes = std::min(limit_max_bytes, *memhigh_opt);
       } else {
