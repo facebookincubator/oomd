@@ -63,8 +63,14 @@ class Senpai : public Engine::BasePlugin {
     int64_t ticks;
   };
 
+  std::optional<bool> hasMemoryHighTmp(const CgroupContext& cgroup_ctx);
+  std::optional<int64_t> readMemhigh(const CgroupContext& cgroup_ctx);
+  bool writeMemhigh(const CgroupContext& cgroup_ctx, int64_t value);
+
   bool tick(const CgroupContext& cgroup_ctx, CgroupState& state);
   std::optional<CgroupState> initializeCgroup(const CgroupContext& cgroup_ctx);
+
+  std::optional<bool> has_memory_high_tmp_{};
 
   std::unordered_set<CgroupPath> cgroups_;
   std::map<CgroupContext::Id, CgroupState> tracked_cgroups_;
