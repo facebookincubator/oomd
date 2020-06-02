@@ -220,12 +220,20 @@ bool Senpai::tick(const CgroupContext& cgroup_ctx, CgroupState& state) {
 
   // Adjust cgroup limit by factor
   auto adjust = [&](double factor) {
+    auto anon_opt = cgroup_ctx.anon_usage();
+    if (!anon_opt) {
+      return false;
+    }
+    // TODO(lnyng): test the effect of swap and take that into account
+    // Set limit min bytes based on anonymous (unreclaimable) memory
+    auto limit_min_bytes = limit_min_bytes_ + *anon_opt;
+
     auto memmin_opt = cgroup_ctx.memory_min();
     if (!memmin_opt) {
       return false;
     }
     // Make sure memory.high don't go below memory.min
-    auto limit_min_bytes = std::max(limit_min_bytes_, *memmin_opt);
+    limit_min_bytes = std::max(limit_min_bytes, *memmin_opt);
 
     // Don't let memory.high.tmp go above memory.high as kernel ignores the
     // latter when the former is set.

@@ -2204,6 +2204,45 @@ TEST_F(SenpaiTest, PreferMemHighTmp) {
       std::numeric_limits<int64_t>::max());
 }
 
+// Senpai should not set memory.high[.tmp] below limit_min_bytes + anon usage
+TEST_F(SenpaiTest, LimitMinBytes) {
+  auto plugin = createPlugin("senpai");
+  ASSERT_NE(plugin, nullptr);
+
+  // Create a fake cgroup structure that won't change memory.current or pressure
+  // Effectively senpai will always lower memory.high.
+  F::materialize(F::makeDir(
+      tempdir_,
+      {F::makeDir(
+          "senpai_test.slice",
+          // Dummy file to keep cgroup valid after refresh()
+          {F::makeFile("cgroup.controllers"),
+           F::makeFile("memory.high", "max\n"),
+           F::makeFile("memory.current", "419430400\n"),
+           F::makeFile("memory.stat", "anon 104857600\n"),
+           F::makeFile(
+               "memory.pressure",
+               "some avg10=0.00 avg60=0.00 avg300=0.00 total=0\n"
+               "full avg10=0.00 avg60=0.00 avg300=0.00 total=0\n"),
+           F::makeFile("memory.min", "0\n")})}));
+
+  Engine::PluginArgs args;
+  const PluginConstructionContext compile_context(tempdir_);
+  args["cgroup"] = "senpai_test.slice";
+  args["limit_min_bytes"] = "209715200";
+  args["interval"] = "0"; // make update faster
+
+  ASSERT_EQ(plugin->init(std::move(args), compile_context), 0);
+
+  OomdContext ctx;
+  // Run senpai for 100 cycles. It should be enough to lower memory.high a bit
+  for (int i = 0; i < 100; i++) {
+    EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::CONTINUE);
+    ctx.refresh();
+  }
+  EXPECT_EQ(Fs::readMemhigh(tempdir_ + "/senpai_test.slice"), 314572800);
+}
+
 // Senpai should not set memory.high[.tmp] below memory.min
 TEST_F(SenpaiTest, LimitMemMin) {
   auto plugin = createPlugin("senpai");
@@ -2219,6 +2258,7 @@ TEST_F(SenpaiTest, LimitMemMin) {
           {F::makeFile("cgroup.controllers"),
            F::makeFile("memory.high", "max\n"),
            F::makeFile("memory.current", "1073741824\n"),
+           F::makeFile("memory.stat", "anon 0\n"),
            F::makeFile(
                "memory.pressure",
                "some avg10=0.00 avg60=0.00 avg300=0.00 total=0\n"
@@ -2257,6 +2297,7 @@ TEST_F(SenpaiTest, LimitMemHigh) {
            F::makeFile("memory.high", "1073745920\n"),
            F::makeFile("memory.high.tmp", "max 0\n"),
            F::makeFile("memory.current", "1073741824\n"),
+           F::makeFile("memory.stat", "anon 0\n"),
            F::makeFile(
                "memory.pressure",
                "some avg10=0.00 avg60=0.00 avg300=0.00 total=0\n"
