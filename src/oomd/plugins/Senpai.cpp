@@ -77,6 +77,14 @@ int Senpai::init(
     coeff_backoff_ = std::stod(args.at("coeff_backoff"));
   }
 
+  auto meminfo = Fs::getMeminfo();
+  if (auto pos = meminfo.find("MemTotal"); pos != meminfo.end()) {
+    host_mem_total_ = pos->second;
+  } else {
+    OLOG << "Cannot read host MemTotal";
+    return 1;
+  }
+
   return 0;
 }
 
@@ -191,6 +199,70 @@ bool Senpai::writeMemhigh(const CgroupContext& cgroup_ctx, int64_t value) {
   return false;
 }
 
+/**
+ * Return the maximum of the following:
+ *  memory.stat[anon] + limit_min_bytes (default: 100M)
+ *  memory.min
+ */
+std::optional<int64_t> Senpai::getLimitMinBytes(
+    const CgroupContext& cgroup_ctx) {
+  auto anon_opt = cgroup_ctx.anon_usage();
+  if (!anon_opt) {
+    return std::nullopt;
+  }
+  // TODO(lnyng): test the effect of swap and take that into account
+  // Set limit min bytes based on anonymous (unreclaimable) memory
+  auto limit_min_bytes = limit_min_bytes_ + *anon_opt;
+
+  auto memmin_opt = cgroup_ctx.memory_min();
+  if (!memmin_opt) {
+    return std::nullopt;
+  }
+  // Make sure memory.high don't go below memory.min
+  limit_min_bytes = std::max(limit_min_bytes, *memmin_opt);
+
+  return limit_min_bytes;
+}
+
+/**
+ * Return the minimum of the following:
+ *  /proc/meminfo[MemTotal]
+ *  memory.current + limit_max_bytes (default: 10G)
+ *  memory.high (only if memory.high.tmp exist)
+ *  memory.max
+ */
+std::optional<int64_t> Senpai::getLimitMaxBytes(
+    const CgroupContext& cgroup_ctx) {
+  auto memcurr_opt = cgroup_ctx.current_usage();
+  if (!memcurr_opt) {
+    return std::nullopt;
+  }
+  auto limit_max_bytes =
+      std::min(host_mem_total_, limit_max_bytes_ + *memcurr_opt);
+
+  // Don't let memory.high.tmp go above memory.high as kernel ignores the
+  // latter when the former is set.
+  auto has_memory_high_tmp_opt = hasMemoryHighTmp(cgroup_ctx);
+  if (!has_memory_high_tmp_opt) {
+    return std::nullopt;
+  }
+  if (*has_memory_high_tmp_opt) {
+    auto memhigh_opt = cgroup_ctx.memory_high();
+    if (!memhigh_opt) {
+      return std::nullopt;
+    }
+    limit_max_bytes = std::min(limit_max_bytes, *memhigh_opt);
+  }
+
+  auto memmax_opt = cgroup_ctx.memory_max();
+  if (!memmax_opt) {
+    return std::nullopt;
+  }
+  limit_max_bytes = std::min(limit_max_bytes, *memmax_opt);
+
+  return limit_max_bytes;
+}
+
 // Update state of a cgroup. Return if the cgroup is still valid.
 bool Senpai::tick(const CgroupContext& cgroup_ctx, CgroupState& state) {
   auto name = cgroup_ctx.cgroup().absolutePath();
@@ -220,35 +292,18 @@ bool Senpai::tick(const CgroupContext& cgroup_ctx, CgroupState& state) {
 
   // Adjust cgroup limit by factor
   auto adjust = [&](double factor) {
-    auto anon_opt = cgroup_ctx.anon_usage();
-    if (!anon_opt) {
+    auto limit_min_bytes_opt = getLimitMinBytes(cgroup_ctx);
+    if (!limit_min_bytes_opt) {
       return false;
     }
-    // TODO(lnyng): test the effect of swap and take that into account
-    // Set limit min bytes based on anonymous (unreclaimable) memory
-    auto limit_min_bytes = limit_min_bytes_ + *anon_opt;
-
-    auto memmin_opt = cgroup_ctx.memory_min();
-    if (!memmin_opt) {
+    auto limit_max_bytes_opt = getLimitMaxBytes(cgroup_ctx);
+    if (!limit_max_bytes_opt) {
       return false;
-    }
-    // Make sure memory.high don't go below memory.min
-    limit_min_bytes = std::max(limit_min_bytes, *memmin_opt);
-
-    // Don't let memory.high.tmp go above memory.high as kernel ignores the
-    // latter when the former is set.
-    auto limit_max_bytes = limit_max_bytes_;
-    if (hasMemoryHighTmp(cgroup_ctx).value_or(false)) {
-      if (auto memhigh_opt = cgroup_ctx.memory_high()) {
-        limit_max_bytes = std::min(limit_max_bytes, *memhigh_opt);
-      } else {
-        return false;
-      }
     }
 
     state.limit += state.limit * factor;
-    state.limit =
-        std::max(limit_min_bytes, std::min(limit_max_bytes, state.limit));
+    state.limit = std::max(
+        *limit_min_bytes_opt, std::min(*limit_max_bytes_opt, state.limit));
     // Memory high is always a multiple of 4K
     state.limit &= ~0xFFF;
     state.ticks = interval_;

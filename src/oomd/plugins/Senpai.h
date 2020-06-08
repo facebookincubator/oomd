@@ -66,9 +66,13 @@ class Senpai : public Engine::BasePlugin {
   std::optional<bool> hasMemoryHighTmp(const CgroupContext& cgroup_ctx);
   std::optional<int64_t> readMemhigh(const CgroupContext& cgroup_ctx);
   bool writeMemhigh(const CgroupContext& cgroup_ctx, int64_t value);
+  std::optional<int64_t> getLimitMinBytes(const CgroupContext& cgroup_ctx);
+  std::optional<int64_t> getLimitMaxBytes(const CgroupContext& cgroup_ctx);
 
   bool tick(const CgroupContext& cgroup_ctx, CgroupState& state);
   std::optional<CgroupState> initializeCgroup(const CgroupContext& cgroup_ctx);
+
+  int64_t host_mem_total_{0};
 
   std::optional<bool> has_memory_high_tmp_{};
 
@@ -77,7 +81,7 @@ class Senpai : public Engine::BasePlugin {
 
   // cgroup size limits
   int64_t limit_min_bytes_{100ull << 20};
-  int64_t limit_max_bytes_{500ull << 30};
+  int64_t limit_max_bytes_{10ull << 30};
   // pressure target - stall time over sampling period
   int64_t interval_{6};
   std::chrono::microseconds pressure_ms_{std::chrono::milliseconds{10}};
