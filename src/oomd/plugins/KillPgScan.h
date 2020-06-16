@@ -27,12 +27,7 @@ namespace Oomd {
 template <typename Base = BaseKillPlugin>
 class KillPgScan : public Base {
  public:
-  int init(
-      const Engine::PluginArgs& args,
-      const PluginConstructionContext& context) override;
-
   void prerun(OomdContext& ctx) override;
-  Engine::PluginRet run(OomdContext& ctx) override;
 
   static KillPgScan* create() {
     return new KillPgScan();
@@ -41,12 +36,14 @@ class KillPgScan : public Base {
   ~KillPgScan() override = default;
 
  protected:
-  virtual bool tryToKillSomething(OomdContext& ctx);
+  std::vector<OomdContext::ConstCgroupContextRef> rankForKilling(
+      OomdContext& ctx,
+      const std::vector<OomdContext::ConstCgroupContextRef>& cgroups) override;
 
-  std::unordered_set<CgroupPath> cgroups_;
-  int post_action_delay_{15};
-  bool dry_{false};
-  bool debug_{false};
+  void ologKillTarget(
+      OomdContext& ctx,
+      const CgroupContext& target,
+      const std::vector<OomdContext::ConstCgroupContextRef>& peers) override;
 };
 
 } // namespace Oomd

@@ -61,6 +61,30 @@ std::vector<OomdContext::ConstCgroupContextRef> OomdContext::addToCacheAndGet(
   return ret;
 }
 
+std::vector<OomdContext::ConstCgroupContextRef>
+OomdContext::addToCacheAndGetChildren(const CgroupContext& cgroup_ctx) {
+  std::vector<OomdContext::ConstCgroupContextRef> ret;
+
+  CgroupContext::Error err;
+  std::unordered_set<Oomd::CgroupPath> child_paths;
+  if (auto children = cgroup_ctx.children(&err)) {
+    for (const auto& name : *children) {
+      if (auto child_ctx =
+              addToCacheAndGet(cgroup_ctx.cgroup().getChild(name))) {
+        ret.push_back(*child_ctx);
+      } else {
+        OLOG << "failed to get child of " << cgroup_ctx.cgroup().relativePath()
+             << " named " << name;
+      }
+    }
+  } else {
+    OLOG << "failed to get children of cgroup "
+         << cgroup_ctx.cgroup().relativePath();
+  }
+
+  return ret;
+}
+
 const ActionContext& OomdContext::getActionContext() const {
   return action_context_;
 }

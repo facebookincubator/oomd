@@ -171,6 +171,7 @@ Always returns CONTINUE.
 ### Arguments
 
     cgroup
+    recursive=false (optional)
     size_threshold=50 (optional)
     min_growth_ratio=1.25 (optional)
     growing_size_percentile=80 (optional)
@@ -187,6 +188,18 @@ paths. Eg.
     cgroup=workload.slice/workload-*.slice/*,system.slice/*
 
 Note that extra spaces are not permitted betwen ','s.
+
+If `recursive` is set, walk down the cgroup tree looking for the best leaf to
+kill. Comparisons happen locally, between siblings, using the kill plugin's
+specific heuristics. The cgroups listed in `cgroup` are treated as the initial
+set of siblings. If you want a cgroup subtree to be killed all together or not
+at all, set its memory.oom.group=1. One might express the
+example above using `recursive` as
+
+    cgroup=workload.slice/workload-*.slice/,system.slice/
+    recursive=true
+
+Note the lack of trailing "*".
 
 Kill the biggest (memory.current - memory.low) child cgroup if larger than
 `size_threshold` percent or kill the fastest growing over
@@ -216,14 +229,16 @@ STOP if killed something (even if dry=true). CONTINUE otherwise.
 ### Arguments
 
     cgroup
+    recursive=false (optional)
     threshold=1 (optional)
     post_action_delay=15 (optional)
     dry=false (optional)
 
 ### Description
 
-`cgroup` follows the same semantics and options as
-`kill_by_memory_size_or_growth`.
+`cgroup` and `recursive` follow the same semantics and options as
+`kill_by_memory_size_or_growth`. oomd_prefer/oomd_avoid xattrs are respected
+the same way as well.
 
 `threshold` follows the same semantics and options as `memory_above`.
 
@@ -244,14 +259,16 @@ STOP if killed something (even if dry=true), CONTINUE otherwise.
 ### Arguments
 
     cgroup
+    recursive=false (optional)
     resource
     post_action_delay=15 (optional)
     dry=false (optional)
 
 ### Description
 
-`cgroup` follows the same semantics and options as
-`kill_by_memory_size_or_growth`.
+`cgroup` and `recursive` follow the same semantics and options as
+`kill_by_memory_size_or_growth`. oomd_prefer/oomd_avoid xattrs are respected
+the same way as well.
 
 `resource` is io|memory
 
@@ -272,13 +289,15 @@ STOP if killed something (even if dry=true), CONTINUE otherwise.
 ### Arguments
 
     cgroup
+    recursive=false (optional)
     post_action_delay=15 (optional)
     dry=false (optional)
 
 ### Description
 
-`cgroup` follows the same semantics and options as
-`kill_by_memory_size_or_growth`.
+`cgroup` and `recursive` follow the same semantics and options as
+`kill_by_memory_size_or_growth`. oomd_prefer/oomd_avoid xattrs are respected
+the same way as well.
 
 Sleeps for `post_action_delay` following a kill.
 
@@ -297,13 +316,15 @@ STOP if killed something (even if dry=true), CONTINUE otherwise.
 ### Arguments
 
     cgroup
+    recursive=false (optional)
     post_action_delay=15 (optional)
     dry=false (optional)
 
 ### Description
 
-`cgroup` follows the same semantics and options as
-`kill_by_memory_size_or_growth`.
+`cgroup` and `recursive` follow the same semantics and options as
+`kill_by_memory_size_or_growth`. oomd_prefer/oomd_avoid xattrs are respected
+the same way as well.
 
 Sleeps for `post_action_delay` following a kill.
 

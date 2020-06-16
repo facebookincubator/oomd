@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include <algorithm>
 #include <cstdint>
 #include <string>
 #include <vector>
@@ -67,6 +68,17 @@ class Util {
 
   /* Trim spaces from a string */
   static void trim(std::string& s);
+
+  template <class T, class Functor>
+  static std::vector<T> filter(std::vector<T> elems, Functor&& fn) {
+    std::vector<T> ret;
+    std::copy_if(
+        elems.begin(),
+        elems.end(),
+        std::back_inserter(ret),
+        std::forward<Functor>(fn));
+    return ret;
+  }
 
   /*
    * Read and write helpers

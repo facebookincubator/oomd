@@ -178,12 +178,14 @@ const auto kEntCgroup = F::makeDir(
                 }),
             F::makeDir(
                 "slice1.slice",
-                {F::makeDir(
+                {F::makeFile("memory.oom.group", "1\n"),
+                 F::makeDir(
                      "service1.service",
-                     {F::makeFile(
-                         "cgroup.procs",
-                         "456\n"
-                         "789\n")}),
+                     {F::makeFile("memory.oom.group", "0\n"),
+                      F::makeFile(
+                          "cgroup.procs",
+                          "456\n"
+                          "789\n")}),
                  F::makeDir(
                      "service2.service",
                      {F::makeFile(

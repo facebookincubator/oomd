@@ -33,18 +33,6 @@ template <typename Base>
 int KillPressure<Base>::init(
     const Engine::PluginArgs& args,
     const PluginConstructionContext& context) {
-  if (args.find("cgroup") != args.end()) {
-    const auto& cgroup_fs = context.cgroupFs();
-
-    auto cgroups = Util::split(args.at("cgroup"), ',');
-    for (const auto& c : cgroups) {
-      cgroups_.emplace(cgroup_fs, c);
-    }
-  } else {
-    OLOG << "Argument=cgroup not present";
-    return 1;
-  }
-
   if (args.find("resource") != args.end() &&
       (args.at("resource") == "io" || args.at("resource") == "memory")) {
     const auto& res = args.at("resource");
@@ -58,53 +46,16 @@ int KillPressure<Base>::init(
     return 1;
   }
 
-  if (args.find("post_action_delay") != args.end()) {
-    int val = std::stoi(args.at("post_action_delay"));
-
-    if (val < 0) {
-      OLOG << "Argument=post_action_delay must be non-negative";
-      return 1;
-    }
-
-    post_action_delay_ = val;
-  }
-
-  if (args.find("dry") != args.end()) {
-    const std::string& val = args.at("dry");
-
-    if (val == "true" || val == "True" || val == "1") {
-      dry_ = true;
-    }
-  }
-
-  if (args.find("debug") != args.end()) {
-    const std::string& val = args.at("debug");
-
-    if (val == "true" || val == "True" || val == "1") {
-      debug_ = true;
-    }
-  }
-
-  // Success
-  return 0;
+  return Base::init(args, context);
 }
 
 template <typename Base>
-Engine::PluginRet KillPressure<Base>::run(OomdContext& ctx) {
-  bool ret = tryToKillSomething(ctx);
-
-  if (ret) {
-    std::this_thread::sleep_for(std::chrono::seconds(post_action_delay_));
-    return Engine::PluginRet::STOP;
-  } else {
-    return Engine::PluginRet::CONTINUE;
-  }
-}
-
-template <typename Base>
-bool KillPressure<Base>::tryToKillSomething(OomdContext& ctx) {
-  auto pressure_sorted =
-      ctx.reverseSort(cgroups_, [&](const CgroupContext& cgroup_ctx) {
+std::vector<OomdContext::ConstCgroupContextRef>
+KillPressure<Base>::rankForKilling(
+    OomdContext& ctx,
+    const std::vector<OomdContext::ConstCgroupContextRef>& cgroups) {
+  return OomdContext::sortDescWithKillPrefs(
+      cgroups, [&](const CgroupContext& cgroup_ctx) {
         int average = 0;
         switch (resource_) {
           case ResourceType::IO:
@@ -121,43 +72,34 @@ bool KillPressure<Base>::tryToKillSomething(OomdContext& ctx) {
 
         return average;
       });
-  OomdContext::dump(pressure_sorted, !debug_);
+}
 
-  for (const CgroupContext& cgroup_ctx : pressure_sorted) {
-    float pressure10 = 0;
-    float pressure60 = 0;
-    switch (resource_) {
-      case ResourceType::IO:
-        if (const auto& pressure = cgroup_ctx.io_pressure()) {
-          pressure10 = pressure->sec_10;
-          pressure60 = pressure->sec_60;
-        }
-        break;
-      case ResourceType::MEMORY:
-        if (const auto& pressure = cgroup_ctx.mem_pressure()) {
-          pressure10 = pressure->sec_10;
-          pressure60 = pressure->sec_60;
-        }
-        break;
-    }
-
-    OLOG << "Picked \"" << cgroup_ctx.cgroup().relativePath() << "\" ("
-         << cgroup_ctx.current_usage().value_or(0) / 1024 / 1024
-         << "MB) based on pressure generation at "
-         << "10s=" << pressure10 << " 60s=" << pressure60;
-    if (auto kill_uuid = Base::tryToKillCgroup(
-            cgroup_ctx.cgroup().absolutePath(), true, dry_)) {
-      Base::logKill(
-          cgroup_ctx.cgroup(),
-          cgroup_ctx,
-          ctx.getActionContext(),
-          *kill_uuid,
-          dry_);
-      return true;
-    }
+template <typename Base>
+void KillPressure<Base>::ologKillTarget(
+    OomdContext& ctx,
+    const CgroupContext& target,
+    const std::vector<OomdContext::ConstCgroupContextRef>& /* unused */) {
+  float pressure10 = 0;
+  float pressure60 = 0;
+  switch (resource_) {
+    case ResourceType::IO:
+      if (const auto& pressure = target.io_pressure()) {
+        pressure10 = pressure->sec_10;
+        pressure60 = pressure->sec_60;
+      }
+      break;
+    case ResourceType::MEMORY:
+      if (const auto& pressure = target.mem_pressure()) {
+        pressure10 = pressure->sec_10;
+        pressure60 = pressure->sec_60;
+      }
+      break;
   }
 
-  return false;
+  OLOG << "Picked \"" << target.cgroup().relativePath() << "\" ("
+       << target.current_usage().value_or(0) / 1024 / 1024
+       << "MB) based on pressure generation at "
+       << "10s=" << pressure10 << " 60s=" << pressure60;
 }
 
 } // namespace Oomd

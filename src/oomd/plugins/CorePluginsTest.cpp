@@ -62,6 +62,24 @@ class BaseKillPluginMock : public BaseKillPlugin {
     return ret;
   }
 
+  std::optional<KillUuid> tryToKillCgroup(
+      const std::string& cgroup_path,
+      bool recursive,
+      bool dry) override {
+    if (unkillable_cgroups.count(cgroup_path) > 0) {
+      OLOG << "tried to kill " << cgroup_path
+           << ", failed b/c it's in unkillable_cgroups";
+      return std::nullopt;
+    }
+
+    OLOG << "killed " << cgroup_path;
+    killed_cgroup = cgroup_path;
+
+    return BaseKillPlugin::tryToKillCgroup(cgroup_path, recursive, dry);
+  }
+
+  std::optional<std::string> killed_cgroup{std::nullopt};
+  std::unordered_set<std::string> unkillable_cgroups;
   std::unordered_set<int> killed;
 };
 
@@ -78,6 +96,21 @@ class BaseKillPluginShim : public BaseKillPluginMock {
 
   Engine::PluginRet run(OomdContext& /* unused */) override {
     return Engine::PluginRet::CONTINUE;
+  }
+
+  std::vector<OomdContext::ConstCgroupContextRef> rankForKilling(
+      OomdContext& /* unused */,
+      const std::vector<OomdContext::ConstCgroupContextRef>& /* unused */)
+      override {
+    return std::vector<OomdContext::ConstCgroupContextRef>{};
+  }
+
+  void ologKillTarget(
+      OomdContext& /* unused */,
+      const CgroupContext& target,
+      const std::vector<OomdContext::ConstCgroupContextRef>& /* unused */)
+      override {
+    OLOG << "Picked \"" << target.cgroup().relativePath() << "\"";
   }
 
   std::optional<BaseKillPlugin::KillUuid> tryToKillCgroupShim(
@@ -201,6 +234,472 @@ TEST_F(BaseKillPluginXattrTest, XattrSetts) {
   EXPECT_EQ(getxattr(cgroup_path, kOomdKillUuidXattr), kKillUuid1);
   reportKillUuidToXattr(cgroup_path, kKillUuid2);
   EXPECT_EQ(getxattr(cgroup_path, kOomdKillUuidXattr), kKillUuid2);
+}
+
+// Test BaseKillPlugin's cgroup traversal with a subclass that chooses
+// cgroups the simplest way: by name, alphabetically (descending).
+
+class AlphabeticStandardKillPlugin : public BaseKillPluginMock {
+ public:
+  std::vector<OomdContext::ConstCgroupContextRef> rankForKilling(
+      OomdContext& /* unused */,
+      const std::vector<OomdContext::ConstCgroupContextRef>& cgroups) override {
+    return OomdContext::sortDescWithKillPrefs(
+        cgroups, [](const CgroupContext& cgroup_ctx) {
+          return cgroup_ctx.cgroup().relativePathParts().back();
+        });
+  }
+
+  void ologKillTarget(
+      OomdContext& /* unused */,
+      const CgroupContext& target,
+      const std::vector<OomdContext::ConstCgroupContextRef>& /* unused */)
+      override {
+    OLOG << "Picked \"" << target.cgroup().relativePath() << "\"";
+  }
+};
+
+class StandardKillRecursionTest : public CorePluginsTest {};
+
+TEST_F(StandardKillRecursionTest, Recurses) {
+  F::materialize(F::makeDir(
+      tempdir_,
+      {Fixture::makeDir(
+           "A",
+           {
+               // Note "Z" and "X" are higher than the "F" in "A" below.
+               // This tests that decisions are made locally: first choose B
+               // from root's {A, B}, then choose F from B's {F}. If leaves
+               // are compared across subtrees Z will win and break the
+               // test.
+               Fixture::makeDir("Z", {}),
+               Fixture::makeDir("X", {}),
+           }),
+       Fixture::makeDir(
+           "B",
+           {
+               Fixture::makeDir("F", {}),
+           })}));
+
+  auto plugin = std::make_shared<AlphabeticStandardKillPlugin>();
+  ASSERT_NE(plugin, nullptr);
+  OomdContext ctx;
+  const PluginConstructionContext compile_context(tempdir_);
+  Engine::PluginArgs args;
+  args["cgroup"] = "*";
+  args["recursive"] = "true";
+  args["post_action_delay"] = "0";
+  args["dry"] = "true";
+  ASSERT_EQ(plugin->init(std::move(args), compile_context), 0);
+  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
+
+  EXPECT_EQ(*plugin->killed_cgroup, CgroupPath(tempdir_, "B/F").absolutePath());
+}
+
+TEST_F(StandardKillRecursionTest, ConfigurableToNotRecurse) {
+  // Same as StandardKillRecursionTest.Recurses but without args["recursive"]
+
+  F::materialize(F::makeDir(
+      tempdir_,
+      {Fixture::makeDir(
+           "A",
+           {
+               // Note "Z" and "X" are higher than the "F" in "A" below.
+               // This tests that decisions are made locally: first choose B
+               // from root's {A, B}, then choose F from B's {F}. If leaves
+               // are compared across subtrees Z will win and break the
+               // test.
+               Fixture::makeDir("Z", {}),
+               Fixture::makeDir("X", {}),
+           }),
+       Fixture::makeDir(
+           "B",
+           {
+               Fixture::makeDir("F", {}),
+           })}));
+
+  auto plugin = std::make_shared<AlphabeticStandardKillPlugin>();
+  ASSERT_NE(plugin, nullptr);
+  OomdContext ctx;
+  const PluginConstructionContext compile_context(tempdir_);
+  Engine::PluginArgs args;
+  args["cgroup"] = "*";
+  args["post_action_delay"] = "0";
+  args["dry"] = "true";
+  ASSERT_EQ(plugin->init(std::move(args), compile_context), 0);
+  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
+
+  EXPECT_EQ(*plugin->killed_cgroup, CgroupPath(tempdir_, "B").absolutePath());
+}
+
+TEST_F(StandardKillRecursionTest, BacktracksUpTreeOnFail) {
+  /*
+  Consider
+      A - B - C
+        \ D - E
+  where C has no active processes. We should pick A, B, C, then fail. We
+  should
+  - backtrack to B,
+  - finding no other children of B, backtrack to A
+  - pick D, A's only other child
+  - pick E
+  and ultimately kill E.
+  */
+
+  auto plugin = std::make_shared<AlphabeticStandardKillPlugin>();
+  ASSERT_NE(plugin, nullptr);
+
+  F::materialize(F::makeDir(
+      tempdir_,
+      {F::makeDir(
+          "test.slice",
+          {Fixture::makeDir(
+               "A",
+               {
+                   Fixture::makeDir("Z", {}),
+               }),
+           Fixture::makeDir(
+               "P",
+               {
+                   Fixture::makeDir("Z", {}),
+                   Fixture::makeDir("X", {}),
+               }),
+           Fixture::makeDir(
+               "Q",
+               {
+                   Fixture::makeDir(
+                       "F",
+                       {
+                           Fixture::makeDir("P", {}),
+
+                       }),
+               })})}));
+
+  plugin->unkillable_cgroups.emplace(
+      CgroupPath(tempdir_, "test.slice/Q/F/P").absolutePath());
+
+  OomdContext ctx;
+  const PluginConstructionContext compile_context(tempdir_);
+  Engine::PluginArgs args;
+  args["cgroup"] = "*";
+  args["recursive"] = "true";
+  args["post_action_delay"] = "0";
+  args["dry"] = "true";
+  ASSERT_EQ(plugin->init(std::move(args), compile_context), 0);
+  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
+
+  EXPECT_EQ(
+      *plugin->killed_cgroup,
+      CgroupPath(tempdir_, "test.slice/P/Z").absolutePath());
+}
+
+TEST_F(StandardKillRecursionTest, RespectsMemoryOomGroup) {
+  auto plugin = std::make_shared<AlphabeticStandardKillPlugin>();
+  ASSERT_NE(plugin, nullptr);
+
+  F::materialize(F::makeDir(
+      tempdir_,
+      {F::makeDir(
+          "test.slice",
+          {Fixture::makeDir(
+               "A",
+               {
+                   Fixture::makeDir("Z", {}),
+               }),
+           Fixture::makeDir(
+               "Y",
+               {Fixture::makeDir(
+                   "M",
+                   {
+                       // Without oom.group here, child Y/M/Z would be killed.
+                       // With this, recursion will stop here, and Y/M will be
+                       // killed.
+                       Fixture::makeFile("memory.oom.group", "1\n"),
+
+                       Fixture::makeDir("Z", {}),
+                       Fixture::makeDir("X", {}),
+                   })}),
+           Fixture::makeDir(
+               "Q",
+               {
+                   Fixture::makeDir(
+                       "F",
+                       {
+                           Fixture::makeDir("P", {}),
+                       }),
+               })})}));
+
+  OomdContext ctx;
+  const PluginConstructionContext compile_context(tempdir_);
+  Engine::PluginArgs args;
+  args["cgroup"] = "*";
+  args["recursive"] = "true";
+  args["post_action_delay"] = "0";
+  args["dry"] = "true";
+  ASSERT_EQ(plugin->init(std::move(args), compile_context), 0);
+  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
+
+  EXPECT_EQ(
+      *plugin->killed_cgroup,
+      CgroupPath(tempdir_, "test.slice/Y/M").absolutePath());
+}
+
+TEST_F(StandardKillRecursionTest, RespectsPreferAvoid) {
+  // Technically not an aspect of BaseKillPlugin, and implemented
+  // separately in each subclass with OomdContext::sortDescWithKillPrefs in
+  // the subclass' rankForKilling.  It's expected that all subclasses will
+  // use OomdContext::sortDescWithKillPrefs in the same way, so we test an ex
+  // of it here.
+
+  F::materialize(F::makeDir(
+      tempdir_,
+      {F::makeDir(
+          "test.slice",
+          {Fixture::makeDir(
+               "A",
+               {
+                   Fixture::makeDir("Z", {}),
+               }),
+           Fixture::makeDir(
+               "B",
+               {Fixture::makeDir(
+                   "M",
+                   {
+                       Fixture::makeDir("Z", {}),
+                       Fixture::makeDir("V", {}),
+                   })}),
+           Fixture::makeDir(
+               "Q",
+               {
+                   Fixture::makeDir(
+                       "F",
+                       {
+                           Fixture::makeDir("P", {}),
+                       }),
+               })})}));
+
+  Engine::PluginArgs args;
+  args["cgroup"] = "*";
+  args["recursive"] = "true";
+  args["post_action_delay"] = "0";
+  args["dry"] = "true";
+
+  const auto& expect_to_kill =
+      [&](const std::string& expected_victim,
+          std::function<void(OomdContext&)> customizer) {
+        OomdContext ctx;
+        customizer(ctx);
+        const PluginConstructionContext compile_context(tempdir_);
+        auto plugin = std::make_shared<AlphabeticStandardKillPlugin>();
+        ASSERT_NE(plugin, nullptr);
+        ASSERT_EQ(plugin->init(std::move(args), compile_context), 0);
+        EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
+        EXPECT_EQ(
+            *plugin->killed_cgroup,
+            CgroupPath(tempdir_, expected_victim).absolutePath());
+      };
+
+  expect_to_kill("test.slice/B/M/V", [&](auto& ctx) {
+    TestHelper::setCgroupData(
+        ctx,
+        CgroupPath(tempdir_, "test.slice/Q"),
+        CgroupData{.kill_preference = KillPreference::AVOID});
+    TestHelper::setCgroupData(
+        ctx,
+        CgroupPath(tempdir_, "test.slice/B/M/V"),
+        CgroupData{.kill_preference = KillPreference::PREFER});
+  });
+
+  // Test locality of prefs. Even though Y/M/X is PREFER, it's not chosen
+  // because Q is chosen over Y in the first level of the tree.
+  // Q/F/P is selected despite being the only AVOID in a tree with a PREFER.
+  expect_to_kill("test.slice/Q/F/P", [&](auto& ctx) {
+    TestHelper::setCgroupData(
+        ctx,
+        CgroupPath(tempdir_, "test.slice/Q/F/P"),
+        CgroupData{.kill_preference = KillPreference::AVOID});
+    TestHelper::setCgroupData(
+        ctx,
+        CgroupPath(tempdir_, "test.slice/B/M/V"),
+        CgroupData{.kill_preference = KillPreference::PREFER});
+  });
+
+  // Test multiple prefs in a path
+  expect_to_kill("test.slice/B/M/V", [&](auto& ctx) {
+    TestHelper::setCgroupData(
+        ctx,
+        CgroupPath(tempdir_, "test.slice/B"),
+        CgroupData{.kill_preference = KillPreference::PREFER});
+    TestHelper::setCgroupData(
+        ctx,
+        CgroupPath(tempdir_, "test.slice/B/M/Z"),
+        CgroupData{.kill_preference = KillPreference::AVOID});
+  });
+}
+
+TEST_F(StandardKillRecursionTest, IgnoresDeadCgroup) {
+  auto plugin = std::make_shared<AlphabeticStandardKillPlugin>();
+  ASSERT_NE(plugin, nullptr);
+
+  F::materialize(F::makeDir(
+      tempdir_,
+      {Fixture::makeDir(
+           "A",
+           {
+               Fixture::makeDir("Z", {}),
+               Fixture::makeDir("X", {}),
+           }),
+       Fixture::makeDir(
+           "B",
+           {
+               Fixture::makeDir(
+                   "F",
+                   {
+                       // Same as StandardKillRecursionTest.Recurses above,
+                       // except cgroup.events' populated=0
+                       F::makeFile(
+                           "cgroup.events",
+                           "populated 0\n"
+                           "frozen 0\n"),
+                   }),
+           })}));
+
+  OomdContext ctx;
+  const PluginConstructionContext compile_context(tempdir_);
+  Engine::PluginArgs args;
+  args["cgroup"] = "*";
+  args["recursive"] = "true";
+  args["post_action_delay"] = "0";
+  args["dry"] = "true";
+  ASSERT_EQ(plugin->init(std::move(args), compile_context), 0);
+  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
+
+  EXPECT_EQ(*plugin->killed_cgroup, CgroupPath(tempdir_, "A/Z").absolutePath());
+}
+
+TEST_F(StandardKillRecursionTest, IgnoresOutsideConfiguredCgroup) {
+  F::materialize(F::makeDir(
+      tempdir_,
+      {Fixture::makeDir(
+           "A",
+           {
+               Fixture::makeDir(
+                   "Y",
+                   {
+                       Fixture::makeDir("P", {}),
+                       Fixture::makeDir("Q", {}),
+                   }),
+               Fixture::makeDir("X", {}),
+           }),
+       Fixture::makeDir(
+           "B",
+           {
+               Fixture::makeDir("F", {}),
+           }),
+       Fixture::makeDir(
+           "C",
+           {
+               Fixture::makeDir("F", {}),
+           }),
+       Fixture::makeDir(
+           "Z",
+           {
+               Fixture::makeDir("F", {}),
+           })}));
+
+  const auto& target_when_plugin_cgroup_arg_is =
+      [&](const std::string& cgroup_arg) -> std::string {
+    auto plugin = std::make_shared<AlphabeticStandardKillPlugin>();
+    EXPECT_NE(plugin, nullptr);
+    OomdContext ctx;
+    const PluginConstructionContext compile_context(tempdir_);
+    Engine::PluginArgs args;
+    args["cgroup"] = cgroup_arg;
+    args["recursive"] = "true";
+    args["post_action_delay"] = "0";
+    args["dry"] = "true";
+    args["debug"] = "true";
+    EXPECT_EQ(plugin->init(std::move(args), compile_context), 0);
+    EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
+    return *plugin->killed_cgroup;
+  };
+
+  EXPECT_EQ(
+      target_when_plugin_cgroup_arg_is("A,B"),
+      CgroupPath(tempdir_, "B/F").absolutePath());
+  EXPECT_EQ(
+      target_when_plugin_cgroup_arg_is("A/*,B,C"),
+      CgroupPath(tempdir_, "A/Y/Q").absolutePath());
+  EXPECT_EQ(
+      target_when_plugin_cgroup_arg_is("A/*,Z,B,C"),
+      CgroupPath(tempdir_, "Z/F").absolutePath());
+  EXPECT_EQ(
+      target_when_plugin_cgroup_arg_is("*"),
+      CgroupPath(tempdir_, "Z/F").absolutePath());
+}
+
+TEST_F(StandardKillRecursionTest, PrerunsRecursively) {
+  F::materialize(F::makeDir(
+      tempdir_,
+      {Fixture::makeDir(
+           "A",
+           {
+               Fixture::makeDir(
+                   "Y",
+                   {
+                       Fixture::makeDir("P", {}),
+                       Fixture::makeDir("Q", {}),
+                   }),
+               Fixture::makeDir("X", {}),
+           }),
+       Fixture::makeDir(
+           "B",
+           {
+               Fixture::makeDir("F", {}),
+           }),
+       Fixture::makeDir(
+           "C",
+           {
+               Fixture::makeDir("F", {}),
+           }),
+       Fixture::makeDir(
+           "Z",
+           {
+               Fixture::makeDir("F", {}),
+           })}));
+
+  const auto& get_touched_cgroups =
+      [&](bool recurse) -> std::unordered_set<std::string> {
+    auto plugin = std::make_shared<AlphabeticStandardKillPlugin>();
+    EXPECT_NE(plugin, nullptr);
+    OomdContext ctx;
+    const PluginConstructionContext compile_context(tempdir_);
+    Engine::PluginArgs args;
+    args["cgroup"] = "B,Z,A/*";
+    args["post_action_delay"] = "0";
+    args["dry"] = "true";
+    if (recurse) {
+      args["recursive"] = "true";
+    }
+    EXPECT_EQ(plugin->init(std::move(args), compile_context), 0);
+
+    std::unordered_set<std::string> touched_cgroup_paths;
+    plugin->prerunOnCgroups(ctx, [&](auto& cgroup_ctx) {
+      touched_cgroup_paths.emplace(cgroup_ctx.cgroup().relativePath());
+    });
+    return touched_cgroup_paths;
+  };
+
+  EXPECT_EQ(
+      get_touched_cgroups(true),
+      (std::unordered_set<std::string>{
+          "A/Y", "A/Y/P", "A/Y/Q", "A/X", "B", "B/F", "Z", "Z/F"}));
+
+  // Don't waste CPU walking down the cgroup tree in prerun if
+  // recursive_=false
+  EXPECT_EQ(
+      get_touched_cgroups(false),
+      (std::unordered_set<std::string>{"A/Y", "A/X", "B", "Z"}));
 }
 
 class PressureRisingBeyondTest : public CorePluginsTest {};
@@ -1162,6 +1661,64 @@ TEST_F(KillPgScanTest, DoesntKillsHighestPgScanDry) {
   EXPECT_EQ(plugin->killed.size(), 0);
 }
 
+TEST_F(KillPgScanTest, CanTargetRecursively) {
+  F::materialize(F::makeDir(
+      tempdir_,
+      {Fixture::makeDir(
+           "A",
+           {
+               Fixture::makeDir("Z", {}),
+               Fixture::makeDir("X", {}),
+           }),
+       Fixture::makeDir(
+           "B",
+           {
+               Fixture::makeDir("F", {}),
+           }),
+       Fixture::makeDir(
+           "sibling",
+           {
+               Fixture::makeDir("F", {}),
+           })}));
+
+  auto plugin = std::make_shared<KillPgScan<BaseKillPluginMock>>();
+  ASSERT_NE(plugin, nullptr);
+
+  Engine::PluginArgs args;
+  const PluginConstructionContext compile_context(tempdir_);
+  args["cgroup"] = "A,B";
+  args["recursive"] = "true";
+  args["post_action_delay"] = "0";
+  args["debug"] = "true";
+  args["dry"] = "true";
+
+  ASSERT_EQ(plugin->init(std::move(args), compile_context), 0);
+
+  OomdContext ctx;
+  TestHelper::setCgroupData(
+      ctx,
+      CgroupPath(compile_context.cgroupFs(), "A"),
+      CgroupData{.pg_scan_rate = 1000});
+  TestHelper::setCgroupData(
+      ctx,
+      CgroupPath(compile_context.cgroupFs(), "A/Z"),
+      CgroupData{.pg_scan_rate = 900});
+  TestHelper::setCgroupData(
+      ctx,
+      CgroupPath(compile_context.cgroupFs(), "A/X"),
+      CgroupData{.pg_scan_rate = 100});
+  TestHelper::setCgroupData(
+      ctx,
+      CgroupPath(compile_context.cgroupFs(), "B"),
+      CgroupData{.pg_scan_rate = 200});
+  TestHelper::setCgroupData(
+      ctx,
+      CgroupPath(compile_context.cgroupFs(), "sibling"),
+      CgroupData{.pg_scan_rate = 30000});
+  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
+  EXPECT_EQ(*plugin->killed_cgroup, CgroupPath(tempdir_, "A/Z").absolutePath());
+}
+
 TEST_F(ExistsTest, ExistsWildcard) {
   auto plugin = createPlugin("exists");
   ASSERT_NE(plugin, nullptr);
@@ -1890,6 +2447,79 @@ TEST_F(KillMemoryGrowthTest, KillsBigCgroupMultiCgroup) {
   EXPECT_THAT(plugin->killed, Not(Contains(456)));
   EXPECT_THAT(plugin->killed, Not(Contains(789)));
   EXPECT_THAT(plugin->killed, Not(Contains(111)));
+}
+
+TEST_F(KillMemoryGrowthTest, CanTargetRecursively) {
+  F::materialize(F::makeDir(
+      tempdir_,
+      {Fixture::makeDir(
+           "A",
+           {
+               Fixture::makeDir("Z", {}),
+               Fixture::makeDir("X", {}),
+           }),
+       Fixture::makeDir(
+           "B",
+           {
+               Fixture::makeDir("F", {}),
+           }),
+       Fixture::makeDir(
+           "sibling",
+           {
+               Fixture::makeDir("F", {}),
+           })}));
+
+  auto plugin = std::make_shared<KillMemoryGrowth<BaseKillPluginMock>>();
+  ASSERT_NE(plugin, nullptr);
+
+  Engine::PluginArgs args;
+  const PluginConstructionContext compile_context(tempdir_);
+  args["cgroup"] = "A,B";
+  args["recursive"] = "true";
+  args["post_action_delay"] = "0";
+  args["debug"] = "true";
+  args["dry"] = "true";
+
+  ASSERT_EQ(plugin->init(std::move(args), compile_context), 0);
+
+  OomdContext ctx;
+  TestHelper::setCgroupData(
+      ctx,
+      CgroupPath(compile_context.cgroupFs(), "A"),
+      CgroupData{
+          .current_usage = 60,
+          .average_usage = 60,
+      });
+  TestHelper::setCgroupData(
+      ctx,
+      CgroupPath(compile_context.cgroupFs(), "A/Z"),
+      CgroupData{
+          .current_usage = 20,
+          .average_usage = 20,
+      });
+  TestHelper::setCgroupData(
+      ctx,
+      CgroupPath(compile_context.cgroupFs(), "A/X"),
+      CgroupData{
+          .current_usage = 40,
+          .average_usage = 40,
+      });
+  TestHelper::setCgroupData(
+      ctx,
+      CgroupPath(compile_context.cgroupFs(), "B"),
+      CgroupData{
+          .current_usage = 20,
+          .average_usage = 20,
+      });
+  TestHelper::setCgroupData(
+      ctx,
+      CgroupPath(compile_context.cgroupFs(), "sibling"),
+      CgroupData{
+          .current_usage = 100,
+          .average_usage = 100,
+      });
+  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
+  EXPECT_EQ(*plugin->killed_cgroup, CgroupPath(tempdir_, "A/X").absolutePath());
 }
 
 TEST_F(KillMemoryGrowthTest, DoesntKillBigCgroupInDry) {

@@ -80,6 +80,7 @@ PROXY(memory_max, Fs::readMemmaxAt(cgroup_dir_))
 PROXY(nr_dying_descendants, Fs::getNrDyingDescendantsAt(cgroup_dir_))
 PROXY(is_populated, Fs::readIsPopulatedAt(cgroup_dir_))
 PROXY(kill_preference, Fs::readKillPreferenceAt(cgroup_dir_))
+PROXY(oom_group, Fs::readMemoryOomGroupAt(cgroup_dir_))
 PROXY(io_cost_cumulative, getIoCostCumulative(err))
 PROXY(pg_scan_cumulative, getPgScanCumulative(err))
 PROXY(memory_protection, getMemoryProtection(err))
@@ -106,6 +107,13 @@ std::optional<int64_t> CgroupContext::effective_usage(
     return std::nullopt;
   }
   return *current_usage() * memory_scale - *memory_protection() + memory_adj;
+}
+
+std::optional<double> CgroupContext::memory_growth(Error* err) const {
+  if (!current_usage(err) || !average_usage(err)) {
+    return std::nullopt;
+  }
+  return static_cast<double>(*current_usage()) / *average_usage();
 }
 
 std::vector<std::string> CgroupContext::getChildren() const {

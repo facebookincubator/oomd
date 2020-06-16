@@ -17,23 +17,175 @@
 
 #include "oomd/plugins/BaseKillPlugin.h"
 
+#include <algorithm>
 #include <chrono>
+#include <cmath>
 #include <csignal>
 #include <fstream>
 #include <iomanip>
 #include <random>
+#include <stack>
+#include <string>
 #include <unordered_set>
+#include <utility>
+#include <vector>
 
 #include "oomd/Log.h"
 #include "oomd/Stats.h"
 #include "oomd/include/CoreStats.h"
+#include "oomd/include/Types.h"
 #include "oomd/util/Fs.h"
+#include "oomd/util/Util.h"
 
 static auto constexpr kOomdKillInitiationXattr = "trusted.oomd_ooms";
 static auto constexpr kOomdKillCompletionXattr = "trusted.oomd_kill";
 static auto constexpr kOomdKillUuidXattr = "trusted.oomd_kill_uuid";
 
 namespace Oomd {
+
+int BaseKillPlugin::init(
+    const Engine::PluginArgs& args,
+    const PluginConstructionContext& context) {
+  if (args.find("cgroup") != args.end()) {
+    const auto& cgroup_fs = context.cgroupFs();
+
+    auto cgroups = Util::split(args.at("cgroup"), ',');
+    for (const auto& c : cgroups) {
+      cgroups_.emplace(cgroup_fs, c);
+    }
+  } else {
+    OLOG << "Argument=cgroup not present";
+    return 1;
+  }
+
+  if (args.find("recursive") != args.end()) {
+    const std::string& val = args.at("recursive");
+
+    if (val == "true" || val == "True" || val == "1") {
+      recursive_ = true;
+    }
+  }
+
+  if (args.find("post_action_delay") != args.end()) {
+    int val = std::stoi(args.at("post_action_delay"));
+
+    if (val < 0) {
+      OLOG << "Argument=post_action_delay must be non-negative";
+      return 1;
+    }
+
+    post_action_delay_ = val;
+  }
+
+  if (args.find("dry") != args.end()) {
+    const std::string& val = args.at("dry");
+
+    if (val == "true" || val == "True" || val == "1") {
+      dry_ = true;
+    }
+  }
+
+  if (args.find("debug") != args.end()) {
+    const std::string& val = args.at("debug");
+
+    if (val == "true" || val == "True" || val == "1") {
+      debug_ = true;
+    }
+  }
+
+  // Success
+  return 0;
+}
+
+Engine::PluginRet BaseKillPlugin::run(OomdContext& ctx) {
+  auto cgroups = ctx.addToCacheAndGet(cgroups_);
+  bool ret = tryToKillSomething(ctx, std::move(cgroups));
+
+  if (ret) {
+    std::this_thread::sleep_for(std::chrono::seconds(post_action_delay_));
+    return Engine::PluginRet::STOP;
+  } else {
+    return Engine::PluginRet::CONTINUE;
+  }
+}
+
+bool BaseKillPlugin::tryToKillSomething(
+    OomdContext& ctx,
+    std::vector<OomdContext::ConstCgroupContextRef>&& initial_cgroups) {
+  // DFS down tree looking for best kill target. Keep a stack (instead of just
+  // the current target) because if killing fails, we try the next-best target.
+  // This may involve backtracking up the tree.
+  // The stack tracks (cgroup, siblings) because ologKillTarget needs to know
+  // what peers a cgroup was compared to when it was picked.
+  // initial_cgroups are treated as siblings.
+  std::stack<std::pair<
+      OomdContext::ConstCgroupContextRef,
+      std::shared_ptr<const std::vector<OomdContext::ConstCgroupContextRef>>>>
+      stack;
+
+  auto push_siblings_onto_stack =
+      [&](std::vector<OomdContext::ConstCgroupContextRef>&& peers) {
+        auto shared_peers = std::make_shared<
+            const std::vector<OomdContext::ConstCgroupContextRef>>(
+            std::move(peers));
+
+        std::vector<OomdContext::ConstCgroupContextRef> sorted =
+            rankForKilling(ctx, *shared_peers);
+
+        OomdContext::dump(sorted, !debug_);
+
+        // push the lowest ranked sibling onto the stack first, so the highest
+        // ranked sibling is on top
+        reverse(sorted.begin(), sorted.end());
+        for (const auto& cgroup_ctx : sorted) {
+          stack.emplace(std::make_pair(cgroup_ctx, shared_peers));
+        }
+      };
+
+  push_siblings_onto_stack(std::move(initial_cgroups));
+
+  while (!stack.empty()) {
+    const CgroupContext& cgroup_ctx = stack.top().first;
+    auto peers = stack.top().second;
+    stack.pop();
+
+    bool may_recurse = recursive_ && !cgroup_ctx.oom_group().value_or(false);
+    if (may_recurse) {
+      auto children = ctx.addToCacheAndGetChildren(cgroup_ctx);
+      if (children.size() > 0) {
+        ologKillTarget(ctx, cgroup_ctx, *peers);
+        push_siblings_onto_stack(std::move(children));
+        continue;
+      }
+    }
+
+    // Skip trying to kill an empty cgroup, which would unfairly increment the
+    // empty cgroup's kill counters and pollute the logs. We get into a
+    // situation where we try to kill empty cgroups when a cgroup marked
+    // PREFER is not the source of pressure: KillMemoryGrowth will kill the
+    // PREFER cgroup first, but that won't fix the problem so it will kill
+    // again; on the second time around, it first targets the now-empty PREFER
+    // cgroup before moving on to a better victim.
+    if (!cgroup_ctx.is_populated().value_or(true)) {
+      continue;
+    }
+
+    ologKillTarget(ctx, cgroup_ctx, *peers);
+
+    if (auto kill_uuid =
+            tryToKillCgroup(cgroup_ctx.cgroup().absolutePath(), true, dry_)) {
+      logKill(
+          cgroup_ctx.cgroup(),
+          cgroup_ctx,
+          ctx.getActionContext(),
+          *kill_uuid,
+          dry_);
+      return true;
+    }
+  }
+
+  return false;
+}
 
 BaseKillPlugin::BaseKillPlugin() {
   /*

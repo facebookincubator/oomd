@@ -5,6 +5,9 @@ must be done in a plugin. If you haven't already, you should read
 [configuration.md](configuration.md). That doc explains the high level goals
 of plugins.
 
+If you're writing a kill plugin, you can get most common kill plugin
+functionality by inheriting from BaseKillPlugin. Read this doc, then read
+[writing_a_kill_plugin.md](writing_a_kill_plugin.md).
 
 ## Interface
 
