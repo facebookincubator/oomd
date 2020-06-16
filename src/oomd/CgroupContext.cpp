@@ -29,7 +29,8 @@ CgroupContext::CgroupContext(OomdContext& ctx, const CgroupPath& cgroup)
 
 bool CgroupContext::refresh() {
   archive_ = {.average_usage = data_->average_usage,
-              .io_cost_cumulative = data_->io_cost_cumulative};
+              .io_cost_cumulative = data_->io_cost_cumulative,
+              .pg_scan_cumulative = data_->pg_scan_cumulative};
   *data_ = {};
   return Fs::isCgroupValid(cgroup_dir_);
 }
@@ -80,9 +81,11 @@ PROXY(nr_dying_descendants, Fs::getNrDyingDescendantsAt(cgroup_dir_))
 PROXY(is_populated, Fs::readIsPopulatedAt(cgroup_dir_))
 PROXY(kill_preference, Fs::readKillPreferenceAt(cgroup_dir_))
 PROXY(io_cost_cumulative, getIoCostCumulative(err))
+PROXY(pg_scan_cumulative, getPgScanCumulative(err))
 PROXY(memory_protection, getMemoryProtection(err))
 PROXY(io_cost_rate, getIoCostRate(err))
 PROXY(average_usage, getAverageUsage(err))
+PROXY(pg_scan_rate, getPgScanRate(err))
 
 std::optional<int64_t> CgroupContext::anon_usage(Error* err) const {
   if (const auto& stat = memory_stat(err)) {
@@ -240,6 +243,17 @@ std::optional<double> CgroupContext::getIoCostCumulative(Error* err) const {
   return cost;
 }
 
+std::optional<int64_t> CgroupContext::getPgScanCumulative(
+    Error* err = nullptr) const {
+  static constexpr auto kPgScan = "pgscan";
+  if (const auto& memstat = memory_stat(err)) {
+    if (auto pos = memstat->find(kPgScan); pos != memstat->end()) {
+      return std::make_optional(pos->second);
+    }
+  }
+  return std::nullopt;
+}
+
 std::optional<int64_t> CgroupContext::getAverageUsage(Error* err) const {
   if (!current_usage(err)) {
     return std::nullopt;
@@ -256,6 +270,15 @@ std::optional<double> CgroupContext::getIoCostRate(Error* err) const {
   return !archive_.io_cost_cumulative
       ? 0.0
       : *io_cost_cumulative() - *archive_.io_cost_cumulative;
+}
+
+std::optional<int64_t> CgroupContext::getPgScanRate(Error* err) const {
+  if (!pg_scan_cumulative(err)) {
+    return std::nullopt;
+  }
+  return !archive_.pg_scan_cumulative
+      ? 0.0
+      : *pg_scan_cumulative() - *archive_.pg_scan_cumulative;
 }
 
 } // namespace Oomd

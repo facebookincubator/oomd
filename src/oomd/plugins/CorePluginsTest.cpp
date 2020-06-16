@@ -28,6 +28,7 @@
 #include "oomd/plugins/BaseKillPlugin.h"
 #include "oomd/plugins/KillIOCost.h"
 #include "oomd/plugins/KillMemoryGrowth.h"
+#include "oomd/plugins/KillPgScan.h"
 #include "oomd/plugins/KillPressure.h"
 #include "oomd/plugins/KillSwapUsage.h"
 #include "oomd/util/Fixture.h"
@@ -1024,6 +1025,139 @@ TEST_F(KillIOCostTest, DoesntKillsHighestIOCostDry) {
       ctx,
       CgroupPath(compile_context.cgroupFs(), "sibling/cgroup1"),
       CgroupData{.io_cost_cumulative = 20000, .io_cost_rate = 100});
+  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
+  EXPECT_EQ(plugin->killed.size(), 0);
+}
+
+class KillPgScanTest : public CorePluginsTest {};
+
+TEST_F(KillPgScanTest, TemporalCounter) {
+  auto plugin = std::make_shared<KillPgScan<BaseKillPluginMock>>();
+  ASSERT_NE(plugin, nullptr);
+
+  Engine::PluginArgs args;
+  const PluginConstructionContext compile_context(
+      "oomd/fixtures/plugins/kill_by_pg_scan");
+  args["cgroup"] = "one_high/cgroup1";
+  args["post_action_delay"] = "0";
+
+  ASSERT_EQ(plugin->init(std::move(args), compile_context), 0);
+
+  CgroupPath cgroup(compile_context.cgroupFs(), "one_high/cgroup1");
+  OomdContext ctx;
+  TestHelper::setCgroupData(
+      ctx, cgroup, CgroupData{.pg_scan_cumulative = 10000});
+  plugin->prerun(ctx);
+  EXPECT_TRUE(
+      TestHelper::getDataRef(*ctx.addToCacheAndGet(cgroup)).pg_scan_rate);
+}
+
+TEST_F(KillPgScanTest, KillsHighestPgScan) {
+  auto plugin = std::make_shared<KillPgScan<BaseKillPluginMock>>();
+  ASSERT_NE(plugin, nullptr);
+
+  Engine::PluginArgs args;
+  const PluginConstructionContext compile_context(
+      "oomd/fixtures/plugins/kill_by_pg_scan");
+  args["cgroup"] = "one_high/*";
+  args["post_action_delay"] = "0";
+
+  ASSERT_EQ(plugin->init(std::move(args), compile_context), 0);
+
+  OomdContext ctx;
+  TestHelper::setCgroupData(
+      ctx,
+      CgroupPath(compile_context.cgroupFs(), "one_high/cgroup1"),
+      CgroupData{.pg_scan_cumulative = 10000, .pg_scan_rate = 10});
+  TestHelper::setCgroupData(
+      ctx,
+      CgroupPath(compile_context.cgroupFs(), "one_high/cgroup2"),
+      CgroupData{.pg_scan_cumulative = 5000, .pg_scan_rate = 30});
+  TestHelper::setCgroupData(
+      ctx,
+      CgroupPath(compile_context.cgroupFs(), "one_high/cgroup3"),
+      CgroupData{.pg_scan_cumulative = 6000, .pg_scan_rate = 50});
+  TestHelper::setCgroupData(
+      ctx,
+      CgroupPath(compile_context.cgroupFs(), "sibling/cgroup1"),
+      CgroupData{.pg_scan_cumulative = 20000, .pg_scan_rate = 100});
+  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
+  EXPECT_THAT(plugin->killed, Contains(111));
+  EXPECT_THAT(plugin->killed, Not(Contains(123)));
+  EXPECT_THAT(plugin->killed, Not(Contains(456)));
+  EXPECT_THAT(plugin->killed, Not(Contains(789)));
+  EXPECT_THAT(plugin->killed, Not(Contains(888)));
+}
+
+TEST_F(KillPgScanTest, KillsHighestPgScanMultiCgroup) {
+  auto plugin = std::make_shared<KillPgScan<BaseKillPluginMock>>();
+  ASSERT_NE(plugin, nullptr);
+
+  Engine::PluginArgs args;
+  const PluginConstructionContext compile_context(
+      "oomd/fixtures/plugins/kill_by_pg_scan");
+  args["cgroup"] = "one_high/*,sibling/*";
+  args["resource"] = "io";
+  args["post_action_delay"] = "0";
+
+  ASSERT_EQ(plugin->init(std::move(args), compile_context), 0);
+
+  OomdContext ctx;
+  TestHelper::setCgroupData(
+      ctx,
+      CgroupPath(compile_context.cgroupFs(), "one_high/cgroup1"),
+      CgroupData{.pg_scan_cumulative = 10000, .pg_scan_rate = 10});
+  TestHelper::setCgroupData(
+      ctx,
+      CgroupPath(compile_context.cgroupFs(), "one_high/cgroup2"),
+      CgroupData{.pg_scan_cumulative = 5000, .pg_scan_rate = 30});
+  TestHelper::setCgroupData(
+      ctx,
+      CgroupPath(compile_context.cgroupFs(), "one_high/cgroup3"),
+      CgroupData{.pg_scan_cumulative = 6000, .pg_scan_rate = 50});
+  TestHelper::setCgroupData(
+      ctx,
+      CgroupPath(compile_context.cgroupFs(), "sibling/cgroup1"),
+      CgroupData{.pg_scan_cumulative = 20000, .pg_scan_rate = 100});
+  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
+  EXPECT_THAT(plugin->killed, Contains(888));
+  EXPECT_THAT(plugin->killed, Not(Contains(111)));
+  EXPECT_THAT(plugin->killed, Not(Contains(123)));
+  EXPECT_THAT(plugin->killed, Not(Contains(456)));
+  EXPECT_THAT(plugin->killed, Not(Contains(789)));
+}
+
+TEST_F(KillPgScanTest, DoesntKillsHighestPgScanDry) {
+  auto plugin = std::make_shared<KillPgScan<BaseKillPluginMock>>();
+  ASSERT_NE(plugin, nullptr);
+
+  Engine::PluginArgs args;
+  const PluginConstructionContext compile_context(
+      "oomd/fixtures/plugins/kill_by_pg_scan");
+  args["cgroup"] = "one_high/*";
+  args["resource"] = "io";
+  args["post_action_delay"] = "0";
+  args["dry"] = "true";
+
+  ASSERT_EQ(plugin->init(std::move(args), compile_context), 0);
+
+  OomdContext ctx;
+  TestHelper::setCgroupData(
+      ctx,
+      CgroupPath(compile_context.cgroupFs(), "one_high/cgroup1"),
+      CgroupData{.pg_scan_cumulative = 10000, .pg_scan_rate = 10});
+  TestHelper::setCgroupData(
+      ctx,
+      CgroupPath(compile_context.cgroupFs(), "one_high/cgroup2"),
+      CgroupData{.pg_scan_cumulative = 5000, .pg_scan_rate = 30});
+  TestHelper::setCgroupData(
+      ctx,
+      CgroupPath(compile_context.cgroupFs(), "one_high/cgroup3"),
+      CgroupData{.pg_scan_cumulative = 6000, .pg_scan_rate = 50});
+  TestHelper::setCgroupData(
+      ctx,
+      CgroupPath(compile_context.cgroupFs(), "sibling/cgroup1"),
+      CgroupData{.pg_scan_cumulative = 20000, .pg_scan_rate = 100});
   EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
   EXPECT_EQ(plugin->killed.size(), 0);
 }
