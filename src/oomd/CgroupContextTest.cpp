@@ -258,7 +258,8 @@ TEST_F(CgroupContextTest, DataLifeCycle) {
            F::makeFile(
                "memory.stat",
                {"anon 123456789\n"
-                "file 12345678\n"}),
+                "file 12345678\n"
+                "pgscan 4567890123\n"}),
            F::makeFile("memory.swap.current", {"1234\n"}),
            F::makeDir("service1.service", {}),
            F::makeDir("service2.service", {}),
@@ -282,8 +283,10 @@ TEST_F(CgroupContextTest, DataLifeCycle) {
   decltype(cgroup_ctx.nr_dying_descendants()) nr_dying_descendants;
   decltype(cgroup_ctx.memory_protection()) memory_protection;
   decltype(cgroup_ctx.io_cost_cumulative()) io_cost_cumulative;
+  decltype(cgroup_ctx.pg_scan_cumulative()) pg_scan_cumulative;
   decltype(cgroup_ctx.average_usage()) average_usage;
   decltype(cgroup_ctx.io_cost_rate()) io_cost_rate;
+  decltype(cgroup_ctx.pg_scan_rate()) pg_scan_rate;
 
   auto set_and_check_fields = [&]() {
     children = cgroup_ctx.children();
@@ -301,8 +304,10 @@ TEST_F(CgroupContextTest, DataLifeCycle) {
     nr_dying_descendants = cgroup_ctx.nr_dying_descendants();
     memory_protection = cgroup_ctx.memory_protection();
     io_cost_cumulative = cgroup_ctx.io_cost_cumulative();
+    pg_scan_cumulative = cgroup_ctx.pg_scan_cumulative();
     average_usage = cgroup_ctx.average_usage();
     io_cost_rate = cgroup_ctx.io_cost_rate();
+    pg_scan_rate = cgroup_ctx.pg_scan_rate();
 
     ASSERT_TRUE(children);
     ASSERT_TRUE(mem_pressure);
@@ -343,7 +348,9 @@ TEST_F(CgroupContextTest, DataLifeCycle) {
   EXPECT_EQ(
       io_pressure->total, std::optional<std::chrono::microseconds>(23456));
   EXPECT_EQ(
-      memory_stat, memory_stat_t({{"anon", 123456789}, {"file", 12345678}}));
+      memory_stat,
+      memory_stat_t(
+          {{"anon", 123456789}, {"file", 12345678}, {"pgscan", 4567890123}}));
   EXPECT_EQ(
       io_stat,
       IOStat({{"1:10", 1111111, 2222222, 33, 44, 5555555555, 6},
@@ -363,6 +370,8 @@ TEST_F(CgroupContextTest, DataLifeCycle) {
   // 2222222*2 + 3333333*4 + 44*1 + 55*3 + 6666666666*6 + 7*5
   EXPECT_EQ(io_cost_cumulative, 45585556178);
   EXPECT_EQ(io_cost_rate, 0);
+  EXPECT_EQ(pg_scan_cumulative, 4567890123);
+  EXPECT_EQ(pg_scan_rate, 0);
 
   // Update most of control files (by adding 1, 0.1 or 0.01)
   F::materialize(F::makeDir(
@@ -398,7 +407,8 @@ TEST_F(CgroupContextTest, DataLifeCycle) {
            F::makeFile(
                "memory.stat",
                {"anon 123456790\n"
-                "file 12345679\n"}),
+                "file 12345679\n"
+                "pgscan 5678901234\n"}),
            F::makeFile("memory.swap.current", {"1235\n"}),
            F::makeDir("service1.service", {}),
            F::makeDir("service2.service", {}),
@@ -424,6 +434,8 @@ TEST_F(CgroupContextTest, DataLifeCycle) {
   EXPECT_EQ(cgroup_ctx.average_usage(), average_usage);
   EXPECT_EQ(cgroup_ctx.io_cost_cumulative(), io_cost_cumulative);
   EXPECT_EQ(cgroup_ctx.io_cost_rate(), io_cost_rate);
+  EXPECT_EQ(cgroup_ctx.pg_scan_cumulative(), pg_scan_cumulative);
+  EXPECT_EQ(cgroup_ctx.pg_scan_rate(), pg_scan_rate);
 
   // Call refresh() to clear cache and retrieve values again
   ASSERT_TRUE(cgroup_ctx.refresh());
@@ -445,7 +457,9 @@ TEST_F(CgroupContextTest, DataLifeCycle) {
   EXPECT_EQ(
       io_pressure->total, std::optional<std::chrono::microseconds>(23457));
   EXPECT_EQ(
-      memory_stat, memory_stat_t({{"anon", 123456790}, {"file", 12345679}}));
+      memory_stat,
+      memory_stat_t(
+          {{"anon", 123456790}, {"file", 12345679}, {"pgscan", 5678901234}}));
   EXPECT_EQ(
       io_stat,
       IOStat({{"1:10", 1111112, 2222223, 34, 45, 5555555556, 7},
@@ -465,4 +479,6 @@ TEST_F(CgroupContextTest, DataLifeCycle) {
   // 2222223*2 + 3333334*4 + 45*1 + 56*3 + 6666666667*6 + 8*5
   EXPECT_EQ(io_cost_cumulative, 45585556220);
   EXPECT_EQ(io_cost_rate, 45585556220 - 45585556178);
+  EXPECT_EQ(pg_scan_cumulative, 5678901234);
+  EXPECT_EQ(pg_scan_rate, 5678901234 - 4567890123);
 }

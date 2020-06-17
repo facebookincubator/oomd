@@ -105,6 +105,7 @@ class CgroupContext {
   std::optional<int64_t> memory_protection(Error* err = nullptr) const;
   // Dot product between io stat and coeffs
   std::optional<double> io_cost_cumulative(Error* err = nullptr) const;
+  std::optional<int64_t> pg_scan_cumulative(Error* err = nullptr) const;
 
   // Below are temporal data counters, which need to be retrieved every interval
   // to become accurate. Must invoke them in plugin prerun() if they may be used
@@ -114,6 +115,8 @@ class CgroupContext {
   std::optional<int64_t> average_usage(Error* err = nullptr) const;
   // Change of cumulative io cost between intervals (not normalized by time)
   std::optional<double> io_cost_rate(Error* err = nullptr) const;
+  // Change of cumulative pg_scan between intervals (not normalized by time)
+  std::optional<int64_t> pg_scan_rate(Error* err = nullptr) const;
 
   // Non-cached derived counters
   std::optional<int64_t> anon_usage(Error* err = nullptr) const;
@@ -132,8 +135,10 @@ class CgroupContext {
   int64_t getMemcurrent() const;
   std::optional<int64_t> getMemoryProtection(Error* err) const;
   std::optional<double> getIoCostCumulative(Error* err) const;
+  std::optional<int64_t> getPgScanCumulative(Error* err) const;
   std::optional<int64_t> getAverageUsage(Error* err) const;
   std::optional<double> getIoCostRate(Error* err) const;
+  std::optional<int64_t> getPgScanRate(Error* err) const;
 
   struct CgroupData {
     std::optional<std::vector<std::string>> children;
@@ -155,15 +160,18 @@ class CgroupContext {
     // Cached derived data
     std::optional<int64_t> memory_protection;
     std::optional<double> io_cost_cumulative;
+    std::optional<int64_t> pg_scan_cumulative;
     // Temporal counters
     std::optional<int64_t> average_usage;
     std::optional<double> io_cost_rate;
+    std::optional<int64_t> pg_scan_rate;
   };
 
   // Data required to calculate temporal counters
   struct CgroupArchivedData {
     std::optional<int64_t> average_usage;
     std::optional<double> io_cost_cumulative;
+    std::optional<int64_t> pg_scan_cumulative;
   };
 
   OomdContext& ctx_;

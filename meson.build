@@ -53,6 +53,7 @@ srcs = files('''
     src/oomd/plugins/KillIOCost.cpp
     src/oomd/plugins/KillMemoryGrowth.cpp
     src/oomd/plugins/KillSwapUsage.cpp
+    src/oomd/plugins/KillPgScan.cpp
     src/oomd/plugins/KillPressure.cpp
 '''.split())
 
