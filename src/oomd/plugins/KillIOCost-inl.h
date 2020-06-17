@@ -30,98 +30,32 @@
 namespace Oomd {
 
 template <typename Base>
-int KillIOCost<Base>::init(
-    const Engine::PluginArgs& args,
-    const PluginConstructionContext& context) {
-  if (args.find("cgroup") != args.end()) {
-    const auto& cgroup_fs = context.cgroupFs();
-
-    auto cgroups = Util::split(args.at("cgroup"), ',');
-    for (const auto& c : cgroups) {
-      cgroups_.emplace(cgroup_fs, c);
-    }
-  } else {
-    OLOG << "Argument=cgroup not present";
-    return 1;
-  }
-
-  if (args.find("post_action_delay") != args.end()) {
-    int val = std::stoi(args.at("post_action_delay"));
-
-    if (val < 0) {
-      OLOG << "Argument=post_action_delay must be non-negative";
-      return 1;
-    }
-
-    post_action_delay_ = val;
-  }
-
-  if (args.find("dry") != args.end()) {
-    const std::string& val = args.at("dry");
-
-    if (val == "true" || val == "True" || val == "1") {
-      dry_ = true;
-    }
-  }
-
-  if (args.find("debug") != args.end()) {
-    const std::string& val = args.at("debug");
-
-    if (val == "true" || val == "True" || val == "1") {
-      debug_ = true;
-    }
-  }
-
-  // Success
-  return 0;
-}
-
-template <typename Base>
 void KillIOCost<Base>::prerun(OomdContext& ctx) {
-  for (const CgroupContext& cgroup_ctx : ctx.addToCacheAndGet(cgroups_)) {
-    // Make sure temporal counters be available when run() is invoked
-    cgroup_ctx.io_cost_rate();
-  }
+  // Make sure temporal counters be available when run() is invoked
+  Base::prerunOnCgroups(
+      ctx, [](const auto& cgroup_ctx) { cgroup_ctx.io_cost_rate(); });
 }
 
 template <typename Base>
-Engine::PluginRet KillIOCost<Base>::run(OomdContext& ctx) {
-  bool ret = tryToKillSomething(ctx);
-
-  if (ret) {
-    std::this_thread::sleep_for(std::chrono::seconds(post_action_delay_));
-    return Engine::PluginRet::STOP;
-  } else {
-    return Engine::PluginRet::CONTINUE;
-  }
-}
-
-template <typename Base>
-bool KillIOCost<Base>::tryToKillSomething(OomdContext& ctx) {
-  auto io_cost_sorted =
-      ctx.reverseSort(cgroups_, [](const CgroupContext& cgroup_ctx) {
+std::vector<OomdContext::ConstCgroupContextRef>
+KillIOCost<Base>::rankForKilling(
+    OomdContext& ctx,
+    const std::vector<OomdContext::ConstCgroupContextRef>& cgroups) {
+  return OomdContext::sortDescWithKillPrefs(
+      cgroups, [](const CgroupContext& cgroup_ctx) {
         return cgroup_ctx.io_cost_rate().value_or(0);
       });
-  OomdContext::dump(io_cost_sorted, !debug_);
+}
 
-  for (const CgroupContext& cgroup_ctx : io_cost_sorted) {
-    OLOG << "Picked \"" << cgroup_ctx.cgroup().relativePath() << "\" ("
-         << cgroup_ctx.current_usage().value_or(0) / 1024 / 1024
-         << "MB) based on io cost generation at "
-         << cgroup_ctx.io_cost_rate().value_or(0);
-    if (auto kill_uuid = Base::tryToKillCgroup(
-            cgroup_ctx.cgroup().absolutePath(), true, dry_)) {
-      Base::logKill(
-          cgroup_ctx.cgroup(),
-          cgroup_ctx,
-          ctx.getActionContext(),
-          *kill_uuid,
-          dry_);
-      return true;
-    }
-  }
-
-  return false;
+template <typename Base>
+void KillIOCost<Base>::ologKillTarget(
+    OomdContext& ctx,
+    const CgroupContext& target,
+    const std::vector<OomdContext::ConstCgroupContextRef>& /* unused */) {
+  OLOG << "Picked \"" << target.cgroup().relativePath() << "\" ("
+       << target.current_usage().value_or(0) / 1024 / 1024
+       << "MB) based on io cost generation at "
+       << target.io_cost_rate().value_or(0);
 }
 
 } // namespace Oomd

@@ -79,6 +79,12 @@ class OomdContext {
       const std::unordered_set<CgroupPath>& cgroups);
 
   /*
+   * Get children of cgroup, adding them to the cache if they don't exist yet.
+   */
+  std::vector<ConstCgroupContextRef> addToCacheAndGetChildren(
+      const CgroupContext& cgroup_ctx);
+
+  /*
    * Add a set of cgroups to cache, and return the resulting CgroupContext
    * sorting in descending order by the get_key functor, which accepts a const
    * reference of CgroupContext and returns something comparable.
@@ -90,6 +96,26 @@ class OomdContext {
     auto sorted = addToCacheAndGet(cgroups);
     std::sort(sorted.begin(), sorted.end(), [&](const auto& a, const auto& b) {
       return get_key(a.get()) > get_key(b.get());
+    });
+    return sorted;
+  }
+
+  /*
+   * Sorts cgroups by kill_preference, then get_key. Highest first to lowest
+   * last. Returns new vec; does not mutate cgroups arg.
+   */
+  template <class Functor>
+  static std::vector<ConstCgroupContextRef> sortDescWithKillPrefs(
+      const std::vector<ConstCgroupContextRef>& cgroups,
+      Functor&& get_key) {
+    auto sorted = cgroups;
+    std::sort(sorted.begin(), sorted.end(), [&](const auto& a, const auto& b) {
+      return std::make_tuple(
+                 a.get().kill_preference().value_or(KillPreference::NORMAL),
+                 get_key(a.get())) >
+          std::make_tuple(
+                 b.get().kill_preference().value_or(KillPreference::NORMAL),
+                 get_key(b.get()));
     });
     return sorted;
   }

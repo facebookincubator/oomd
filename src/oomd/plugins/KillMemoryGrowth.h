@@ -18,11 +18,20 @@
 #pragma once
 
 #include <chrono>
+#include <cmath>
 #include <unordered_set>
 
 #include "oomd/plugins/BaseKillPlugin.h"
 
 namespace Oomd {
+
+// KillMemoryGrowh kills in 3 phases, as described in docs/core_plugins.md
+// KMGPhase is only for internal use in KillMemoryGrowth ranking.
+enum struct KMGPhase {
+  SIZE_THRESHOLD,
+  GROWTH,
+  SIZE_NO_THRESHOLD,
+};
 
 template <typename Base = BaseKillPlugin>
 class KillMemoryGrowth : public Base {
@@ -32,7 +41,6 @@ class KillMemoryGrowth : public Base {
       const PluginConstructionContext& context) override;
 
   void prerun(OomdContext& ctx) override;
-  Engine::PluginRet run(OomdContext& ctx) override;
 
   static KillMemoryGrowth* create() {
     return new KillMemoryGrowth();
@@ -41,15 +49,24 @@ class KillMemoryGrowth : public Base {
   ~KillMemoryGrowth() = default;
 
  protected:
-  virtual bool tryToKillSomething(OomdContext& ctx);
+  std::vector<OomdContext::ConstCgroupContextRef> rankForKilling(
+      OomdContext& ctx,
+      const std::vector<OomdContext::ConstCgroupContextRef>& cgroups) override;
 
-  std::unordered_set<CgroupPath> cgroups_;
+  void ologKillTarget(
+      OomdContext& ctx,
+      const CgroupContext& target,
+      const std::vector<OomdContext::ConstCgroupContextRef>& peers) override;
+
+  std::function<std::pair<KMGPhase, std::tuple<int64_t, float, int64_t>>(
+      const CgroupContext&)>
+  get_ranking_fn(
+      OomdContext& ctx,
+      const std::vector<OomdContext::ConstCgroupContextRef>& cgroups);
+
   int size_threshold_{50};
   int growing_size_percentile_{80};
   float min_growth_ratio_{1.25};
-  int post_action_delay_{15};
-  bool dry_{false};
-  bool debug_{false};
 };
 
 } // namespace Oomd

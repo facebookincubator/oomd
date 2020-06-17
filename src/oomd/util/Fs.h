@@ -51,6 +51,7 @@ class Fs {
   static constexpr auto kMemStatFile = "memory.stat";
   static constexpr auto kCgroupStatFile = "cgroup.stat";
   static constexpr auto kMemSwapCurrentFile = "memory.swap.current";
+  static constexpr auto kMemOomGroupFile = "memory.oom.group";
   static constexpr auto kIoPressureFile = "io.pressure";
   static constexpr auto kIoStatFile = "io.stat";
   static constexpr auto kDeviceTypeDir = "queue";
@@ -227,6 +228,9 @@ class Fs {
   static int64_t getNrDyingDescendantsAt(const DirFd& dirfd);
 
   static KillPreference readKillPreferenceAt(const DirFd& path);
+
+  static bool readMemoryOomGroup(const std::string& path);
+  static bool readMemoryOomGroupAt(const DirFd& dirfd);
 
   static IOStat readIostat(const std::string& path);
   static IOStat readIostatAt(const DirFd& dirfd);

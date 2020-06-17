@@ -31,8 +31,6 @@ class KillPressure : public Base {
       const Engine::PluginArgs& args,
       const PluginConstructionContext& context) override;
 
-  Engine::PluginRet run(OomdContext& ctx) override;
-
   static KillPressure* create() {
     return new KillPressure();
   }
@@ -40,13 +38,16 @@ class KillPressure : public Base {
   ~KillPressure() = default;
 
  protected:
-  virtual bool tryToKillSomething(OomdContext& ctx);
+  std::vector<OomdContext::ConstCgroupContextRef> rankForKilling(
+      OomdContext& ctx,
+      const std::vector<OomdContext::ConstCgroupContextRef>& cgroups) override;
 
-  std::unordered_set<CgroupPath> cgroups_;
+  void ologKillTarget(
+      OomdContext& ctx,
+      const CgroupContext& target,
+      const std::vector<OomdContext::ConstCgroupContextRef>& peers) override;
+
   ResourceType resource_;
-  int post_action_delay_{15};
-  bool dry_{false};
-  bool debug_{false};
 };
 
 } // namespace Oomd

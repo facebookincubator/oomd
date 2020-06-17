@@ -415,6 +415,18 @@ TEST_F(FsTest, ReadIoPressureSome) {
   EXPECT_EQ(Fs::readIopressureAt(dir, Fs::PressureType::SOME), pressure);
 }
 
+TEST_F(FsTest, ReadMemoryOomGroup) {
+  auto path1 = fixture_.cgroupDataDir() + "/slice1.slice";
+  EXPECT_EQ(Fs::readMemoryOomGroup(path1), true);
+  auto dir1 = Fs::DirFd::open(path1);
+  EXPECT_EQ(Fs::readMemoryOomGroupAt(dir1), true);
+
+  auto path2 = fixture_.cgroupDataDir() + "/slice1.slice/service1.service";
+  EXPECT_EQ(Fs::readMemoryOomGroup(path2), false);
+  auto dir2 = Fs::DirFd::open(path2);
+  EXPECT_EQ(Fs::readMemoryOomGroupAt(dir2), false);
+}
+
 TEST_F(FsTest, IsUnderParentPath) {
   EXPECT_TRUE(Fs::isUnderParentPath("/sys/fs/cgroup/", "/sys/fs/cgroup/"));
   EXPECT_TRUE(Fs::isUnderParentPath("/sys/fs/cgroup/", "/sys/fs/cgroup/blkio"));

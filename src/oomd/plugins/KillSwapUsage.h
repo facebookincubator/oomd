@@ -30,8 +30,6 @@ class KillSwapUsage : public Base {
       const Engine::PluginArgs& args,
       const PluginConstructionContext& context) override;
 
-  Engine::PluginRet run(OomdContext& ctx) override;
-
   static KillSwapUsage* create() {
     return new KillSwapUsage();
   }
@@ -39,14 +37,17 @@ class KillSwapUsage : public Base {
   ~KillSwapUsage() = default;
 
  protected:
-  virtual bool tryToKillSomething(OomdContext& ctx);
+  std::vector<OomdContext::ConstCgroupContextRef> rankForKilling(
+      OomdContext& ctx,
+      const std::vector<OomdContext::ConstCgroupContextRef>& cgroups) override;
 
-  std::unordered_set<CgroupPath> cgroups_;
+  void ologKillTarget(
+      OomdContext& ctx,
+      const CgroupContext& target,
+      const std::vector<OomdContext::ConstCgroupContextRef>& peers) override;
+
   // Default threshold is to kill something with non-zero swap usage
   int64_t threshold_{1};
-  int post_action_delay_{15};
-  bool dry_{false};
-  bool debug_{false};
 };
 
 } // namespace Oomd

@@ -679,6 +679,16 @@ KillPreference Fs::readKillPreferenceAt(const DirFd& path) {
   }
 }
 
+bool Fs::readMemoryOomGroup(const std::string& path) {
+  auto lines = readFileByLine(path + "/" + kMemOomGroupFile);
+  return lines != std::vector<std::string>({"0"});
+}
+
+bool Fs::readMemoryOomGroupAt(const DirFd& dirfd) {
+  auto lines = readFileByLine(Fs::Fd::openat(dirfd, kMemOomGroupFile));
+  return lines == std::vector<std::string>({"1"});
+}
+
 bool Fs::setxattr(
     const std::string& path,
     const std::string& attr,

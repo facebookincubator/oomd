@@ -101,6 +101,7 @@ class CgroupContext {
   std::optional<int64_t> nr_dying_descendants(Error* err = nullptr) const;
   std::optional<bool> is_populated(Error* err = nullptr) const;
   std::optional<KillPreference> kill_preference(Error* err = nullptr) const;
+  std::optional<bool> oom_group(Error* err = nullptr) const;
   // memory_{min,low} taking into account the distribution of it
   std::optional<int64_t> memory_protection(Error* err = nullptr) const;
   // Dot product between io stat and coeffs
@@ -124,6 +125,8 @@ class CgroupContext {
       Error* err = nullptr,
       int64_t memory_scale = 1,
       int64_t memory_adj = 0) const;
+  // if you use memory_growth() you must in prerun load average_usage()
+  std::optional<double> memory_growth(Error* err = nullptr) const;
 
  private:
   // Test only
@@ -157,6 +160,7 @@ class CgroupContext {
     std::optional<int64_t> nr_dying_descendants;
     std::optional<bool> is_populated;
     std::optional<KillPreference> kill_preference;
+    std::optional<bool> oom_group;
     // Cached derived data
     std::optional<int64_t> memory_protection;
     std::optional<double> io_cost_cumulative;
