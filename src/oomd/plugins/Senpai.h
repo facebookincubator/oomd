@@ -66,10 +66,14 @@ class Senpai : public Engine::BasePlugin {
   std::optional<bool> hasMemoryHighTmp(const CgroupContext& cgroup_ctx);
   std::optional<int64_t> readMemhigh(const CgroupContext& cgroup_ctx);
   bool writeMemhigh(const CgroupContext& cgroup_ctx, int64_t value);
+  bool resetMemhigh(const CgroupContext& cgroup_ctx);
   std::optional<int64_t> getLimitMinBytes(const CgroupContext& cgroup_ctx);
   std::optional<int64_t> getLimitMaxBytes(const CgroupContext& cgroup_ctx);
 
   bool tick(const CgroupContext& cgroup_ctx, CgroupState& state);
+  bool tick_immediate_backoff(
+      const CgroupContext& cgroup_ctx,
+      CgroupState& state);
   std::optional<CgroupState> initializeCgroup(const CgroupContext& cgroup_ctx);
 
   int64_t host_mem_total_{0};
@@ -92,6 +96,7 @@ class Senpai : public Engine::BasePlugin {
   double max_backoff_{1.0};
   double coeff_probe_{10};
   double coeff_backoff_{20};
+  bool immediate_backoff_{false};
 };
 
 } // namespace Oomd

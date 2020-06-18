@@ -77,6 +77,14 @@ int Senpai::init(
     coeff_backoff_ = std::stod(args.at("coeff_backoff"));
   }
 
+  if (args.find("immediate_backoff") != args.end()) {
+    const std::string& val = args.at("immediate_backoff");
+
+    if (val == "true" || val == "True" || val == "1") {
+      immediate_backoff_ = true;
+    }
+  }
+
   auto meminfo = Fs::getMeminfo();
   if (auto pos = meminfo.find("MemTotal"); pos != meminfo.end()) {
     host_mem_total_ = pos->second;
@@ -116,10 +124,12 @@ Engine::PluginRet Senpai::run(OomdContext& ctx) {
     } else if (*cgroup_ctx.id() > trackedIt->first) {
       trackedIt = tracked_cgroups_.erase(trackedIt);
     } else {
+      bool tick_result = immediate_backoff_
+          ? tick_immediate_backoff(cgroup_ctx, trackedIt->second)
+          : tick(cgroup_ctx, trackedIt->second);
       // Keep the tracked cgroups if they are still valid after tick
-      trackedIt = tick(cgroup_ctx, trackedIt->second)
-          ? std::next(trackedIt)
-          : tracked_cgroups_.erase(trackedIt);
+      trackedIt = tick_result ? std::next(trackedIt)
+                              : tracked_cgroups_.erase(trackedIt);
       ++resolvedIt;
     }
   }
@@ -189,6 +199,25 @@ bool Senpai::writeMemhigh(const CgroupContext& cgroup_ctx, int64_t value) {
       if (*has_memory_high_tmp) {
         Oomd::Fs::writeMemhightmpAt(
             cgroup_ctx.fd(), value, std::chrono::seconds(20));
+      } else {
+        Oomd::Fs::writeMemhighAt(cgroup_ctx.fd(), value);
+      }
+      return true;
+    } catch (const Fs::bad_control_file&) {
+    }
+  }
+  return false;
+}
+
+// Reset memory.high.tmp (preferred) or memory.high of a given cgroup to max.
+// Return if the cgroup is still valid.
+bool Senpai::resetMemhigh(const CgroupContext& cgroup_ctx) {
+  if (auto has_memory_high_tmp = hasMemoryHighTmp(cgroup_ctx)) {
+    try {
+      auto value = std::numeric_limits<int64_t>::max();
+      if (*has_memory_high_tmp) {
+        Oomd::Fs::writeMemhightmpAt(
+            cgroup_ctx.fd(), value, std::chrono::seconds(0));
       } else {
         Oomd::Fs::writeMemhighAt(cgroup_ctx.fd(), value);
       }
@@ -357,6 +386,72 @@ bool Senpai::tick(const CgroupContext& cgroup_ctx, CgroupState& state) {
       << " deltaus " << delta.count() << " cumus " << cumulative << " ticks "
       << state.ticks << std::defaultfloat << " adjust " << factor;
   OLOG << oss.str();
+  return true;
+}
+
+// Update state of a cgroup. Return if the cgroup is still valid.
+bool Senpai::tick_immediate_backoff(
+    const CgroupContext& cgroup_ctx,
+    CgroupState& state) {
+  auto total_opt = getPressureTotalSome(cgroup_ctx);
+  if (!total_opt) {
+    return false;
+  }
+  auto total = *total_opt;
+  auto delta = total - state.last_total;
+  state.last_total = total;
+  state.cumulative += delta;
+
+  if (state.cumulative >= pressure_ms_) {
+    // Pressure is too high. Reset interval for the next poking attempt
+    state.ticks = interval_;
+    state.cumulative = std::chrono::microseconds{0};
+  } else if (state.ticks) {
+    --state.ticks;
+  } else {
+    auto limit_min_bytes_opt = getLimitMinBytes(cgroup_ctx);
+    if (!limit_min_bytes_opt) {
+      return false;
+    }
+    auto current_opt = cgroup_ctx.current_usage();
+    if (!current_opt) {
+      return false;
+    }
+    if (*current_opt > *limit_min_bytes_opt) {
+      // Pressure too low, tighten the limit. The adjustment becomes
+      // exponentially more aggressive as observed pressure falls below the
+      // target pressure. The adjustment limit is reached when stall time falls
+      // through pressure/coeff_probe_.
+      auto one = std::chrono::microseconds{1};
+      double error = pressure_ms_ / std::max(state.cumulative, one);
+      double factor = error / coeff_probe_;
+      factor *= factor;
+      factor = std::min(factor * max_probe_, max_probe_);
+      factor = -factor;
+
+      // Set the limit to somewhere between memory.current and lower limit
+      int64_t limit = *limit_min_bytes_opt +
+          (*current_opt - *limit_min_bytes_opt) * (1 + factor);
+      // Memory high is always a multiple of 4K
+      limit &= ~0xFFF;
+      // Poking by setting memory limit and immediately resetting it, which
+      // prevents sudden allocation later from triggering thrashing
+      if (!writeMemhigh(cgroup_ctx, limit) || !resetMemhigh(cgroup_ctx)) {
+        return false;
+      }
+      std::ostringstream oss;
+      oss << "cgroup " << cgroup_ctx.cgroup().relativePath()
+          << std::setprecision(3) << std::fixed << " limitgb "
+          << limit / (double)(1 << 30UL) << " totalus " << total.count()
+          << " deltaus " << delta.count() << " cumus "
+          << state.cumulative.count() << std::defaultfloat << " adjust "
+          << factor;
+      OLOG << oss.str();
+      state.ticks = interval_;
+      state.cumulative = std::chrono::microseconds{0};
+    }
+  }
+
   return true;
 }
 
