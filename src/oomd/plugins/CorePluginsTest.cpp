@@ -647,6 +647,9 @@ TEST_F(StandardKillRecursionTest, PrerunsRecursively) {
                Fixture::makeDir(
                    "Y",
                    {
+                       // oom.group prevents prerun from running on P and Q,
+                       // even if "recursive" is set
+                       Fixture::makeFile("memory.oom.group", "1\n"),
                        Fixture::makeDir("P", {}),
                        Fixture::makeDir("Q", {}),
                    }),
@@ -655,7 +658,13 @@ TEST_F(StandardKillRecursionTest, PrerunsRecursively) {
        Fixture::makeDir(
            "B",
            {
-               Fixture::makeDir("F", {}),
+               Fixture::makeDir(
+                   "F",
+                   {
+                       Fixture::makeDir("P", {}),
+                       Fixture::makeDir("Q", {}),
+                   }),
+               Fixture::makeDir("X", {}),
            }),
        Fixture::makeDir(
            "C",
@@ -693,7 +702,7 @@ TEST_F(StandardKillRecursionTest, PrerunsRecursively) {
   EXPECT_EQ(
       get_touched_cgroups(true),
       (std::unordered_set<std::string>{
-          "A/Y", "A/Y/P", "A/Y/Q", "A/X", "B", "B/F", "Z", "Z/F"}));
+          "A/Y", "A/X", "B", "B/F", "B/F/P", "B/F/Q", "B/X", "Z", "Z/F"}));
 
   // Don't waste CPU walking down the cgroup tree in prerun if
   // recursive_=false

@@ -62,7 +62,7 @@ class BaseKillPlugin : public Oomd::Engine::BasePlugin {
       const CgroupContext& cgroup_ctx = unvisited.back();
       unvisited.pop_back();
 
-      if (recursive_) {
+      if (recursive_ && !cgroup_ctx.oom_group().value_or(false)) {
         const auto& children = ctx.addToCacheAndGetChildren(cgroup_ctx);
         std::move(
             children.begin(), children.end(), std::back_inserter(unvisited));
