@@ -2959,7 +2959,9 @@ class SenpaiTest : public CorePluginsTest {
       EXPECT_EQ(plugin_->run(ctx), Engine::PluginRet::CONTINUE);
       ctx.refresh();
     }
-    EXPECT_EQ(Fs::readMemhightmp(tempdir_ + "/senpai_test.slice"), limit);
+    auto senpai_test_slice = Fs::DirFd::open(tempdir_ + "/senpai_test.slice");
+    EXPECT_TRUE(senpai_test_slice.isValid());
+    EXPECT_EQ(Fs::readMemhightmpAt(senpai_test_slice), limit);
   }
 
   // Tick senpai on a cgroup twice with increasing pressure and check if
@@ -2968,10 +2970,13 @@ class SenpaiTest : public CorePluginsTest {
     const PluginConstructionContext compile_context(tempdir_);
     ASSERT_EQ(plugin_->init(std::move(args_), compile_context), 0);
 
+    auto senpai_test_slice = Fs::DirFd::open(tempdir_ + "/senpai_test.slice");
+    EXPECT_TRUE(senpai_test_slice.isValid());
+
     OomdContext ctx;
     EXPECT_EQ(plugin_->run(ctx), Engine::PluginRet::CONTINUE);
     // First tick, senpai sets memory.high.tmp to memory.current
-    EXPECT_EQ(Fs::readMemhightmp(tempdir_ + "/senpai_test.slice"), memcurr);
+    EXPECT_EQ(Fs::readMemhightmpAt(senpai_test_slice), memcurr);
 
     ctx.refresh();
     // Increase memory.pressure so senpai will backoff
@@ -2981,7 +2986,7 @@ class SenpaiTest : public CorePluginsTest {
         "full avg10=0.00 avg60=0.00 avg300=0.00 total=0\n"));
     EXPECT_EQ(plugin_->run(ctx), Engine::PluginRet::CONTINUE);
     // Second tick, senpai backs off by increasing memory.high.tmp, but capped
-    EXPECT_EQ(Fs::readMemhightmp(tempdir_ + "/senpai_test.slice"), limit);
+    EXPECT_EQ(Fs::readMemhightmpAt(senpai_test_slice), limit);
   }
 
   std::unique_ptr<Engine::BasePlugin> plugin_;
@@ -2998,7 +3003,9 @@ TEST_F(SenpaiTest, FallbackMemHigh) {
   OomdContext ctx;
   EXPECT_EQ(plugin_->run(ctx), Engine::PluginRet::CONTINUE);
   // Same as memory.current
-  EXPECT_EQ(Fs::readMemhigh(tempdir_ + "/senpai_test.slice"), 40960000);
+  auto senpai_test_slice = Fs::DirFd::open(tempdir_ + "/senpai_test.slice");
+  EXPECT_TRUE(senpai_test_slice.isValid());
+  EXPECT_EQ(Fs::readMemhighAt(senpai_test_slice), 40960000);
 }
 
 // Senpai should use memory.high.tmp whenever available, and memory.high not
@@ -3010,9 +3017,11 @@ TEST_F(SenpaiTest, PreferMemHighTmp) {
   OomdContext ctx;
   EXPECT_EQ(plugin_->run(ctx), Engine::PluginRet::CONTINUE);
   // Same as memory.current
-  EXPECT_EQ(Fs::readMemhightmp(tempdir_ + "/senpai_test.slice"), 40960000);
+  auto senpai_test_slice = Fs::DirFd::open(tempdir_ + "/senpai_test.slice");
+  EXPECT_TRUE(senpai_test_slice.isValid());
+  EXPECT_EQ(Fs::readMemhightmpAt(senpai_test_slice), 40960000);
   EXPECT_EQ(
-      Fs::readMemhigh(tempdir_ + "/senpai_test.slice"),
+      Fs::readMemhighAt(senpai_test_slice),
       std::numeric_limits<int64_t>::max());
 }
 

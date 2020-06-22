@@ -63,11 +63,6 @@ PsiFormat getPsiFormat(const std::vector<std::string>& lines) {
 
 namespace Oomd {
 
-Fs::Fd Fs::Fd::open(const std::string& path, bool read_only) {
-  int flags = read_only ? O_RDONLY : O_WRONLY;
-  return Fd(::open(path.c_str(), flags));
-}
-
 Fs::Fd
 Fs::Fd::openat(const DirFd& dirfd, const std::string& path, bool read_only) {
   int flags = read_only ? O_RDONLY : O_WRONLY;
@@ -228,29 +223,12 @@ std::vector<std::string> Fs::readFileByLine(Fd&& fd) {
   return v;
 }
 
-std::vector<std::string> Fs::readControllers(const std::string& path) {
-  auto lines = readFileByLine(path + "/" + kControllersFile);
-  if (!lines.size()) {
-    return {};
-  }
-  return Util::split(lines[0], ' ');
-}
-
 std::vector<std::string> Fs::readControllersAt(const DirFd& dirfd) {
   auto lines = readFileByLine(Fs::Fd::openat(dirfd, kControllersFile));
   if (!lines.size()) {
     return {};
   }
   return Util::split(lines[0], ' ');
-}
-
-std::vector<int> Fs::getPids(const std::string& path) {
-  std::vector<int> pids;
-  auto str_pids = readFileByLine(path + "/" + kProcsFile);
-  for (const auto& sp : str_pids) {
-    pids.push_back(std::stoi(sp));
-  }
-  return pids;
 }
 
 std::vector<int> Fs::getPidsAt(const DirFd& dirfd) {
@@ -277,11 +255,6 @@ bool Fs::readIsPopulatedFromLines(const std::vector<std::string>& lines) {
   }
 
   throw bad_control_file("invalid format");
-}
-
-bool Fs::readIsPopulated(const std::string& path) {
-  auto lines = readFileByLine(path + "/" + kEventsFile);
-  return readIsPopulatedFromLines(lines);
 }
 
 bool Fs::readIsPopulatedAt(const DirFd& dirfd) {
@@ -371,12 +344,6 @@ int64_t Fs::readRootMemcurrent() {
   return meminfo["MemTotal"] - meminfo["MemFree"];
 }
 
-int64_t Fs::readMemcurrent(const std::string& path) {
-  auto lines = readFileByLine(path + "/" + kMemCurrentFile);
-  OCHECK_EXCEPT(lines.size() == 1, bad_control_file(path + ": missing file"));
-  return static_cast<int64_t>(std::stoll(lines[0]));
-}
-
 int64_t Fs::readMemcurrentAt(const DirFd& dirfd) {
   auto lines = readFileByLine(Fs::Fd::openat(dirfd, kMemCurrentFile));
   OCHECK_EXCEPT(lines.size() == 1, bad_control_file("missing file"));
@@ -393,13 +360,6 @@ ResourcePressure Fs::readRootMempressure(PressureType type) {
   }
 }
 
-ResourcePressure Fs::readMempressure(
-    const std::string& path,
-    PressureType type) {
-  auto lines = readFileByLine(path + "/" + kMemPressureFile);
-  return readRespressureFromLines(lines, type);
-}
-
 ResourcePressure Fs::readMempressureAt(const DirFd& dirfd, PressureType type) {
   auto lines = readFileByLine(Fs::Fd::openat(dirfd, kMemPressureFile));
   return readRespressureFromLines(lines, type);
@@ -413,28 +373,13 @@ int64_t Fs::readMinMaxLowHighFromLines(const std::vector<std::string>& lines) {
   return static_cast<int64_t>(std::stoll(lines[0]));
 }
 
-int64_t Fs::readMemlow(const std::string& path) {
-  auto lines = readFileByLine(path + "/" + kMemLowFile);
-  return Fs::readMinMaxLowHighFromLines(lines);
-}
-
 int64_t Fs::readMemlowAt(const DirFd& dirfd) {
   auto lines = readFileByLine(Fs::Fd::openat(dirfd, kMemLowFile));
   return Fs::readMinMaxLowHighFromLines(lines);
 }
 
-int64_t Fs::readMemhigh(const std::string& path) {
-  auto lines = readFileByLine(path + "/" + kMemHighFile);
-  return Fs::readMinMaxLowHighFromLines(lines);
-}
-
 int64_t Fs::readMemhighAt(const DirFd& dirfd) {
   auto lines = readFileByLine(Fs::Fd::openat(dirfd, kMemHighFile));
-  return Fs::readMinMaxLowHighFromLines(lines);
-}
-
-int64_t Fs::readMemmax(const std::string& path) {
-  auto lines = readFileByLine(path + "/" + kMemMaxFile);
   return Fs::readMinMaxLowHighFromLines(lines);
 }
 
@@ -453,35 +398,14 @@ int64_t Fs::readMemhightmpFromLines(const std::vector<std::string>& lines) {
   return static_cast<int64_t>(std::stoll(tokens[0]));
 }
 
-int64_t Fs::readMemhightmp(const std::string& path) {
-  auto lines = readFileByLine(path + "/" + kMemHighTmpFile);
-  return readMemhightmpFromLines(lines);
-}
-
 int64_t Fs::readMemhightmpAt(const DirFd& dirfd) {
   auto lines = readFileByLine(Fs::Fd::openat(dirfd, kMemHighTmpFile));
   return readMemhightmpFromLines(lines);
 }
 
-int64_t Fs::readMemmin(const std::string& path) {
-  auto lines = readFileByLine(path + "/" + kMemMinFile);
-  return Fs::readMinMaxLowHighFromLines(lines);
-}
-
 int64_t Fs::readMemminAt(const DirFd& dirfd) {
   auto lines = readFileByLine(Fs::Fd::openat(dirfd, kMemMinFile));
   return Fs::readMinMaxLowHighFromLines(lines);
-}
-
-int64_t Fs::readSwapCurrent(const std::string& path) {
-  auto lines = readFileByLine(path + "/" + kMemSwapCurrentFile);
-
-  // The swap controller can be disabled via CONFIG_MEMCG_SWAP=n
-  if (lines.size() == 1) {
-    return static_cast<int64_t>(std::stoll(lines[0]));
-  } else {
-    return 0;
-  }
 }
 
 int64_t Fs::readSwapCurrentAt(const DirFd& dirfd) {
@@ -546,12 +470,6 @@ std::unordered_map<std::string, int64_t> Fs::getMemstatLikeFromLines(
   return map;
 }
 
-std::unordered_map<std::string, int64_t> Fs::getMemstat(
-    const std::string& path) {
-  auto lines = readFileByLine(path + "/" + kMemStatFile);
-  return getMemstatLikeFromLines(lines);
-}
-
 std::unordered_map<std::string, int64_t> Fs::getMemstatAt(const DirFd& dirfd) {
   auto lines = readFileByLine(Fs::Fd::openat(dirfd, kMemStatFile));
   return getMemstatLikeFromLines(lines);
@@ -559,13 +477,6 @@ std::unordered_map<std::string, int64_t> Fs::getMemstatAt(const DirFd& dirfd) {
 
 ResourcePressure Fs::readRootIopressure(PressureType type) {
   auto lines = readFileByLine("/proc/pressure/io");
-  return readRespressureFromLines(lines, type);
-}
-
-ResourcePressure Fs::readIopressure(
-    const std::string& path,
-    PressureType type) {
-  auto lines = readFileByLine(path + "/" + kIoPressureFile);
   return readRespressureFromLines(lines, type);
 }
 
@@ -604,11 +515,6 @@ IOStat Fs::readIostatFromLines(const std::vector<std::string>& lines) {
   return io_stat;
 }
 
-IOStat Fs::readIostat(const std::string& path) {
-  auto lines = readFileByLine(path + "/" + kIoStatFile);
-  return readIostatFromLines(lines);
-}
-
 IOStat Fs::readIostatAt(const DirFd& dirfd) {
   auto lines = readFileByLine(Fs::Fd::openat(dirfd, kIoStatFile));
   return readIostatFromLines(lines);
@@ -628,23 +534,9 @@ void Fs::writeControlFileAt(Fd&& fd, const std::string& content) {
   }
 }
 
-void Fs::writeMemhigh(const std::string& path, int64_t value) {
-  auto val_str = std::to_string(value);
-  writeControlFileAt(Fs::Fd::open(path + "/" + kMemHighFile, false), val_str);
-}
-
 void Fs::writeMemhighAt(const DirFd& dirfd, int64_t value) {
   auto val_str = std::to_string(value);
   writeControlFileAt(Fs::Fd::openat(dirfd, kMemHighFile, false), val_str);
-}
-
-void Fs::writeMemhightmp(
-    const std::string& path,
-    int64_t value,
-    std::chrono::microseconds duration) {
-  auto val_str = std::to_string(value) + " " + std::to_string(duration.count());
-  writeControlFileAt(
-      Fs::Fd::open(path + "/" + kMemHighTmpFile, false), val_str);
 }
 
 void Fs::writeMemhightmpAt(
@@ -653,13 +545,6 @@ void Fs::writeMemhightmpAt(
     std::chrono::microseconds duration) {
   auto val_str = std::to_string(value) + " " + std::to_string(duration.count());
   writeControlFileAt(Fs::Fd::openat(dirfd, kMemHighTmpFile, false), val_str);
-}
-
-int64_t Fs::getNrDyingDescendants(const std::string& path) {
-  auto lines = readFileByLine(path + "/" + kCgroupStatFile);
-  auto map = getMemstatLikeFromLines(lines);
-  // Will return 0 for missing entries
-  return map["nr_dying_descendants"];
 }
 
 int64_t Fs::getNrDyingDescendantsAt(const DirFd& dirfd) {
@@ -677,11 +562,6 @@ KillPreference Fs::readKillPreferenceAt(const DirFd& path) {
   } else {
     return KillPreference::NORMAL;
   }
-}
-
-bool Fs::readMemoryOomGroup(const std::string& path) {
-  auto lines = readFileByLine(path + "/" + kMemOomGroupFile);
-  return lines != std::vector<std::string>({"0"});
 }
 
 bool Fs::readMemoryOomGroupAt(const DirFd& dirfd) {
@@ -711,10 +591,6 @@ std::string Fs::getxattr(const std::string& path, const std::string& attr) {
   val.resize(size);
   ::getxattr(path.c_str(), attr.c_str(), &val[0], val.size());
   return val;
-}
-
-bool Fs::hasxattr(const std::string& path, const std::string& attr) {
-  return ::getxattr(path.c_str(), attr.c_str(), nullptr, 0) >= 0;
 }
 
 bool Fs::hasxattrAt(const DirFd& dirfd, const std::string& attr) {

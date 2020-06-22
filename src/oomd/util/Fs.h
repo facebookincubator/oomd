@@ -81,7 +81,6 @@ class Fs {
    */
   class Fd {
    public:
-    static Fd open(const std::string& path, bool read_only = true);
     static Fd
     openat(const DirFd& dirfd, const std::string& path, bool read_only = true);
 
@@ -163,14 +162,10 @@ class Fs {
    */
   static std::vector<std::string> readFileByLine(Fd&& fd);
 
-  static std::vector<std::string> readControllers(const std::string& path);
   static std::vector<std::string> readControllersAt(const DirFd& dirfd);
-
-  static std::vector<int> getPids(const std::string& path);
   static std::vector<int> getPidsAt(const DirFd& dirfd);
 
   static bool readIsPopulatedFromLines(const std::vector<std::string>& lines);
-  static bool readIsPopulated(const std::string& path);
   static bool readIsPopulatedAt(const DirFd& dirfd);
 
   static std::string pressureTypeToString(PressureType type);
@@ -179,12 +174,8 @@ class Fs {
       const std::vector<std::string>& lines,
       PressureType type = PressureType::FULL);
   static int64_t readRootMemcurrent();
-  static int64_t readMemcurrent(const std::string& path);
   static int64_t readMemcurrentAt(const DirFd& dirfd);
   static ResourcePressure readRootMempressure(
-      PressureType type = PressureType::FULL);
-  static ResourcePressure readMempressure(
-      const std::string& path,
       PressureType type = PressureType::FULL);
   static ResourcePressure readMempressureAt(
       const DirFd& dirfd,
@@ -192,47 +183,27 @@ class Fs {
   static int64_t readMinMaxLowHighFromLines(
       const std::vector<std::string>& lines);
   static int64_t readMemhightmpFromLines(const std::vector<std::string>& lines);
-  static int64_t readMemlow(const std::string& path);
   static int64_t readMemlowAt(const DirFd& dirfd);
-  static int64_t readMemhigh(const std::string& path);
   static int64_t readMemhighAt(const DirFd& dirfd);
-  static int64_t readMemmax(const std::string& path);
   static int64_t readMemmaxAt(const DirFd& dirfd);
-  static int64_t readMemhightmp(const std::string& path);
   static int64_t readMemhightmpAt(const DirFd& dirfd);
-  static int64_t readMemmin(const std::string& path);
   static int64_t readMemminAt(const DirFd& dirfd);
-  static int64_t readSwapCurrent(const std::string& path);
   static int64_t readSwapCurrentAt(const DirFd& dirfd);
   static ResourcePressure readRootIopressure(
-      PressureType type = PressureType::FULL);
-  static ResourcePressure readIopressure(
-      const std::string& path,
       PressureType type = PressureType::FULL);
   static ResourcePressure readIopressureAt(
       const DirFd& dirfd,
       PressureType type = PressureType::FULL);
 
-  static void writeMemhigh(const std::string& path, int64_t value);
   static void writeMemhighAt(const DirFd& dirfd, int64_t value);
-  static void writeMemhightmp(
-      const std::string& path,
-      int64_t value,
-      std::chrono::microseconds duration);
   static void writeMemhightmpAt(
       const DirFd& dirfd,
       int64_t value,
       std::chrono::microseconds duration);
 
-  static int64_t getNrDyingDescendants(const std::string& path);
   static int64_t getNrDyingDescendantsAt(const DirFd& dirfd);
-
   static KillPreference readKillPreferenceAt(const DirFd& path);
-
-  static bool readMemoryOomGroup(const std::string& path);
   static bool readMemoryOomGroupAt(const DirFd& dirfd);
-
-  static IOStat readIostat(const std::string& path);
   static IOStat readIostatAt(const DirFd& dirfd);
 
   static std::unordered_map<std::string, int64_t> getVmstat(
@@ -241,8 +212,6 @@ class Fs {
   static std::unordered_map<std::string, int64_t> getMeminfo(
       const std::string& path = "/proc/meminfo");
 
-  static std::unordered_map<std::string, int64_t> getMemstat(
-      const std::string& path);
   static std::unordered_map<std::string, int64_t> getMemstatAt(
       const DirFd& dirfd);
 
@@ -262,7 +231,6 @@ class Fs {
       const std::string& val);
   static std::string getxattr(const std::string& path, const std::string& attr);
 
-  static bool hasxattr(const std::string& path, const std::string& attr);
   static bool hasxattrAt(const DirFd& dirfd, const std::string& attr);
 
   // Return if device is SSD or HDD given its id in <major>:<minor> format
