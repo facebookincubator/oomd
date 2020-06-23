@@ -77,9 +77,10 @@ std::optional<uint64_t> Fs::Fd::inode() const {
   return std::nullopt;
 }
 
-void Fs::Fd::close() const {
+void Fs::Fd::close() {
   if (isValid()) {
     ::close(fd_);
+    fd_ = -1;
   }
 }
 
@@ -202,7 +203,7 @@ std::vector<std::string> Fs::readFileByLine(Fd&& fd) {
   if (!fd.isValid()) {
     return {};
   }
-  auto fp = fdopen(fd.fd(), "r");
+  auto fp = fdopen(std::move(fd).fd(), "r");
   if (fp == nullptr) {
     return {};
   }

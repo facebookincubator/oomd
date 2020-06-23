@@ -99,9 +99,20 @@ class Fs {
       this->close();
     }
 
-    int fd() const {
+    int fd() const& {
       return fd_;
     }
+
+    /*
+     * Take ownership of fd. This object is no longer valid. Caller is
+     * responsible for closing the stolen fd.
+     */
+    int fd() && {
+      int stolen_fd = fd_;
+      fd_ = -1;
+      return stolen_fd;
+    }
+
     bool isValid() const {
       return fd_ >= 0;
     }
@@ -110,7 +121,7 @@ class Fs {
 
    protected:
     explicit Fd(int fd) : fd_(fd) {}
-    void close() const;
+    void close();
     int fd_{-1};
   };
 
