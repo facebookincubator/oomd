@@ -97,7 +97,7 @@ KillMemoryGrowth<Base>::get_ranking_fn(
   // for killing by growth. nth is the index of the idx of the cgroup w/
   // smallest usage in the top P(growing_size_percentile_)
   int64_t growth_kill_min_effective_usage_threshold = 0;
-  if (cgroups.size() < 1) {
+  if (cgroups.size() > 0) {
     const size_t nth =
         std::ceil(
             cgroups.size() *

@@ -2300,6 +2300,81 @@ TEST_F(KillMemoryGrowthTest, KillsBigCgroupGrowth) {
   EXPECT_THAT(plugin->killed, Contains(456));
 }
 
+TEST_F(KillMemoryGrowthTest, DoesntGrowthKillBelowUsageThreshold) {
+  const auto& target_with_args = [&](Engine::PluginArgs&& extra_args) {
+    Engine::PluginArgs args;
+    const PluginConstructionContext compile_context(
+        "oomd/fixtures/plugins/kill_by_memory_size_or_growth");
+    args["cgroup"] = "growth_big/*";
+    args["post_action_delay"] = "0";
+    args["size_threshold"] = "50";
+    args.merge(extra_args);
+
+    OomdContext ctx;
+    TestHelper::setCgroupData(
+        ctx,
+        CgroupPath(compile_context.cgroupFs(), "growth_big/cgroup1"),
+        CgroupData{
+            .current_usage = 40,
+            .average_usage = 5,
+        });
+    TestHelper::setCgroupData(
+        ctx,
+        CgroupPath(compile_context.cgroupFs(), "growth_big/cgroup2"),
+        CgroupData{
+            .current_usage = 50,
+            .average_usage = 25,
+        });
+    TestHelper::setCgroupData(
+        ctx,
+        CgroupPath(compile_context.cgroupFs(), "growth_big/cgroup3"),
+        CgroupData{
+            .current_usage = 60,
+            .average_usage = 60,
+        });
+
+    auto plugin = std::make_shared<KillMemoryGrowth<BaseKillPluginMock>>();
+    EXPECT_NE(plugin, nullptr);
+    EXPECT_EQ(plugin->init(std::move(args), compile_context), 0);
+    EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
+    return plugin->killed;
+  };
+
+  // None are eligible for size kill at size_threshold=50, which translates to
+  // current_usage > (60+50+40)*0.5 = 75.
+
+  // At growing_size_percentile=50, cgroup2 and cgroup3 are qualified, and
+  // at min_growth_ratio=1.25 cgroup1 and cgroup2 are qualified, so only
+  // cgroup2 is eligible for growth kill.
+  EXPECT_EQ(
+      target_with_args(Engine::PluginArgs{{"growing_size_percentile", "50"},
+                                          {"min_growth_ratio", "1.25"}}),
+      std::unordered_set<int>({789})); // cgroup2
+
+  // At growing_size_percentile=20 all cgroups are eligible, and cgroup1 has
+  // the highest growth.
+  EXPECT_EQ(
+      target_with_args(Engine::PluginArgs{{"growing_size_percentile", "20"},
+                                          {"min_growth_ratio", "1.25"}}),
+      std::unordered_set<int>({123, 456})); // cgroup1
+
+  // At growing_size_percentile=67 only cgroup3 is qualified, but it does not
+  // meet the min_growth_ratio requirement. We skip the growth kill phase, and
+  // fall through to kill by size (no threshold), which picks cgroup3.
+  EXPECT_EQ(
+      target_with_args(Engine::PluginArgs{{"growing_size_percentile", "67"},
+                                          {"min_growth_ratio", "1.25"}}),
+      std::unordered_set<int>({111})); // cgroup3
+
+  // All cgroups pass growing_size_percentile=20, but none pass
+  // min_growth_ratio=10. We skip the growth kill phase, and fall through to
+  // kill by size (no threshold), which picks cgroup3.
+  EXPECT_EQ(
+      target_with_args(Engine::PluginArgs{{"growing_size_percentile", "20"},
+                                          {"min_growth_ratio", "10"}}),
+      std::unordered_set<int>({111})); // cgroup3
+}
+
 TEST_F(KillMemoryGrowthTest, KillsByPreferredGrowth) {
   // Preferred cgroups that wont be targeted until the growth kill phase are
   // killed before non-prefer cgroups targeted in the size w/ threshold phase.
