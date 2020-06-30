@@ -2316,14 +2316,14 @@ TEST_F(KillMemoryGrowthTest, DoesntGrowthKillBelowUsageThreshold) {
         CgroupPath(compile_context.cgroupFs(), "growth_big/cgroup1"),
         CgroupData{
             .current_usage = 40,
-            .average_usage = 5,
+            .average_usage = 7,
         });
     TestHelper::setCgroupData(
         ctx,
         CgroupPath(compile_context.cgroupFs(), "growth_big/cgroup2"),
         CgroupData{
             .current_usage = 50,
-            .average_usage = 25,
+            .average_usage = 30,
         });
     TestHelper::setCgroupData(
         ctx,

@@ -56,7 +56,7 @@ int KillMemoryGrowth<Base>::init(
   }
 
   if (args.find("min_growth_ratio") != args.end()) {
-    int val = std::stof(args.at("min_growth_ratio"));
+    float val = std::stof(args.at("min_growth_ratio"));
 
     if (val < 0) {
       OLOG << "Argument=min_growth_ratio must be non-negative";
@@ -111,7 +111,7 @@ KillMemoryGrowth<Base>::get_ranking_fn(
         [](const auto& a, const auto& b) {
           // order by effective_usage desc
           return a.get().effective_usage().value_or(0) >
-              a.get().effective_usage().value_or(0);
+              b.get().effective_usage().value_or(0);
         });
     growth_kill_min_effective_usage_threshold =
         cgroups_mutable_copy[nth].get().effective_usage().value_or(0);
@@ -191,6 +191,7 @@ void KillMemoryGrowth<Base>::ologKillTarget(
       oss << "Picked \"" << target.cgroup().relativePath() << "\" ("
           << target.current_usage().value_or(0) / 1024 / 1024
           << "MB) based on growth rate " << target.memory_growth().value_or(0)
+          << " (min growth rate " << min_growth_ratio_ << ")"
           << " among P" << growing_size_percentile_ << " largest,"
           << " with kill preference "
           << target.kill_preference().value_or(KillPreference::NORMAL);
