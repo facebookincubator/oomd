@@ -38,11 +38,10 @@ std::optional<OomdContext::ConstCgroupContextRef> OomdContext::addToCacheAndGet(
   if (auto pos = cgroups_.find(cgroup); pos != cgroups_.end()) {
     return pos->second;
   }
-  auto ctx = CgroupContext(*this, cgroup);
-  if (!ctx.fd().isValid()) {
-    return std::nullopt;
+  if (auto ctx = CgroupContext::make(*this, cgroup)) {
+    return cgroups_.emplace(cgroup, std::move(*ctx)).first->second;
   }
-  return cgroups_.emplace(cgroup, std::move(ctx)).first->second;
+  return std::nullopt;
 }
 
 std::vector<OomdContext::ConstCgroupContextRef> OomdContext::addToCacheAndGet(

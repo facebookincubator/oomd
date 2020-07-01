@@ -22,6 +22,7 @@
 #include "oomd/Log.h"
 #include "oomd/OomdContext.h"
 #include "oomd/util/Fixture.h"
+#include "oomd/util/TestHelper.h"
 
 using namespace Oomd;
 using namespace testing;
@@ -195,8 +196,8 @@ TEST_F(CgroupContextTest, DistinguishRecreate) {
           {F::makeFile("cgroup.controllers"),
            F::makeFile("memory.current", "123\n")})}));
 
-  CgroupContext cgroup_ctx(ctx_, CgroupPath(tempDir_, "system.slice"));
-  ASSERT_TRUE(cgroup_ctx.fd().isValid());
+  auto cgroup_ctx = ASSERT_EXISTS(
+      CgroupContext::make(ctx_, CgroupPath(tempDir_, "system.slice")));
   ASSERT_EQ(cgroup_ctx.current_usage(), 123);
 
   // Remove cgroup and recreate one with the exact same name
@@ -265,8 +266,8 @@ TEST_F(CgroupContextTest, DataLifeCycle) {
            F::makeDir("service2.service", {}),
            F::makeDir("service3.service", {})})}));
 
-  CgroupContext cgroup_ctx(ctx_, CgroupPath(tempDir_, "system.slice"));
-  ASSERT_TRUE(cgroup_ctx.fd().isValid());
+  auto cgroup_ctx = ASSERT_EXISTS(
+      CgroupContext::make(ctx_, CgroupPath(tempDir_, "system.slice")));
 
   std::decay_t<decltype(cgroup_ctx.children())> children;
   std::decay_t<decltype(cgroup_ctx.mem_pressure())> mem_pressure;

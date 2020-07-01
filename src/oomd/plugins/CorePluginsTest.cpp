@@ -3034,8 +3034,8 @@ class SenpaiTest : public CorePluginsTest {
       EXPECT_EQ(plugin_->run(ctx), Engine::PluginRet::CONTINUE);
       ctx.refresh();
     }
-    auto senpai_test_slice = Fs::DirFd::open(tempdir_ + "/senpai_test.slice");
-    EXPECT_TRUE(senpai_test_slice.isValid());
+    auto senpai_test_slice =
+        ASSERT_EXISTS(Fs::DirFd::open(tempdir_ + "/senpai_test.slice"));
     EXPECT_EQ(Fs::readMemhightmpAt(senpai_test_slice), limit);
   }
 
@@ -3045,8 +3045,8 @@ class SenpaiTest : public CorePluginsTest {
     const PluginConstructionContext compile_context(tempdir_);
     ASSERT_EQ(plugin_->init(std::move(args_), compile_context), 0);
 
-    auto senpai_test_slice = Fs::DirFd::open(tempdir_ + "/senpai_test.slice");
-    EXPECT_TRUE(senpai_test_slice.isValid());
+    auto senpai_test_slice =
+        ASSERT_EXISTS(Fs::DirFd::open(tempdir_ + "/senpai_test.slice"));
 
     OomdContext ctx;
     EXPECT_EQ(plugin_->run(ctx), Engine::PluginRet::CONTINUE);
@@ -3078,8 +3078,8 @@ TEST_F(SenpaiTest, FallbackMemHigh) {
   OomdContext ctx;
   EXPECT_EQ(plugin_->run(ctx), Engine::PluginRet::CONTINUE);
   // Same as memory.current
-  auto senpai_test_slice = Fs::DirFd::open(tempdir_ + "/senpai_test.slice");
-  EXPECT_TRUE(senpai_test_slice.isValid());
+  auto senpai_test_slice =
+      ASSERT_EXISTS(Fs::DirFd::open(tempdir_ + "/senpai_test.slice"));
   EXPECT_EQ(Fs::readMemhighAt(senpai_test_slice), 40960000);
 }
 
@@ -3092,8 +3092,8 @@ TEST_F(SenpaiTest, PreferMemHighTmp) {
   OomdContext ctx;
   EXPECT_EQ(plugin_->run(ctx), Engine::PluginRet::CONTINUE);
   // Same as memory.current
-  auto senpai_test_slice = Fs::DirFd::open(tempdir_ + "/senpai_test.slice");
-  EXPECT_TRUE(senpai_test_slice.isValid());
+  auto senpai_test_slice =
+      ASSERT_EXISTS(Fs::DirFd::open(tempdir_ + "/senpai_test.slice"));
   EXPECT_EQ(Fs::readMemhightmpAt(senpai_test_slice), 40960000);
   EXPECT_EQ(
       Fs::readMemhighAt(senpai_test_slice),

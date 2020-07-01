@@ -81,10 +81,10 @@ class Fs {
    */
   class Fd {
    public:
-    static Fd
+    static std::optional<Fd>
     openat(const DirFd& dirfd, const std::string& path, bool read_only = true);
 
-    Fd() = default;
+    Fd() = delete;
     Fd(const Fd& other) = delete;
     Fd(Fd&& other) noexcept {
       *this = std::move(other);
@@ -113,9 +113,6 @@ class Fs {
       return stolen_fd;
     }
 
-    bool isValid() const {
-      return fd_ >= 0;
-    }
     // Return inode of the fd, or nullopt if anything fails
     std::optional<uint64_t> inode() const;
 
@@ -130,7 +127,7 @@ class Fs {
    */
   class DirFd : public Fd {
    public:
-    static DirFd open(const std::string& path);
+    static std::optional<DirFd> open(const std::string& path);
 
    protected:
     explicit DirFd(int fd) : Fd(fd) {}
@@ -172,6 +169,17 @@ class Fs {
    * seek offsets on Fd.
    */
   static std::vector<std::string> readFileByLine(Fd&& fd);
+  /*
+   * Same as above, convenience method accepting the output of Fd::openat
+   */
+  inline static std::vector<std::string> readFileByLine(
+      std::optional<Fd>&& fd) {
+    if (fd) {
+      return readFileByLine(std::move(*fd));
+    } else {
+      throw bad_control_file("file does not exist");
+    }
+  }
 
   static std::vector<std::string> readControllersAt(const DirFd& dirfd);
   static std::vector<int> getPidsAt(const DirFd& dirfd);
@@ -253,7 +261,9 @@ class Fs {
   static std::unordered_map<std::string, int64_t> getMemstatLikeFromLines(
       const std::vector<std::string>& lines);
   static IOStat readIostatFromLines(const std::vector<std::string>& lines);
-  static void writeControlFileAt(Fd&& fd, const std::string& content);
+  static void writeControlFileAt(
+      std::optional<Fd>&& fd,
+      const std::string& content);
 };
 
 } // namespace Oomd

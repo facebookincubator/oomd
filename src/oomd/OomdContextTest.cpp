@@ -53,6 +53,9 @@ bool operator==(
 TEST_F(OomdContextTest, MoveConstructor) {
   CgroupPath path(tempdir_, "asdf");
   EXPECT_FALSE(ctx.addToCacheAndGet(path));
+
+  F::materialize(F::makeDir(tempdir_, {F::makeDir("asdf")}));
+
   OomdContext other;
   TestHelper::setCgroupData(
       other,
@@ -61,7 +64,6 @@ TEST_F(OomdContextTest, MoveConstructor) {
           .current_usage = 1, .memory_low = 2, .average_usage = 3});
 
   ctx = std::move(other);
-  F::materialize(F::makeDir(tempdir_, {F::makeDir("asdf")}));
 
   ASSERT_THAT(ctx.cgroups(), ElementsAre(path));
   auto moved_cgroup_ctx = ctx.addToCacheAndGet(path);

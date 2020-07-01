@@ -20,6 +20,13 @@
 #include "oomd/CgroupContext.h"
 #include "oomd/OomdContext.h"
 
+#define ASSERT_EXISTS(opt_expr) \
+  ({                            \
+    auto x = (opt_expr);        \
+    ASSERT_TRUE(x.has_value()); \
+    std::move(*x);              \
+  })
+
 namespace Oomd {
 
 /*
@@ -50,7 +57,11 @@ class TestHelper {
       OomdContext& ctx,
       const CgroupPath& cgroup,
       const CgroupData& data) {
-    *ctx.cgroups_.try_emplace(cgroup, ctx, cgroup).first->second.data_ = data;
+    auto cgroup_ctx = CgroupContext::make(ctx, cgroup);
+    if (cgroup_ctx.has_value()) {
+      *ctx.cgroups_.emplace(cgroup, std::move(*cgroup_ctx))
+           .first->second.data_ = data;
+    }
   }
 };
 

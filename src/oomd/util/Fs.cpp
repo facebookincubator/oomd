@@ -63,10 +63,14 @@ PsiFormat getPsiFormat(const std::vector<std::string>& lines) {
 
 namespace Oomd {
 
-Fs::Fd
+std::optional<Fs::Fd>
 Fs::Fd::openat(const DirFd& dirfd, const std::string& path, bool read_only) {
   int flags = read_only ? O_RDONLY : O_WRONLY;
-  return Fd(::openat(dirfd.fd(), path.c_str(), flags));
+  const auto fd = ::openat(dirfd.fd(), path.c_str(), flags);
+  if (fd == -1) {
+    return std::nullopt;
+  }
+  return std::make_optional(Fd(fd));
 }
 
 std::optional<uint64_t> Fs::Fd::inode() const {
@@ -78,14 +82,18 @@ std::optional<uint64_t> Fs::Fd::inode() const {
 }
 
 void Fs::Fd::close() {
-  if (isValid()) {
+  if (fd_ != -1) {
     ::close(fd_);
     fd_ = -1;
   }
 }
 
-Fs::DirFd Fs::DirFd::open(const std::string& path) {
-  return DirFd(::open(path.c_str(), O_RDONLY | O_DIRECTORY));
+std::optional<Fs::DirFd> Fs::DirFd::open(const std::string& path) {
+  int fd = ::open(path.c_str(), O_RDONLY | O_DIRECTORY);
+  if (fd == -1) {
+    return std::nullopt;
+  }
+  return std::make_optional(DirFd(fd));
 }
 
 bool Fs::isCgroupValid(const DirFd& dirfd) {
@@ -200,9 +208,6 @@ std::vector<std::string> Fs::readFileByLine(const std::string& path) {
 }
 
 std::vector<std::string> Fs::readFileByLine(Fd&& fd) {
-  if (!fd.isValid()) {
-    return {};
-  }
   auto fp = fdopen(std::move(fd).fd(), "r");
   if (fp == nullptr) {
     return {};
@@ -521,14 +526,16 @@ IOStat Fs::readIostatAt(const DirFd& dirfd) {
   return readIostatFromLines(lines);
 }
 
-void Fs::writeControlFileAt(Fd&& fd, const std::string& content) {
+void Fs::writeControlFileAt(
+    std::optional<Fd>&& fd,
+    const std::string& content) {
   char buf[1024];
   buf[0] = '\0';
-  if (!fd.isValid()) {
+  if (!fd.has_value()) {
     throw bad_control_file(
         std::string{"open failed: "} + ::strerror_r(errno, buf, sizeof(buf)));
   }
-  auto ret = Util::writeFull(fd.fd(), content.c_str(), content.size());
+  auto ret = Util::writeFull(fd->fd(), content.c_str(), content.size());
   if (ret < 0) {
     throw bad_control_file(
         std::string{"write failed: "} + ::strerror_r(errno, buf, sizeof(buf)));
