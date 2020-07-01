@@ -3011,7 +3011,10 @@ class SenpaiTest : public CorePluginsTest {
              F::makeFile("memory.high.tmp", "max 0\n"),
              F::makeFile("memory.max", "max\n"),
              F::makeFile("memory.current", "40960000\n"),
-             F::makeFile("memory.stat", "anon 0\n"),
+             F::makeFile(
+                 "memory.stat",
+                 "active_file 20480000\n"
+                 "inactive_file 20480000\n"),
              F::makeFile(
                  "memory.pressure",
                  "some avg10=0.00 avg60=0.00 avg300=0.00 total=0\n"
@@ -3100,15 +3103,19 @@ TEST_F(SenpaiTest, PreferMemHighTmp) {
       std::numeric_limits<int64_t>::max());
 }
 
-// Senpai should not set memory.high.tmp below limit_min_bytes + anon usage
+// Senpai should not set memory.high.tmp below memory.current - file_cache +
+// limit_min_bytes
 TEST_F(SenpaiTest, LimitMinBytes) {
   F::materialize(F::makeDir(
       tempdir_,
       {F::makeDir(
           "senpai_test.slice",
-          {F::makeFile("memory.stat", "anon 10240000\n")})}));
+          {F::makeFile(
+              "memory.stat",
+              "active_file 10240000\n"
+              "inactive_file 10240000")})}));
   args_["limit_min_bytes"] = "20480000";
-  checkLowerLimit(30720000);
+  checkLowerLimit(40960000);
 }
 
 // Senpai should not set memory.high.tmp below memory.min
