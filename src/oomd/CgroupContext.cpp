@@ -21,10 +21,22 @@
 
 namespace Oomd {
 
-CgroupContext::CgroupContext(OomdContext& ctx, const CgroupPath& cgroup)
+std::optional<CgroupContext> CgroupContext::make(
+    OomdContext& ctx,
+    const CgroupPath& cgroup) {
+  if (auto fd = Fs::DirFd::open(cgroup.absolutePath())) {
+    return CgroupContext(ctx, cgroup, std::move(*fd));
+  }
+  return std::nullopt;
+}
+
+CgroupContext::CgroupContext(
+    OomdContext& ctx,
+    const CgroupPath& path,
+    Fs::DirFd&& dirFd)
     : ctx_(ctx),
-      cgroup_(cgroup),
-      cgroup_dir_(Fs::DirFd::open(cgroup.absolutePath())),
+      cgroup_(path),
+      cgroup_dir_(std::move(dirFd)),
       data_(std::make_unique<CgroupData>()) {}
 
 bool CgroupContext::refresh() {

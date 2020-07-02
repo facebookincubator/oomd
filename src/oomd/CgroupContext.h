@@ -53,7 +53,9 @@ class CgroupContext {
    * As OomdContext is guaranteed to last longer than CgroupContext, use
    * raw reference instead of smart pointer.
    */
-  CgroupContext(OomdContext& ctx, const CgroupPath& cgroup);
+  static std::optional<CgroupContext> make(
+      OomdContext& ctx,
+      const CgroupPath& cgroup);
 
   /*
    * Check if cgroup still exists and archive current data for temporal
@@ -129,6 +131,11 @@ class CgroupContext {
   std::optional<double> memory_growth(Error* err = nullptr) const;
 
  private:
+  explicit CgroupContext(
+      OomdContext& ctx,
+      const CgroupPath& path,
+      Fs::DirFd&& dirFd);
+
   // Test only
   friend class TestHelper;
 
