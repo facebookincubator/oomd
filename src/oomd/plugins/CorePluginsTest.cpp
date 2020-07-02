@@ -1556,6 +1556,15 @@ TEST_F(KillPgScanTest, TemporalCounter) {
   TestHelper::setCgroupData(
       ctx, cgroup, CgroupData{.pg_scan_cumulative = 10000});
   plugin->prerun(ctx);
+  EXPECT_FALSE(
+      TestHelper::getDataRef(*ctx.addToCacheAndGet(cgroup)).pg_scan_rate);
+
+  TestHelper::setCgroupData(
+      ctx,
+      cgroup,
+      CgroupData{.pg_scan_cumulative = 10000},
+      TestHelper::CgroupArchivedData{.pg_scan_cumulative = 5000});
+  plugin->prerun(ctx);
   EXPECT_TRUE(
       TestHelper::getDataRef(*ctx.addToCacheAndGet(cgroup)).pg_scan_rate);
 }

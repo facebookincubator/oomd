@@ -272,6 +272,8 @@ std::optional<int64_t> CgroupContext::getPgScanCumulative(
   if (const auto& memstat = memory_stat(err)) {
     if (auto pos = memstat->find(kPgScan); pos != memstat->end()) {
       return std::make_optional(pos->second);
+    } else {
+      throw std::runtime_error("Bad memory.stat format: missing pgscan entry");
     }
   }
   return std::nullopt;
@@ -296,12 +298,10 @@ std::optional<double> CgroupContext::getIoCostRate(Error* err) const {
 }
 
 std::optional<int64_t> CgroupContext::getPgScanRate(Error* err) const {
-  if (!pg_scan_cumulative(err)) {
+  if (!pg_scan_cumulative(err) || !archive_.pg_scan_cumulative) {
     return std::nullopt;
   }
-  return !archive_.pg_scan_cumulative
-      ? 0.0
-      : *pg_scan_cumulative() - *archive_.pg_scan_cumulative;
+  return *pg_scan_cumulative() - *archive_.pg_scan_cumulative;
 }
 
 } // namespace Oomd

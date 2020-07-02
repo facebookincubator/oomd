@@ -128,6 +128,8 @@ void OomdContext::dump(
     auto swap_usage = cgroup_ctx.swap_usage().value_or(0);
     auto io_cost_cumulative = cgroup_ctx.io_cost_cumulative().value_or(0);
     auto io_cost_rate = cgroup_ctx.io_cost_rate().value_or(0);
+    auto pg_scan_cumulative = cgroup_ctx.pg_scan_cumulative().value_or(0);
+    auto pg_scan_rate = cgroup_ctx.pg_scan_rate().value_or(0);
     auto kill_preference =
         cgroup_ctx.kill_preference().value_or(KillPreference::NORMAL);
 
@@ -165,6 +167,8 @@ void OomdContext::dump(
          << " swap_usage=" << (swap_usage >> 20) << "MB";
     OLOG << "  io_cost_cumulative=" << io_cost_cumulative
          << " io_cost_rate=" << io_cost_rate;
+    OLOG << "  pg_scan_cumulative=" << pg_scan_cumulative
+         << " pg_scan_rate=" << pg_scan_rate;
     OLOG << "  kill_preference=" << kill_preference;
   }
 }

@@ -325,6 +325,7 @@ TEST_F(CgroupContextTest, DataLifeCycle) {
     ASSERT_TRUE(nr_dying_descendants);
     ASSERT_TRUE(memory_protection);
     ASSERT_TRUE(io_cost_cumulative);
+    ASSERT_TRUE(pg_scan_cumulative);
     ASSERT_TRUE(average_usage);
     ASSERT_TRUE(io_cost_rate);
   };
@@ -372,7 +373,7 @@ TEST_F(CgroupContextTest, DataLifeCycle) {
   EXPECT_EQ(io_cost_cumulative, 45585556178);
   EXPECT_EQ(io_cost_rate, 0);
   EXPECT_EQ(pg_scan_cumulative, 4567890123);
-  EXPECT_EQ(pg_scan_rate, 0);
+  EXPECT_EQ(pg_scan_rate, std::nullopt);
 
   // Update most of control files (by adding 1, 0.1 or 0.01)
   F::materialize(F::makeDir(

@@ -36,6 +36,7 @@ namespace Oomd {
 class TestHelper {
  public:
   using CgroupData = CgroupContext::CgroupData;
+  using CgroupArchivedData = CgroupContext::CgroupArchivedData;
 
   static CgroupData& getDataRef(const CgroupContext& cgroup_ctx) {
     return *cgroup_ctx.data_;
@@ -56,11 +57,16 @@ class TestHelper {
   static void setCgroupData(
       OomdContext& ctx,
       const CgroupPath& cgroup,
-      const CgroupData& data) {
+      const CgroupData& data,
+      const std::optional<CgroupArchivedData>& archive = std::nullopt) {
     auto cgroup_ctx = CgroupContext::make(ctx, cgroup);
     if (cgroup_ctx.has_value()) {
-      *ctx.cgroups_.emplace(cgroup, std::move(*cgroup_ctx))
-           .first->second.data_ = data;
+      auto& cached_ctx =
+          ctx.cgroups_.emplace(cgroup, std::move(*cgroup_ctx)).first->second;
+      *cached_ctx.data_ = data;
+      if (archive) {
+        cached_ctx.archive_ = *archive;
+      }
     }
   }
 };

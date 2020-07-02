@@ -40,6 +40,28 @@ std::vector<OomdContext::ConstCgroupContextRef>
 KillPgScan<Base>::rankForKilling(
     OomdContext& ctx,
     const std::vector<OomdContext::ConstCgroupContextRef>& cgroups) {
+  int64_t num_missing_pg_scan = 0, num_invalid = 0;
+  for (const CgroupContext& cgroup : cgroups) {
+    if (!cgroup.pg_scan_rate().has_value()) {
+      num_missing_pg_scan += 1;
+      // assume all invalid cgroups will also fail to fetch pg_scan_rate
+      if (!Fs::isCgroupValid(cgroup.fd())) {
+        num_invalid += 1;
+      }
+    }
+    if (num_missing_pg_scan > 0) {
+      if (num_invalid == 0) {
+        OLOG << "couldn't read pgscan data in " << num_missing_pg_scan << "/"
+             << cgroups.size() << " cgroups";
+      } else {
+        OLOG << "couldn't read pgscan data in " << num_missing_pg_scan << "/"
+             << cgroups.size() << " cgroups where "
+             << (cgroups.size() - num_invalid) << "/" << cgroups.size()
+             << " are still valid";
+      }
+    }
+  }
+
   return OomdContext::sortDescWithKillPrefs(
       cgroups, [](const CgroupContext& cgroup_ctx) {
         return cgroup_ctx.pg_scan_rate().value_or(0);
