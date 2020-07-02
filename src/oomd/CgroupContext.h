@@ -140,9 +140,9 @@ class CgroupContext {
   friend class TestHelper;
 
   std::vector<std::string> getChildren() const;
-  ResourcePressure getMemPressure() const;
-  ResourcePressure getIoPressure() const;
-  int64_t getMemcurrent() const;
+  std::optional<ResourcePressure> getMemPressure() const;
+  std::optional<ResourcePressure> getIoPressure() const;
+  std::optional<int64_t> getMemcurrent() const;
   std::optional<int64_t> getMemoryProtection(Error* err) const;
   std::optional<double> getIoCostCumulative(Error* err) const;
   std::optional<int64_t> getPgScanCumulative(Error* err) const;

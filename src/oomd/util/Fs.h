@@ -162,55 +162,54 @@ class Fs {
   static void removePrefix(std::string& str, const std::string& prefix);
 
   /* Reads a file and returns a newline separated vector of strings */
-  static std::vector<std::string> readFileByLine(const std::string& path);
+  static std::optional<std::vector<std::string>> readFileByLine(
+      const std::string& path);
   /*
    * Same as variant taking string as argument except rvalue Fd is used, which
    * will be closed right after the call as it is read as a whole and we don't
    * seek offsets on Fd.
    */
-  static std::vector<std::string> readFileByLine(Fd&& fd);
+  static std::optional<std::vector<std::string>> readFileByLine(Fd&& fd);
   /*
    * Same as above, convenience method accepting the output of Fd::openat
    */
-  inline static std::vector<std::string> readFileByLine(
+  inline static std::optional<std::vector<std::string>> readFileByLine(
       std::optional<Fd>&& fd) {
     if (fd) {
       return readFileByLine(std::move(*fd));
-    } else {
-      throw bad_control_file("file does not exist");
     }
+    return std::nullopt;
   }
 
-  static std::vector<std::string> readControllersAt(const DirFd& dirfd);
-  static std::vector<int> getPidsAt(const DirFd& dirfd);
-
-  static bool readIsPopulatedFromLines(const std::vector<std::string>& lines);
-  static bool readIsPopulatedAt(const DirFd& dirfd);
+  static std::optional<std::vector<std::string>> readControllersAt(
+      const DirFd& dirfd);
+  static std::optional<std::vector<int>> getPidsAt(const DirFd& dirfd);
+  static std::optional<bool> readIsPopulatedAt(const DirFd& dirfd);
 
   static std::string pressureTypeToString(PressureType type);
   /* Helpers to read PSI files */
   static ResourcePressure readRespressureFromLines(
       const std::vector<std::string>& lines,
       PressureType type = PressureType::FULL);
-  static int64_t readRootMemcurrent();
-  static int64_t readMemcurrentAt(const DirFd& dirfd);
-  static ResourcePressure readRootMempressure(
+  static std::optional<int64_t> readRootMemcurrent();
+  static std::optional<int64_t> readMemcurrentAt(const DirFd& dirfd);
+  static std::optional<ResourcePressure> readRootMempressure(
       PressureType type = PressureType::FULL);
-  static ResourcePressure readMempressureAt(
+  static std::optional<ResourcePressure> readMempressureAt(
       const DirFd& dirfd,
       PressureType type = PressureType::FULL);
   static int64_t readMinMaxLowHighFromLines(
       const std::vector<std::string>& lines);
   static int64_t readMemhightmpFromLines(const std::vector<std::string>& lines);
-  static int64_t readMemlowAt(const DirFd& dirfd);
-  static int64_t readMemhighAt(const DirFd& dirfd);
-  static int64_t readMemmaxAt(const DirFd& dirfd);
-  static int64_t readMemhightmpAt(const DirFd& dirfd);
-  static int64_t readMemminAt(const DirFd& dirfd);
-  static int64_t readSwapCurrentAt(const DirFd& dirfd);
-  static ResourcePressure readRootIopressure(
+  static std::optional<int64_t> readMemlowAt(const DirFd& dirfd);
+  static std::optional<int64_t> readMemhighAt(const DirFd& dirfd);
+  static std::optional<int64_t> readMemmaxAt(const DirFd& dirfd);
+  static std::optional<int64_t> readMemhightmpAt(const DirFd& dirfd);
+  static std::optional<int64_t> readMemminAt(const DirFd& dirfd);
+  static std::optional<int64_t> readSwapCurrentAt(const DirFd& dirfd);
+  static std::optional<ResourcePressure> readRootIopressure(
       PressureType type = PressureType::FULL);
-  static ResourcePressure readIopressureAt(
+  static std::optional<ResourcePressure> readIopressureAt(
       const DirFd& dirfd,
       PressureType type = PressureType::FULL);
 
@@ -220,10 +219,10 @@ class Fs {
       int64_t value,
       std::chrono::microseconds duration);
 
-  static int64_t getNrDyingDescendantsAt(const DirFd& dirfd);
+  static std::optional<int64_t> getNrDyingDescendantsAt(const DirFd& dirfd);
   static KillPreference readKillPreferenceAt(const DirFd& path);
-  static bool readMemoryOomGroupAt(const DirFd& dirfd);
-  static IOStat readIostatAt(const DirFd& dirfd);
+  static std::optional<bool> readMemoryOomGroupAt(const DirFd& dirfd);
+  static std::optional<IOStat> readIostatAt(const DirFd& dirfd);
 
   static std::unordered_map<std::string, int64_t> getVmstat(
       const std::string& path = "/proc/vmstat");
@@ -231,7 +230,7 @@ class Fs {
   static std::unordered_map<std::string, int64_t> getMeminfo(
       const std::string& path = "/proc/meminfo");
 
-  static std::unordered_map<std::string, int64_t> getMemstatAt(
+  static std::optional<std::unordered_map<std::string, int64_t>> getMemstatAt(
       const DirFd& dirfd);
 
   // Return root part of cgroup2 from /proc/mounts/
@@ -260,7 +259,6 @@ class Fs {
  private:
   static std::unordered_map<std::string, int64_t> getMemstatLikeFromLines(
       const std::vector<std::string>& lines);
-  static IOStat readIostatFromLines(const std::vector<std::string>& lines);
   static void writeControlFileAt(
       std::optional<Fd>&& fd,
       const std::string& content);

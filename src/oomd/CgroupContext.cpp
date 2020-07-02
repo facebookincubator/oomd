@@ -62,6 +62,9 @@ bool CgroupContext::refresh() {
     if (!data_->field) {                           \
       try {                                        \
         data_->field = (expr);                     \
+        if (!data_->field && err) {                \
+          *err = Error::INVALID_CGROUP;            \
+        }                                          \
       } catch (const Fs::bad_control_file&) {      \
         if (err) {                                 \
           *err = Error::INVALID_CGROUP;            \
@@ -132,17 +135,17 @@ std::vector<std::string> CgroupContext::getChildren() const {
   return Fs::readDir(cgroup_.absolutePath(), Fs::DE_DIR).dirs;
 }
 
-ResourcePressure CgroupContext::getMemPressure() const {
+std::optional<ResourcePressure> CgroupContext::getMemPressure() const {
   return cgroup_.isRoot() ? Fs::readRootMempressure()
                           : Fs::readMempressureAt(cgroup_dir_);
 }
 
-ResourcePressure CgroupContext::getIoPressure() const {
+std::optional<ResourcePressure> CgroupContext::getIoPressure() const {
   return cgroup_.isRoot() ? Fs::readRootIopressure()
                           : Fs::readIopressureAt(cgroup_dir_);
 }
 
-int64_t CgroupContext::getMemcurrent() const {
+std::optional<int64_t> CgroupContext::getMemcurrent() const {
   return cgroup_.isRoot() ? Fs::readRootMemcurrent()
                           : Fs::readMemcurrentAt(cgroup_dir_);
 }

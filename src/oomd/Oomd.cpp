@@ -72,8 +72,8 @@ Oomd::Oomd(
 void Oomd::updateContext() {
   // Update information about swapfree
   SystemContext system_ctx;
-  auto swaps = Fs::readFileByLine("/proc/swaps");
-
+  auto swaps =
+      Fs::readFileByLine("/proc/swaps").value_or(std::vector<std::string>{});
   // For each swap, tally up used and total
   for (size_t i = 1; i < swaps.size(); ++i) {
     auto parts = Util::split(swaps[i], '\t');

@@ -283,8 +283,8 @@ int BaseKillPlugin::tryToKillPids(const std::vector<int>& pids) {
     auto comm_path = std::string("/proc/") + std::to_string(pid) + "/comm";
     auto comm = Fs::readFileByLine(comm_path);
 
-    if (comm.size()) {
-      buf << " " << pid << "(" << comm[0] << ")";
+    if (comm && comm.value().size()) {
+      buf << " " << pid << "(" << comm.value()[0] << ")";
     } else {
       buf << " " << pid;
     }

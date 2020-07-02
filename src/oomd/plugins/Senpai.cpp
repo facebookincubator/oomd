@@ -150,14 +150,13 @@ std::optional<std::chrono::microseconds> getPressureTotalSome(
   try {
     // Senpai reads pressure.some to get early notice that a workload
     // may be under resource pressure
-    const auto pressure = Oomd::Fs::readMempressureAt(
-        cgroup_ctx.fd(), Oomd::Fs::PressureType::SOME);
-
-    if (!pressure.total) {
+    if (const auto pressure = Oomd::Fs::readMempressureAt(
+            cgroup_ctx.fd(), Oomd::Fs::PressureType::SOME)) {
+      if (const auto total = pressure.value().total) {
+        return total.value();
+      }
       throw std::runtime_error("Senpai enabled but no total pressure info");
     }
-
-    return pressure.total.value();
   } catch (const Fs::bad_control_file&) {
   }
   return std::nullopt;

@@ -106,13 +106,13 @@ static void printUsage() {
 static bool system_reqs_met() {
   // 4.20 mempressure file
   auto psi = Oomd::Fs::readFileByLine("/proc/pressure/memory");
-  if (psi.size()) {
+  if (psi && psi.value().size()) {
     return true;
   }
 
   // Experimental mempressure file
   psi = Oomd::Fs::readFileByLine("/proc/mempressure");
-  if (psi.size()) {
+  if (psi && psi.value().size()) {
     return true;
   }
 

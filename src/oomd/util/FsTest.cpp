@@ -135,7 +135,7 @@ TEST_F(FsTest, Glob) {
 
 TEST_F(FsTest, ReadFile) {
   auto file = fixture_.fsDataDir() + "/dir1/stuff";
-  auto lines = Fs::readFileByLine(file);
+  auto lines = ASSERT_EXISTS(Fs::readFileByLine(file));
 
   ASSERT_EQ(lines.size(), 4);
   EXPECT_EQ(lines[0], "hello world");
@@ -148,25 +148,23 @@ TEST_F(FsTest, ReadFile) {
 }
 
 TEST_F(FsTest, ReadFileBad) {
-  auto path = fixture_.cgroupDataDir();
-  auto dir = ASSERT_EXISTS(Fs::DirFd::open(path));
-  EXPECT_EQ(Fs::readIsPopulatedAt(dir), true);
+  auto file = fixture_.fsDataDir() + "/ksldjfksdlfdsjf";
+  EXPECT_FALSE(Fs::readFileByLine(file));
 
-  auto path2 = fixture_.cgroupDataDir() + "/service3.service";
-  auto dir2 = ASSERT_EXISTS(Fs::DirFd::open(path2));
-  EXPECT_EQ(Fs::readIsPopulatedAt(dir2), false);
+  auto dir = ASSERT_EXISTS(Fs::DirFd::open(fixture_.fsDataDir()));
+  EXPECT_FALSE(Fs::readFileByLine(Fs::Fd::openat(dir, "ksldjfksdlfdsjf")));
 }
 
 TEST_F(FsTest, GetPids) {
   auto path = fixture_.cgroupDataDir();
   auto dir = ASSERT_EXISTS(Fs::DirFd::open(path));
-  auto pids = Fs::getPidsAt(dir);
+  auto pids = ASSERT_EXISTS(Fs::getPidsAt(dir));
   EXPECT_EQ(pids.size(), 1);
   EXPECT_THAT(pids, Contains(123));
 
   auto path2 = path + "/service1.service";
   auto dir2 = ASSERT_EXISTS(Fs::DirFd::open(path2));
-  auto pids2 = Fs::getPidsAt(dir2);
+  auto pids2 = ASSERT_EXISTS(Fs::getPidsAt(dir2));
   EXPECT_EQ(pids2.size(), 2);
   EXPECT_THAT(pids2, Contains(456));
   EXPECT_THAT(pids2, Contains(789));
@@ -184,55 +182,55 @@ TEST_F(FsTest, ReadIsPopulated) {
 TEST_F(FsTest, GetNrDying) {
   auto path = fixture_.cgroupDataDir();
   auto dir = ASSERT_EXISTS(Fs::DirFd::open(path));
-  EXPECT_EQ(Fs::getNrDyingDescendantsAt(dir), 27);
+  EXPECT_EQ(ASSERT_EXISTS(Fs::getNrDyingDescendantsAt(dir)), 27);
 }
 
 TEST_F(FsTest, ReadMemoryCurrent) {
   auto path = fixture_.cgroupDataDir();
   auto dir = ASSERT_EXISTS(Fs::DirFd::open(path));
-  EXPECT_EQ(Fs::readMemcurrentAt(dir), 987654321);
+  EXPECT_EQ(ASSERT_EXISTS(Fs::readMemcurrentAt(dir)), 987654321);
 }
 
 TEST_F(FsTest, ReadMemoryLow) {
   auto path = fixture_.cgroupDataDir();
   auto dir = ASSERT_EXISTS(Fs::DirFd::open(path));
-  EXPECT_EQ(Fs::readMemlowAt(dir), 333333);
+  EXPECT_EQ(ASSERT_EXISTS(Fs::readMemlowAt(dir)), 333333);
 }
 
 TEST_F(FsTest, ReadMemoryMin) {
   auto path = fixture_.cgroupDataDir();
   auto dir = ASSERT_EXISTS(Fs::DirFd::open(path));
-  EXPECT_EQ(Fs::readMemminAt(dir), 666);
+  EXPECT_EQ(ASSERT_EXISTS(Fs::readMemminAt(dir)), 666);
 }
 
 TEST_F(FsTest, ReadMemoryHigh) {
   auto path = fixture_.cgroupDataDir();
   auto dir = ASSERT_EXISTS(Fs::DirFd::open(path));
-  EXPECT_EQ(Fs::readMemhighAt(dir), 1000);
+  EXPECT_EQ(ASSERT_EXISTS(Fs::readMemhighAt(dir)), 1000);
 }
 
 TEST_F(FsTest, ReadMemoryMax) {
   auto path = fixture_.cgroupDataDir();
   auto dir = ASSERT_EXISTS(Fs::DirFd::open(path));
-  EXPECT_EQ(Fs::readMemmaxAt(dir), 654);
+  EXPECT_EQ(ASSERT_EXISTS(Fs::readMemmaxAt(dir)), 654);
 }
 
 TEST_F(FsTest, ReadMemoryHighTmp) {
   auto path = fixture_.cgroupDataDir();
   auto dir = ASSERT_EXISTS(Fs::DirFd::open(path));
-  EXPECT_EQ(Fs::readMemhightmpAt(dir), 2000);
+  EXPECT_EQ(ASSERT_EXISTS(Fs::readMemhightmpAt(dir)), 2000);
 }
 
 TEST_F(FsTest, ReadSwapCurrent) {
   auto path = fixture_.cgroupDataDir();
   auto dir = ASSERT_EXISTS(Fs::DirFd::open(path));
-  EXPECT_EQ(Fs::readSwapCurrentAt(dir), 321321);
+  EXPECT_EQ(ASSERT_EXISTS(Fs::readSwapCurrentAt(dir)), 321321);
 }
 
 TEST_F(FsTest, ReadControllers) {
   auto path = fixture_.cgroupDataDir();
   auto dir = ASSERT_EXISTS(Fs::DirFd::open(path));
-  auto controllers = Fs::readControllersAt(dir);
+  auto controllers = ASSERT_EXISTS(Fs::readControllersAt(dir));
 
   ASSERT_EQ(controllers.size(), 4);
   EXPECT_THAT(controllers, Contains(std::string("cpu")));
@@ -246,7 +244,7 @@ TEST_F(FsTest, ReadMemoryPressure) {
   // v4.16+ upstream format
   auto path = fixture_.cgroupDataDir();
   auto dir = ASSERT_EXISTS(Fs::DirFd::open(path));
-  auto pressure = Fs::readMempressureAt(dir);
+  auto pressure = ASSERT_EXISTS(Fs::readMempressureAt(dir));
 
   EXPECT_FLOAT_EQ(pressure.sec_10, 4.44);
   EXPECT_FLOAT_EQ(pressure.sec_60, 5.55);
@@ -255,7 +253,7 @@ TEST_F(FsTest, ReadMemoryPressure) {
   // old experimental format
   auto path2 = path + "/service2.service";
   auto dir2 = ASSERT_EXISTS(Fs::DirFd::open(path2));
-  auto pressure2 = Fs::readMempressureAt(dir2);
+  auto pressure2 = ASSERT_EXISTS(Fs::readMempressureAt(dir2));
 
   EXPECT_FLOAT_EQ(pressure2.sec_10, 4.44);
   EXPECT_FLOAT_EQ(pressure2.sec_60, 5.55);
@@ -264,7 +262,7 @@ TEST_F(FsTest, ReadMemoryPressure) {
   // old experimental format w/ debug info on
   auto path3 = path + "/service3.service";
   auto dir3 = ASSERT_EXISTS(Fs::DirFd::open(path3));
-  auto pressure3 = Fs::readMempressureAt(dir3);
+  auto pressure3 = ASSERT_EXISTS(Fs::readMempressureAt(dir3));
 
   EXPECT_FLOAT_EQ(pressure3.sec_10, 4.44);
   EXPECT_FLOAT_EQ(pressure3.sec_60, 5.55);
@@ -275,7 +273,8 @@ TEST_F(FsTest, ReadMemoryPressureSome) {
   // v4.16+ upstream format
   auto path = fixture_.cgroupDataDir();
   auto dir = ASSERT_EXISTS(Fs::DirFd::open(path));
-  auto pressure = Fs::readMempressureAt(dir, Fs::PressureType::SOME);
+  auto pressure =
+      ASSERT_EXISTS(Fs::readMempressureAt(dir, Fs::PressureType::SOME));
 
   EXPECT_FLOAT_EQ(pressure.sec_10, 1.11);
   EXPECT_FLOAT_EQ(pressure.sec_60, 2.22);
@@ -284,7 +283,8 @@ TEST_F(FsTest, ReadMemoryPressureSome) {
   // old experimental format
   auto path2 = path + "/service2.service";
   auto dir2 = ASSERT_EXISTS(Fs::DirFd::open(path2));
-  auto pressure2 = Fs::readMempressureAt(dir2, Fs::PressureType::SOME);
+  auto pressure2 =
+      ASSERT_EXISTS(Fs::readMempressureAt(dir2, Fs::PressureType::SOME));
 
   EXPECT_FLOAT_EQ(pressure2.sec_10, 1.11);
   EXPECT_FLOAT_EQ(pressure2.sec_60, 2.22);
@@ -319,7 +319,7 @@ TEST_F(FsTest, GetMeminfo) {
 TEST_F(FsTest, GetMemstat) {
   auto path = fixture_.cgroupDataDir();
   auto dir = ASSERT_EXISTS(Fs::DirFd::open(path));
-  auto meminfo = Fs::getMemstatAt(dir);
+  auto meminfo = ASSERT_EXISTS(Fs::getMemstatAt(dir));
 
   EXPECT_EQ(meminfo.size(), 29);
   EXPECT_EQ(meminfo["anon"], 1294168064);
@@ -333,7 +333,7 @@ TEST_F(FsTest, GetMemstat) {
 TEST_F(FsTest, ReadIoPressure) {
   auto path = fixture_.cgroupDataDir();
   auto dir = ASSERT_EXISTS(Fs::DirFd::open(path));
-  auto pressure = Fs::readIopressureAt(dir);
+  auto pressure = ASSERT_EXISTS(Fs::readIopressureAt(dir));
 
   EXPECT_FLOAT_EQ(pressure.sec_10, 4.45);
   EXPECT_FLOAT_EQ(pressure.sec_60, 5.56);
@@ -343,7 +343,8 @@ TEST_F(FsTest, ReadIoPressure) {
 TEST_F(FsTest, ReadIoPressureSome) {
   auto path = fixture_.cgroupDataDir();
   auto dir = ASSERT_EXISTS(Fs::DirFd::open(path));
-  auto pressure = Fs::readIopressureAt(dir, Fs::PressureType::SOME);
+  auto pressure =
+      ASSERT_EXISTS(Fs::readIopressureAt(dir, Fs::PressureType::SOME));
 
   EXPECT_FLOAT_EQ(pressure.sec_10, 1.12);
   EXPECT_FLOAT_EQ(pressure.sec_60, 2.23);
@@ -353,11 +354,11 @@ TEST_F(FsTest, ReadIoPressureSome) {
 TEST_F(FsTest, ReadMemoryOomGroup) {
   auto path1 = fixture_.cgroupDataDir() + "/slice1.slice";
   auto dir1 = ASSERT_EXISTS(Fs::DirFd::open(path1));
-  EXPECT_EQ(Fs::readMemoryOomGroupAt(dir1), true);
+  EXPECT_EQ(ASSERT_EXISTS(Fs::readMemoryOomGroupAt(dir1)), true);
 
   auto path2 = fixture_.cgroupDataDir() + "/slice1.slice/service1.service";
   auto dir2 = ASSERT_EXISTS(Fs::DirFd::open(path2));
-  EXPECT_EQ(Fs::readMemoryOomGroupAt(dir2), false);
+  EXPECT_EQ(ASSERT_EXISTS(Fs::readMemoryOomGroupAt(dir2)), false);
 }
 
 TEST_F(FsTest, IsUnderParentPath) {
@@ -406,7 +407,7 @@ TEST_F(FsTest, ReadIostat) {
   auto path = fixture_.cgroupDataDir();
 
   auto dir = ASSERT_EXISTS(Fs::DirFd::open(path));
-  auto io_stat = Fs::readIostatAt(dir);
+  auto io_stat = ASSERT_EXISTS(Fs::readIostatAt(dir));
   EXPECT_EQ(io_stat.size(), 2);
 
   auto stat0 = io_stat[0];
