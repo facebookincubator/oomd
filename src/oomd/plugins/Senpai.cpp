@@ -61,6 +61,11 @@ int Senpai::init(
         std::chrono::milliseconds(std::stoull(args.at("pressure_ms")));
   }
 
+  // Currently only used for immediate backoff
+  if (args.find("pressure_pct") != args.end()) {
+    pressure_pct_ = std::stod(args.at("pressure_pct"));
+  }
+
   if (args.find("max_probe") != args.end()) {
     max_probe_ = std::stod(args.at("max_probe"));
   }
@@ -404,22 +409,28 @@ bool Senpai::tick(const CgroupContext& cgroup_ctx, CgroupState& state) {
 bool Senpai::tick_immediate_backoff(
     const CgroupContext& cgroup_ctx,
     CgroupState& state) {
-  auto total_opt = getPressureTotalSome(cgroup_ctx);
-  if (!total_opt) {
+  // Wait for interval to prevent making senpai too aggressive
+  // May wait longer if pressures are too high
+  if (state.ticks) {
+    state.ticks--;
+    return true;
+  }
+
+  auto mem_pressure_opt = Fs::readMempressureAt(cgroup_ctx.fd());
+  if (!mem_pressure_opt) {
     return false;
   }
-  auto total = *total_opt;
-  auto delta = total - state.last_total;
-  state.last_total = total;
-  state.cumulative += delta;
+  auto io_pressure_opt = Fs::readIopressureAt(cgroup_ctx.fd());
+  if (!io_pressure_opt) {
+    return false;
+  }
 
-  if (state.cumulative >= pressure_ms_) {
-    // Pressure is too high. Reset interval for the next poking attempt
-    state.ticks = interval_;
-    state.cumulative = std::chrono::microseconds{0};
-  } else if (state.ticks) {
-    --state.ticks;
-  } else {
+  // Only drive senpai if both short and long term pressure from memory and I/O
+  // are lower than target
+  if (std::max({mem_pressure_opt->sec_10,
+                mem_pressure_opt->sec_60,
+                io_pressure_opt->sec_10,
+                io_pressure_opt->sec_60}) < pressure_pct_) {
     auto limit_min_bytes_opt = getLimitMinBytes(cgroup_ctx);
     if (!limit_min_bytes_opt) {
       return false;
@@ -429,20 +440,9 @@ bool Senpai::tick_immediate_backoff(
       return false;
     }
     if (*current_opt > *limit_min_bytes_opt) {
-      // Pressure too low, tighten the limit. The adjustment becomes
-      // exponentially more aggressive as observed pressure falls below the
-      // target pressure. The adjustment limit is reached when stall time falls
-      // through pressure/coeff_probe_.
-      auto one = std::chrono::microseconds{1};
-      double error = pressure_ms_ / std::max(state.cumulative, one);
-      double factor = error / coeff_probe_;
-      factor *= factor;
-      factor = std::min(factor * max_probe_, max_probe_);
-      factor = -factor;
-
       // Set the limit to somewhere between memory.current and lower limit
       int64_t limit = *limit_min_bytes_opt +
-          (*current_opt - *limit_min_bytes_opt) * (1 + factor);
+          (*current_opt - *limit_min_bytes_opt) * (1 - max_probe_);
       // Memory high is always a multiple of 4K
       limit &= ~0xFFF;
       // Poking by setting memory limit and immediately resetting it, which
@@ -453,13 +453,12 @@ bool Senpai::tick_immediate_backoff(
       std::ostringstream oss;
       oss << "cgroup " << cgroup_ctx.cgroup().relativePath()
           << std::setprecision(3) << std::fixed << " limitgb "
-          << limit / (double)(1 << 30UL) << " totalus " << total.count()
-          << " deltaus " << delta.count() << " cumus "
-          << state.cumulative.count() << std::defaultfloat << " adjust "
-          << factor;
+          << limit / (double)(1 << 30UL) << std::setprecision(2)
+          << " mempressure(10,60) (" << mem_pressure_opt->sec_10 << ","
+          << mem_pressure_opt->sec_60 << ") iopressure(10,60) ("
+          << io_pressure_opt->sec_10 << "," << io_pressure_opt->sec_60 << ")";
       OLOG << oss.str();
       state.ticks = interval_;
-      state.cumulative = std::chrono::microseconds{0};
     }
   }
 

@@ -89,6 +89,8 @@ class Senpai : public Engine::BasePlugin {
   // pressure target - stall time over sampling period
   int64_t interval_{6};
   std::chrono::microseconds pressure_ms_{std::chrono::milliseconds{10}};
+  // Currently only used for immediate backoff
+  double pressure_pct_{0.1};
   // translate observed target deviation to cgroup adjustment rate
   // - max_probe is reached when stalling falls below pressure / coeff_probe
   // - max_backoff is reached when stalling exceeds pressure * coeff_backoff
