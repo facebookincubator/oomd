@@ -378,6 +378,14 @@ bool Senpai::tick(const CgroupContext& cgroup_ctx, CgroupState& state) {
     if (!adjust(factor)) {
       return false;
     }
+
+    std::ostringstream oss;
+    oss << "cgroup " << name << std::setprecision(3) << std::fixed
+        << " limitgb " << limit / (double)(1 << 30UL) << " totalus "
+        << total.count() << " deltaus " << delta.count() << " cumus "
+        << cumulative << " ticks " << state.ticks << std::defaultfloat
+        << " adjust " << factor;
+    OLOG << oss.str();
   } else if (state.ticks) {
     --state.ticks;
   } else {
@@ -395,13 +403,6 @@ bool Senpai::tick(const CgroupContext& cgroup_ctx, CgroupState& state) {
       return false;
     }
   }
-
-  std::ostringstream oss;
-  oss << "cgroup " << name << std::setprecision(3) << std::fixed << " limitgb "
-      << limit / (double)(1 << 30UL) << " totalus " << total.count()
-      << " deltaus " << delta.count() << " cumus " << cumulative << " ticks "
-      << state.ticks << std::defaultfloat << " adjust " << factor;
-  OLOG << oss.str();
   return true;
 }
 
