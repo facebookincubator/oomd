@@ -101,6 +101,10 @@ void Log::kmsgLog(const std::string& buf, const std::string& prefix) const {
     if (prefix.size() > 0) {
       message.insert(0, prefix + ": ");
     }
+    // Make sure message ends with newline or kernel won't show it immediately
+    if (message.size() != 0 && message.back() != '\n') {
+      message.push_back('\n');
+    }
     auto ret = Util::writeFull(kmsg_fd_, message.data(), message.size());
     if (ret == -1) {
       perror("error writing");
