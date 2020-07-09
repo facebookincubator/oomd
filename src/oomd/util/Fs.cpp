@@ -205,11 +205,16 @@ std::optional<std::vector<std::string>> Fs::readFileByLine(
     v.push_back(std::move(s));
   }
 
+  // Error when reading file, and thus content might be corrupted
+  if (f.bad()) {
+    return std::nullopt;
+  }
+
   return v;
 }
 
 std::optional<std::vector<std::string>> Fs::readFileByLine(Fd&& fd) {
-  auto fp = fdopen(std::move(fd).fd(), "r");
+  auto fp = ::fdopen(std::move(fd).fd(), "r");
   if (fp == nullptr) {
     return std::nullopt;
   }
@@ -217,6 +222,7 @@ std::optional<std::vector<std::string>> Fs::readFileByLine(Fd&& fd) {
   char* line = nullptr;
   size_t len = 0;
   ssize_t read;
+  errno = 0;
   while ((read = ::getline(&line, &len, fp)) != -1) {
     OCHECK(line != nullptr);
     if (read > 0 && line[read - 1] == '\n') {
@@ -225,8 +231,15 @@ std::optional<std::vector<std::string>> Fs::readFileByLine(Fd&& fd) {
       v.emplace_back(line);
     }
   }
+  bool has_error = errno != 0;
+
   ::free(line);
   ::fclose(fp);
+
+  // Error when reading file, and thus content might be corrupted
+  if (has_error) {
+    return std::nullopt;
+  }
   return v;
 }
 
