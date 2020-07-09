@@ -484,3 +484,26 @@ TEST_F(CgroupContextTest, DataLifeCycle) {
   EXPECT_EQ(pg_scan_cumulative, 5678901234);
   EXPECT_EQ(pg_scan_rate, 5678901234 - 4567890123);
 }
+
+/*
+ * Verify that CgroupContext won't read from a recreated cgroup.
+ */
+TEST_F(CgroupContextTest, MemoryGrowthDoesntDivideByZero) {
+  F::materialize(F::makeDir(
+      tempDir_,
+      {F::makeDir(
+          "system.slice",
+          // Dummy file to make cgroup valid
+          {F::makeFile("cgroup.controllers"),
+           F::makeFile("memory.current", "0\n")})}));
+
+  auto cgroup_ctx = ASSERT_EXISTS(
+      CgroupContext::make(ctx_, CgroupPath(tempDir_, "system.slice")));
+
+  ASSERT_TRUE(cgroup_ctx.average_usage());
+  ASSERT_EQ(*cgroup_ctx.average_usage(), 0);
+
+  ASSERT_NO_THROW(cgroup_ctx.memory_growth());
+  ASSERT_TRUE(cgroup_ctx.memory_growth());
+  ASSERT_EQ(*cgroup_ctx.memory_growth(), 0);
+}

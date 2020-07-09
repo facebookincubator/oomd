@@ -128,6 +128,13 @@ std::optional<double> CgroupContext::memory_growth(Error* err) const {
   if (!current_usage(err) || !average_usage(err)) {
     return std::nullopt;
   }
+
+  if (average_usage(err) == 0) {
+    // avoid div by 0. average_usage() = 0 implies current_usage() = 0 because
+    // of how average_usage is calculated.
+    return 0;
+  }
+
   return static_cast<double>(*current_usage()) / *average_usage();
 }
 
