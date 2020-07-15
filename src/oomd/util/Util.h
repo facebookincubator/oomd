@@ -92,6 +92,11 @@ class Util {
    */
   static ssize_t readFull(int fd, char* msg_buf, size_t count);
   static ssize_t writeFull(int fd, const char* msg_buf, size_t count);
+
+  /*
+   * Returned uuids are random 32 char hex strings
+   */
+  static std::string generateUuid();
 };
 
 } // namespace Oomd

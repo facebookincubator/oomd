@@ -177,6 +177,7 @@ Always returns CONTINUE.
     growing_size_percentile=80 (optional)
     post_action_delay=15 (optional)
     dry=false (optional)
+    always_continue=false (optional)
 
 ### Description
 
@@ -222,7 +223,8 @@ used to pick between them. If a cgroup has both of these xattrs it is considered
 "prefer". The xattrs must be set on cgroups targeted in the `cgroup` arg;
 they will have no effect if set on ancestors of the targeted cgroups.
 
-STOP if killed something (even if dry=true). CONTINUE otherwise.
+STOP if killed something (even if dry=true), unless `always_continue`. CONTINUE
+otherwise.
 
 ## kill_by_swap_usage
 
@@ -233,6 +235,7 @@ STOP if killed something (even if dry=true). CONTINUE otherwise.
     threshold=1 (optional)
     post_action_delay=15 (optional)
     dry=false (optional)
+    always_continue=false (optional)
 
 ### Description
 
@@ -252,7 +255,8 @@ Kills the child with the largest swap usage.
 cgroups that are killed have the "trusted.oomd_kill" xattr set to the number
 of SIGKILLs sent to resident processes.
 
-STOP if killed something (even if dry=true), CONTINUE otherwise.
+STOP if killed something (even if dry=true), unless `always_continue`. CONTINUE
+otherwise.
 
 ## kill_by_pressure
 
@@ -263,6 +267,7 @@ STOP if killed something (even if dry=true), CONTINUE otherwise.
     resource
     post_action_delay=15 (optional)
     dry=false (optional)
+    always_continue=false (optional)
 
 ### Description
 
@@ -282,7 +287,8 @@ Kills the child generating the most pressure.
 cgroups that are killed have the "trusted.oomd_kill" xattr set to the number
 of SIGKILLs sent to resident processes.
 
-STOP if killed something (even if dry=true), CONTINUE otherwise.
+STOP if killed something (even if dry=true), unless `always_continue`. CONTINUE
+otherwise.
 
 ## kill_by_io_cost
 
@@ -292,6 +298,7 @@ STOP if killed something (even if dry=true), CONTINUE otherwise.
     recursive=false (optional)
     post_action_delay=15 (optional)
     dry=false (optional)
+    always_continue=false (optional)
 
 ### Description
 
@@ -309,7 +316,8 @@ Kills the child generating the most io cost.
 cgroups that are killed have the "trusted.oomd_kill" xattr set to the number
 of SIGKILLs sent to resident processes.
 
-STOP if killed something (even if dry=true), CONTINUE otherwise.
+STOP if killed something (even if dry=true), unless `always_continue`. CONTINUE
+otherwise.
 
 ## kill_by_pg_scan
 
@@ -319,6 +327,7 @@ STOP if killed something (even if dry=true), CONTINUE otherwise.
     recursive=false (optional)
     post_action_delay=15 (optional)
     dry=false (optional)
+    always_continue=false (optional)
 
 ### Description
 
@@ -336,4 +345,5 @@ Kills the child with the highest pg scan rate.
 cgroups that are killed have the "trusted.oomd_kill" xattr set to the number
 of SIGKILLs sent to resident processes.
 
-STOP if killed something (even if dry=true), CONTINUE otherwise.
+STOP if killed something (even if dry=true), unless `always_continue`. CONTINUE
+otherwise.

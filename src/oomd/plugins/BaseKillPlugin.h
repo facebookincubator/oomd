@@ -201,6 +201,7 @@ class BaseKillPlugin : public Oomd::Engine::BasePlugin {
   bool recursive_{false};
   int post_action_delay_{15};
   bool dry_{false};
+  bool always_continue_{false};
   bool debug_{false};
 };
 

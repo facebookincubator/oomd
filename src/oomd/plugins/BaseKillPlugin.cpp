@@ -23,7 +23,6 @@
 #include <csignal>
 #include <fstream>
 #include <iomanip>
-#include <random>
 #include <stack>
 #include <string>
 #include <unordered_set>
@@ -85,6 +84,14 @@ int BaseKillPlugin::init(
     }
   }
 
+  if (args.find("always_continue") != args.end()) {
+    const std::string& val = args.at("always_continue");
+
+    if (val == "true" || val == "True" || val == "1") {
+      always_continue_ = true;
+    }
+  }
+
   if (args.find("debug") != args.end()) {
     const std::string& val = args.at("debug");
 
@@ -103,6 +110,9 @@ Engine::PluginRet BaseKillPlugin::run(OomdContext& ctx) {
 
   if (ret) {
     std::this_thread::sleep_for(std::chrono::seconds(post_action_delay_));
+    if (always_continue_) {
+      return Engine::PluginRet::CONTINUE;
+    }
     return Engine::PluginRet::STOP;
   } else {
     return Engine::PluginRet::CONTINUE;
@@ -302,15 +312,7 @@ int BaseKillPlugin::tryToKillPids(const std::vector<int>& pids) {
 }
 
 BaseKillPlugin::KillUuid BaseKillPlugin::generateKillUuid() const {
-  static std::random_device rd;
-  static std::mt19937 gen(rd());
-  static std::uniform_int_distribution<uint64_t> dis;
-
-  // Combine two 64-bit numbers
-  std::stringstream ss;
-  ss << std::hex << dis(gen) << dis(gen);
-
-  return ss.str();
+  return Util::generateUuid();
 }
 
 std::string BaseKillPlugin::getxattr(

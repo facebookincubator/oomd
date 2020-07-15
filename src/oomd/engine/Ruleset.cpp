@@ -18,6 +18,7 @@
 #include "oomd/engine/Ruleset.h"
 #include "oomd/Log.h"
 #include "oomd/engine/EngineTypes.h"
+#include "oomd/util/Util.h"
 
 namespace Oomd {
 namespace Engine {
@@ -114,7 +115,7 @@ uint32_t Ruleset::runOnce(OomdContext& context) {
              << " has fired for Ruleset=" << name_ << ". Running action chain.";
       }
       run_actions = true;
-      context.setActionContext({name_, dg->name()});
+      context.setActionContext({name_, dg->name(), Util::generateUuid()});
     }
   }
 

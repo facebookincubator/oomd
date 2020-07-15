@@ -34,6 +34,7 @@ namespace Oomd {
 struct ActionContext {
   std::string ruleset;
   std::string detectorgroup;
+  std::string action_group_run_uuid;
 };
 
 struct ContextParams {

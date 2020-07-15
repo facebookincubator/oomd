@@ -20,6 +20,7 @@
 #include <unistd.h>
 
 #include <algorithm>
+#include <random>
 #include <sstream>
 
 static constexpr auto kWhitespaceChars = " \t\n\r";
@@ -199,6 +200,18 @@ ssize_t Util::readFull(int fd, char* msg_buf, size_t count) {
 
 ssize_t Util::writeFull(int fd, const char* msg_buf, size_t count) {
   return wrapFull(::write, fd, msg_buf, count);
+}
+
+std::string Util::generateUuid() {
+  static std::random_device rd;
+  static std::mt19937 gen(rd());
+  static std::uniform_int_distribution<uint64_t> dis;
+
+  // Combine two 64-bit numbers
+  std::stringstream ss;
+  ss << std::hex << dis(gen) << dis(gen);
+
+  return ss.str();
 }
 
 } // namespace Oomd
