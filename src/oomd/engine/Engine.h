@@ -42,12 +42,14 @@ class Engine {
    *
    * @returns false if @param ruleset's target is not found. true otherwise.
    */
-  bool addDropInConfig(size_t tag, std::unique_ptr<Ruleset> ruleset);
+  bool addDropInConfig(
+      const std::string& tag,
+      std::unique_ptr<Ruleset> ruleset);
 
   /*
    * Removes drop in configs associated with @param tag
    */
-  void removeDropInConfig(size_t tag);
+  void removeDropInConfig(const std::string& tag);
 
   /*
    * Preruns every @class Ruleset once.
@@ -61,7 +63,7 @@ class Engine {
 
  private:
   struct DropInRuleset {
-    size_t tag{0}; // required field
+    std::string tag; // required field
     std::unique_ptr<Ruleset> ruleset;
   };
 

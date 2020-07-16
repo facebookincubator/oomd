@@ -217,8 +217,7 @@ void Oomd::processDropInRemove(const std::string& file) {
   }
 
   OLOG << "Removing drop in config=" << file;
-  size_t tag = std::hash<std::string>{}(file);
-  engine_->removeDropInConfig(tag);
+  engine_->removeDropInConfig(file);
 }
 
 void Oomd::processDropInAdd(const std::string& file) {
@@ -265,9 +264,8 @@ void Oomd::processDropInAdd(const std::string& file) {
     return;
   }
 
-  size_t tag = std::hash<std::string>{}(file);
   for (size_t i = 0; i < unit->rulesets.size(); ++i) {
-    if (!engine_->addDropInConfig(tag, std::move(unit->rulesets.at(i)))) {
+    if (!engine_->addDropInConfig(file, std::move(unit->rulesets.at(i)))) {
       OLOG << "Failed to inject drop in config into engine";
       return;
     }

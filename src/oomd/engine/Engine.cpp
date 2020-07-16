@@ -34,7 +34,9 @@ Engine::Engine(std::vector<std::unique_ptr<Ruleset>> rulesets) {
   }
 }
 
-bool Engine::addDropInConfig(size_t tag, std::unique_ptr<Ruleset> ruleset) {
+bool Engine::addDropInConfig(
+    const std::string& tag,
+    std::unique_ptr<Ruleset> ruleset) {
   if (!ruleset) {
     return false;
   }
@@ -64,7 +66,7 @@ bool Engine::addDropInConfig(size_t tag, std::unique_ptr<Ruleset> ruleset) {
   return true;
 }
 
-void Engine::removeDropInConfig(size_t tag) {
+void Engine::removeDropInConfig(const std::string& tag) {
   auto pred = [&](const DropInRuleset& dir) { return dir.tag == tag; };
 
   for (auto& base : rulesets_) {

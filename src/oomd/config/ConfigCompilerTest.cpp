@@ -323,8 +323,8 @@ TEST_F(DropInCompilerTest, PrerunCount) {
   ASSERT_TRUE(dropin.has_value());
   EXPECT_EQ(dropin->rulesets.size(), 2);
 
-  EXPECT_TRUE(engine->addDropInConfig(0, std::move(dropin->rulesets.at(0))));
-  EXPECT_TRUE(engine->addDropInConfig(1, std::move(dropin->rulesets.at(1))));
+  EXPECT_TRUE(engine->addDropInConfig("0", std::move(dropin->rulesets.at(0))));
+  EXPECT_TRUE(engine->addDropInConfig("1", std::move(dropin->rulesets.at(1))));
   prerun_count = 0;
   engine->prerun(context);
   engine->runOnce(context);
@@ -395,7 +395,7 @@ TEST_F(DropInCompilerTest, DropInConfig) {
   ASSERT_TRUE(dropin.has_value());
   EXPECT_EQ(dropin->rulesets.size(), 1);
 
-  EXPECT_TRUE(engine->addDropInConfig(0, std::move(dropin->rulesets.at(0))));
+  EXPECT_TRUE(engine->addDropInConfig("0", std::move(dropin->rulesets.at(0))));
   engine->runOnce(context);
   EXPECT_EQ(count, 1);
 }
@@ -424,7 +424,7 @@ TEST_F(DropInCompilerTest, MultipleDropInConfigOrdering) {
   auto dropin = compileDropIn();
   ASSERT_TRUE(dropin.has_value());
   EXPECT_EQ(dropin->rulesets.size(), 1);
-  EXPECT_TRUE(engine->addDropInConfig(0, std::move(dropin->rulesets.at(0))));
+  EXPECT_TRUE(engine->addDropInConfig("0", std::move(dropin->rulesets.at(0))));
 
   // Second drop in config
   dropin_rs = {};
@@ -440,7 +440,7 @@ TEST_F(DropInCompilerTest, MultipleDropInConfigOrdering) {
   auto dropin2 = compileDropIn();
   ASSERT_TRUE(dropin2.has_value());
   EXPECT_EQ(dropin2->rulesets.size(), 1);
-  EXPECT_TRUE(engine->addDropInConfig(1, std::move(dropin2->rulesets.at(0))));
+  EXPECT_TRUE(engine->addDropInConfig("1", std::move(dropin2->rulesets.at(0))));
 
   engine->runOnce(context);
   EXPECT_EQ(count, 2);
@@ -478,7 +478,7 @@ TEST_F(DropInCompilerTest, DisablesBase) {
   ASSERT_TRUE(dropin.has_value());
   EXPECT_EQ(dropin->rulesets.size(), 1);
 
-  EXPECT_TRUE(engine->addDropInConfig(0, std::move(dropin->rulesets.at(0))));
+  EXPECT_TRUE(engine->addDropInConfig("0", std::move(dropin->rulesets.at(0))));
   engine->runOnce(context);
   EXPECT_EQ(count, 1);
 }
@@ -542,12 +542,12 @@ TEST_F(DropInCompilerTest, RemoveDropIn) {
   ASSERT_TRUE(dropin.has_value());
   EXPECT_EQ(dropin->rulesets.size(), 1);
 
-  EXPECT_TRUE(engine->addDropInConfig(0, std::move(dropin->rulesets.at(0))));
+  EXPECT_TRUE(engine->addDropInConfig("0", std::move(dropin->rulesets.at(0))));
   engine->runOnce(context);
   // Base and drop in
   EXPECT_EQ(count, 5);
 
-  engine->removeDropInConfig(0);
+  engine->removeDropInConfig("0");
   engine->runOnce(context);
   // Only the base
   EXPECT_EQ(count, 7);
@@ -600,13 +600,13 @@ TEST_F(DropInCompilerTest, MultipleRulesetDropin) {
   ASSERT_TRUE(dropin.has_value());
   EXPECT_EQ(dropin->rulesets.size(), 2);
 
-  EXPECT_TRUE(engine->addDropInConfig(0, std::move(dropin->rulesets.at(0))));
-  EXPECT_TRUE(engine->addDropInConfig(0, std::move(dropin->rulesets.at(1))));
+  EXPECT_TRUE(engine->addDropInConfig("0", std::move(dropin->rulesets.at(0))));
+  EXPECT_TRUE(engine->addDropInConfig("0", std::move(dropin->rulesets.at(1))));
   engine->runOnce(context);
   EXPECT_EQ(count, 2);
 
   // Now see if both are removed
-  engine->removeDropInConfig(0);
+  engine->removeDropInConfig("0");
   engine->runOnce(context);
   EXPECT_EQ(count, 2);
 }
