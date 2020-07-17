@@ -20,6 +20,8 @@
 #include <unistd.h>
 
 #include <algorithm>
+#include <array>
+#include <cstring>
 #include <random>
 #include <sstream>
 
@@ -212,6 +214,18 @@ std::string Util::generateUuid() {
   ss << std::hex << dis(gen) << dis(gen);
 
   return ss.str();
+}
+
+std::string Util::strerror_r() {
+  std::array<char, 1024> buf;
+  buf[0] = '\0';
+
+  int savedErrno = errno;
+
+  std::string ret(::strerror_r(errno, buf.data(), buf.size()));
+
+  errno = savedErrno;
+  return ret;
 }
 
 } // namespace Oomd

@@ -97,6 +97,8 @@ class Util {
    * Returned uuids are random 32 char hex strings
    */
   static std::string generateUuid();
+
+  static std::string strerror_r();
 };
 
 } // namespace Oomd

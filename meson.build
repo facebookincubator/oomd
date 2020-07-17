@@ -30,6 +30,8 @@ srcs = files('''
     src/oomd/config/ConfigCompiler.cpp
     src/oomd/config/ConfigTypes.cpp
     src/oomd/config/JsonConfigParser.cpp
+    src/oomd/dropin/DropInServiceAdaptor.cpp
+    src/oomd/dropin/FsDropInService.cpp
     src/oomd/engine/DetectorGroup.cpp
     src/oomd/engine/Engine.cpp
     src/oomd/engine/Ruleset.cpp
@@ -141,6 +143,8 @@ core_tests = [
   ['compiler', files('src/oomd/config/ConfigCompilerTest.cpp')],
   ['plugin',   files('src/oomd/plugins/CorePluginsTest.cpp')],
   ['stats',    files('src/oomd/StatsTest.cpp')],
+  ['dropin',   files('src/oomd/dropin/DropInServiceAdaptorTest.cpp',
+                     'src/oomd/dropin/FsDropInServiceTest.cpp')],
 ]
 
 # Optional tests

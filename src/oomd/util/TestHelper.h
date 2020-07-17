@@ -19,6 +19,8 @@
 
 #include "oomd/CgroupContext.h"
 #include "oomd/OomdContext.h"
+#include "oomd/PluginRegistry.h"
+#include "oomd/engine/BasePlugin.h"
 
 #define ASSERT_EXISTS(opt_expr) \
   ({                            \
@@ -71,4 +73,45 @@ class TestHelper {
   }
 };
 
+/*
+ * Define helper plugin for testing configs.
+ * DEFINE_MOCK_PLUGIN(Foo) defines plugin class MockPlugin in an anonymous
+ * namespace, which will be registered with "Foo". Each time the plugin is
+ * executed, it increments the runCount indicated by the "id" plugin argument.
+ * Use MockPlugin::runCounts() to get the reference of the run count map.
+ */
+#define DEFINE_MOCK_PLUGIN(plugin_name)                                       \
+  namespace {                                                                 \
+  class MockPlugin : public Engine::BasePlugin {                              \
+   public:                                                                    \
+    int init(                                                                 \
+        const Engine::PluginArgs& args,                                       \
+        const PluginConstructionContext& /* unused */) override {             \
+      if (auto pos = args.find("id"); pos != args.end()) {                    \
+        id_ = pos->second;                                                    \
+      }                                                                       \
+      return 0;                                                               \
+    }                                                                         \
+    Engine::PluginRet run(OomdContext& /* unused */) override {               \
+      if (id_.size()) {                                                       \
+        runCounts()[id_]++;                                                   \
+      }                                                                       \
+      return Engine::PluginRet::CONTINUE;                                     \
+    }                                                                         \
+    static MockPlugin* create() {                                             \
+      return new MockPlugin();                                                \
+    }                                                                         \
+    static Config2::IR::Plugin createIR(const std::string& id) {              \
+      return Config2::IR::Plugin{.name = #plugin_name, .args = {{"id", id}}}; \
+    }                                                                         \
+    static std::unordered_map<std::string, int>& runCounts() {                \
+      static std::unordered_map<std::string, int> runCounts_;                 \
+      return runCounts_;                                                      \
+    }                                                                         \
+                                                                              \
+   private:                                                                   \
+    std::string id_;                                                          \
+  };                                                                          \
+  REGISTER_PLUGIN(plugin_name, MockPlugin::create);                           \
+  }
 } // namespace Oomd

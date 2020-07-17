@@ -84,6 +84,7 @@ class Fs {
     static std::optional<Fd>
     openat(const DirFd& dirfd, const std::string& path, bool read_only = true);
 
+    explicit Fd(int fd) : fd_(fd) {}
     Fd() = delete;
     Fd(const Fd& other) = delete;
     Fd(Fd&& other) noexcept {
@@ -117,7 +118,6 @@ class Fs {
     std::optional<uint64_t> inode() const;
 
    protected:
-    explicit Fd(int fd) : fd_(fd) {}
     void close();
     int fd_{-1};
   };
