@@ -95,7 +95,7 @@ Join our **#oomd** channel on irc.freenode.net!
 
 ## License
 
-oomd is GPL 2 licensed, as found in the LICENSE file.
+oomd is GPL 2 licensed, as found in the [LICENSE](LICENSE) file.
 
 
 [0]: https://www.kernel.org/doc/Documentation/vm/overcommit-accounting
