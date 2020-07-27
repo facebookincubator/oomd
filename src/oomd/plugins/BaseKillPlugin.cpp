@@ -161,7 +161,7 @@ bool BaseKillPlugin::tryToKillSomething(
 
     bool may_recurse = recursive_ && !cgroup_ctx.oom_group().value_or(false);
     if (may_recurse) {
-      auto children = ctx.addToCacheAndGetChildren(cgroup_ctx);
+      auto children = ctx.addChildrenToCacheAndGet(cgroup_ctx);
       if (children.size() > 0) {
         ologKillTarget(ctx, cgroup_ctx, *peers);
         push_siblings_onto_stack(std::move(children));

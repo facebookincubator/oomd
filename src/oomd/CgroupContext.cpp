@@ -39,6 +39,16 @@ CgroupContext::CgroupContext(
       cgroup_dir_(std::move(dirFd)),
       data_(std::make_unique<CgroupData>()) {}
 
+std::optional<CgroupContext> CgroupContext::createChildCgroupCtx(
+    const std::string& child_name) const {
+  CgroupPath child_path(cgroup().getChild(child_name));
+  auto fd = cgroup_dir_.openChildDir(child_name);
+  if (fd) {
+    return CgroupContext(ctx_, child_path, std::move(*fd));
+  }
+  return std::nullopt;
+}
+
 bool CgroupContext::refresh() {
   archive_ = {.average_usage = data_->average_usage,
               .io_cost_cumulative = data_->io_cost_cumulative,

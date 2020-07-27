@@ -60,16 +60,31 @@ std::vector<OomdContext::ConstCgroupContextRef> OomdContext::addToCacheAndGet(
   return ret;
 }
 
+std::optional<OomdContext::ConstCgroupContextRef>
+OomdContext::addChildToCacheAndGet(
+    const CgroupContext& cgroup_ctx,
+    const std::string& child) {
+  if (auto child_ctx = cgroup_ctx.createChildCgroupCtx(child)) {
+    const CgroupPath& child_path = child_ctx->cgroup();
+    const auto& pair = cgroups_.emplace(child_path, std::move(*child_ctx));
+    return std::make_optional<OomdContext::ConstCgroupContextRef>(
+        pair.first->second);
+  } else {
+    OLOG << "failed to get child of " << cgroup_ctx.cgroup().relativePath()
+         << " named " << child;
+    return std::nullopt;
+  }
+}
+
 std::vector<OomdContext::ConstCgroupContextRef>
-OomdContext::addToCacheAndGetChildren(const CgroupContext& cgroup_ctx) {
+OomdContext::addChildrenToCacheAndGet(const CgroupContext& cgroup_ctx) {
   std::vector<OomdContext::ConstCgroupContextRef> ret;
 
   CgroupContext::Error err;
   std::unordered_set<Oomd::CgroupPath> child_paths;
   if (auto children = cgroup_ctx.children(&err)) {
     for (const auto& name : *children) {
-      if (auto child_ctx =
-              addToCacheAndGet(cgroup_ctx.cgroup().getChild(name))) {
+      if (const auto& child_ctx = addChildToCacheAndGet(cgroup_ctx, name)) {
         ret.push_back(*child_ctx);
       } else {
         OLOG << "failed to get child of " << cgroup_ctx.cgroup().relativePath()

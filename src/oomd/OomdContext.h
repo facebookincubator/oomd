@@ -80,9 +80,16 @@ class OomdContext {
       const std::unordered_set<CgroupPath>& cgroups);
 
   /*
+   * Get child of cgroup, adding it to the cache if it doesn't exist yet.
+   */
+  std::optional<ConstCgroupContextRef> addChildToCacheAndGet(
+      const CgroupContext& cgroup_ctx,
+      const std::string& child);
+
+  /*
    * Get children of cgroup, adding them to the cache if they don't exist yet.
    */
-  std::vector<ConstCgroupContextRef> addToCacheAndGetChildren(
+  std::vector<ConstCgroupContextRef> addChildrenToCacheAndGet(
       const CgroupContext& cgroup_ctx);
 
   /*

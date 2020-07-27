@@ -96,6 +96,15 @@ std::optional<Fs::DirFd> Fs::DirFd::open(const std::string& path) {
   return std::make_optional(DirFd(fd));
 }
 
+std::optional<Fs::DirFd> Fs::DirFd::openChildDir(
+    const std::string& path) const {
+  int child_fd = ::openat(fd(), path.c_str(), O_RDONLY | O_DIRECTORY);
+  if (child_fd == -1) {
+    return std::nullopt;
+  }
+  return std::make_optional(DirFd(child_fd));
+}
+
 bool Fs::isCgroupValid(const DirFd& dirfd) {
   // If cgroup.controllers file exists, the cgroup should still be valid
   return ::faccessat(dirfd.fd(), kControllersFile, F_OK, 0) == 0;

@@ -128,6 +128,7 @@ class Fs {
   class DirFd : public Fd {
    public:
     static std::optional<DirFd> open(const std::string& path);
+    std::optional<DirFd> openChildDir(const std::string& path) const;
 
    protected:
     explicit DirFd(int fd) : Fd(fd) {}

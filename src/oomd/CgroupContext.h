@@ -58,6 +58,14 @@ class CgroupContext {
       const CgroupPath& cgroup);
 
   /*
+   * To get children of a cgroup, use OomdContext::addChildrenToCacheAndGet.
+   * This method is dangerous to use directly because the CgroupContext it
+   * returns is not yet in any OomdContext cache.
+   */
+  std::optional<CgroupContext> createChildCgroupCtx(
+      const std::string& child_name) const;
+
+  /*
    * Check if cgroup still exists and archive current data for temporal
    * counters. Only called by the containing OomdContext, which has access to
    * the mutable instance.
