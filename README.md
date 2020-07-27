@@ -21,7 +21,7 @@ userspace before an OOM occurs in kernel space. Corrective action is configured
 via a flexible plugin system, in which custom code can be written. By default,
 this involves killing offending processes. This enables an unparalleled level
 of flexibility where each workload can have custom protection rules.
-Furthermore, time spent livedlocked in kernelspace is minimized. In practice at
+Furthermore, time spent livelocked in kernelspace is minimized. In practice at
 Facebook, we've regularly seen 30 minute host lockups go away entirely.
 
 ## Installing on Debian 11+ or Ubuntu 20.04+
