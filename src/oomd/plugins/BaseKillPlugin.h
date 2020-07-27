@@ -121,13 +121,12 @@ class BaseKillPlugin : public Oomd::Engine::BasePlugin {
   /*
    * Kills a cgroup
    *
-   * @param cgroup_path is the absolute path to a cgroup (eg /sys/fs/cgroup/...)
-   * @param recursive, if true, recursively kills every process (ie children
-   * cgroups) starting at @param cgroup_path
+   * @param target is the cgroup to kill
    * @param dry sets whether or not we should actually issue SIGKILLs
    */
-  virtual std::optional<KillUuid>
-  tryToKillCgroup(const std::string& cgroup_path, bool recursive, bool dry);
+  virtual std::optional<KillUuid> tryToKillCgroup(
+      const CgroupContext& target,
+      bool dry);
 
   /*
    * Sends SIGKILL to every PID in @param procs
@@ -188,11 +187,7 @@ class BaseKillPlugin : public Oomd::Engine::BasePlugin {
       bool dry = false) const;
 
  private:
-  virtual int getAndTryToKillPids(
-      const std::string& path,
-      bool recursive,
-      size_t stream_size);
-
+  virtual int getAndTryToKillPids(const CgroupContext& target);
   bool tryToKillSomething(
       OomdContext& ctx,
       std::vector<OomdContext::ConstCgroupContextRef>&& cgroups);

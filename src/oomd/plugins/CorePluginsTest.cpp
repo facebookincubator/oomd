@@ -62,20 +62,18 @@ class BaseKillPluginMock : public BaseKillPlugin {
     return ret;
   }
 
-  std::optional<KillUuid> tryToKillCgroup(
-      const std::string& cgroup_path,
-      bool recursive,
-      bool dry) override {
-    if (unkillable_cgroups.count(cgroup_path) > 0) {
-      OLOG << "tried to kill " << cgroup_path
+  std::optional<KillUuid> tryToKillCgroup(const CgroupContext& target, bool dry)
+      override {
+    if (unkillable_cgroups.count(target.cgroup().absolutePath()) > 0) {
+      OLOG << "tried to kill " << target.cgroup().absolutePath()
            << ", failed b/c it's in unkillable_cgroups";
       return std::nullopt;
     }
 
-    OLOG << "killed " << cgroup_path;
-    killed_cgroup = cgroup_path;
+    OLOG << "killed " << target.cgroup().absolutePath();
+    killed_cgroup = target.cgroup().absolutePath();
 
-    return BaseKillPlugin::tryToKillCgroup(cgroup_path, recursive, dry);
+    return BaseKillPlugin::tryToKillCgroup(target, dry);
   }
 
   std::optional<std::string> killed_cgroup{std::nullopt};
@@ -112,13 +110,6 @@ class BaseKillPluginShim : public BaseKillPluginMock {
       override {
     OLOG << "Picked \"" << target.cgroup().relativePath() << "\"";
   }
-
-  std::optional<BaseKillPlugin::KillUuid> tryToKillCgroupShim(
-      const std::string& cgroup_path,
-      bool recursive,
-      bool dry) {
-    return BaseKillPluginMock::tryToKillCgroup(cgroup_path, recursive, dry);
-  }
 };
 } // namespace Oomd
 
@@ -138,36 +129,13 @@ class CorePluginsTest : public ::testing::Test {
 
 class BaseKillPluginTest : public CorePluginsTest {};
 
-TEST_F(BaseKillPluginTest, TryToKillCgroupKillsNonRecursive) {
-  BaseKillPluginShim plugin;
-  EXPECT_EQ(
-      plugin
-          .tryToKillCgroupShim(
-              "oomd/fixtures/plugins/base_kill_plugin/one_big", false, false)
-          .has_value(),
-      true);
-
-  int expected_total = 0;
-  for (int i = 1; i <= 30; ++i) {
-    expected_total += i;
-  }
-
-  int received_total = 0;
-  for (int i : plugin.killed) {
-    received_total += i;
-  }
-
-  EXPECT_EQ(expected_total, received_total);
-}
-
 TEST_F(BaseKillPluginTest, TryToKillCgroupKillsRecursive) {
+  OomdContext ctx;
+  auto target = ASSERT_EXISTS(CgroupContext::make(
+      ctx, CgroupPath("oomd/fixtures/plugins/base_kill_plugin", "one_big")));
+
   BaseKillPluginShim plugin;
-  EXPECT_EQ(
-      plugin
-          .tryToKillCgroupShim(
-              "oomd/fixtures/plugins/base_kill_plugin/one_big", true, false)
-          .has_value(),
-      true);
+  EXPECT_EQ(plugin.tryToKillCgroup(target, false).has_value(), true);
 
   int expected_total = 0;
   for (int i = 1; i <= 30; ++i) {

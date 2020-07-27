@@ -17,6 +17,8 @@
 
 #include "oomd/plugins/BaseKillPlugin.h"
 
+#include <fcntl.h>
+#include <unistd.h>
 #include <algorithm>
 #include <chrono>
 #include <cmath>
@@ -31,6 +33,7 @@
 
 #include "oomd/Log.h"
 #include "oomd/Stats.h"
+#include "oomd/include/Assert.h"
 #include "oomd/include/CoreStats.h"
 #include "oomd/include/Types.h"
 #include "oomd/util/Fs.h"
@@ -182,8 +185,7 @@ bool BaseKillPlugin::tryToKillSomething(
 
     ologKillTarget(ctx, cgroup_ctx, *peers);
 
-    if (auto kill_uuid =
-            tryToKillCgroup(cgroup_ctx.cgroup().absolutePath(), true, dry_)) {
+    if (auto kill_uuid = tryToKillCgroup(cgroup_ctx, dry_)) {
       logKill(
           cgroup_ctx.cgroup(),
           cgroup_ctx,
@@ -205,53 +207,59 @@ BaseKillPlugin::BaseKillPlugin() {
   Oomd::setStat(CoreStats::kKillsKey, 0);
 }
 
-int BaseKillPlugin::getAndTryToKillPids(
-    const std::string& path,
-    bool recursive,
-    size_t stream_size) {
+int BaseKillPlugin::getAndTryToKillPids(const CgroupContext& target) {
+  static constexpr size_t stream_size = 20;
   int nr_killed = 0;
 
-  std::ifstream f(path + "/" + Fs::kProcsFile, std::ios::in);
-  if (!f.is_open()) {
-    OLOG << "Unable to open " << path;
+  const auto fd = ::openat(target.fd().fd(), Fs::kProcsFile, O_RDONLY);
+  if (fd == -1) {
     return 0;
   }
-  while (!f.eof()) {
-    std::string s;
-    std::vector<int> pids;
-    while (std::getline(f, s)) {
-      pids.push_back(std::stoi(s));
-      if (pids.size() == stream_size) {
-        break;
-      }
+  auto fp = ::fdopen(fd, "r");
+  if (fp == nullptr) {
+    ::close(fd);
+    return 0;
+  }
+  std::vector<int> pids;
+  char* line = nullptr;
+  size_t len = 0;
+  ssize_t read;
+  errno = 0;
+  while ((read = ::getline(&line, &len, fp)) != -1) {
+    OCHECK(line != nullptr);
+    pids.push_back(std::stoi(line));
+    if (pids.size() == stream_size) {
+      nr_killed += tryToKillPids(pids);
+      pids.clear();
     }
-    nr_killed += tryToKillPids(pids);
-    if (f.bad()) {
-      OLOG << "Error while processing file " << path;
-      // Most likely the cgroup is dead and gone
-      break;
+  }
+  nr_killed += tryToKillPids(pids);
+  ::free(line);
+  ::fclose(fp);
+
+  // target.children is cached, and may be stale
+  if (const auto& children = target.children()) {
+    for (const auto& child_name : *children) {
+      if (auto child_ctx =
+              target.oomd_ctx().addChildToCacheAndGet(target, child_name)) {
+        nr_killed += getAndTryToKillPids(*child_ctx);
+      }
     }
   }
 
-  if (recursive) {
-    auto de = Fs::readDir(path, Fs::DE_DIR);
-    for (const auto& dir : de.dirs) {
-      nr_killed += getAndTryToKillPids(path + "/" + dir, true, stream_size);
-    }
-  }
   return nr_killed;
 }
 
 std::optional<BaseKillPlugin::KillUuid> BaseKillPlugin::tryToKillCgroup(
-    const std::string& cgroup_path,
-    bool recursive,
+    const CgroupContext& target,
     bool dry) {
   using namespace std::chrono_literals;
+
+  const std::string& cgroup_path = target.cgroup().absolutePath();
 
   int last_nr_killed = 0;
   int nr_killed = 0;
   int tries = 10;
-  static constexpr size_t stream_size = 20;
 
   KillUuid kill_uuid = generateKillUuid();
 
@@ -265,7 +273,10 @@ std::optional<BaseKillPlugin::KillUuid> BaseKillPlugin::tryToKillCgroup(
   reportKillUuidToXattr(cgroup_path, kill_uuid);
   reportKillInitiationToXattr(cgroup_path);
   while (tries--) {
-    nr_killed += getAndTryToKillPids(cgroup_path, recursive, stream_size);
+    // Descendent cgroups created during killing will be missed because
+    // getAndTryToKillPids reads cgroup children from OomdContext's cache
+
+    nr_killed += getAndTryToKillPids(target);
 
     if (nr_killed == last_nr_killed) {
       break;

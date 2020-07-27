@@ -33,6 +33,7 @@
 #include <utility>
 
 #include "oomd/include/Assert.h"
+#include "oomd/util/ScopeGuard.h"
 #include "oomd/util/Util.h"
 
 namespace {
@@ -110,14 +111,8 @@ bool Fs::isCgroupValid(const DirFd& dirfd) {
   return ::faccessat(dirfd.fd(), kControllersFile, F_OK, 0) == 0;
 }
 
-struct Fs::DirEnts Fs::readDir(const std::string& path, int flags) {
-  DIR* d;
+struct Fs::DirEnts Fs::readDirFromDIR(DIR* d, int flags) {
   struct Fs::DirEnts de;
-
-  d = ::opendir(path.c_str());
-  if (!d) {
-    return de;
-  }
 
   while (struct dirent* dir = ::readdir(d)) {
     if (dir->d_name[0] == '.') {
@@ -139,9 +134,8 @@ struct Fs::DirEnts Fs::readDir(const std::string& path, int flags) {
       continue;
     }
 
-    auto file = path + "/" + dir->d_name;
     struct stat buf;
-    int ret = ::lstat(file.c_str(), &buf);
+    int ret = ::fstatat(dirfd(d), dir->d_name, &buf, AT_SYMLINK_NOFOLLOW);
     if (ret == -1) {
       continue;
     }
@@ -154,8 +148,40 @@ struct Fs::DirEnts Fs::readDir(const std::string& path, int flags) {
     }
   }
 
-  ::closedir(d);
   return de;
+}
+
+struct Fs::DirEnts Fs::readDirAt(const DirFd& dirfd, int flags) {
+  // once an fd is passed to fdopendir, it is unusable except through that DIR
+  int fresh_fd = ::dup(dirfd.fd());
+
+  DIR* d = ::fdopendir(fresh_fd);
+  if (!d) {
+    ::close(fresh_fd);
+    return Fs::DirEnts{};
+  }
+
+  OOMD_SCOPE_EXIT {
+    // even though we dup()ed dirfd.fd(), the copied fd shares state with
+    // dirfd.fd(). For dirfd to be reusable again, we need to rewind it, which
+    // we can do through d.
+    ::rewinddir(d);
+
+    ::closedir(d);
+  };
+
+  return Fs::readDirFromDIR(d, flags);
+}
+
+struct Fs::DirEnts Fs::readDir(const std::string& path, int flags) {
+  DIR* d = ::opendir(path.c_str());
+  if (!d) {
+    return Fs::DirEnts{};
+  }
+  OOMD_SCOPE_EXIT {
+    ::closedir(d);
+  };
+  return readDirFromDIR(d, flags);
 }
 
 bool Fs::isDir(const std::string& path) {

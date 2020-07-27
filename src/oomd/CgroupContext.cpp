@@ -16,6 +16,7 @@
  */
 
 #include "oomd/CgroupContext.h"
+#include <unistd.h>
 
 #include "oomd/OomdContext.h"
 
@@ -149,7 +150,7 @@ std::optional<double> CgroupContext::memory_growth(Error* err) const {
 }
 
 std::vector<std::string> CgroupContext::getChildren() const {
-  return Fs::readDir(cgroup_.absolutePath(), Fs::DE_DIR).dirs;
+  return Fs::readDirAt(fd(), Fs::DE_DIR).dirs;
 }
 
 std::optional<ResourcePressure> CgroupContext::getMemPressure() const {

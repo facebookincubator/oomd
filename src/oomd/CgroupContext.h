@@ -80,6 +80,10 @@ class CgroupContext {
     return cgroup_;
   }
 
+  OomdContext& oomd_ctx() const {
+    return ctx_;
+  }
+
   // Use by plugins to identify a CgroupContext across intervals. CgroupPath,
   // cgroup dir_fd, and memory address can all be recycled if cgroup has been
   // recreated. This id is guaranteed to be unique to each cgroup, but semantics

@@ -17,6 +17,8 @@
 
 #pragma once
 
+#include <dirent.h>
+#include <sys/types.h>
 #include <exception>
 #include <stdexcept>
 #include <string>
@@ -143,6 +145,11 @@ class Fs {
   static struct DirEnts readDir(const std::string& path, int flags);
 
   /*
+   * Like readDir, but takes a DirFd
+   */
+  static struct DirEnts readDirAt(const DirFd& dirfd, int flags);
+
+  /*
    * Checks if @param path is a directory
    */
   static bool isDir(const std::string& path);
@@ -263,6 +270,7 @@ class Fs {
   static void writeControlFileAt(
       std::optional<Fd>&& fd,
       const std::string& content);
+  static struct DirEnts readDirFromDIR(DIR* dir, int flags);
 };
 
 } // namespace Oomd
