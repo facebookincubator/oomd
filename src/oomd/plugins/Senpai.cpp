@@ -469,18 +469,23 @@ bool Senpai::tick_immediate_backoff(
 // Initialize a CgroupState. Return nullopt if cgroup no longer valid.
 std::optional<Senpai::CgroupState> Senpai::initializeCgroup(
     const CgroupContext& cgroup_ctx) {
-  auto current_opt = cgroup_ctx.current_usage();
-  if (!current_opt) {
-    return std::nullopt;
+  int64_t start_limit = 0;
+  // Immediate backoff does not use limit as a state.
+  if (!immediate_backoff_) {
+    auto current_opt = cgroup_ctx.current_usage();
+    if (!current_opt) {
+      return std::nullopt;
+    }
+    if (!writeMemhigh(cgroup_ctx, *current_opt)) {
+      return std::nullopt;
+    }
+    start_limit = *current_opt;
   }
   auto total_opt = getPressureTotalSome(cgroup_ctx);
   if (!total_opt) {
     return std::nullopt;
   }
-  if (!writeMemhigh(cgroup_ctx, *current_opt)) {
-    return std::nullopt;
-  }
-  return CgroupState(*current_opt, *total_opt, interval_);
+  return CgroupState(start_limit, *total_opt, interval_);
 }
 
 } // namespace Oomd
