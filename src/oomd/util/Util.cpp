@@ -205,8 +205,13 @@ ssize_t Util::writeFull(int fd, const char* msg_buf, size_t count) {
 }
 
 std::string Util::generateUuid() {
-  static std::random_device rd;
-  static std::mt19937 gen(rd());
+  unsigned int seed;
+  try {
+    seed = std::random_device{}();
+  } catch (const std::runtime_error&) {
+    seed = std::random_device("/dev/urandom")();
+  }
+  static std::mt19937 gen(seed);
   static std::uniform_int_distribution<uint64_t> dis;
 
   // Combine two 64-bit numbers
