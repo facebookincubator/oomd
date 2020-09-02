@@ -86,28 +86,20 @@ int Oomd::run() {
   OLOG << "Running oomd";
 
   while (true) {
-    try {
-      /* sleep override */
-      std::this_thread::sleep_for(interval_);
+    /* sleep override */
+    std::this_thread::sleep_for(interval_);
 
-      if (fs_drop_in_service_) {
-        fs_drop_in_service_->updateDropIns();
-      }
-
-      updateContext();
-
-      // Prerun all the plugins
-      engine_->prerun(ctx_);
-
-      // Run all the plugins
-      engine_->runOnce(ctx_);
-
-    } catch (const std::exception& ex) {
-      // In case logging was disabled before exception is thrown
-      OLOG << LogStream::Control::ENABLE;
-      OLOG << "Caught exception: " << ex.what();
-      return 1;
+    if (fs_drop_in_service_) {
+      fs_drop_in_service_->updateDropIns();
     }
+
+    updateContext();
+
+    // Prerun all the plugins
+    engine_->prerun(ctx_);
+
+    // Run all the plugins
+    engine_->runOnce(ctx_);
   }
 
   return 0;
