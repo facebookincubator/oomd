@@ -17,6 +17,8 @@
 
 #pragma once
 
+#include <chrono>
+
 #include "oomd/OomdContext.h"
 #include "oomd/engine/BasePlugin.h"
 #include "oomd/engine/DetectorGroup.h"
@@ -68,6 +70,12 @@ class Ruleset {
     return name_;
   }
 
+  /*
+   * for the next @param duration seconds, runOnce wont run the action chain,
+   * even if the DetectorGroups fire.
+   */
+  void pause_actions(std::chrono::seconds duration);
+
  private:
   std::string name_;
   std::vector<std::unique_ptr<DetectorGroup>> detector_groups_;
@@ -78,6 +86,8 @@ class Ruleset {
   bool actiongroup_dropin_enabled_{false};
   uint32_t silenced_logs_{0};
   int32_t numTargeted_{0};
+  std::chrono::steady_clock::time_point pause_actions_until_ =
+      std::chrono::steady_clock::time_point();
 };
 
 } // namespace Engine

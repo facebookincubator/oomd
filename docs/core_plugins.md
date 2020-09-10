@@ -205,9 +205,14 @@ Note the lack of trailing "*".
 Kill the biggest (memory.current - memory.low) child cgroup if larger than
 `size_threshold` percent or kill the fastest growing over
 `min_growth_ratio` of the biggest `growing_size_percentile` by size.  True
-if killed something, which terminates actions. Sleeps for
-`post_action_delay` if a kill was performed.  If `dry` is set to true, does
-not actually perform kill but prints via logs what kill it would have done.
+if killed something, which terminates actions.
+
+Disables its action chain for `post_action_delay` if a kill was performed. Other
+rulesets will run normally. This plugins' ruleset's detectors will run, but will
+not trigger any actions.
+
+If `dry` is set to true, does not actually perform kill but prints via logs what
+kill it would have done.
 
 Avoids killing cgroups which aren't experiencing memory pressure at all as
 they aren't contributing the pressure anyway.
@@ -245,9 +250,7 @@ the same way as well.
 
 `threshold` follows the same semantics and options as `memory_above`.
 
-Sleeps for `post_action_delay` following a kill.
-
-`dry` follows the same semantics and options as
+`post_action_delay` and `dry` follow the same semantics and options as
 `kill_by_memory_size_or_growth`
 
 Kills the child with the largest swap usage.
@@ -277,9 +280,7 @@ the same way as well.
 
 `resource` is io|memory
 
-Sleeps for `post_action_delay` following a kill.
-
-`dry` follows the same semantics and options as
+`post_action_delay` and `dry` follow the same semantics and options as
 `kill_by_memory_size_or_growth`
 
 Kills the child generating the most pressure.
@@ -306,9 +307,7 @@ otherwise.
 `kill_by_memory_size_or_growth`. oomd_prefer/oomd_avoid xattrs are respected
 the same way as well.
 
-Sleeps for `post_action_delay` following a kill.
-
-`dry` follows the same semantics and options as
+`post_action_delay` and `dry` follow the same semantics and options as
 `kill_by_memory_size_or_growth`
 
 Kills the child generating the most io cost.
@@ -335,9 +334,7 @@ otherwise.
 `kill_by_memory_size_or_growth`. oomd_prefer/oomd_avoid xattrs are respected
 the same way as well.
 
-Sleeps for `post_action_delay` following a kill.
-
-`dry` follows the same semantics and options as
+`post_action_delay` and `dry` follow the same semantics and options as
 `kill_by_memory_size_or_growth`
 
 Kills the child with the highest pg scan rate.

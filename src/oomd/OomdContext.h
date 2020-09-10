@@ -31,8 +31,12 @@
 
 namespace Oomd {
 
+namespace Engine {
+class Ruleset;
+}
+
 struct ActionContext {
-  std::string ruleset;
+  Engine::Ruleset* ruleset{nullptr};
   std::string detectorgroup;
   std::string action_group_run_uuid;
 };

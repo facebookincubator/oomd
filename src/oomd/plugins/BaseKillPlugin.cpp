@@ -33,6 +33,7 @@
 
 #include "oomd/Log.h"
 #include "oomd/Stats.h"
+#include "oomd/engine/Ruleset.h"
 #include "oomd/include/Assert.h"
 #include "oomd/include/CoreStats.h"
 #include "oomd/include/Types.h"
@@ -111,15 +112,13 @@ Engine::PluginRet BaseKillPlugin::run(OomdContext& ctx) {
   auto cgroups = ctx.addToCacheAndGet(cgroups_);
   bool ret = tryToKillSomething(ctx, std::move(cgroups));
 
-  if (ret) {
-    std::this_thread::sleep_for(std::chrono::seconds(post_action_delay_));
-    if (always_continue_) {
-      return Engine::PluginRet::CONTINUE;
-    }
-    return Engine::PluginRet::STOP;
-  } else {
+  if (!ret || always_continue_) {
     return Engine::PluginRet::CONTINUE;
   }
+  if (auto ruleset = ctx.getActionContext().ruleset) {
+    ruleset->pause_actions(std::chrono::seconds(post_action_delay_));
+  }
+  return Engine::PluginRet::STOP;
 }
 
 bool BaseKillPlugin::tryToKillSomething(

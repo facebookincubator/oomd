@@ -18,6 +18,7 @@
 #include "oomd/engine/Ruleset.h"
 #include "oomd/Log.h"
 #include "oomd/engine/EngineTypes.h"
+#include "oomd/util/ScopeGuard.h"
 #include "oomd/util/Util.h"
 
 namespace Oomd {
@@ -115,11 +116,21 @@ uint32_t Ruleset::runOnce(OomdContext& context) {
              << " has fired for Ruleset=" << name_ << ". Running action chain.";
       }
       run_actions = true;
-      context.setActionContext({name_, dg->name(), Util::generateUuid()});
+      context.setActionContext({this, dg->name(), Util::generateUuid()});
     }
   }
 
   if (!run_actions) {
+    return 0;
+  }
+
+  OOMD_SCOPE_EXIT {
+    context.setActionContext({nullptr, "", ""});
+  };
+
+  // run actions if now() == pause_actions_until_ because a delay of 0 should
+  // not cause a pause.
+  if (std::chrono::steady_clock::now() < pause_actions_until_) {
     return 0;
   }
 
@@ -159,6 +170,11 @@ uint32_t Ruleset::runOnce(OomdContext& context) {
   }
 
   return 1;
+}
+
+void Ruleset::pause_actions(std::chrono::seconds duration) {
+  pause_actions_until_ = std::max(
+      pause_actions_until_, std::chrono::steady_clock::now() + duration);
 }
 
 } // namespace Engine
