@@ -90,6 +90,10 @@ int Senpai::init(
     }
   }
 
+  if (args.find("log_interval") != args.end()) {
+    log_interval_ = std::stoull(args.at("log_interval"));
+  }
+
   auto meminfo = Fs::getMeminfo();
   if (auto pos = meminfo.find("MemTotal"); pos != meminfo.end()) {
     host_mem_total_ = pos->second;
@@ -108,6 +112,12 @@ Engine::PluginRet Senpai::run(OomdContext& ctx) {
   // Use reverse iterator after reverseSort to make it normal order
   auto resolvedIt = resolved_cgroups.crbegin();
   auto trackedIt = tracked_cgroups_.begin();
+
+  bool do_aggregate_log = false;
+  if (immediate_backoff_ && ++log_ticks_ >= log_interval_) {
+    log_ticks_ = 0;
+    do_aggregate_log = true;
+  }
 
   // Iterate both tracked cgroups and resolved cgroups in increasing id order
   while (resolvedIt != resolved_cgroups.crend()) {
@@ -132,6 +142,18 @@ Engine::PluginRet Senpai::run(OomdContext& ctx) {
       bool tick_result = immediate_backoff_
           ? tick_immediate_backoff(cgroup_ctx, trackedIt->second)
           : tick(cgroup_ctx, trackedIt->second);
+      if (do_aggregate_log && tick_result) {
+        auto& state = trackedIt->second;
+        std::ostringstream oss;
+        oss << "cgroup " << cgroup_ctx.cgroup().relativePath() << " "
+            << state.reclaim_count << " reclaim attempts ("
+            << std::setprecision(3) << std::fixed
+            << state.reclaim_bytes / (double)(1 << 30UL) << " gb)";
+        OLOG << oss.str();
+        // Reset stats
+        state.reclaim_count = 0;
+        state.reclaim_bytes = 0;
+      }
       // Keep the tracked cgroups if they are still valid after tick
       trackedIt = tick_result ? std::next(trackedIt)
                               : tracked_cgroups_.erase(trackedIt);
@@ -451,14 +473,8 @@ bool Senpai::tick_immediate_backoff(
       if (!writeMemhigh(cgroup_ctx, limit) || !resetMemhigh(cgroup_ctx)) {
         return false;
       }
-      std::ostringstream oss;
-      oss << "cgroup " << cgroup_ctx.cgroup().relativePath()
-          << std::setprecision(3) << std::fixed << " limitgb "
-          << limit / (double)(1 << 30UL) << std::setprecision(2)
-          << " mempressure(10,60) (" << mem_pressure_opt->sec_10 << ","
-          << mem_pressure_opt->sec_60 << ") iopressure(10,60) ("
-          << io_pressure_opt->sec_10 << "," << io_pressure_opt->sec_60 << ")";
-      OLOG << oss.str();
+      state.reclaim_count++;
+      state.reclaim_bytes += *current_opt - limit;
       state.ticks = interval_;
     }
   }

@@ -61,6 +61,9 @@ class Senpai : public Engine::BasePlugin {
     std::chrono::microseconds cumulative{0};
     // Count-down to decision to probe/backoff
     int64_t ticks;
+    // Reclaim statistics for logging
+    uint64_t reclaim_bytes{0};
+    uint64_t reclaim_count{0};
   };
 
   std::optional<bool> hasMemoryHighTmp(const CgroupContext& cgroup_ctx);
@@ -88,6 +91,9 @@ class Senpai : public Engine::BasePlugin {
   int64_t limit_max_bytes_{10ull << 30};
   // pressure target - stall time over sampling period
   int64_t interval_{6};
+  // interval between aggregation logging; only for immediate_backoff
+  int64_t log_interval_{60};
+  int64_t log_ticks_{0};
   std::chrono::microseconds pressure_ms_{std::chrono::milliseconds{10}};
   // Currently only used for immediate backoff
   double pressure_pct_{0.1};
