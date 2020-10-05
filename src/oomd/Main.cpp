@@ -43,7 +43,7 @@
 #include "oomd/include/CgroupPath.h"
 #include "oomd/include/CoreStats.h"
 #include "oomd/include/Defines.h"
-#include "oomd/util/Fs.h"
+#include "oomd/util/FsExceptionless.h"
 #include "oomd/util/Util.h"
 
 #ifdef MESON_BUILD
@@ -105,14 +105,14 @@ static void printUsage() {
 
 static bool system_reqs_met() {
   // 4.20 mempressure file
-  auto psi = Oomd::Fs::readFileByLine("/proc/pressure/memory");
-  if (psi && psi.value().size()) {
+  auto psi = Oomd::FsExceptionless::readFileByLine("/proc/pressure/memory");
+  if (psi && psi->size()) {
     return true;
   }
 
   // Experimental mempressure file
-  psi = Oomd::Fs::readFileByLine("/proc/mempressure");
-  if (psi && psi.value().size()) {
+  psi = Oomd::FsExceptionless::readFileByLine("/proc/mempressure");
+  if (psi && psi->size()) {
     return true;
   }
 
@@ -122,8 +122,11 @@ static bool system_reqs_met() {
 }
 
 static bool cgroup_fs_valid(const std::string& path) {
-  std::string cgroup2ParentPath = Oomd::Fs::getCgroup2MountPoint();
-  return Oomd::Fs::isUnderParentPath(cgroup2ParentPath, path);
+  auto cgroup2ParentPath = Oomd::FsExceptionless::getCgroup2MountPoint();
+  if (!cgroup2ParentPath) {
+    return false;
+  }
+  return Oomd::FsExceptionless::isUnderParentPath(*cgroup2ParentPath, path);
 }
 
 static std::unique_ptr<Oomd::Config2::IR::Root> parseConfig(
@@ -164,13 +167,16 @@ static Oomd::IOCostCoeffs parseCoeffs(const std::string& str_coeffs) {
   return coeffs;
 }
 
-static std::unordered_map<std::string, Oomd::DeviceType> parseDevices(
-    const std::string& str_devices) {
+static Oomd::SystemMaybe<std::unordered_map<std::string, Oomd::DeviceType>>
+parseDevices(const std::string& str_devices) {
   std::unordered_map<std::string, Oomd::DeviceType> io_devs;
   auto parts = Oomd::Util::split(str_devices, ',');
   for (const auto& dev_id : parts) {
-    auto dev_type = Oomd::Fs::getDeviceType(dev_id);
-    io_devs[dev_id] = dev_type;
+    auto dev_type = Oomd::FsExceptionless::getDeviceType(dev_id);
+    if (!dev_type) {
+      return SYSTEM_ERROR(dev_type.error());
+    }
+    io_devs[dev_id] = *dev_type;
   }
   return io_devs;
 }
@@ -237,7 +243,7 @@ int main(int argc, char** argv) {
   int c = 0;
   bool should_dump_stats = false;
   bool should_reset_stats = false;
-  std::unordered_map<std::string, Oomd::DeviceType> io_devs;
+  Oomd::SystemMaybe<std::unordered_map<std::string, Oomd::DeviceType>> io_devs;
   struct Oomd::IOCostCoeffs hdd_coeffs = default_hdd_coeffs;
   struct Oomd::IOCostCoeffs ssd_coeffs = default_ssd_coeffs;
 
@@ -315,10 +321,9 @@ int main(int argc, char** argv) {
         should_reset_stats = true;
         break;
       case OPT_DEVICE:
-        try {
-          io_devs = parseDevices(optarg);
-        } catch (const Oomd::Fs::bad_control_file& e) {
-          std::cerr << "Invalid devices: " << e.what() << '\n';
+        io_devs = parseDevices(optarg);
+        if (!io_devs) {
+          std::cerr << "Invalid devices: " << io_devs.error().what() << '\n';
           return 1;
         }
         break;
@@ -476,7 +481,7 @@ int main(int argc, char** argv) {
       interval,
       cgroup_fs,
       drop_in_dir,
-      io_devs,
+      *io_devs,
       hdd_coeffs,
       ssd_coeffs);
   return oomd.run();
