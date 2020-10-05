@@ -24,7 +24,7 @@
 #include "oomd/Log.h"
 #include "oomd/PluginRegistry.h"
 #include "oomd/include/CgroupPath.h"
-#include "oomd/util/FsExceptionless.h"
+#include "oomd/util/Fs.h"
 #include "oomd/util/Util.h"
 
 namespace {
@@ -42,7 +42,7 @@ void dumpCgroupOverview(const Oomd::CgroupContext& cgroup_ctx, bool always) {
   const auto& path = cgroup_ctx.cgroup();
   const int64_t current = cgroup_ctx.current_usage().value_or(0);
   // TODO(dschatzberg): Report error
-  auto meminfo = Oomd::FsExceptionless::getMeminfo();
+  auto meminfo = Oomd::Fs::getMeminfo();
   int64_t swapfree = 0;
   int64_t swaptotal = 0;
   if (meminfo) {
@@ -51,7 +51,7 @@ void dumpCgroupOverview(const Oomd::CgroupContext& cgroup_ctx, bool always) {
   }
   int64_t pgscan = 0;
   // TODO(dschatzberg): Report error
-  auto vmstat = Oomd::FsExceptionless::getVmstat();
+  auto vmstat = Oomd::Fs::getVmstat();
   if (vmstat) {
     pgscan = vmstat[kPgscanSwap] + vmstat[kPgscanDirect];
   }

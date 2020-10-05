@@ -22,7 +22,7 @@
 
 #include "oomd/Log.h"
 #include "oomd/PluginRegistry.h"
-#include "oomd/util/FsExceptionless.h"
+#include "oomd/util/Fs.h"
 #include "oomd/util/Util.h"
 
 namespace Oomd {
@@ -94,7 +94,8 @@ int Senpai::init(
     log_interval_ = std::stoull(args.at("log_interval"));
   }
 
-  auto meminfo = FsExceptionless::getMeminfo();
+  auto meminfo = Fs::getMeminfo();
+  // TODO(dschatzberg): Report Error
   if (meminfo) {
     if (auto pos = meminfo->find("MemTotal"); pos != meminfo->end()) {
       host_mem_total_ = pos->second;
@@ -176,8 +177,8 @@ std::optional<std::chrono::microseconds> getPressureTotalSome(
     const CgroupContext& cgroup_ctx) {
   // Senpai reads pressure.some to get early notice that a workload
   // may be under resource pressure
-  if (const auto pressure = Oomd::FsExceptionless::readMempressureAt(
-          cgroup_ctx.fd(), Oomd::FsExceptionless::PressureType::SOME)) {
+  if (const auto pressure = Oomd::Fs::readMempressureAt(
+          cgroup_ctx.fd(), Oomd::Fs::PressureType::SOME)) {
     if (const auto total = pressure.value().total) {
       return total.value();
     }
@@ -219,11 +220,11 @@ std::optional<int64_t> Senpai::readMemhigh(const CgroupContext& cgroup_ctx) {
 bool Senpai::writeMemhigh(const CgroupContext& cgroup_ctx, int64_t value) {
   if (auto has_memory_high_tmp = hasMemoryHighTmp(cgroup_ctx)) {
     if (*has_memory_high_tmp) {
-      if (!Oomd::FsExceptionless::writeMemhightmpAt(
+      if (!Oomd::Fs::writeMemhightmpAt(
               cgroup_ctx.fd(), value, std::chrono::seconds(20))) {
         return false;
       }
-    } else if (!Oomd::FsExceptionless::writeMemhighAt(cgroup_ctx.fd(), value)) {
+    } else if (!Oomd::Fs::writeMemhighAt(cgroup_ctx.fd(), value)) {
       return false;
     }
     return true;
@@ -237,11 +238,11 @@ bool Senpai::resetMemhigh(const CgroupContext& cgroup_ctx) {
   if (auto has_memory_high_tmp = hasMemoryHighTmp(cgroup_ctx)) {
     auto value = std::numeric_limits<int64_t>::max();
     if (*has_memory_high_tmp) {
-      if (!Oomd::FsExceptionless::writeMemhightmpAt(
+      if (!Oomd::Fs::writeMemhightmpAt(
               cgroup_ctx.fd(), value, std::chrono::seconds(0))) {
         return false;
       }
-    } else if (!Oomd::FsExceptionless::writeMemhighAt(cgroup_ctx.fd(), value)) {
+    } else if (!Oomd::Fs::writeMemhighAt(cgroup_ctx.fd(), value)) {
       return false;
     }
     return true;
@@ -434,11 +435,11 @@ bool Senpai::tick_immediate_backoff(
     return true;
   }
 
-  auto mem_pressure_maybe = FsExceptionless::readMempressureAt(cgroup_ctx.fd());
+  auto mem_pressure_maybe = Fs::readMempressureAt(cgroup_ctx.fd());
   if (!mem_pressure_maybe) {
     return false;
   }
-  auto io_pressure_maybe = FsExceptionless::readIopressureAt(cgroup_ctx.fd());
+  auto io_pressure_maybe = Fs::readIopressureAt(cgroup_ctx.fd());
   if (!io_pressure_maybe) {
     return false;
   }

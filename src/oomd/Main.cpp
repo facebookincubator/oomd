@@ -43,7 +43,7 @@
 #include "oomd/include/CgroupPath.h"
 #include "oomd/include/CoreStats.h"
 #include "oomd/include/Defines.h"
-#include "oomd/util/FsExceptionless.h"
+#include "oomd/util/Fs.h"
 #include "oomd/util/Util.h"
 
 #ifdef MESON_BUILD
@@ -105,13 +105,13 @@ static void printUsage() {
 
 static bool system_reqs_met() {
   // 4.20 mempressure file
-  auto psi = Oomd::FsExceptionless::readFileByLine("/proc/pressure/memory");
+  auto psi = Oomd::Fs::readFileByLine("/proc/pressure/memory");
   if (psi && psi->size()) {
     return true;
   }
 
   // Experimental mempressure file
-  psi = Oomd::FsExceptionless::readFileByLine("/proc/mempressure");
+  psi = Oomd::Fs::readFileByLine("/proc/mempressure");
   if (psi && psi->size()) {
     return true;
   }
@@ -122,11 +122,11 @@ static bool system_reqs_met() {
 }
 
 static bool cgroup_fs_valid(const std::string& path) {
-  auto cgroup2ParentPath = Oomd::FsExceptionless::getCgroup2MountPoint();
+  auto cgroup2ParentPath = Oomd::Fs::getCgroup2MountPoint();
   if (!cgroup2ParentPath) {
     return false;
   }
-  return Oomd::FsExceptionless::isUnderParentPath(*cgroup2ParentPath, path);
+  return Oomd::Fs::isUnderParentPath(*cgroup2ParentPath, path);
 }
 
 static std::unique_ptr<Oomd::Config2::IR::Root> parseConfig(
@@ -172,7 +172,7 @@ parseDevices(const std::string& str_devices) {
   std::unordered_map<std::string, Oomd::DeviceType> io_devs;
   auto parts = Oomd::Util::split(str_devices, ',');
   for (const auto& dev_id : parts) {
-    auto dev_type = Oomd::FsExceptionless::getDeviceType(dev_id);
+    auto dev_type = Oomd::Fs::getDeviceType(dev_id);
     if (!dev_type) {
       return SYSTEM_ERROR(dev_type.error());
     }

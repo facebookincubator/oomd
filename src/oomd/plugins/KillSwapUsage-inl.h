@@ -24,7 +24,7 @@
 
 #include "oomd/Log.h"
 #include "oomd/include/Types.h"
-#include "oomd/util/FsExceptionless.h"
+#include "oomd/util/Fs.h"
 #include "oomd/util/Util.h"
 
 namespace Oomd {
@@ -35,8 +35,8 @@ int KillSwapUsage<Base>::init(
     const PluginConstructionContext& context) {
   if (args.find("threshold") != args.end()) {
     auto meminfo = args.find("meminfo_location") != args.end()
-        ? FsExceptionless::getMeminfo(args.at("meminfo_location"))
-        : FsExceptionless::getMeminfo();
+        ? Fs::getMeminfo(args.at("meminfo_location"))
+        : Fs::getMeminfo();
 
     auto swapTotal = 0;
     // TODO(dschatzberg): Report Error

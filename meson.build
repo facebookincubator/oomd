@@ -43,7 +43,6 @@ srcs = files('''
     src/oomd/plugins/DumpCgroupOverview.cpp
     src/oomd/plugins/DumpKillInfoNoOp.cpp
     src/oomd/util/Fs.cpp
-    src/oomd/util/FsExceptionless.cpp
     src/oomd/util/Util.cpp
     src/oomd/plugins/MemoryAbove.cpp
     src/oomd/plugins/MemoryReclaim.cpp
@@ -134,7 +133,6 @@ core_tests = [
   ['config',   files('src/oomd/config/JsonConfigParserTest.cpp')],
   ['util',     files('src/oomd/util/FixtureTest.cpp',
                      'src/oomd/util/FsTest.cpp',
-                     'src/oomd/util/FsExceptionlessTest.cpp',
                      'src/oomd/util/ScopeGuardTest.cpp',
                      'src/oomd/util/SystemMaybeTest.cpp',
                      'src/oomd/util/UtilTest.cpp')],

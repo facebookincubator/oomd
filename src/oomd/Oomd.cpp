@@ -23,7 +23,7 @@
 #include "oomd/dropin/FsDropInService.h"
 #include "oomd/include/Assert.h"
 #include "oomd/include/Defines.h"
-#include "oomd/util/FsExceptionless.h"
+#include "oomd/util/Fs.h"
 #include "oomd/util/Util.h"
 
 namespace Oomd {
@@ -57,7 +57,7 @@ Oomd::~Oomd() = default;
 void Oomd::updateContext() {
   // Update information about swapfree
   SystemContext system_ctx;
-  auto swaps = FsExceptionless::readFileByLine("/proc/swaps");
+  auto swaps = Fs::readFileByLine("/proc/swaps");
 
   // TODO(dschatzberg): Handle error here
   if (swaps) {

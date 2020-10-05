@@ -22,7 +22,7 @@
 
 #include "oomd/Log.h"
 #include "oomd/PluginRegistry.h"
-#include "oomd/util/FsExceptionless.h"
+#include "oomd/util/Fs.h"
 #include "oomd/util/ScopeGuard.h"
 #include "oomd/util/Util.h"
 
@@ -46,8 +46,8 @@ int MemoryAbove::init(
   }
 
   auto meminfoMaybe = args.find("meminfo_location") != args.end()
-      ? FsExceptionless::getMeminfo(args.at("meminfo_location"))
-      : FsExceptionless::getMeminfo();
+      ? Fs::getMeminfo(args.at("meminfo_location"))
+      : Fs::getMeminfo();
 
   if (!meminfoMaybe) {
     OLOG << "Could not read meminfo " << meminfoMaybe.error().what();

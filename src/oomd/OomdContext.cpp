@@ -18,7 +18,7 @@
 #include "oomd/OomdContext.h"
 
 #include "oomd/Log.h"
-#include "oomd/util/FsExceptionless.h"
+#include "oomd/util/Fs.h"
 
 namespace Oomd {
 
@@ -150,7 +150,7 @@ void OomdContext::dump(
 
     if (skip_negligible) {
       // don't show if <1% pressure && <.1% usage
-      auto meminfo = FsExceptionless::getMeminfo();
+      auto meminfo = Fs::getMeminfo();
       // TODO(dschatzberg) report error
       if (meminfo) {
         const float press_min = 1;

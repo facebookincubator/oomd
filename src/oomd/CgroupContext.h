@@ -24,7 +24,7 @@
 
 #include "oomd/include/CgroupPath.h"
 #include "oomd/include/Types.h"
-#include "oomd/util/FsExceptionless.h"
+#include "oomd/util/Fs.h"
 
 namespace Oomd {
 
@@ -72,7 +72,7 @@ class CgroupContext {
    */
   bool refresh();
 
-  const FsExceptionless::DirFd& fd() const {
+  const Fs::DirFd& fd() const {
     return cgroup_dir_;
   }
 
@@ -146,7 +146,7 @@ class CgroupContext {
   explicit CgroupContext(
       OomdContext& ctx,
       const CgroupPath& path,
-      FsExceptionless::DirFd&& dirFd);
+      Fs::DirFd&& dirFd);
 
   // Test only
   friend class TestHelper;
@@ -203,7 +203,7 @@ class CgroupContext {
   // prevent race when a cgroup with exact same name is recreated after removal.
   // We check validity in refresh(). If invalid, the dir fd will be closed and
   // OomdContext will remove this CgroupContext.
-  FsExceptionless::DirFd cgroup_dir_;
+  Fs::DirFd cgroup_dir_;
   std::unique_ptr<CgroupData> data_;
 
   CgroupArchivedData archive_{};

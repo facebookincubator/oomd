@@ -19,7 +19,7 @@
 
 #include <exception>
 
-#include "oomd/util/FsExceptionless.h"
+#include "oomd/util/Fs.h"
 #include "oomd/util/Util.h"
 
 namespace Oomd {
@@ -80,7 +80,7 @@ CgroupPath CgroupPath::getChild(const std::string& path) const {
 
 std::vector<CgroupPath> CgroupPath::resolveWildcard() const {
   std::vector<CgroupPath> ret;
-  auto glob = FsExceptionless::glob(absolutePath(), /* dir_only */ true);
+  auto glob = Fs::glob(absolutePath(), /* dir_only */ true);
   // TODO(dschatzberg): Report error
   if (!glob) {
     return ret;

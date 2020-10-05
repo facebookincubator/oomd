@@ -64,22 +64,22 @@ PsiFormat getPsiFormat(const std::vector<std::string>& lines) {
 
 namespace Oomd {
 
-std::optional<Fs::Fd>
+SystemMaybe<Fs::Fd>
 Fs::Fd::openat(const DirFd& dirfd, const std::string& path, bool read_only) {
   int flags = read_only ? O_RDONLY : O_WRONLY;
   const auto fd = ::openat(dirfd.fd(), path.c_str(), flags);
   if (fd == -1) {
-    return std::nullopt;
+    return SYSTEM_ERROR(errno);
   }
-  return std::make_optional(Fd(fd));
+  return Fd(fd);
 }
 
-std::optional<uint64_t> Fs::Fd::inode() const {
+SystemMaybe<uint64_t> Fs::Fd::inode() const {
   struct ::stat buf;
   if (::fstat(fd_, &buf) == 0) {
     return static_cast<uint64_t>(buf.st_ino);
   }
-  return std::nullopt;
+  return SYSTEM_ERROR(errno);
 }
 
 void Fs::Fd::close() {
@@ -89,21 +89,20 @@ void Fs::Fd::close() {
   }
 }
 
-std::optional<Fs::DirFd> Fs::DirFd::open(const std::string& path) {
+SystemMaybe<Fs::DirFd> Fs::DirFd::open(const std::string& path) {
   int fd = ::open(path.c_str(), O_RDONLY | O_DIRECTORY);
   if (fd == -1) {
-    return std::nullopt;
+    return SYSTEM_ERROR(errno);
   }
-  return std::make_optional(DirFd(fd));
+  return DirFd(fd);
 }
 
-std::optional<Fs::DirFd> Fs::DirFd::openChildDir(
-    const std::string& path) const {
+SystemMaybe<Fs::DirFd> Fs::DirFd::openChildDir(const std::string& path) const {
   int child_fd = ::openat(fd(), path.c_str(), O_RDONLY | O_DIRECTORY);
   if (child_fd == -1) {
-    return std::nullopt;
+    return SYSTEM_ERROR(errno);
   }
-  return std::make_optional(DirFd(child_fd));
+  return DirFd(child_fd);
 }
 
 bool Fs::isCgroupValid(const DirFd& dirfd) {
@@ -111,8 +110,8 @@ bool Fs::isCgroupValid(const DirFd& dirfd) {
   return ::faccessat(dirfd.fd(), kControllersFile, F_OK, 0) == 0;
 }
 
-struct Fs::DirEnts Fs::readDirFromDIR(DIR* d, int flags) {
-  struct Fs::DirEnts de;
+SystemMaybe<Fs::DirEnts> Fs::readDirFromDIR(DIR* d, int flags) {
+  Fs::DirEnts de;
 
   while (struct dirent* dir = ::readdir(d)) {
     if (dir->d_name[0] == '.') {
@@ -137,7 +136,7 @@ struct Fs::DirEnts Fs::readDirFromDIR(DIR* d, int flags) {
     struct stat buf;
     int ret = ::fstatat(dirfd(d), dir->d_name, &buf, AT_SYMLINK_NOFOLLOW);
     if (ret == -1) {
-      continue;
+      return SYSTEM_ERROR(errno);
     }
 
     if ((flags & DirEntFlags::DE_FILE) && (buf.st_mode & S_IFREG)) {
@@ -151,14 +150,15 @@ struct Fs::DirEnts Fs::readDirFromDIR(DIR* d, int flags) {
   return de;
 }
 
-struct Fs::DirEnts Fs::readDirAt(const DirFd& dirfd, int flags) {
+SystemMaybe<Fs::DirEnts> Fs::readDirAt(const DirFd& dirfd, int flags) {
   // once an fd is passed to fdopendir, it is unusable except through that DIR
   int fresh_fd = ::dup(dirfd.fd());
 
   DIR* d = ::fdopendir(fresh_fd);
   if (!d) {
+    auto e = errno;
     ::close(fresh_fd);
-    return Fs::DirEnts{};
+    return SYSTEM_ERROR(e);
   }
 
   OOMD_SCOPE_EXIT {
@@ -173,10 +173,10 @@ struct Fs::DirEnts Fs::readDirAt(const DirFd& dirfd, int flags) {
   return Fs::readDirFromDIR(d, flags);
 }
 
-struct Fs::DirEnts Fs::readDir(const std::string& path, int flags) {
+SystemMaybe<Fs::DirEnts> Fs::readDir(const std::string& path, int flags) {
   DIR* d = ::opendir(path.c_str());
   if (!d) {
-    return Fs::DirEnts{};
+    return SYSTEM_ERROR(errno);
   }
   OOMD_SCOPE_EXIT {
     ::closedir(d);
@@ -193,14 +193,20 @@ bool Fs::isDir(const std::string& path) {
   return false;
 }
 
-std::vector<std::string> Fs::glob(const std::string& pattern, bool dir_only) {
+SystemMaybe<std::vector<std::string>> Fs::glob(
+    const std::string& pattern,
+    bool dir_only) {
   glob_t globbuf;
   std::vector<std::string> ret;
-  int flags = GLOB_NOSORT | GLOB_BRACE;
+  int flags = GLOB_NOSORT | GLOB_BRACE | GLOB_ERR;
   if (dir_only) {
     flags |= GLOB_ONLYDIR;
   }
-  if (0 == ::glob(pattern.c_str(), flags, nullptr, &globbuf)) {
+  auto ec = ::glob(pattern.c_str(), flags, nullptr, &globbuf);
+  OOMD_SCOPE_EXIT {
+    ::globfree(&globbuf);
+  };
+  if (!ec) {
     for (size_t i = 0; i < globbuf.gl_pathc; i++) {
       std::string path(globbuf.gl_pathv[i]);
       // GLOB_ONLYDIR is a hint and we need to double check
@@ -209,9 +215,18 @@ std::vector<std::string> Fs::glob(const std::string& pattern, bool dir_only) {
       }
       ret.emplace_back(std::move(path));
     }
+    return ret;
+  } else if (ec == GLOB_NOMATCH) {
+    // Error with GLOB_NOMATCH just means nothing matched, return empty vec
+    return ret;
+  } else if (ec == GLOB_NOSPACE) {
+    return SYSTEM_ERROR(ENOMEM);
+  } else if (ec == GLOB_ABORTED) {
+    return SYSTEM_ERROR(EINVAL);
+  } else {
+    // Shouldn't be possible, ENOSYS seems reasonable
+    return SYSTEM_ERROR(ENOSYS);
   }
-  ::globfree(&globbuf);
-  return ret;
 }
 
 void Fs::removePrefix(std::string& str, const std::string& prefix) {
@@ -227,11 +242,11 @@ void Fs::removePrefix(std::string& str, const std::string& prefix) {
 }
 
 /* Reads a file and returns a newline separated vector of strings */
-std::optional<std::vector<std::string>> Fs::readFileByLine(
+SystemMaybe<std::vector<std::string>> Fs::readFileByLine(
     const std::string& path) {
   std::ifstream f(path, std::ios::in);
   if (!f.is_open()) {
-    return std::nullopt;
+    return SYSTEM_ERROR(ENOENT);
   }
 
   std::string s;
@@ -242,22 +257,27 @@ std::optional<std::vector<std::string>> Fs::readFileByLine(
 
   // Error when reading file, and thus content might be corrupted
   if (f.bad()) {
-    return std::nullopt;
+    return SYSTEM_ERROR(EINVAL);
   }
 
   return v;
 }
 
-std::optional<std::vector<std::string>> Fs::readFileByLine(Fd&& fd) {
+SystemMaybe<std::vector<std::string>> Fs::readFileByLine(Fd&& fd) {
   auto fp = ::fdopen(std::move(fd).fd(), "r");
   if (fp == nullptr) {
-    return std::nullopt;
+    return SYSTEM_ERROR(errno);
   }
   std::vector<std::string> v;
   char* line = nullptr;
   size_t len = 0;
   ssize_t read;
   errno = 0;
+
+  OOMD_SCOPE_EXIT {
+    ::free(line);
+    ::fclose(fp);
+  };
   while ((read = ::getline(&line, &len, fp)) != -1) {
     OCHECK(line != nullptr);
     if (read > 0 && line[read - 1] == '\n') {
@@ -266,55 +286,54 @@ std::optional<std::vector<std::string>> Fs::readFileByLine(Fd&& fd) {
       v.emplace_back(line);
     }
   }
-  bool has_error = errno != 0;
-
-  ::free(line);
-  ::fclose(fp);
 
   // Error when reading file, and thus content might be corrupted
-  if (has_error) {
-    return std::nullopt;
+  if (errno) {
+    return SYSTEM_ERROR(errno);
   }
   return v;
 }
 
-std::optional<std::vector<std::string>> Fs::readControllersAt(
+SystemMaybe<std::vector<std::string>> Fs::readControllersAt(
     const DirFd& dirfd) {
-  if (auto lines = readFileByLine(Fs::Fd::openat(dirfd, kControllersFile))) {
-    return Util::split(lines.value()[0], ' ');
+  auto lines = readFileByLine(Fs::Fd::openat(dirfd, kControllersFile));
+  if (!lines) {
+    return SYSTEM_ERROR(lines.error());
   }
-  return std::nullopt;
+  return Util::split((*lines)[0], ' ');
 }
 
-std::optional<std::vector<int>> Fs::getPidsAt(const DirFd& dirfd) {
-  if (auto str_pids = readFileByLine(Fs::Fd::openat(dirfd, kProcsFile))) {
-    std::vector<int> pids;
-    for (const auto& sp : str_pids.value()) {
-      pids.push_back(std::stoi(sp));
-    }
-    return pids;
+SystemMaybe<std::vector<int>> Fs::getPidsAt(const DirFd& dirfd) {
+  auto str_pids = readFileByLine(Fs::Fd::openat(dirfd, kProcsFile));
+  if (!str_pids) {
+    return SYSTEM_ERROR(str_pids.error());
   }
-  return std::nullopt;
+  std::vector<int> pids;
+  for (const auto& sp : *str_pids) {
+    pids.push_back(std::stoi(sp));
+  }
+  return pids;
 }
 
-std::optional<bool> Fs::readIsPopulatedAt(const DirFd& dirfd) {
-  if (auto lines = readFileByLine(Fs::Fd::openat(dirfd, kEventsFile))) {
-    for (const auto& line : lines.value()) {
-      std::vector<std::string> toks = Util::split(line, ' ');
-      if (toks.size() == 2 && toks[0] == "populated") {
-        if (toks[1] == "1") {
-          return true;
-        } else if (toks[1] == "0") {
-          return false;
-        } else {
-          throw bad_control_file("invalid format");
-        }
+SystemMaybe<bool> Fs::readIsPopulatedAt(const DirFd& dirfd) {
+  auto lines = readFileByLine(Fs::Fd::openat(dirfd, kEventsFile));
+  if (!lines) {
+    return SYSTEM_ERROR(lines.error());
+  }
+  for (const auto& line : *lines) {
+    std::vector<std::string> toks = Util::split(line, ' ');
+    if (toks.size() == 2 && toks[0] == "populated") {
+      if (toks[1] == "1") {
+        return true;
+      } else if (toks[1] == "0") {
+        return false;
+      } else {
+        return SYSTEM_ERROR(EINVAL);
       }
     }
-
-    throw bad_control_file("invalid format");
   }
-  return std::nullopt;
+
+  return SYSTEM_ERROR(EINVAL);
 }
 
 std::string Fs::pressureTypeToString(PressureType type) {
@@ -324,10 +343,9 @@ std::string Fs::pressureTypeToString(PressureType type) {
     case PressureType::FULL:
       return "full";
   }
-  throw std::runtime_error("Invalid PressureType. Code should not be reached");
 }
 
-ResourcePressure Fs::readRespressureFromLines(
+SystemMaybe<ResourcePressure> Fs::readRespressureFromLines(
     const std::vector<std::string>& lines,
     PressureType type) {
   auto type_name = pressureTypeToString(type);
@@ -349,15 +367,25 @@ ResourcePressure Fs::readRespressureFromLines(
       // full avg10=0.22 avg60=0.16 avg300=1.08 total=58464525
       std::vector<std::string> toks =
           Util::split(lines[pressure_line_index], ' ');
-      OCHECK_EXCEPT(toks[0] == type_name, bad_control_file("invalid format"));
+      if (toks[0] != type_name) {
+        return SYSTEM_ERROR(EINVAL);
+      }
       std::vector<std::string> avg10 = Util::split(toks[1], '=');
-      OCHECK_EXCEPT(avg10[0] == "avg10", bad_control_file("invalid format"));
+      if (avg10[0] != "avg10") {
+        return SYSTEM_ERROR(EINVAL);
+      }
       std::vector<std::string> avg60 = Util::split(toks[2], '=');
-      OCHECK_EXCEPT(avg60[0] == "avg60", bad_control_file("invalid format"));
+      if (avg60[0] != "avg60") {
+        return SYSTEM_ERROR(EINVAL);
+      }
       std::vector<std::string> avg300 = Util::split(toks[3], '=');
-      OCHECK_EXCEPT(avg300[0] == "avg300", bad_control_file("invalid format"));
+      if (avg300[0] != "avg300") {
+        return SYSTEM_ERROR(EINVAL);
+      }
       std::vector<std::string> total = Util::split(toks[4], '=');
-      OCHECK_EXCEPT(total[0] == "total", bad_control_file("invalid format"));
+      if (total[0] != "total") {
+        return SYSTEM_ERROR(EINVAL);
+      }
 
       return ResourcePressure{
           std::stof(avg10[1]),
@@ -374,7 +402,9 @@ ResourcePressure Fs::readRespressureFromLines(
       // full 0.00 0.03 0.05
       std::vector<std::string> toks =
           Util::split(lines[pressure_line_index + 1], ' ');
-      OCHECK_EXCEPT(toks[0] == type_name, bad_control_file("invalid format"));
+      if (toks[0] != type_name) {
+        return SYSTEM_ERROR(EINVAL);
+      }
 
       return ResourcePressure{
           std::stof(toks[1]),
@@ -385,118 +415,159 @@ ResourcePressure Fs::readRespressureFromLines(
     }
     case PsiFormat::MISSING:
       // Missing the control file
-      throw bad_control_file("missing file");
+      return SYSTEM_ERROR(ENOENT);
     case PsiFormat::INVALID:
-      throw bad_control_file("invalid format");
+      return SYSTEM_ERROR(EINVAL);
   }
-
-  // To silence g++ compiler warning about enums
-  throw std::runtime_error("Not all enums handled");
 }
 
-std::optional<int64_t> Fs::readRootMemcurrent() {
+SystemMaybe<int64_t> Fs::readRootMemcurrent() {
   auto meminfo = getMeminfo("/proc/meminfo");
-  if (meminfo.size() == 0) {
-    return std::nullopt;
+  if (!meminfo) {
+    return SYSTEM_ERROR(meminfo.error());
   }
-  return meminfo["MemTotal"] - meminfo["MemFree"];
+
+  if (!meminfo->count("MemTotal") || !meminfo->count("MemFree")) {
+    return SYSTEM_ERROR(EINVAL);
+  }
+  return (*meminfo)["MemTotal"] - (*meminfo)["MemFree"];
 }
 
-std::optional<int64_t> Fs::readMemcurrentAt(const DirFd& dirfd) {
-  if (auto lines = readFileByLine(Fs::Fd::openat(dirfd, kMemCurrentFile))) {
-    return static_cast<int64_t>(std::stoll(lines.value()[0]));
+SystemMaybe<int64_t> Fs::readMemcurrentAt(const DirFd& dirfd) {
+  auto lines = readFileByLine(Fs::Fd::openat(dirfd, kMemCurrentFile));
+  if (!lines) {
+    return SYSTEM_ERROR(lines.error());
   }
-  return std::nullopt;
+  return static_cast<int64_t>(std::stoll((*lines)[0]));
 }
 
-std::optional<ResourcePressure> Fs::readRootMempressure(PressureType type) {
-  if (auto lines = readFileByLine("/proc/pressure/memory")) {
-    return readRespressureFromLines(lines.value(), type);
-  } else if (auto lines = readFileByLine("/proc/mempressure")) {
-    return readRespressureFromLines(lines.value(), type);
+SystemMaybe<ResourcePressure> Fs::readRootMempressure(PressureType type) {
+  auto lines = readFileByLine("/proc/pressure/memory");
+  if (!lines) {
+    lines = readFileByLine("/proc/mempressure");
   }
-  return std::nullopt;
+
+  if (!lines) {
+    return SYSTEM_ERROR(lines.error());
+  }
+  return readRespressureFromLines(*lines, type);
 }
 
-std::optional<ResourcePressure> Fs::readMempressureAt(
+SystemMaybe<ResourcePressure> Fs::readMempressureAt(
     const DirFd& dirfd,
     PressureType type) {
-  if (auto lines = readFileByLine(Fs::Fd::openat(dirfd, kMemPressureFile))) {
-    return readRespressureFromLines(lines.value(), type);
+  auto lines = readFileByLine(Fs::Fd::openat(dirfd, kMemPressureFile));
+  if (!lines) {
+    return SYSTEM_ERROR(lines.error());
   }
-  return std::nullopt;
+  return readRespressureFromLines(*lines, type);
 }
 
-int64_t Fs::readMinMaxLowHighFromLines(const std::vector<std::string>& lines) {
-  OCHECK_EXCEPT(lines.size() == 1, bad_control_file("missing file"));
+SystemMaybe<int64_t> Fs::readMinMaxLowHighFromLines(
+    const std::vector<std::string>& lines) {
+  if (lines.size() != 1) {
+    return SYSTEM_ERROR(EINVAL);
+  }
   if (lines[0] == "max") {
     return std::numeric_limits<int64_t>::max();
   }
   return static_cast<int64_t>(std::stoll(lines[0]));
 }
 
-std::optional<int64_t> Fs::readMemlowAt(const DirFd& dirfd) {
-  if (auto lines = readFileByLine(Fs::Fd::openat(dirfd, kMemLowFile))) {
-    return Fs::readMinMaxLowHighFromLines(lines.value());
+SystemMaybe<int64_t> Fs::readMemlowAt(const DirFd& dirfd) {
+  auto lines = readFileByLine(Fs::Fd::openat(dirfd, kMemLowFile));
+  if (!lines) {
+    return SYSTEM_ERROR(lines.error());
   }
-  return std::nullopt;
+  auto ret = Fs::readMinMaxLowHighFromLines(*lines);
+  if (!ret) {
+    return SYSTEM_ERROR(ret.error());
+  }
+  return ret;
 }
 
-std::optional<int64_t> Fs::readMemhighAt(const DirFd& dirfd) {
-  if (auto lines = readFileByLine(Fs::Fd::openat(dirfd, kMemHighFile))) {
-    return Fs::readMinMaxLowHighFromLines(lines.value());
+SystemMaybe<int64_t> Fs::readMemhighAt(const DirFd& dirfd) {
+  auto lines = readFileByLine(Fs::Fd::openat(dirfd, kMemHighFile));
+  if (!lines) {
+    return SYSTEM_ERROR(lines.error());
   }
-  return std::nullopt;
+  auto ret = Fs::readMinMaxLowHighFromLines(*lines);
+  if (!ret) {
+    return SYSTEM_ERROR(ret.error());
+  }
+  return ret;
 }
 
-std::optional<int64_t> Fs::readMemmaxAt(const DirFd& dirfd) {
-  if (auto lines = readFileByLine(Fs::Fd::openat(dirfd, kMemMaxFile))) {
-    return Fs::readMinMaxLowHighFromLines(lines.value());
+SystemMaybe<int64_t> Fs::readMemmaxAt(const DirFd& dirfd) {
+  auto lines = readFileByLine(Fs::Fd::openat(dirfd, kMemMaxFile));
+  if (!lines) {
+    return SYSTEM_ERROR(lines.error());
   }
-  return std::nullopt;
+  auto ret = Fs::readMinMaxLowHighFromLines(*lines);
+  if (!ret) {
+    return SYSTEM_ERROR(ret.error());
+  }
+  return ret;
 }
 
-int64_t Fs::readMemhightmpFromLines(const std::vector<std::string>& lines) {
-  OCHECK_EXCEPT(lines.size() == 1, bad_control_file("missing file"));
+SystemMaybe<int64_t> Fs::readMemhightmpFromLines(
+    const std::vector<std::string>& lines) {
+  if (lines.size() != 1) {
+    return SYSTEM_ERROR(ENOENT);
+  }
   auto tokens = Util::split(lines[0], ' ');
-  OCHECK_EXCEPT(tokens.size() == 2, bad_control_file("invalid format"));
+  if (tokens.size() != 2) {
+    return SYSTEM_ERROR(EINVAL);
+  }
   if (tokens[0] == "max") {
     return std::numeric_limits<int64_t>::max();
   }
   return static_cast<int64_t>(std::stoll(tokens[0]));
 }
 
-std::optional<int64_t> Fs::readMemhightmpAt(const DirFd& dirfd) {
-  if (auto lines = readFileByLine(Fs::Fd::openat(dirfd, kMemHighTmpFile))) {
-    return readMemhightmpFromLines(lines.value());
+SystemMaybe<int64_t> Fs::readMemhightmpAt(const DirFd& dirfd) {
+  auto lines = readFileByLine(Fs::Fd::openat(dirfd, kMemHighTmpFile));
+  if (!lines) {
+    return SYSTEM_ERROR(lines.error());
   }
-  return std::nullopt;
+  auto ret = readMemhightmpFromLines(*lines);
+  if (!ret) {
+    return SYSTEM_ERROR(ret.error());
+  }
+  return ret;
 }
 
-std::optional<int64_t> Fs::readMemminAt(const DirFd& dirfd) {
-  if (auto lines = readFileByLine(Fs::Fd::openat(dirfd, kMemMinFile))) {
-    return Fs::readMinMaxLowHighFromLines(lines.value());
+SystemMaybe<int64_t> Fs::readMemminAt(const DirFd& dirfd) {
+  auto lines = readFileByLine(Fs::Fd::openat(dirfd, kMemMinFile));
+  if (!lines) {
+    return SYSTEM_ERROR(lines.error());
   }
-  return std::nullopt;
+  auto ret = Fs::readMinMaxLowHighFromLines(*lines);
+  if (!ret) {
+    return SYSTEM_ERROR(ret.error());
+  }
+  return ret;
 }
 
-std::optional<int64_t> Fs::readSwapCurrentAt(const DirFd& dirfd) {
-  if (auto lines = readFileByLine(Fs::Fd::openat(dirfd, kMemSwapCurrentFile))) {
-    // The swap controller can be disabled via CONFIG_MEMCG_SWAP=n
-    return lines.value().size() == 1
-        ? static_cast<int64_t>(std::stoll(lines.value()[0]))
-        : 0;
+SystemMaybe<int64_t> Fs::readSwapCurrentAt(const DirFd& dirfd) {
+  auto lines = readFileByLine(Fs::Fd::openat(dirfd, kMemSwapCurrentFile));
+  if (!lines) {
+    return SYSTEM_ERROR(lines.error());
   }
-  return std::nullopt;
+  // The swap controller can be disabled via CONFIG_MEMCG_SWAP=n
+  return std::stoll((*lines)[0]);
 }
 
-std::unordered_map<std::string, int64_t> Fs::getVmstat(
+SystemMaybe<std::unordered_map<std::string, int64_t>> Fs::getVmstat(
     const std::string& path) {
   auto lines = readFileByLine(path);
+  if (!lines) {
+    return SYSTEM_ERROR(lines.error());
+  }
   std::unordered_map<std::string, int64_t> map;
   char space{' '};
 
-  for (auto& line : lines.value_or(std::vector<std::string>{})) {
+  for (auto& line : *lines) {
     std::stringstream ss(line);
     std::string item;
 
@@ -512,14 +583,17 @@ std::unordered_map<std::string, int64_t> Fs::getVmstat(
   return map;
 }
 
-std::unordered_map<std::string, int64_t> Fs::getMeminfo(
+SystemMaybe<std::unordered_map<std::string, int64_t>> Fs::getMeminfo(
     const std::string& path) {
   char name[256] = {0};
   uint64_t val;
   std::unordered_map<std::string, int64_t> map;
 
   auto lines = readFileByLine(path);
-  for (auto& line : lines.value_or(std::vector<std::string>{})) {
+  if (!lines) {
+    return SYSTEM_ERROR(lines.error());
+  }
+  for (auto& line : *lines) {
     int ret =
         sscanf(line.c_str(), "%255[^:]:%*[ \t]%" SCNu64 "%*s\n", name, &val);
     if (ret == 2) {
@@ -546,144 +620,195 @@ std::unordered_map<std::string, int64_t> Fs::getMemstatLikeFromLines(
   return map;
 }
 
-std::optional<std::unordered_map<std::string, int64_t>> Fs::getMemstatAt(
+SystemMaybe<std::unordered_map<std::string, int64_t>> Fs::getMemstatAt(
     const DirFd& dirfd) {
-  if (auto lines = readFileByLine(Fs::Fd::openat(dirfd, kMemStatFile))) {
-    return getMemstatLikeFromLines(lines.value());
+  auto lines = readFileByLine(Fs::Fd::openat(dirfd, kMemStatFile));
+  if (!lines) {
+    return SYSTEM_ERROR(lines.error());
   }
-  return std::nullopt;
+
+  return getMemstatLikeFromLines(lines.value());
 }
 
-std::optional<ResourcePressure> Fs::readRootIopressure(PressureType type) {
-  if (auto lines = readFileByLine("/proc/pressure/io")) {
-    return readRespressureFromLines(lines.value(), type);
+SystemMaybe<ResourcePressure> Fs::readRootIopressure(PressureType type) {
+  auto lines = readFileByLine("/proc/pressure/io");
+  if (!lines) {
+    return SYSTEM_ERROR(lines.error());
   }
-  return std::nullopt;
+  return readRespressureFromLines(*lines, type);
 }
 
-std::optional<ResourcePressure> Fs::readIopressureAt(
+SystemMaybe<ResourcePressure> Fs::readIopressureAt(
     const DirFd& dirfd,
     PressureType type) {
-  if (auto lines = readFileByLine(Fs::Fd::openat(dirfd, kIoPressureFile))) {
-    return readRespressureFromLines(lines.value(), type);
+  auto lines = readFileByLine(Fs::Fd::openat(dirfd, kIoPressureFile));
+  if (!lines) {
+    return SYSTEM_ERROR(lines.error());
   }
-  return std::nullopt;
+  return readRespressureFromLines(*lines, type);
 }
 
-std::optional<IOStat> Fs::readIostatAt(const DirFd& dirfd) {
-  if (auto lines = readFileByLine(Fs::Fd::openat(dirfd, kIoStatFile))) {
-    std::vector<DeviceIOStat> io_stat;
-    io_stat.reserve(lines.value().size());
+SystemMaybe<IOStat> Fs::readIostatAt(const DirFd& dirfd) {
+  auto lines = readFileByLine(Fs::Fd::openat(dirfd, kIoStatFile));
+  if (!lines) {
+    return SYSTEM_ERROR(lines.error());
+  }
 
-    for (const auto& line : lines.value()) {
-      // format
-      //
-      // 0:0 rbytes=0 wbytes=0 rios=0 wios=0 dbytes=0 dios=0
-      DeviceIOStat dev_io_stat;
-      int major, minor;
-      int ret = sscanf(
-          line.c_str(),
-          "%d:%d rbytes=%" SCNd64 " wbytes=%" SCNd64 " rios=%" SCNd64
-          " wios=%" SCNd64 " dbytes=%" SCNd64 " dios=%" SCNd64 "\n",
-          &major,
-          &minor,
-          &dev_io_stat.rbytes,
-          &dev_io_stat.wbytes,
-          &dev_io_stat.rios,
-          &dev_io_stat.wios,
-          &dev_io_stat.dbytes,
-          &dev_io_stat.dios);
+  std::vector<DeviceIOStat> io_stat;
+  io_stat.reserve(lines->size());
 
-      OCHECK_EXCEPT(ret == 8, bad_control_file("invalid format"));
-      dev_io_stat.dev_id = std::to_string(major) + ":" + std::to_string(minor);
-      io_stat.push_back(dev_io_stat);
+  for (const auto& line : *lines) {
+    // format
+    //
+    // 0:0 rbytes=0 wbytes=0 rios=0 wios=0 dbytes=0 dios=0
+    DeviceIOStat dev_io_stat;
+    int major, minor;
+    int ret = sscanf(
+        line.c_str(),
+        "%d:%d rbytes=%" SCNd64 " wbytes=%" SCNd64 " rios=%" SCNd64
+        " wios=%" SCNd64 " dbytes=%" SCNd64 " dios=%" SCNd64 "\n",
+        &major,
+        &minor,
+        &dev_io_stat.rbytes,
+        &dev_io_stat.wbytes,
+        &dev_io_stat.rios,
+        &dev_io_stat.wios,
+        &dev_io_stat.dbytes,
+        &dev_io_stat.dios);
+
+    if (ret != 8) {
+      return SYSTEM_ERROR(EINVAL);
     }
-    return io_stat;
+    dev_io_stat.dev_id = std::to_string(major) + ":" + std::to_string(minor);
+    io_stat.push_back(dev_io_stat);
   }
-  return std::nullopt;
+  return io_stat;
 }
 
-void Fs::writeControlFileAt(
-    std::optional<Fd>&& fd,
+SystemMaybe<Unit> Fs::writeControlFileAt(
+    SystemMaybe<Fd>&& fd,
     const std::string& content) {
   char buf[1024];
   buf[0] = '\0';
-  if (!fd.has_value()) {
-    throw bad_control_file(
-        std::string{"open failed: "} + ::strerror_r(errno, buf, sizeof(buf)));
+  if (!fd) {
+    return SYSTEM_ERROR(fd.error());
   }
   auto ret = Util::writeFull(fd->fd(), content.c_str(), content.size());
   if (ret < 0) {
-    throw bad_control_file(
-        std::string{"write failed: "} + ::strerror_r(errno, buf, sizeof(buf)));
+    return SYSTEM_ERROR(errno);
   }
+
+  return noSystemError();
 }
 
-void Fs::writeMemhighAt(const DirFd& dirfd, int64_t value) {
+SystemMaybe<Unit> Fs::writeMemhighAt(const DirFd& dirfd, int64_t value) {
   auto val_str = std::to_string(value);
-  writeControlFileAt(Fs::Fd::openat(dirfd, kMemHighFile, false), val_str);
+  auto ret =
+      writeControlFileAt(Fs::Fd::openat(dirfd, kMemHighFile, false), val_str);
+  if (!ret) {
+    return SYSTEM_ERROR(ret.error());
+  }
+  return noSystemError();
 }
 
-void Fs::writeMemhightmpAt(
+SystemMaybe<Unit> Fs::writeMemhightmpAt(
     const DirFd& dirfd,
     int64_t value,
     std::chrono::microseconds duration) {
   auto val_str = std::to_string(value) + " " + std::to_string(duration.count());
-  writeControlFileAt(Fs::Fd::openat(dirfd, kMemHighTmpFile, false), val_str);
-}
-
-std::optional<int64_t> Fs::getNrDyingDescendantsAt(const DirFd& dirfd) {
-  if (auto lines = readFileByLine(Fs::Fd::openat(dirfd, kCgroupStatFile))) {
-    auto map = getMemstatLikeFromLines(lines.value());
-    // Will return 0 for missing entries
-    return map["nr_dying_descendants"];
+  auto ret = writeControlFileAt(
+      Fs::Fd::openat(dirfd, kMemHighTmpFile, false), val_str);
+  if (!ret) {
+    return SYSTEM_ERROR(ret.error());
   }
-  return std::nullopt;
+  return noSystemError();
 }
 
-KillPreference Fs::readKillPreferenceAt(const DirFd& path) {
-  if (Fs::hasxattrAt(path, kOomdPreferXAttr)) {
+SystemMaybe<int64_t> Fs::getNrDyingDescendantsAt(const DirFd& dirfd) {
+  auto lines = readFileByLine(Fs::Fd::openat(dirfd, kCgroupStatFile));
+  if (!lines) {
+    return SYSTEM_ERROR(lines.error());
+  }
+  auto map = getMemstatLikeFromLines(lines.value());
+  // Will return 0 for missing entries
+  return map["nr_dying_descendants"];
+}
+
+SystemMaybe<KillPreference> Fs::readKillPreferenceAt(const DirFd& path) {
+  auto maybe = Fs::hasxattrAt(path, kOomdPreferXAttr);
+  if (!maybe) {
+    return SYSTEM_ERROR(maybe.error());
+  }
+
+  if (*maybe) {
     return KillPreference::PREFER;
-  } else if (Fs::hasxattrAt(path, kOomdAvoidXAttr)) {
+  }
+
+  maybe = Fs::hasxattrAt(path, kOomdAvoidXAttr);
+  if (!maybe) {
+    return SYSTEM_ERROR(maybe.error());
+  }
+
+  if (*maybe) {
     return KillPreference::AVOID;
-  } else {
-    return KillPreference::NORMAL;
   }
+
+  return KillPreference::NORMAL;
 }
 
-std::optional<bool> Fs::readMemoryOomGroupAt(const DirFd& dirfd) {
-  if (auto lines = readFileByLine(Fs::Fd::openat(dirfd, kMemOomGroupFile))) {
-    return lines.value() == std::vector<std::string>({"1"});
+SystemMaybe<bool> Fs::readMemoryOomGroupAt(const DirFd& dirfd) {
+  auto lines = readFileByLine(Fs::Fd::openat(dirfd, kMemOomGroupFile));
+  if (!lines) {
+    return SYSTEM_ERROR(lines.error());
   }
-  return std::nullopt;
+  return *lines == std::vector<std::string>({"1"});
 }
 
-bool Fs::setxattr(
+SystemMaybe<Unit> Fs::setxattr(
     const std::string& path,
     const std::string& attr,
     const std::string& val) {
   int ret = ::setxattr(path.c_str(), attr.c_str(), val.c_str(), val.size(), 0);
   if (ret == -1) {
-    return false;
+    return SYSTEM_ERROR(errno);
   }
-  return true;
+  return noSystemError();
 }
 
-std::string Fs::getxattr(const std::string& path, const std::string& attr) {
+SystemMaybe<std::string> Fs::getxattr(
+    const std::string& path,
+    const std::string& attr) {
   std::string val;
 
   int size = ::getxattr(path.c_str(), attr.c_str(), nullptr, 0);
-  if (size <= 0) {
-    return val;
+  if (size == -1) {
+    if (errno == ENODATA) {
+      return val;
+    }
+    return SYSTEM_ERROR(errno);
   }
 
   val.resize(size);
-  ::getxattr(path.c_str(), attr.c_str(), &val[0], val.size());
+  size = ::getxattr(path.c_str(), attr.c_str(), &val[0], val.size());
+  if (size == -1) {
+    // We checked above but this could have raced, so check again
+    if (errno == ENODATA) {
+      return std::string{};
+    }
+    return SYSTEM_ERROR(errno);
+  }
   return val;
 }
 
-bool Fs::hasxattrAt(const DirFd& dirfd, const std::string& attr) {
-  return ::fgetxattr(dirfd.fd(), attr.c_str(), nullptr, 0) >= 0;
+SystemMaybe<bool> Fs::hasxattrAt(const DirFd& dirfd, const std::string& attr) {
+  auto ret = ::fgetxattr(dirfd.fd(), attr.c_str(), nullptr, 0);
+  if (ret == -1) {
+    if (errno == ENODATA) {
+      return false;
+    }
+    return SYSTEM_ERROR(errno);
+  }
+  return true;
 }
 
 bool Fs::isUnderParentPath(
@@ -710,35 +835,39 @@ bool Fs::isUnderParentPath(
   return true;
 }
 
-std::string Fs::getCgroup2MountPoint(const std::string& path) {
-  if (auto lines = readFileByLine(path)) {
-    for (auto& line : lines.value()) {
-      auto parts = Util::split(line, ' ');
-      if (parts.size() > 2) {
-        if (parts[2] == "cgroup2") {
-          return parts[1] + '/';
-        }
+SystemMaybe<std::string> Fs::getCgroup2MountPoint(const std::string& path) {
+  auto lines = readFileByLine(path);
+  if (!lines) {
+    return SYSTEM_ERROR(lines.error());
+  }
+  for (auto& line : *lines) {
+    auto parts = Util::split(line, ' ');
+    if (parts.size() > 2) {
+      if (parts[2] == "cgroup2") {
+        return parts[1] + '/';
       }
     }
   }
-  return "";
+  return SYSTEM_ERROR(EINVAL, path);
 }
 
-DeviceType Fs::getDeviceType(
+SystemMaybe<DeviceType> Fs::getDeviceType(
     const std::string& dev_id,
     const std::string& path) {
   const auto deviceTypeFile =
       path + "/" + dev_id + "/" + kDeviceTypeDir + "/" + kDeviceTypeFile;
-  if (auto lines = readFileByLine(deviceTypeFile)) {
-    if (lines.value().size() == 1) {
-      if (lines.value()[0] == "1") {
-        return DeviceType::HDD;
-      } else if (lines.value()[0] == "0") {
-        return DeviceType::SSD;
-      }
+  auto lines = readFileByLine(deviceTypeFile);
+  if (!lines) {
+    return SYSTEM_ERROR(lines.error());
+  }
+  if (lines->size() == 1) {
+    if ((*lines)[0] == "1") {
+      return DeviceType::HDD;
+    } else if ((*lines)[0] == "0") {
+      return DeviceType::SSD;
     }
   }
-  throw bad_control_file(deviceTypeFile + ": invalid format");
+  return SYSTEM_ERROR(EINVAL, deviceTypeFile);
 }
 
 } // namespace Oomd
