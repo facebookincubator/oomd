@@ -25,16 +25,17 @@ namespace Oomd {
 std::optional<CgroupContext> CgroupContext::make(
     OomdContext& ctx,
     const CgroupPath& cgroup) {
-  if (auto fd = Fs::DirFd::open(cgroup.absolutePath())) {
-    return CgroupContext(ctx, cgroup, std::move(*fd));
+  auto fd = FsExceptionless::DirFd::open(cgroup.absolutePath());
+  if (!fd) {
+    return std::nullopt;
   }
-  return std::nullopt;
+  return CgroupContext(ctx, cgroup, std::move(*fd));
 }
 
 CgroupContext::CgroupContext(
     OomdContext& ctx,
     const CgroupPath& path,
-    Fs::DirFd&& dirFd)
+    FsExceptionless::DirFd&& dirFd)
     : ctx_(ctx),
       cgroup_(path),
       cgroup_dir_(std::move(dirFd)),
@@ -55,32 +56,47 @@ bool CgroupContext::refresh() {
               .io_cost_cumulative = data_->io_cost_cumulative,
               .pg_scan_cumulative = data_->pg_scan_cumulative};
   *data_ = {};
-  return Fs::isCgroupValid(cgroup_dir_);
+  return FsExceptionless::isCgroupValid(cgroup_dir_);
 }
 
 /*
- * Use macro to define proxy functions to access the underlying data object.
- * If a field is not set, set it with the result of a given expression. If the
- * expression throws Fs::bad_control_file (most likely cgroup is gone), we set
- * the err to INVALID_CGROUP if it's not nullptr. The given expression can also
- * use the err pointer as a mechanism to return error without throwing.
+ * Use macro to define proxy functions to access the underlying data
+ * object.  If a field is not set, set it with the result of a given
+ * expression. If the expression returns an error, we set the err to
+ * INVALID_CGROUP if it's not nullptr.
  *
  * Because data_ is a pointer, we can do this lazy set and get with const
  * function signature.
  */
+namespace {
+template <typename T>
+void proxy(
+    SystemMaybe<T> maybe,
+    std::optional<T>& field,
+    CgroupContext::Error* err) {
+  if (!maybe) {
+    if (err) {
+      *err = CgroupContext::Error::INVALID_CGROUP;
+    }
+    field = std::nullopt;
+  } else {
+    field = std::move(*maybe);
+  }
+}
+
+template <typename T, typename S>
+void proxy(T val, S& field, CgroupContext::Error* err) {
+  field = std::move(val);
+  if (!field && err) {
+    *err = CgroupContext::Error::INVALID_CGROUP;
+  }
+}
+} // namespace
+
 #define __PROXY(field, expr, rettype)              \
   rettype CgroupContext::field(Error* err) const { \
     if (!data_->field) {                           \
-      try {                                        \
-        data_->field = (expr);                     \
-        if (!data_->field && err) {                \
-          *err = Error::INVALID_CGROUP;            \
-        }                                          \
-      } catch (const Fs::bad_control_file&) {      \
-        if (err) {                                 \
-          *err = Error::INVALID_CGROUP;            \
-        }                                          \
-      }                                            \
+      proxy((expr), data_->field, err);            \
     }                                              \
     return data_->field;                           \
   }
@@ -93,20 +109,22 @@ bool CgroupContext::refresh() {
 PROXY_CONST_REF(children, getChildren())
 PROXY_CONST_REF(mem_pressure, getMemPressure())
 PROXY_CONST_REF(io_pressure, getIoPressure())
-PROXY_CONST_REF(memory_stat, Fs::getMemstatAt(cgroup_dir_))
-PROXY_CONST_REF(io_stat, Fs::readIostatAt(cgroup_dir_))
+PROXY_CONST_REF(memory_stat, FsExceptionless::getMemstatAt(cgroup_dir_))
+PROXY_CONST_REF(io_stat, FsExceptionless::readIostatAt(cgroup_dir_))
 PROXY(id, cgroup_dir_.inode())
 PROXY(current_usage, getMemcurrent())
-PROXY(swap_usage, Fs::readSwapCurrentAt(cgroup_dir_))
-PROXY(memory_low, Fs::readMemlowAt(cgroup_dir_))
-PROXY(memory_min, Fs::readMemminAt(cgroup_dir_))
-PROXY(memory_high, Fs::readMemhighAt(cgroup_dir_))
-PROXY(memory_high_tmp, Fs::readMemhightmpAt(cgroup_dir_))
-PROXY(memory_max, Fs::readMemmaxAt(cgroup_dir_))
-PROXY(nr_dying_descendants, Fs::getNrDyingDescendantsAt(cgroup_dir_))
-PROXY(is_populated, Fs::readIsPopulatedAt(cgroup_dir_))
-PROXY(kill_preference, Fs::readKillPreferenceAt(cgroup_dir_))
-PROXY(oom_group, Fs::readMemoryOomGroupAt(cgroup_dir_))
+PROXY(swap_usage, FsExceptionless::readSwapCurrentAt(cgroup_dir_))
+PROXY(memory_low, FsExceptionless::readMemlowAt(cgroup_dir_))
+PROXY(memory_min, FsExceptionless::readMemminAt(cgroup_dir_))
+PROXY(memory_high, FsExceptionless::readMemhighAt(cgroup_dir_))
+PROXY(memory_high_tmp, FsExceptionless::readMemhightmpAt(cgroup_dir_))
+PROXY(memory_max, FsExceptionless::readMemmaxAt(cgroup_dir_))
+PROXY(
+    nr_dying_descendants,
+    FsExceptionless::getNrDyingDescendantsAt(cgroup_dir_))
+PROXY(is_populated, FsExceptionless::readIsPopulatedAt(cgroup_dir_))
+PROXY(kill_preference, FsExceptionless::readKillPreferenceAt(cgroup_dir_))
+PROXY(oom_group, FsExceptionless::readMemoryOomGroupAt(cgroup_dir_))
 PROXY(io_cost_cumulative, getIoCostCumulative(err))
 PROXY(pg_scan_cumulative, getPgScanCumulative(err))
 PROXY(memory_protection, getMemoryProtection(err))
@@ -150,22 +168,39 @@ std::optional<double> CgroupContext::memory_growth(Error* err) const {
 }
 
 std::vector<std::string> CgroupContext::getChildren() const {
-  return Fs::readDirAt(fd(), Fs::DE_DIR).dirs;
+  auto dirents = FsExceptionless::readDirAt(fd(), FsExceptionless::DE_DIR);
+  if (!dirents) {
+    return {};
+  }
+  return dirents->dirs;
 }
 
+namespace {
+template <typename T>
+std::optional<T> to_opt(SystemMaybe<T> maybe) {
+  if (maybe) {
+    return std::move(*maybe);
+  }
+  return std::nullopt;
+}
+} // namespace
+
 std::optional<ResourcePressure> CgroupContext::getMemPressure() const {
-  return cgroup_.isRoot() ? Fs::readRootMempressure()
-                          : Fs::readMempressureAt(cgroup_dir_);
+  return to_opt(
+      cgroup_.isRoot() ? FsExceptionless::readRootMempressure()
+                       : FsExceptionless::readMempressureAt(cgroup_dir_));
 }
 
 std::optional<ResourcePressure> CgroupContext::getIoPressure() const {
-  return cgroup_.isRoot() ? Fs::readRootIopressure()
-                          : Fs::readIopressureAt(cgroup_dir_);
+  return to_opt(
+      cgroup_.isRoot() ? FsExceptionless::readRootIopressure()
+                       : FsExceptionless::readIopressureAt(cgroup_dir_));
 }
 
 std::optional<int64_t> CgroupContext::getMemcurrent() const {
-  return cgroup_.isRoot() ? Fs::readRootMemcurrent()
-                          : Fs::readMemcurrentAt(cgroup_dir_);
+  return to_opt(
+      cgroup_.isRoot() ? FsExceptionless::readRootMemcurrent()
+                       : FsExceptionless::readMemcurrentAt(cgroup_dir_));
 }
 
 namespace {

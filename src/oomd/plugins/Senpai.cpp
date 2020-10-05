@@ -174,17 +174,14 @@ namespace {
 // Get the total pressure (some) from a cgroup, or nullopt if cgroup is invalid
 std::optional<std::chrono::microseconds> getPressureTotalSome(
     const CgroupContext& cgroup_ctx) {
-  try {
-    // Senpai reads pressure.some to get early notice that a workload
-    // may be under resource pressure
-    if (const auto pressure = Oomd::Fs::readMempressureAt(
-            cgroup_ctx.fd(), Oomd::Fs::PressureType::SOME)) {
-      if (const auto total = pressure.value().total) {
-        return total.value();
-      }
-      throw std::runtime_error("Senpai enabled but no total pressure info");
+  // Senpai reads pressure.some to get early notice that a workload
+  // may be under resource pressure
+  if (const auto pressure = Oomd::FsExceptionless::readMempressureAt(
+          cgroup_ctx.fd(), Oomd::FsExceptionless::PressureType::SOME)) {
+    if (const auto total = pressure.value().total) {
+      return total.value();
     }
-  } catch (const Fs::bad_control_file&) {
+    throw std::runtime_error("Senpai enabled but no total pressure info");
   }
   return std::nullopt;
 }
@@ -221,16 +218,15 @@ std::optional<int64_t> Senpai::readMemhigh(const CgroupContext& cgroup_ctx) {
 // Return if the cgroup is still valid.
 bool Senpai::writeMemhigh(const CgroupContext& cgroup_ctx, int64_t value) {
   if (auto has_memory_high_tmp = hasMemoryHighTmp(cgroup_ctx)) {
-    try {
-      if (*has_memory_high_tmp) {
-        Oomd::Fs::writeMemhightmpAt(
-            cgroup_ctx.fd(), value, std::chrono::seconds(20));
-      } else {
-        Oomd::Fs::writeMemhighAt(cgroup_ctx.fd(), value);
+    if (*has_memory_high_tmp) {
+      if (!Oomd::FsExceptionless::writeMemhightmpAt(
+              cgroup_ctx.fd(), value, std::chrono::seconds(20))) {
+        return false;
       }
-      return true;
-    } catch (const Fs::bad_control_file&) {
+    } else if (!Oomd::FsExceptionless::writeMemhighAt(cgroup_ctx.fd(), value)) {
+      return false;
     }
+    return true;
   }
   return false;
 }
@@ -239,17 +235,16 @@ bool Senpai::writeMemhigh(const CgroupContext& cgroup_ctx, int64_t value) {
 // Return if the cgroup is still valid.
 bool Senpai::resetMemhigh(const CgroupContext& cgroup_ctx) {
   if (auto has_memory_high_tmp = hasMemoryHighTmp(cgroup_ctx)) {
-    try {
-      auto value = std::numeric_limits<int64_t>::max();
-      if (*has_memory_high_tmp) {
-        Oomd::Fs::writeMemhightmpAt(
-            cgroup_ctx.fd(), value, std::chrono::seconds(0));
-      } else {
-        Oomd::Fs::writeMemhighAt(cgroup_ctx.fd(), value);
+    auto value = std::numeric_limits<int64_t>::max();
+    if (*has_memory_high_tmp) {
+      if (!Oomd::FsExceptionless::writeMemhightmpAt(
+              cgroup_ctx.fd(), value, std::chrono::seconds(0))) {
+        return false;
       }
-      return true;
-    } catch (const Fs::bad_control_file&) {
+    } else if (!Oomd::FsExceptionless::writeMemhighAt(cgroup_ctx.fd(), value)) {
+      return false;
     }
+    return true;
   }
   return false;
 }
@@ -439,21 +434,21 @@ bool Senpai::tick_immediate_backoff(
     return true;
   }
 
-  auto mem_pressure_opt = Fs::readMempressureAt(cgroup_ctx.fd());
-  if (!mem_pressure_opt) {
+  auto mem_pressure_maybe = FsExceptionless::readMempressureAt(cgroup_ctx.fd());
+  if (!mem_pressure_maybe) {
     return false;
   }
-  auto io_pressure_opt = Fs::readIopressureAt(cgroup_ctx.fd());
-  if (!io_pressure_opt) {
+  auto io_pressure_maybe = FsExceptionless::readIopressureAt(cgroup_ctx.fd());
+  if (!io_pressure_maybe) {
     return false;
   }
 
   // Only drive senpai if both short and long term pressure from memory and I/O
   // are lower than target
-  if (std::max({mem_pressure_opt->sec_10,
-                mem_pressure_opt->sec_60,
-                io_pressure_opt->sec_10,
-                io_pressure_opt->sec_60}) < pressure_pct_) {
+  if (std::max({mem_pressure_maybe->sec_10,
+                mem_pressure_maybe->sec_60,
+                io_pressure_maybe->sec_10,
+                io_pressure_maybe->sec_60}) < pressure_pct_) {
     auto limit_min_bytes_opt = getLimitMinBytes(cgroup_ctx);
     if (!limit_min_bytes_opt) {
       return false;

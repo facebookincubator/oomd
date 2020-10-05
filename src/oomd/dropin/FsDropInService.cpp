@@ -29,6 +29,7 @@
 #include "oomd/Log.h"
 #include "oomd/config/JsonConfigParser.h"
 #include "oomd/include/Assert.h"
+#include "oomd/util/Fs.h"
 #include "oomd/util/Util.h"
 
 static constexpr auto kMaxEvents = 10;

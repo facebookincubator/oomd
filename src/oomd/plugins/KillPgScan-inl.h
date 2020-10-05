@@ -24,7 +24,7 @@
 
 #include "oomd/Log.h"
 #include "oomd/include/Types.h"
-#include "oomd/util/Fs.h"
+#include "oomd/util/FsExceptionless.h"
 #include "oomd/util/Util.h"
 
 namespace Oomd {
@@ -45,7 +45,7 @@ KillPgScan<Base>::rankForKilling(
     if (!cgroup.pg_scan_rate().has_value()) {
       num_missing_pg_scan += 1;
       // assume all invalid cgroups will also fail to fetch pg_scan_rate
-      if (!Fs::isCgroupValid(cgroup.fd())) {
+      if (!FsExceptionless::isCgroupValid(cgroup.fd())) {
         num_invalid += 1;
       }
     }

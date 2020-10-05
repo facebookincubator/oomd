@@ -63,7 +63,8 @@ class CgroupContextTest : public Test {
 };
 
 TEST_F(CgroupContextTest, MonitorRootHost) {
-  std::string cgroup2fs_mntpt = Fs::getCgroup2MountPoint();
+  std::string cgroup2fs_mntpt =
+      ASSERT_SYS_OK(FsExceptionless::getCgroup2MountPoint());
   if (cgroup2fs_mntpt.empty()) {
 #ifdef GTEST_SKIP
     GTEST_SKIP() << "Host not running cgroup2";
