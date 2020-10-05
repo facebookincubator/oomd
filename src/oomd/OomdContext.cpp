@@ -18,7 +18,7 @@
 #include "oomd/OomdContext.h"
 
 #include "oomd/Log.h"
-#include "oomd/util/Fs.h"
+#include "oomd/util/FsExceptionless.h"
 
 namespace Oomd {
 
@@ -150,19 +150,22 @@ void OomdContext::dump(
 
     if (skip_negligible) {
       // don't show if <1% pressure && <.1% usage
-      auto meminfo = Fs::getMeminfo();
-      const float press_min = 1;
-      const int64_t mem_min = meminfo["MemTotal"] / 1000;
-      const int64_t swap_min = meminfo["SwapTotal"] / 1000;
+      auto meminfo = FsExceptionless::getMeminfo();
+      // TODO(dschatzberg) report error
+      if (meminfo) {
+        const float press_min = 1;
+        const int64_t mem_min = (*meminfo)["MemTotal"] / 1000;
+        const int64_t swap_min = (*meminfo)["SwapTotal"] / 1000;
 
-      if (!(mem_pressure.sec_10 >= press_min ||
-            mem_pressure.sec_60 >= press_min ||
-            mem_pressure.sec_300 >= press_min ||
-            io_pressure.sec_10 >= press_min ||
-            io_pressure.sec_60 >= press_min ||
-            io_pressure.sec_300 >= press_min || current_usage > mem_min ||
-            average_usage > mem_min || swap_usage > swap_min)) {
-        continue;
+        if (!(mem_pressure.sec_10 >= press_min ||
+              mem_pressure.sec_60 >= press_min ||
+              mem_pressure.sec_300 >= press_min ||
+              io_pressure.sec_10 >= press_min ||
+              io_pressure.sec_60 >= press_min ||
+              io_pressure.sec_300 >= press_min || current_usage > mem_min ||
+              average_usage > mem_min || swap_usage > swap_min)) {
+          continue;
+        }
       }
     }
 
