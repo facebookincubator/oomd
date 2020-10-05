@@ -22,7 +22,7 @@
 
 #include "oomd/Log.h"
 #include "oomd/PluginRegistry.h"
-#include "oomd/util/Fs.h"
+#include "oomd/util/FsExceptionless.h"
 #include "oomd/util/ScopeGuard.h"
 #include "oomd/util/Util.h"
 
@@ -45,21 +45,29 @@ int MemoryAbove::init(
     return 1;
   }
 
-  auto meminfo = args.find("meminfo_location") != args.end()
-      ? Fs::getMeminfo(args.at("meminfo_location"))
-      : Fs::getMeminfo();
+  auto meminfoMaybe = args.find("meminfo_location") != args.end()
+      ? FsExceptionless::getMeminfo(args.at("meminfo_location"))
+      : FsExceptionless::getMeminfo();
+
+  if (!meminfoMaybe) {
+    OLOG << "Could not read meminfo " << meminfoMaybe.error().what();
+    return 1;
+  } else if (!meminfoMaybe->count("MemTotal")) {
+    OLOG << "meminfo does not contain MemTotal";
+    return 1;
+  }
+  auto memTotal = (*meminfoMaybe)["MemTotal"];
 
   if (args.find("threshold_anon") != args.end()) {
     if (Util::parseSizeOrPercent(
-            args.at("threshold_anon"), &threshold_, meminfo.at("MemTotal")) !=
-        0) {
+            args.at("threshold_anon"), &threshold_, memTotal) != 0) {
       OLOG << "Failed to parse threshold_anon=" << args.at("threshold_anon");
       return 1;
     }
     is_anon_ = true;
   } else if (args.find("threshold") != args.end()) {
-    if (Util::parseSizeOrPercent(
-            args.at("threshold"), &threshold_, meminfo.at("MemTotal")) < 0) {
+    if (Util::parseSizeOrPercent(args.at("threshold"), &threshold_, memTotal) <
+        0) {
       OLOG << "Failed to parse threshold=" << args.at("threshold");
       return 1;
     }
