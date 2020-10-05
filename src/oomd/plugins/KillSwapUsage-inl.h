@@ -24,7 +24,7 @@
 
 #include "oomd/Log.h"
 #include "oomd/include/Types.h"
-#include "oomd/util/Fs.h"
+#include "oomd/util/FsExceptionless.h"
 #include "oomd/util/Util.h"
 
 namespace Oomd {
@@ -35,11 +35,17 @@ int KillSwapUsage<Base>::init(
     const PluginConstructionContext& context) {
   if (args.find("threshold") != args.end()) {
     auto meminfo = args.find("meminfo_location") != args.end()
-        ? Fs::getMeminfo(args.at("meminfo_location"))
-        : Fs::getMeminfo();
+        ? FsExceptionless::getMeminfo(args.at("meminfo_location"))
+        : FsExceptionless::getMeminfo();
+
+    auto swapTotal = 0;
+    // TODO(dschatzberg): Report Error
+    if (meminfo && meminfo->count("SwapTotal")) {
+      swapTotal = (*meminfo)["SwapTotal"];
+    }
 
     if (Util::parseSizeOrPercent(
-            args.at("threshold"), &threshold_, meminfo.at("SwapTotal")) != 0) {
+            args.at("threshold"), &threshold_, swapTotal) != 0) {
       OLOG << "Failed to parse threshold" << args.at("threshold");
       return 1;
     }
