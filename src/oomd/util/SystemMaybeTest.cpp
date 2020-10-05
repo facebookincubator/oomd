@@ -46,19 +46,22 @@ TEST(SystemMaybeTest, ErrorTest) {
 }
 
 TEST(SystemMaybeTest, ValueTest) {
-  auto maybe = someSuccessfulFunction();
-  ASSERT_TRUE(maybe);
-  ASSERT_EQ(maybe.value(), 42);
-  ASSERT_EQ(*maybe, 42);
+  auto maybe = ASSERT_SYS_OK(someSuccessfulFunction());
+  ASSERT_EQ(maybe, 42);
 }
 
 TEST(SystemMaybeTest, noSystemErrorTest) {
-  auto v = noSystemError();
-  ASSERT_TRUE(v);
+  ASSERT_SYS_OK(noSystemError());
 }
 
 TEST(SystemMaybeTest, MacroTest) {
   auto maybe = someFailingFunctionMacro();
   ASSERT_FALSE(maybe);
   ASSERT_EQ(maybe.error().code().value(), EBUSY);
+}
+
+TEST(SystemMaybeTest, NonCopyableType) {
+  SystemMaybe<std::unique_ptr<int>> foo = std::make_unique<int>(3);
+  auto v = ASSERT_SYS_OK(std::move(foo));
+  ASSERT_EQ(*v, 3);
 }

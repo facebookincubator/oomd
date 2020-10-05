@@ -15,6 +15,7 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
+#include <sstream>
 #include <variant>
 
 // This header provides SystemMaybe<Value> - a type which holds either
@@ -76,11 +77,13 @@ class SystemMaybe final {
 
   // Value constructors - allows for implicit conversion to SystemMaybe
   template <
-      typename = std::enable_if_t<std::is_copy_constructible<Value>::value>>
+      class Dummy = Value,
+      typename = std::enable_if_t<std::is_copy_constructible<Dummy>::value>>
   SystemMaybe(const Value& val) noexcept(noexcept(Value(val)))
       : base_(std::in_place_index_t<0>{}, val) {}
   template <
-      typename = std::enable_if_t<std::is_move_constructible<Value>::value>>
+      class Dummy = Value,
+      typename = std::enable_if_t<std::is_move_constructible<Dummy>::value>>
   SystemMaybe(Value&& val) noexcept(noexcept(Value(std::move(val))))
       : base_(std::in_place_index_t<0>{}, std::move(val)) {}
 
@@ -122,7 +125,7 @@ class SystemMaybe final {
     return std::get<1>(base_);
   }
 
-  constexpr std::system_error& error() && {
+  constexpr std::system_error&& error() && {
     return std::get<1>(std::move(base_));
   }
 
@@ -190,10 +193,19 @@ auto systemError(std::system_error err, Msg&&... msg) {
 }
 
 #define SYSTEM_ERROR(c, ...) \
-  systemError(c, "[", __FILE__, ":", __LINE__, "] ", ##__VA_ARGS__)
+  ::Oomd::systemError(c, "[", __FILE__, ":", __LINE__, "] ", ##__VA_ARGS__)
 
+namespace {
 auto noSystemError() {
   return SystemMaybe<Unit>();
 }
+} // namespace
+
+#define ASSERT_SYS_OK(maybe)                    \
+  ({                                            \
+    auto x = (maybe);                           \
+    ASSERT_TRUE(maybe) << maybe.error().what(); \
+    std::move(*x);                              \
+  })
 
 } // namespace Oomd
