@@ -31,7 +31,6 @@
 #include "oomd/Stats.h"
 #include "oomd/StatsClient.h"
 #include "oomd/include/Assert.h"
-#include "oomd/util/Fs.h"
 #include "oomd/util/ScopeGuard.h"
 #include "oomd/util/Util.h"
 

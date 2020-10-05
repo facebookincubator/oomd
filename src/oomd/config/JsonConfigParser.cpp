@@ -22,7 +22,6 @@
 #include <json/reader.h>
 
 #include "oomd/Log.h"
-#include "oomd/util/Fs.h"
 
 namespace {
 

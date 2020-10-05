@@ -24,7 +24,6 @@
 #include "oomd/Log.h"
 #include "oomd/PluginRegistry.h"
 #include "oomd/include/Types.h"
-#include "oomd/util/Fs.h"
 #include "oomd/util/Util.h"
 
 namespace Oomd {
