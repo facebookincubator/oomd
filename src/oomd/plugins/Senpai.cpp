@@ -22,7 +22,7 @@
 
 #include "oomd/Log.h"
 #include "oomd/PluginRegistry.h"
-#include "oomd/util/Fs.h"
+#include "oomd/util/FsExceptionless.h"
 #include "oomd/util/Util.h"
 
 namespace Oomd {
@@ -94,15 +94,15 @@ int Senpai::init(
     log_interval_ = std::stoull(args.at("log_interval"));
   }
 
-  auto meminfo = Fs::getMeminfo();
-  if (auto pos = meminfo.find("MemTotal"); pos != meminfo.end()) {
-    host_mem_total_ = pos->second;
-  } else {
-    OLOG << "Cannot read host MemTotal";
-    return 1;
+  auto meminfo = FsExceptionless::getMeminfo();
+  if (meminfo) {
+    if (auto pos = meminfo->find("MemTotal"); pos != meminfo->end()) {
+      host_mem_total_ = pos->second;
+      return 0;
+    }
   }
-
-  return 0;
+  OLOG << "Cannot read host MemTotal";
+  return 1;
 }
 
 Engine::PluginRet Senpai::run(OomdContext& ctx) {
