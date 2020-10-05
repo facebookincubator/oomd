@@ -51,7 +51,8 @@ class FsExceptionlessTest : public ::testing::Test {
 
 TEST_F(FsExceptionlessTest, FindDirectories) {
   auto dir = fixture_.fsDataDir();
-  auto de = FsExceptionless::readDir(dir, FsExceptionless::DE_DIR);
+  auto de =
+      ASSERT_SYS_OK(FsExceptionless::readDir(dir, FsExceptionless::DE_DIR));
 
   ASSERT_EQ(de.dirs.size(), 4);
   EXPECT_THAT(de.dirs, Contains(std::string("dir1")));
@@ -93,7 +94,8 @@ TEST_F(FsExceptionlessTest, RemovePrefix) {
 
 TEST_F(FsExceptionlessTest, FindFiles) {
   auto dir = fixture_.fsDataDir();
-  auto de = FsExceptionless::readDir(dir, FsExceptionless::DE_FILE);
+  auto de =
+      ASSERT_SYS_OK(FsExceptionless::readDir(dir, FsExceptionless::DE_FILE));
 
   ASSERT_EQ(de.files.size(), 4);
   EXPECT_THAT(de.files, Contains(std::string("file1")));
@@ -108,21 +110,21 @@ TEST_F(FsExceptionlessTest, Glob) {
   dir += "/wildcard";
 
   auto wildcarded_path_some = dir + "/dir*";
-  auto resolved = FsExceptionless::glob(wildcarded_path_some);
+  auto resolved = ASSERT_SYS_OK(FsExceptionless::glob(wildcarded_path_some));
   ASSERT_EQ(resolved.size(), 2);
   EXPECT_THAT(resolved, Contains(dir + "/dir1"));
   EXPECT_THAT(resolved, Contains(dir + "/dir2"));
 
   auto wildcarded_path_dir_only = dir + "/*";
-  resolved =
-      FsExceptionless::glob(wildcarded_path_dir_only, /* dir_only */ true);
+  resolved = ASSERT_SYS_OK(
+      FsExceptionless::glob(wildcarded_path_dir_only, /* dir_only */ true));
   ASSERT_EQ(resolved.size(), 3);
   EXPECT_THAT(resolved, Contains(dir + "/dir1"));
   EXPECT_THAT(resolved, Contains(dir + "/dir2"));
   EXPECT_THAT(resolved, Contains(dir + "/different_dir"));
 
   auto wildcarded_path_all = dir + "/*";
-  resolved = FsExceptionless::glob(wildcarded_path_all);
+  resolved = ASSERT_SYS_OK(FsExceptionless::glob(wildcarded_path_all));
   ASSERT_EQ(resolved.size(), 4);
   EXPECT_THAT(resolved, Contains(dir + "/dir1"));
   EXPECT_THAT(resolved, Contains(dir + "/dir2"));
@@ -130,13 +132,13 @@ TEST_F(FsExceptionlessTest, Glob) {
   EXPECT_THAT(resolved, Contains(dir + "/file"));
 
   auto nonexistent_path = dir + "/not/a/valid/dir";
-  resolved = FsExceptionless::glob(nonexistent_path);
+  resolved = ASSERT_SYS_OK(FsExceptionless::glob(nonexistent_path));
   ASSERT_EQ(resolved.size(), 0);
 }
 
 TEST_F(FsExceptionlessTest, ReadFile) {
   auto file = fixture_.fsDataDir() + "/dir1/stuff";
-  auto lines = ASSERT_EXISTS(FsExceptionless::readFileByLine(file));
+  auto lines = ASSERT_SYS_OK(FsExceptionless::readFileByLine(file));
 
   ASSERT_EQ(lines.size(), 4);
   EXPECT_EQ(lines[0], "hello world");
@@ -144,11 +146,12 @@ TEST_F(FsExceptionlessTest, ReadFile) {
   EXPECT_EQ(lines[2], "");
   EXPECT_EQ(lines[3], "1");
 
-  auto dir = ASSERT_EXISTS(
+  auto dir = ASSERT_SYS_OK(
       FsExceptionless::DirFd::open(fixture_.fsDataDir() + "/dir1"));
+
   ASSERT_EQ(
-      FsExceptionless::readFileByLine(
-          FsExceptionless::Fd::openat(dir, "stuff")),
+      ASSERT_SYS_OK(FsExceptionless::readFileByLine(
+          FsExceptionless::Fd::openat(dir, "stuff"))),
       lines);
 }
 
@@ -156,21 +159,21 @@ TEST_F(FsExceptionlessTest, ReadFileBad) {
   auto file = fixture_.fsDataDir() + "/ksldjfksdlfdsjf";
   EXPECT_FALSE(FsExceptionless::readFileByLine(file));
 
-  auto dir = ASSERT_EXISTS(FsExceptionless::DirFd::open(fixture_.fsDataDir()));
+  auto dir = ASSERT_SYS_OK(FsExceptionless::DirFd::open(fixture_.fsDataDir()));
   EXPECT_FALSE(FsExceptionless::readFileByLine(
       FsExceptionless::Fd::openat(dir, "ksldjfksdlfdsjf")));
 }
 
 TEST_F(FsExceptionlessTest, GetPids) {
   auto path = fixture_.cgroupDataDir();
-  auto dir = ASSERT_EXISTS(FsExceptionless::DirFd::open(path));
-  auto pids = ASSERT_EXISTS(FsExceptionless::getPidsAt(dir));
+  auto dir = ASSERT_SYS_OK(FsExceptionless::DirFd::open(path));
+  auto pids = ASSERT_SYS_OK(FsExceptionless::getPidsAt(dir));
   EXPECT_EQ(pids.size(), 1);
   EXPECT_THAT(pids, Contains(123));
 
   auto path2 = path + "/service1.service";
-  auto dir2 = ASSERT_EXISTS(FsExceptionless::DirFd::open(path2));
-  auto pids2 = ASSERT_EXISTS(FsExceptionless::getPidsAt(dir2));
+  auto dir2 = ASSERT_SYS_OK(FsExceptionless::DirFd::open(path2));
+  auto pids2 = ASSERT_SYS_OK(FsExceptionless::getPidsAt(dir2));
   EXPECT_EQ(pids2.size(), 2);
   EXPECT_THAT(pids2, Contains(456));
   EXPECT_THAT(pids2, Contains(789));
@@ -178,74 +181,74 @@ TEST_F(FsExceptionlessTest, GetPids) {
 
 TEST_F(FsExceptionlessTest, ReadIsPopulated) {
   auto dir1 =
-      ASSERT_EXISTS(FsExceptionless::DirFd::open(fixture_.cgroupDataDir()));
-  EXPECT_EQ(FsExceptionless::readIsPopulatedAt(dir1), true);
+      ASSERT_SYS_OK(FsExceptionless::DirFd::open(fixture_.cgroupDataDir()));
+  EXPECT_EQ(ASSERT_SYS_OK(FsExceptionless::readIsPopulatedAt(dir1)), true);
 
-  auto dir2 = ASSERT_EXISTS(FsExceptionless::DirFd::open(
+  auto dir2 = ASSERT_SYS_OK(FsExceptionless::DirFd::open(
       fixture_.cgroupDataDir() + "/service3.service"));
-  EXPECT_EQ(FsExceptionless::readIsPopulatedAt(dir2), false);
+  EXPECT_EQ(ASSERT_SYS_OK(FsExceptionless::readIsPopulatedAt(dir2)), false);
 }
 
 TEST_F(FsExceptionlessTest, GetNrDying) {
   auto path = fixture_.cgroupDataDir();
-  auto dir = ASSERT_EXISTS(FsExceptionless::DirFd::open(path));
-  auto nr_dying = ASSERT_EXISTS(FsExceptionless::getNrDyingDescendantsAt(dir));
+  auto dir = ASSERT_SYS_OK(FsExceptionless::DirFd::open(path));
+  auto nr_dying = ASSERT_SYS_OK(FsExceptionless::getNrDyingDescendantsAt(dir));
   EXPECT_EQ(nr_dying, 27);
 }
 
 TEST_F(FsExceptionlessTest, ReadMemoryCurrent) {
   auto path = fixture_.cgroupDataDir();
-  auto dir = ASSERT_EXISTS(FsExceptionless::DirFd::open(path));
-  auto memcurrent = ASSERT_EXISTS(FsExceptionless::readMemcurrentAt(dir));
+  auto dir = ASSERT_SYS_OK(FsExceptionless::DirFd::open(path));
+  auto memcurrent = ASSERT_SYS_OK(FsExceptionless::readMemcurrentAt(dir));
   EXPECT_EQ(memcurrent, 987654321);
 }
 
 TEST_F(FsExceptionlessTest, ReadMemoryLow) {
   auto path = fixture_.cgroupDataDir();
-  auto dir = ASSERT_EXISTS(FsExceptionless::DirFd::open(path));
-  auto memlow = ASSERT_EXISTS(FsExceptionless::readMemlowAt(dir));
+  auto dir = ASSERT_SYS_OK(FsExceptionless::DirFd::open(path));
+  auto memlow = ASSERT_SYS_OK(FsExceptionless::readMemlowAt(dir));
   EXPECT_EQ(memlow, 333333);
 }
 
 TEST_F(FsExceptionlessTest, ReadMemoryMin) {
   auto path = fixture_.cgroupDataDir();
-  auto dir = ASSERT_EXISTS(FsExceptionless::DirFd::open(path));
-  auto memmin = ASSERT_EXISTS(FsExceptionless::readMemminAt(dir));
+  auto dir = ASSERT_SYS_OK(FsExceptionless::DirFd::open(path));
+  auto memmin = ASSERT_SYS_OK(FsExceptionless::readMemminAt(dir));
   EXPECT_EQ(memmin, 666);
 }
 
 TEST_F(FsExceptionlessTest, ReadMemoryHigh) {
   auto path = fixture_.cgroupDataDir();
-  auto dir = ASSERT_EXISTS(FsExceptionless::DirFd::open(path));
-  auto memhigh = ASSERT_EXISTS(FsExceptionless::readMemhighAt(dir));
+  auto dir = ASSERT_SYS_OK(FsExceptionless::DirFd::open(path));
+  auto memhigh = ASSERT_SYS_OK(FsExceptionless::readMemhighAt(dir));
   EXPECT_EQ(memhigh, 1000);
 }
 
 TEST_F(FsExceptionlessTest, ReadMemoryMax) {
   auto path = fixture_.cgroupDataDir();
-  auto dir = ASSERT_EXISTS(FsExceptionless::DirFd::open(path));
-  auto memmax = ASSERT_EXISTS(FsExceptionless::readMemmaxAt(dir));
+  auto dir = ASSERT_SYS_OK(FsExceptionless::DirFd::open(path));
+  auto memmax = ASSERT_SYS_OK(FsExceptionless::readMemmaxAt(dir));
   EXPECT_EQ(memmax, 654);
 }
 
 TEST_F(FsExceptionlessTest, ReadMemoryHighTmp) {
   auto path = fixture_.cgroupDataDir();
-  auto dir = ASSERT_EXISTS(FsExceptionless::DirFd::open(path));
-  auto memtmphigh = ASSERT_EXISTS(FsExceptionless::readMemhightmpAt(dir));
+  auto dir = ASSERT_SYS_OK(FsExceptionless::DirFd::open(path));
+  auto memtmphigh = ASSERT_SYS_OK(FsExceptionless::readMemhightmpAt(dir));
   EXPECT_EQ(memtmphigh, 2000);
 }
 
 TEST_F(FsExceptionlessTest, ReadSwapCurrent) {
   auto path = fixture_.cgroupDataDir();
-  auto dir = ASSERT_EXISTS(FsExceptionless::DirFd::open(path));
-  auto swap_current = ASSERT_EXISTS(FsExceptionless::readSwapCurrentAt(dir));
+  auto dir = ASSERT_SYS_OK(FsExceptionless::DirFd::open(path));
+  auto swap_current = ASSERT_SYS_OK(FsExceptionless::readSwapCurrentAt(dir));
   EXPECT_EQ(swap_current, 321321);
 }
 
 TEST_F(FsExceptionlessTest, ReadControllers) {
   auto path = fixture_.cgroupDataDir();
-  auto dir = ASSERT_EXISTS(FsExceptionless::DirFd::open(path));
-  auto controllers = ASSERT_EXISTS(FsExceptionless::readControllersAt(dir));
+  auto dir = ASSERT_SYS_OK(FsExceptionless::DirFd::open(path));
+  auto controllers = ASSERT_SYS_OK(FsExceptionless::readControllersAt(dir));
 
   ASSERT_EQ(controllers.size(), 4);
   EXPECT_THAT(controllers, Contains(std::string("cpu")));
@@ -258,8 +261,8 @@ TEST_F(FsExceptionlessTest, ReadControllers) {
 TEST_F(FsExceptionlessTest, ReadMemoryPressure) {
   // v4.16+ upstream format
   auto path = fixture_.cgroupDataDir();
-  auto dir = ASSERT_EXISTS(FsExceptionless::DirFd::open(path));
-  auto pressure = ASSERT_EXISTS(FsExceptionless::readMempressureAt(dir));
+  auto dir = ASSERT_SYS_OK(FsExceptionless::DirFd::open(path));
+  auto pressure = ASSERT_SYS_OK(FsExceptionless::readMempressureAt(dir));
 
   EXPECT_FLOAT_EQ(pressure.sec_10, 4.44);
   EXPECT_FLOAT_EQ(pressure.sec_60, 5.55);
@@ -267,8 +270,8 @@ TEST_F(FsExceptionlessTest, ReadMemoryPressure) {
 
   // old experimental format
   auto path2 = path + "/service2.service";
-  auto dir2 = ASSERT_EXISTS(FsExceptionless::DirFd::open(path2));
-  auto pressure2 = ASSERT_EXISTS(FsExceptionless::readMempressureAt(dir2));
+  auto dir2 = ASSERT_SYS_OK(FsExceptionless::DirFd::open(path2));
+  auto pressure2 = ASSERT_SYS_OK(FsExceptionless::readMempressureAt(dir2));
 
   EXPECT_FLOAT_EQ(pressure2.sec_10, 4.44);
   EXPECT_FLOAT_EQ(pressure2.sec_60, 5.55);
@@ -276,8 +279,8 @@ TEST_F(FsExceptionlessTest, ReadMemoryPressure) {
 
   // old experimental format w/ debug info on
   auto path3 = path + "/service3.service";
-  auto dir3 = ASSERT_EXISTS(FsExceptionless::DirFd::open(path3));
-  auto pressure3 = ASSERT_EXISTS(FsExceptionless::readMempressureAt(dir3));
+  auto dir3 = ASSERT_SYS_OK(FsExceptionless::DirFd::open(path3));
+  auto pressure3 = ASSERT_SYS_OK(FsExceptionless::readMempressureAt(dir3));
 
   EXPECT_FLOAT_EQ(pressure3.sec_10, 4.44);
   EXPECT_FLOAT_EQ(pressure3.sec_60, 5.55);
@@ -287,8 +290,8 @@ TEST_F(FsExceptionlessTest, ReadMemoryPressure) {
 TEST_F(FsExceptionlessTest, ReadMemoryPressureSome) {
   // v4.16+ upstream format
   auto path = fixture_.cgroupDataDir();
-  auto dir = ASSERT_EXISTS(FsExceptionless::DirFd::open(path));
-  auto pressure = ASSERT_EXISTS(FsExceptionless::readMempressureAt(
+  auto dir = ASSERT_SYS_OK(FsExceptionless::DirFd::open(path));
+  auto pressure = ASSERT_SYS_OK(FsExceptionless::readMempressureAt(
       dir, FsExceptionless::PressureType::SOME));
 
   EXPECT_FLOAT_EQ(pressure.sec_10, 1.11);
@@ -297,8 +300,8 @@ TEST_F(FsExceptionlessTest, ReadMemoryPressureSome) {
 
   // old experimental format
   auto path2 = path + "/service2.service";
-  auto dir2 = ASSERT_EXISTS(FsExceptionless::DirFd::open(path2));
-  auto pressure2 = ASSERT_EXISTS(FsExceptionless::readMempressureAt(
+  auto dir2 = ASSERT_SYS_OK(FsExceptionless::DirFd::open(path2));
+  auto pressure2 = ASSERT_SYS_OK(FsExceptionless::readMempressureAt(
       dir2, FsExceptionless::PressureType::SOME));
 
   EXPECT_FLOAT_EQ(pressure2.sec_10, 1.11);
@@ -308,7 +311,7 @@ TEST_F(FsExceptionlessTest, ReadMemoryPressureSome) {
 
 TEST_F(FsExceptionlessTest, GetVmstat) {
   auto vmstatfile = fixture_.fsVmstatFile();
-  auto vmstat = FsExceptionless::getVmstat(vmstatfile);
+  auto vmstat = ASSERT_SYS_OK(FsExceptionless::getVmstat(vmstatfile));
 
   EXPECT_EQ(vmstat["first_key"], 12345);
   EXPECT_EQ(vmstat["second_key"], 678910);
@@ -320,7 +323,7 @@ TEST_F(FsExceptionlessTest, GetVmstat) {
 
 TEST_F(FsExceptionlessTest, GetMeminfo) {
   auto meminfofile = fixture_.fsMeminfoFile();
-  auto meminfo = FsExceptionless::getMeminfo(meminfofile);
+  auto meminfo = ASSERT_SYS_OK(FsExceptionless::getMeminfo(meminfofile));
 
   EXPECT_EQ(meminfo.size(), 49);
   EXPECT_EQ(meminfo["SwapTotal"], 2097148 * 1024);
@@ -333,8 +336,8 @@ TEST_F(FsExceptionlessTest, GetMeminfo) {
 
 TEST_F(FsExceptionlessTest, GetMemstat) {
   auto path = fixture_.cgroupDataDir();
-  auto dir = ASSERT_EXISTS(FsExceptionless::DirFd::open(path));
-  auto meminfo = ASSERT_EXISTS(FsExceptionless::getMemstatAt(dir));
+  auto dir = ASSERT_SYS_OK(FsExceptionless::DirFd::open(path));
+  auto meminfo = ASSERT_SYS_OK(FsExceptionless::getMemstatAt(dir));
 
   EXPECT_EQ(meminfo.size(), 29);
   EXPECT_EQ(meminfo["anon"], 1294168064);
@@ -347,8 +350,8 @@ TEST_F(FsExceptionlessTest, GetMemstat) {
 
 TEST_F(FsExceptionlessTest, ReadIoPressure) {
   auto path = fixture_.cgroupDataDir();
-  auto dir = ASSERT_EXISTS(FsExceptionless::DirFd::open(path));
-  auto pressure = ASSERT_EXISTS(FsExceptionless::readIopressureAt(dir));
+  auto dir = ASSERT_SYS_OK(FsExceptionless::DirFd::open(path));
+  auto pressure = ASSERT_SYS_OK(FsExceptionless::readIopressureAt(dir));
 
   EXPECT_FLOAT_EQ(pressure.sec_10, 4.45);
   EXPECT_FLOAT_EQ(pressure.sec_60, 5.56);
@@ -357,8 +360,8 @@ TEST_F(FsExceptionlessTest, ReadIoPressure) {
 
 TEST_F(FsExceptionlessTest, ReadIoPressureSome) {
   auto path = fixture_.cgroupDataDir();
-  auto dir = ASSERT_EXISTS(FsExceptionless::DirFd::open(path));
-  auto pressure = ASSERT_EXISTS(FsExceptionless::readIopressureAt(
+  auto dir = ASSERT_SYS_OK(FsExceptionless::DirFd::open(path));
+  auto pressure = ASSERT_SYS_OK(FsExceptionless::readIopressureAt(
       dir, FsExceptionless::PressureType::SOME));
 
   EXPECT_FLOAT_EQ(pressure.sec_10, 1.12);
@@ -368,13 +371,13 @@ TEST_F(FsExceptionlessTest, ReadIoPressureSome) {
 
 TEST_F(FsExceptionlessTest, ReadMemoryOomGroup) {
   auto path1 = fixture_.cgroupDataDir() + "/slice1.slice";
-  auto dir1 = ASSERT_EXISTS(FsExceptionless::DirFd::open(path1));
-  auto oom_group = ASSERT_EXISTS(FsExceptionless::readMemoryOomGroupAt(dir1));
+  auto dir1 = ASSERT_SYS_OK(FsExceptionless::DirFd::open(path1));
+  auto oom_group = ASSERT_SYS_OK(FsExceptionless::readMemoryOomGroupAt(dir1));
   EXPECT_EQ(oom_group, true);
 
   auto path2 = fixture_.cgroupDataDir() + "/slice1.slice/service1.service";
-  auto dir2 = ASSERT_EXISTS(FsExceptionless::DirFd::open(path2));
-  auto oom_group2 = ASSERT_EXISTS(FsExceptionless::readMemoryOomGroupAt(dir2));
+  auto dir2 = ASSERT_SYS_OK(FsExceptionless::DirFd::open(path2));
+  auto oom_group2 = ASSERT_SYS_OK(FsExceptionless::readMemoryOomGroupAt(dir2));
   EXPECT_EQ(oom_group2, false);
 }
 
@@ -394,7 +397,8 @@ TEST_F(FsExceptionlessTest, IsUnderParentPath) {
 
 TEST_F(FsExceptionlessTest, GetCgroup2MountPoint) {
   auto mountsfile = fixture_.fsMountsFile();
-  auto cgrouppath = FsExceptionless::getCgroup2MountPoint(mountsfile);
+  auto cgrouppath =
+      ASSERT_SYS_OK(FsExceptionless::getCgroup2MountPoint(mountsfile));
 
   EXPECT_EQ(cgrouppath, std::string("/sys/fs/cgroup/"));
 }
@@ -402,33 +406,21 @@ TEST_F(FsExceptionlessTest, GetCgroup2MountPoint) {
 TEST_F(FsExceptionlessTest, GetDeviceType) {
   auto fsDevDir = fixture_.fsDeviceDir();
 
-  try {
-    auto ssd_type = FsExceptionless::getDeviceType("1:0", fsDevDir);
-    EXPECT_EQ(ssd_type, DeviceType::SSD);
-    auto hdd_type = FsExceptionless::getDeviceType("1:1", fsDevDir);
-    EXPECT_EQ(hdd_type, DeviceType::HDD);
-  } catch (const std::exception& e) {
-    FAIL() << "Expect no exception but got: " << e.what();
-  }
-  try {
-    FsExceptionless::getDeviceType("1:2", fsDevDir);
-    FAIL() << "Expected FsExceptionless::bad_control_file";
-  } catch (FsExceptionless::bad_control_file& e) {
-    EXPECT_EQ(
-        e.what(),
-        fsDevDir + "/1:2/" + FsExceptionless::kDeviceTypeDir + "/" +
-            FsExceptionless::kDeviceTypeFile + ": invalid format");
-  } catch (const std::exception& e) {
-    FAIL() << "Expected FsExceptionless::bad_control_file but got: "
-           << e.what();
-  }
+  auto ssd_type =
+      ASSERT_SYS_OK(FsExceptionless::getDeviceType("1:0", fsDevDir));
+  EXPECT_EQ(ssd_type, DeviceType::SSD);
+  auto hdd_type =
+      ASSERT_SYS_OK(FsExceptionless::getDeviceType("1:1", fsDevDir));
+  EXPECT_EQ(hdd_type, DeviceType::HDD);
+  auto ret = FsExceptionless::getDeviceType("1:2", fsDevDir);
+  ASSERT_FALSE(ret);
 }
 
 TEST_F(FsExceptionlessTest, ReadIostat) {
   auto path = fixture_.cgroupDataDir();
 
-  auto dir = ASSERT_EXISTS(FsExceptionless::DirFd::open(path));
-  auto io_stat = ASSERT_EXISTS(FsExceptionless::readIostatAt(dir));
+  auto dir = ASSERT_SYS_OK(FsExceptionless::DirFd::open(path));
+  auto io_stat = ASSERT_SYS_OK(FsExceptionless::readIostatAt(dir));
   EXPECT_EQ(io_stat.size(), 2);
 
   auto stat0 = io_stat[0];
@@ -455,9 +447,9 @@ TEST_F(FsExceptionlessTest, WriteMemoryHigh) {
   auto path = fixture_.cgroupDataDir() + "/write_test";
   F::materialize(F::makeDir(path, {F::makeFile("memory.high")}));
 
-  auto dir = ASSERT_EXISTS(FsExceptionless::DirFd::open(path));
-  FsExceptionless::writeMemhighAt(dir, 54321);
-  EXPECT_EQ(FsExceptionless::readMemhighAt(dir), 54321);
+  auto dir = ASSERT_SYS_OK(FsExceptionless::DirFd::open(path));
+  ASSERT_SYS_OK(FsExceptionless::writeMemhighAt(dir, 54321));
+  EXPECT_EQ(ASSERT_SYS_OK(FsExceptionless::readMemhighAt(dir)), 54321);
 }
 
 TEST_F(FsExceptionlessTest, WriteMemoryHighTmp) {
@@ -465,8 +457,8 @@ TEST_F(FsExceptionlessTest, WriteMemoryHighTmp) {
   auto path = fixture_.cgroupDataDir() + "/write_test";
   F::materialize(F::makeDir(path, {F::makeFile("memory.high.tmp")}));
 
-  auto dir = ASSERT_EXISTS(FsExceptionless::DirFd::open(path));
-  FsExceptionless::writeMemhightmpAt(
-      dir, 54321, std::chrono::microseconds{400000});
-  EXPECT_EQ(FsExceptionless::readMemhightmpAt(dir), 54321);
+  auto dir = ASSERT_SYS_OK(FsExceptionless::DirFd::open(path));
+  ASSERT_SYS_OK(FsExceptionless::writeMemhightmpAt(
+      dir, 54321, std::chrono::microseconds{400000}));
+  EXPECT_EQ(ASSERT_SYS_OK(FsExceptionless::readMemhightmpAt(dir)), 54321);
 }

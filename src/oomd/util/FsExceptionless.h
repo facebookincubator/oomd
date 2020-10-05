@@ -27,18 +27,12 @@
 #include <vector>
 
 #include "oomd/include/Types.h"
+#include "oomd/util/SystemMaybe.h"
 
 namespace Oomd {
 
 class FsExceptionless {
  public:
-  class bad_control_file : public std::runtime_error {
-   public:
-    explicit bad_control_file(const std::string& msg)
-        : std::runtime_error(msg) {}
-    explicit bad_control_file(const char* msg) : std::runtime_error(msg) {}
-  };
-
   static constexpr auto kControllersFile = "cgroup.controllers";
   static constexpr auto kSubtreeControlFile = "cgroup.subtree_control";
   static constexpr auto kProcsFile = "cgroup.procs";
@@ -83,7 +77,7 @@ class FsExceptionless {
    */
   class Fd {
    public:
-    static std::optional<Fd>
+    static SystemMaybe<Fd>
     openat(const DirFd& dirfd, const std::string& path, bool read_only = true);
 
     explicit Fd(int fd) : fd_(fd) {}
@@ -117,7 +111,7 @@ class FsExceptionless {
     }
 
     // Return inode of the fd, or nullopt if anything fails
-    std::optional<uint64_t> inode() const;
+    SystemMaybe<uint64_t> inode() const;
 
    protected:
     void close();
@@ -129,8 +123,8 @@ class FsExceptionless {
    */
   class DirFd : public Fd {
    public:
-    static std::optional<DirFd> open(const std::string& path);
-    std::optional<DirFd> openChildDir(const std::string& path) const;
+    static SystemMaybe<DirFd> open(const std::string& path);
+    SystemMaybe<DirFd> openChildDir(const std::string& path) const;
 
    protected:
     explicit DirFd(int fd) : Fd(fd) {}
@@ -142,12 +136,12 @@ class FsExceptionless {
    * Reads a directory and returns the names of the requested entry types
    * Won't return any dotfiles (including ./ and ../)
    */
-  static struct DirEnts readDir(const std::string& path, int flags);
+  static SystemMaybe<DirEnts> readDir(const std::string& path, int flags);
 
   /*
    * Like readDir, but takes a DirFd
    */
-  static struct DirEnts readDirAt(const DirFd& dirfd, int flags);
+  static SystemMaybe<DirEnts> readDirAt(const DirFd& dirfd, int flags);
 
   /*
    * Checks if @param path is a directory
@@ -158,7 +152,7 @@ class FsExceptionless {
    * Takes a fully qualified and wildcarded path and returns a set of
    * resolved fully qualified paths.
    */
-  static std::vector<std::string> glob(
+  static SystemMaybe<std::vector<std::string>> glob(
       const std::string& pattern,
       bool dir_only = false);
 
@@ -170,79 +164,80 @@ class FsExceptionless {
   static void removePrefix(std::string& str, const std::string& prefix);
 
   /* Reads a file and returns a newline separated vector of strings */
-  static std::optional<std::vector<std::string>> readFileByLine(
+  static SystemMaybe<std::vector<std::string>> readFileByLine(
       const std::string& path);
   /*
    * Same as variant taking string as argument except rvalue Fd is used, which
    * will be closed right after the call as it is read as a whole and we don't
    * seek offsets on Fd.
    */
-  static std::optional<std::vector<std::string>> readFileByLine(Fd&& fd);
+  static SystemMaybe<std::vector<std::string>> readFileByLine(Fd&& fd);
   /*
    * Same as above, convenience method accepting the output of Fd::openat
    */
-  inline static std::optional<std::vector<std::string>> readFileByLine(
-      std::optional<Fd>&& fd) {
+  inline static SystemMaybe<std::vector<std::string>> readFileByLine(
+      SystemMaybe<Fd>&& fd) {
     if (fd) {
       return readFileByLine(std::move(*fd));
     }
-    return std::nullopt;
+    return SYSTEM_ERROR(fd.error());
   }
 
-  static std::optional<std::vector<std::string>> readControllersAt(
+  static SystemMaybe<std::vector<std::string>> readControllersAt(
       const DirFd& dirfd);
-  static std::optional<std::vector<int>> getPidsAt(const DirFd& dirfd);
-  static std::optional<bool> readIsPopulatedAt(const DirFd& dirfd);
+  static SystemMaybe<std::vector<int>> getPidsAt(const DirFd& dirfd);
+  static SystemMaybe<bool> readIsPopulatedAt(const DirFd& dirfd);
 
   static std::string pressureTypeToString(PressureType type);
   /* Helpers to read PSI files */
-  static ResourcePressure readRespressureFromLines(
+  static SystemMaybe<ResourcePressure> readRespressureFromLines(
       const std::vector<std::string>& lines,
       PressureType type = PressureType::FULL);
-  static std::optional<int64_t> readRootMemcurrent();
-  static std::optional<int64_t> readMemcurrentAt(const DirFd& dirfd);
-  static std::optional<ResourcePressure> readRootMempressure(
+  static SystemMaybe<int64_t> readRootMemcurrent();
+  static SystemMaybe<int64_t> readMemcurrentAt(const DirFd& dirfd);
+  static SystemMaybe<ResourcePressure> readRootMempressure(
       PressureType type = PressureType::FULL);
-  static std::optional<ResourcePressure> readMempressureAt(
+  static SystemMaybe<ResourcePressure> readMempressureAt(
       const DirFd& dirfd,
       PressureType type = PressureType::FULL);
-  static int64_t readMinMaxLowHighFromLines(
+  static SystemMaybe<int64_t> readMinMaxLowHighFromLines(
       const std::vector<std::string>& lines);
-  static int64_t readMemhightmpFromLines(const std::vector<std::string>& lines);
-  static std::optional<int64_t> readMemlowAt(const DirFd& dirfd);
-  static std::optional<int64_t> readMemhighAt(const DirFd& dirfd);
-  static std::optional<int64_t> readMemmaxAt(const DirFd& dirfd);
-  static std::optional<int64_t> readMemhightmpAt(const DirFd& dirfd);
-  static std::optional<int64_t> readMemminAt(const DirFd& dirfd);
-  static std::optional<int64_t> readSwapCurrentAt(const DirFd& dirfd);
-  static std::optional<ResourcePressure> readRootIopressure(
+  static SystemMaybe<int64_t> readMemhightmpFromLines(
+      const std::vector<std::string>& lines);
+  static SystemMaybe<int64_t> readMemlowAt(const DirFd& dirfd);
+  static SystemMaybe<int64_t> readMemhighAt(const DirFd& dirfd);
+  static SystemMaybe<int64_t> readMemmaxAt(const DirFd& dirfd);
+  static SystemMaybe<int64_t> readMemhightmpAt(const DirFd& dirfd);
+  static SystemMaybe<int64_t> readMemminAt(const DirFd& dirfd);
+  static SystemMaybe<int64_t> readSwapCurrentAt(const DirFd& dirfd);
+  static SystemMaybe<ResourcePressure> readRootIopressure(
       PressureType type = PressureType::FULL);
-  static std::optional<ResourcePressure> readIopressureAt(
+  static SystemMaybe<ResourcePressure> readIopressureAt(
       const DirFd& dirfd,
       PressureType type = PressureType::FULL);
 
-  static void writeMemhighAt(const DirFd& dirfd, int64_t value);
-  static void writeMemhightmpAt(
+  static SystemMaybe<Unit> writeMemhighAt(const DirFd& dirfd, int64_t value);
+  static SystemMaybe<Unit> writeMemhightmpAt(
       const DirFd& dirfd,
       int64_t value,
       std::chrono::microseconds duration);
 
-  static std::optional<int64_t> getNrDyingDescendantsAt(const DirFd& dirfd);
-  static KillPreference readKillPreferenceAt(const DirFd& path);
-  static std::optional<bool> readMemoryOomGroupAt(const DirFd& dirfd);
-  static std::optional<IOStat> readIostatAt(const DirFd& dirfd);
+  static SystemMaybe<int64_t> getNrDyingDescendantsAt(const DirFd& dirfd);
+  static SystemMaybe<KillPreference> readKillPreferenceAt(const DirFd& path);
+  static SystemMaybe<bool> readMemoryOomGroupAt(const DirFd& dirfd);
+  static SystemMaybe<IOStat> readIostatAt(const DirFd& dirfd);
 
-  static std::unordered_map<std::string, int64_t> getVmstat(
+  static SystemMaybe<std::unordered_map<std::string, int64_t>> getVmstat(
       const std::string& path = "/proc/vmstat");
 
-  static std::unordered_map<std::string, int64_t> getMeminfo(
+  static SystemMaybe<std::unordered_map<std::string, int64_t>> getMeminfo(
       const std::string& path = "/proc/meminfo");
 
-  static std::optional<std::unordered_map<std::string, int64_t>> getMemstatAt(
+  static SystemMaybe<std::unordered_map<std::string, int64_t>> getMemstatAt(
       const DirFd& dirfd);
 
   // Return root part of cgroup2 from /proc/mounts/
-  static std::string getCgroup2MountPoint(
+  static SystemMaybe<std::string> getCgroup2MountPoint(
       const std::string& path = "/proc/mounts");
 
   // Check if path point to parent path or somewhere inside parent path
@@ -251,26 +246,30 @@ class FsExceptionless {
       const std::string& path);
 
   /* Getters and setters to set xattr values */
-  static bool setxattr(
+  static SystemMaybe<Unit> setxattr(
       const std::string& path,
       const std::string& attr,
       const std::string& val);
-  static std::string getxattr(const std::string& path, const std::string& attr);
+  static SystemMaybe<std::string> getxattr(
+      const std::string& path,
+      const std::string& attr);
 
-  static bool hasxattrAt(const DirFd& dirfd, const std::string& attr);
+  static SystemMaybe<bool> hasxattrAt(
+      const DirFd& dirfd,
+      const std::string& attr);
 
   // Return if device is SSD or HDD given its id in <major>:<minor> format
-  static DeviceType getDeviceType(
+  static SystemMaybe<DeviceType> getDeviceType(
       const std::string& dev_id,
       const std::string& path = "/sys/dev/block");
 
  private:
   static std::unordered_map<std::string, int64_t> getMemstatLikeFromLines(
       const std::vector<std::string>& lines);
-  static void writeControlFileAt(
-      std::optional<Fd>&& fd,
+  static SystemMaybe<Unit> writeControlFileAt(
+      SystemMaybe<Fd>&& fd,
       const std::string& content);
-  static struct DirEnts readDirFromDIR(DIR* dir, int flags);
+  static SystemMaybe<DirEnts> readDirFromDIR(DIR* dir, int flags);
 };
 
 } // namespace Oomd
