@@ -29,7 +29,7 @@
 #include "oomd/Log.h"
 #include "oomd/config/JsonConfigParser.h"
 #include "oomd/include/Assert.h"
-#include "oomd/util/Fs.h"
+#include "oomd/util/FsExceptionless.h"
 #include "oomd/util/Util.h"
 
 static constexpr auto kMaxEvents = 10;
@@ -44,12 +44,12 @@ std::unique_ptr<FsDropInService> FsDropInService::create(
   if (drop_in_dir.size() == 0) {
     return nullptr;
   }
-  Fs::Fd epollfd(::epoll_create1(EPOLL_CLOEXEC));
+  FsExceptionless::Fd epollfd(::epoll_create1(EPOLL_CLOEXEC));
   if (epollfd.fd() < 0) {
     OLOG << "epoll_create1: " << Util::strerror_r();
     return nullptr;
   }
-  Fs::Fd terminatefd(::eventfd(0, EFD_CLOEXEC | EFD_NONBLOCK));
+  FsExceptionless::Fd terminatefd(::eventfd(0, EFD_CLOEXEC | EFD_NONBLOCK));
   if (terminatefd.fd() < 0) {
     OLOG << "eventfd: " << Util::strerror_r();
     return nullptr;
@@ -178,7 +178,7 @@ int FsDropInService::prepDropInWatcherEventLoop(const std::string& dir) {
 }
 
 int FsDropInService::prepDropInWatcher(const std::string& dir) {
-  if (!Fs::isDir(dir)) {
+  if (!FsExceptionless::isDir(dir)) {
     OLOG << "Error: " << dir << " is not a directory";
     return 1;
   }
@@ -197,10 +197,13 @@ int FsDropInService::prepDropInWatcher(const std::string& dir) {
     return 1;
   }
 
-  auto de = Fs::readDir(dir, Fs::DE_FILE);
-  std::sort(de.files.begin(), de.files.end()); // Provide some determinism
-  for (const auto& config : de.files) {
-    processDropInAdd(config);
+  auto de = FsExceptionless::readDir(dir, FsExceptionless::DE_FILE);
+  // TODO(dschatzberg): Report error
+  if (de) {
+    std::sort(de->files.begin(), de->files.end()); // Provide some determinism
+    for (const auto& config : de->files) {
+      processDropInAdd(config);
+    }
   }
 
   return 0;
