@@ -24,7 +24,7 @@
 #include "oomd/Log.h"
 #include "oomd/PluginRegistry.h"
 #include "oomd/include/CgroupPath.h"
-#include "oomd/util/Fs.h"
+#include "oomd/util/FsExceptionless.h"
 #include "oomd/util/Util.h"
 
 namespace {
@@ -41,11 +41,20 @@ void dumpCgroupOverview(const Oomd::CgroupContext& cgroup_ctx, bool always) {
 
   const auto& path = cgroup_ctx.cgroup();
   const int64_t current = cgroup_ctx.current_usage().value_or(0);
-  auto meminfo = Oomd::Fs::getMeminfo();
-  const int64_t swapfree = meminfo["SwapFree"];
-  const int64_t swaptotal = meminfo["SwapTotal"];
-  auto vmstat = Oomd::Fs::getVmstat();
-  const int64_t pgscan = vmstat[kPgscanSwap] + vmstat[kPgscanDirect];
+  // TODO(dschatzberg): Report error
+  auto meminfo = Oomd::FsExceptionless::getMeminfo();
+  int64_t swapfree = 0;
+  int64_t swaptotal = 0;
+  if (meminfo) {
+    swapfree = (*meminfo)["SwapFree"];
+    swaptotal = (*meminfo)["SwapTotal"];
+  }
+  int64_t pgscan = 0;
+  // TODO(dschatzberg): Report error
+  auto vmstat = Oomd::FsExceptionless::getVmstat();
+  if (vmstat) {
+    pgscan = vmstat[kPgscanSwap] + vmstat[kPgscanDirect];
+  }
 
   std::ostringstream oss;
   oss << std::setprecision(2) << std::fixed;
