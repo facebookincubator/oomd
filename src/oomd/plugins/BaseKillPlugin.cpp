@@ -37,7 +37,7 @@
 #include "oomd/include/Assert.h"
 #include "oomd/include/CoreStats.h"
 #include "oomd/include/Types.h"
-#include "oomd/util/Fs.h"
+#include "oomd/util/FsExceptionless.h"
 #include "oomd/util/Util.h"
 
 static auto constexpr kOomdKillInitiationXattr = "trusted.oomd_ooms";
@@ -210,7 +210,8 @@ int BaseKillPlugin::getAndTryToKillPids(const CgroupContext& target) {
   static constexpr size_t stream_size = 20;
   int nr_killed = 0;
 
-  const auto fd = ::openat(target.fd().fd(), Fs::kProcsFile, O_RDONLY);
+  const auto fd =
+      ::openat(target.fd().fd(), FsExceptionless::kProcsFile, O_RDONLY);
   if (fd == -1) {
     return 0;
   }
@@ -301,9 +302,9 @@ int BaseKillPlugin::tryToKillPids(const std::vector<int>& pids) {
 
   for (int pid : pids) {
     auto comm_path = std::string("/proc/") + std::to_string(pid) + "/comm";
-    auto comm = Fs::readFileByLine(comm_path);
+    auto comm = FsExceptionless::readFileByLine(comm_path);
 
-    if (comm && comm.value().size()) {
+    if (comm && comm->size()) {
       buf << " " << pid << "(" << comm.value()[0] << ")";
     } else {
       buf << " " << pid;
@@ -328,14 +329,23 @@ BaseKillPlugin::KillUuid BaseKillPlugin::generateKillUuid() const {
 std::string BaseKillPlugin::getxattr(
     const std::string& path,
     const std::string& attr) {
-  return Fs::getxattr(path, attr);
+  auto ret = FsExceptionless::getxattr(path, attr);
+  // TODO(dschatzberg): Report error
+  if (!ret) {
+    return "";
+  }
+  return *ret;
 }
 
 bool BaseKillPlugin::setxattr(
     const std::string& path,
     const std::string& attr,
     const std::string& val) {
-  return Fs::setxattr(path, attr, val);
+  // TODO(dschatzberg): Report error
+  if (!FsExceptionless::setxattr(path, attr, val)) {
+    return false;
+  }
+  return true;
 }
 
 void BaseKillPlugin::reportKillInitiationToXattr(
