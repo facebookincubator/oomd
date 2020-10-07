@@ -145,9 +145,10 @@ TEST_F(FsTest, ReadFile) {
   EXPECT_EQ(lines[3], "1");
 
   auto dir = ASSERT_SYS_OK(Fs::DirFd::open(fixture_.fsDataDir() + "/dir1"));
+  auto openat_lines =
+      ASSERT_SYS_OK(Fs::readFileByLine(Fs::Fd::openat(dir, "stuff")));
 
-  ASSERT_EQ(
-      ASSERT_SYS_OK(Fs::readFileByLine(Fs::Fd::openat(dir, "stuff"))), lines);
+  ASSERT_EQ(openat_lines, lines);
 }
 
 TEST_F(FsTest, ReadFileBad) {
@@ -175,11 +176,13 @@ TEST_F(FsTest, GetPids) {
 
 TEST_F(FsTest, ReadIsPopulated) {
   auto dir1 = ASSERT_SYS_OK(Fs::DirFd::open(fixture_.cgroupDataDir()));
-  EXPECT_EQ(ASSERT_SYS_OK(Fs::readIsPopulatedAt(dir1)), true);
+  auto isPopulated1 = ASSERT_SYS_OK(Fs::readIsPopulatedAt(dir1));
+  EXPECT_TRUE(isPopulated1);
 
   auto dir2 = ASSERT_SYS_OK(
       Fs::DirFd::open(fixture_.cgroupDataDir() + "/service3.service"));
-  EXPECT_EQ(ASSERT_SYS_OK(Fs::readIsPopulatedAt(dir2)), false);
+  auto isPopulated2 = ASSERT_SYS_OK(Fs::readIsPopulatedAt(dir2));
+  EXPECT_FALSE(isPopulated2);
 }
 
 TEST_F(FsTest, GetNrDying) {
@@ -436,7 +439,8 @@ TEST_F(FsTest, WriteMemoryHigh) {
 
   auto dir = ASSERT_SYS_OK(Fs::DirFd::open(path));
   ASSERT_SYS_OK(Fs::writeMemhighAt(dir, 54321));
-  EXPECT_EQ(ASSERT_SYS_OK(Fs::readMemhighAt(dir)), 54321);
+  auto memhigh = ASSERT_SYS_OK(Fs::readMemhighAt(dir));
+  EXPECT_EQ(memhigh, 54321);
 }
 
 TEST_F(FsTest, WriteMemoryHighTmp) {
@@ -447,5 +451,6 @@ TEST_F(FsTest, WriteMemoryHighTmp) {
   auto dir = ASSERT_SYS_OK(Fs::DirFd::open(path));
   ASSERT_SYS_OK(
       Fs::writeMemhightmpAt(dir, 54321, std::chrono::microseconds{400000}));
-  EXPECT_EQ(ASSERT_SYS_OK(Fs::readMemhightmpAt(dir)), 54321);
+  auto memhightmp = ASSERT_SYS_OK(Fs::readMemhightmpAt(dir));
+  EXPECT_EQ(memhightmp, 54321);
 }

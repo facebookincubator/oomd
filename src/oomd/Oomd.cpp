@@ -79,8 +79,6 @@ void Oomd::updateContext() {
 }
 
 int Oomd::run() {
-  int ret;
-
   if (!engine_) {
     OLOG << "Could not run engine. Your config file is probably invalid\n";
     return EXIT_CANT_RECOVER;
