@@ -343,6 +343,7 @@ std::string Fs::pressureTypeToString(PressureType type) {
     case PressureType::FULL:
       return "full";
   }
+  __builtin_unreachable();
 }
 
 SystemMaybe<ResourcePressure> Fs::readRespressureFromLines(
@@ -419,6 +420,7 @@ SystemMaybe<ResourcePressure> Fs::readRespressureFromLines(
     case PsiFormat::INVALID:
       return SYSTEM_ERROR(EINVAL);
   }
+  __builtin_unreachable();
 }
 
 SystemMaybe<int64_t> Fs::readRootMemcurrent() {
@@ -688,8 +690,6 @@ SystemMaybe<IOStat> Fs::readIostatAt(const DirFd& dirfd) {
 SystemMaybe<Unit> Fs::writeControlFileAt(
     SystemMaybe<Fd>&& fd,
     const std::string& content) {
-  char buf[1024];
-  buf[0] = '\0';
   if (!fd) {
     return SYSTEM_ERROR(fd.error());
   }

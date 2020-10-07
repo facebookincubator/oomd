@@ -196,16 +196,16 @@ auto systemError(std::system_error err, Msg&&... msg) {
   ::Oomd::systemError(c, "[", __FILE__, ":", __LINE__, "] ", ##__VA_ARGS__)
 
 namespace {
-auto noSystemError() {
+[[maybe_unused]] auto noSystemError() {
   return SystemMaybe<Unit>();
 }
 } // namespace
 
-#define ASSERT_SYS_OK(maybe)                    \
-  ({                                            \
-    auto x = (maybe);                           \
-    ASSERT_TRUE(maybe) << maybe.error().what(); \
-    std::move(*x);                              \
+#define ASSERT_SYS_OK(maybe)            \
+  ({                                    \
+    auto x = (maybe);                   \
+    ASSERT_TRUE(x) << x.error().what(); \
+    std::move(*x);                      \
   })
 
 } // namespace Oomd
