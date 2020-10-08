@@ -222,6 +222,7 @@ const auto kEntCgroup = F::makeDir(
                 "full avg10=4.44 avg60=5.55 avg300=6.66 total=128544748770\n"),
             F::makeFile("memory.stat", kDataCgMemStat),
             F::makeFile("memory.swap.current", "321321\n"),
+            F::makeFile("memory.swap.max", "12345\n"),
         })});
 
 const auto kEntFsData = F::makeDir(
