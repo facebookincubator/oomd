@@ -114,6 +114,7 @@ PROXY_CONST_REF(io_stat, Fs::readIostatAt(cgroup_dir_))
 PROXY(id, cgroup_dir_.inode())
 PROXY(current_usage, getMemcurrent())
 PROXY(swap_usage, Fs::readSwapCurrentAt(cgroup_dir_))
+PROXY(swap_max, Fs::readSwapMaxAt(cgroup_dir_))
 PROXY(memory_low, Fs::readMemlowAt(cgroup_dir_))
 PROXY(memory_min, Fs::readMemminAt(cgroup_dir_))
 PROXY(memory_high, Fs::readMemhighAt(cgroup_dir_))
@@ -123,6 +124,7 @@ PROXY(nr_dying_descendants, Fs::getNrDyingDescendantsAt(cgroup_dir_))
 PROXY(is_populated, Fs::readIsPopulatedAt(cgroup_dir_))
 PROXY(kill_preference, Fs::readKillPreferenceAt(cgroup_dir_))
 PROXY(oom_group, Fs::readMemoryOomGroupAt(cgroup_dir_))
+PROXY(effective_swap_max, getEffectiveSwapMax(err))
 PROXY(io_cost_cumulative, getIoCostCumulative(err))
 PROXY(pg_scan_cumulative, getPgScanCumulative(err))
 PROXY(memory_protection, getMemoryProtection(err))
@@ -234,6 +236,31 @@ std::optional<int64_t> normalizedProtection(
   }
 }
 } // namespace
+
+std::optional<int64_t> CgroupContext::getEffectiveSwapMax(Error* err) const {
+  if (cgroup_.isRoot()) {
+    return ctx_.getSystemContext().swaptotal;
+  }
+
+  auto parent_cgroup = cgroup_.getParent();
+  auto parent_ctx = ctx_.addToCacheAndGet(parent_cgroup);
+  if (!parent_ctx) {
+    if (err) {
+      *err = Error::INVALID_CGROUP;
+    }
+    return std::nullopt;
+  }
+
+  if (auto parent_effective_swap_max =
+          parent_ctx->get().effective_swap_max(err);
+      !parent_effective_swap_max) {
+    return std::nullopt;
+  } else if (auto self_swap_max = swap_max(err); !self_swap_max) {
+    return std::nullopt;
+  } else {
+    return std::min(*parent_effective_swap_max, *self_swap_max);
+  }
+}
 
 /*
  * Calculate memory protection, taking into account actual distribution of

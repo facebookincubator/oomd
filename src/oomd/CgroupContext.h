@@ -107,6 +107,7 @@ class CgroupContext {
   std::optional<Id> id(Error* err = nullptr) const;
   std::optional<int64_t> current_usage(Error* err = nullptr) const;
   std::optional<int64_t> swap_usage(Error* err = nullptr) const;
+  std::optional<int64_t> swap_max(Error* err = nullptr) const;
   std::optional<int64_t> memory_low(Error* err = nullptr) const;
   std::optional<int64_t> memory_min(Error* err = nullptr) const;
   std::optional<int64_t> memory_high(Error* err = nullptr) const;
@@ -116,6 +117,8 @@ class CgroupContext {
   std::optional<bool> is_populated(Error* err = nullptr) const;
   std::optional<KillPreference> kill_preference(Error* err = nullptr) const;
   std::optional<bool> oom_group(Error* err = nullptr) const;
+  // swap_max taking into account ancestor configs
+  std::optional<int64_t> effective_swap_max(Error* err = nullptr) const;
   // memory_{min,low} taking into account the distribution of it
   std::optional<int64_t> memory_protection(Error* err = nullptr) const;
   // Dot product between io stat and coeffs
@@ -155,6 +158,7 @@ class CgroupContext {
   std::optional<ResourcePressure> getMemPressure() const;
   std::optional<ResourcePressure> getIoPressure() const;
   std::optional<int64_t> getMemcurrent() const;
+  std::optional<int64_t> getEffectiveSwapMax(Error* err) const;
   std::optional<int64_t> getMemoryProtection(Error* err) const;
   std::optional<double> getIoCostCumulative(Error* err) const;
   std::optional<int64_t> getPgScanCumulative(Error* err) const;
@@ -180,7 +184,9 @@ class CgroupContext {
     std::optional<bool> is_populated;
     std::optional<KillPreference> kill_preference;
     std::optional<bool> oom_group;
+    std::optional<int64_t> swap_max;
     // Cached derived data
+    std::optional<int64_t> effective_swap_max;
     std::optional<int64_t> memory_protection;
     std::optional<double> io_cost_cumulative;
     std::optional<int64_t> pg_scan_cumulative;

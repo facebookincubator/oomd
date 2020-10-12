@@ -241,6 +241,13 @@ TEST_F(FsTest, ReadSwapCurrent) {
   EXPECT_EQ(swap_current, 321321);
 }
 
+TEST_F(FsTest, ReadSwapMax) {
+  auto path = fixture_.cgroupDataDir();
+  auto dir = ASSERT_SYS_OK(Fs::DirFd::open(path));
+  auto swap_max = ASSERT_SYS_OK(Fs::readSwapMaxAt(dir));
+  EXPECT_EQ(swap_max, 12345);
+}
+
 TEST_F(FsTest, ReadControllers) {
   auto path = fixture_.cgroupDataDir();
   auto dir = ASSERT_SYS_OK(Fs::DirFd::open(path));

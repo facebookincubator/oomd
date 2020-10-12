@@ -560,6 +560,18 @@ SystemMaybe<int64_t> Fs::readSwapCurrentAt(const DirFd& dirfd) {
   return std::stoll((*lines)[0]);
 }
 
+SystemMaybe<int64_t> Fs::readSwapMaxAt(const DirFd& dirfd) {
+  auto lines = readFileByLine(Fs::Fd::openat(dirfd, kMemSwapMaxFile));
+  if (!lines) {
+    return SYSTEM_ERROR(lines.error());
+  }
+  auto ret = Fs::readMinMaxLowHighFromLines(*lines);
+  if (!ret) {
+    return SYSTEM_ERROR(ret.error());
+  }
+  return ret;
+}
+
 SystemMaybe<std::unordered_map<std::string, int64_t>> Fs::getVmstat(
     const std::string& path) {
   auto lines = readFileByLine(path);

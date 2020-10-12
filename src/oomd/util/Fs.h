@@ -47,6 +47,7 @@ class Fs {
   static constexpr auto kMemStatFile = "memory.stat";
   static constexpr auto kCgroupStatFile = "cgroup.stat";
   static constexpr auto kMemSwapCurrentFile = "memory.swap.current";
+  static constexpr auto kMemSwapMaxFile = "memory.swap.max";
   static constexpr auto kMemOomGroupFile = "memory.oom.group";
   static constexpr auto kIoPressureFile = "io.pressure";
   static constexpr auto kIoStatFile = "io.stat";
@@ -210,6 +211,7 @@ class Fs {
   static SystemMaybe<int64_t> readMemhightmpAt(const DirFd& dirfd);
   static SystemMaybe<int64_t> readMemminAt(const DirFd& dirfd);
   static SystemMaybe<int64_t> readSwapCurrentAt(const DirFd& dirfd);
+  static SystemMaybe<int64_t> readSwapMaxAt(const DirFd& dirfd);
   static SystemMaybe<ResourcePressure> readRootIopressure(
       PressureType type = PressureType::FULL);
   static SystemMaybe<ResourcePressure> readIopressureAt(

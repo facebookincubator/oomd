@@ -262,6 +262,7 @@ TEST_F(CgroupContextTest, DataLifeCycle) {
                 "file 12345678\n"
                 "pgscan 4567890123\n"}),
            F::makeFile("memory.swap.current", {"1234\n"}),
+           F::makeFile("memory.swap.max", {"1024\n"}),
            F::makeDir("service1.service", {}),
            F::makeDir("service2.service", {}),
            F::makeDir("service3.service", {})})}));
@@ -276,6 +277,8 @@ TEST_F(CgroupContextTest, DataLifeCycle) {
   std::decay_t<decltype(cgroup_ctx.io_stat())> io_stat;
   decltype(cgroup_ctx.current_usage()) current_usage;
   decltype(cgroup_ctx.swap_usage()) swap_usage;
+  decltype(cgroup_ctx.swap_max()) swap_max;
+  decltype(cgroup_ctx.effective_swap_max()) effective_swap_max;
   decltype(cgroup_ctx.memory_low()) memory_low;
   decltype(cgroup_ctx.memory_min()) memory_min;
   decltype(cgroup_ctx.memory_high()) memory_high;
@@ -297,6 +300,8 @@ TEST_F(CgroupContextTest, DataLifeCycle) {
     io_stat = cgroup_ctx.io_stat();
     current_usage = cgroup_ctx.current_usage();
     swap_usage = cgroup_ctx.swap_usage();
+    swap_max = cgroup_ctx.swap_max();
+    effective_swap_max = cgroup_ctx.effective_swap_max();
     memory_low = cgroup_ctx.memory_low();
     memory_min = cgroup_ctx.memory_min();
     memory_high = cgroup_ctx.memory_high();
@@ -317,6 +322,8 @@ TEST_F(CgroupContextTest, DataLifeCycle) {
     ASSERT_TRUE(io_stat);
     ASSERT_TRUE(current_usage);
     ASSERT_TRUE(swap_usage);
+    ASSERT_TRUE(swap_max);
+    ASSERT_TRUE(effective_swap_max);
     ASSERT_TRUE(memory_low);
     ASSERT_TRUE(memory_min);
     ASSERT_TRUE(memory_high);
@@ -359,6 +366,8 @@ TEST_F(CgroupContextTest, DataLifeCycle) {
               {"1:11", 2222222, 3333333, 44, 55, 6666666666, 7}}));
   EXPECT_EQ(current_usage, 1122334455);
   EXPECT_EQ(swap_usage, 1234);
+  EXPECT_EQ(swap_max, 1024);
+  EXPECT_EQ(effective_swap_max, 0);
   EXPECT_EQ(memory_low, 11223344);
   EXPECT_EQ(memory_min, 112233);
   EXPECT_EQ(memory_high, 2233445566);
@@ -412,6 +421,7 @@ TEST_F(CgroupContextTest, DataLifeCycle) {
                 "file 12345679\n"
                 "pgscan 5678901234\n"}),
            F::makeFile("memory.swap.current", {"1235\n"}),
+           F::makeFile("memory.swap.max", {"2048\n"}),
            F::makeDir("service1.service", {}),
            F::makeDir("service2.service", {}),
            F::makeDir("service3.service", {}),
@@ -426,6 +436,8 @@ TEST_F(CgroupContextTest, DataLifeCycle) {
   EXPECT_EQ(cgroup_ctx.io_stat(), io_stat);
   EXPECT_EQ(cgroup_ctx.current_usage(), current_usage);
   EXPECT_EQ(cgroup_ctx.swap_usage(), swap_usage);
+  EXPECT_EQ(cgroup_ctx.swap_max(), swap_max);
+  EXPECT_EQ(cgroup_ctx.effective_swap_max(), effective_swap_max);
   EXPECT_EQ(cgroup_ctx.memory_low(), memory_low);
   EXPECT_EQ(cgroup_ctx.memory_min(), memory_min);
   EXPECT_EQ(cgroup_ctx.memory_high(), memory_high);
@@ -468,6 +480,8 @@ TEST_F(CgroupContextTest, DataLifeCycle) {
               {"1:11", 2222223, 3333334, 45, 56, 6666666667, 8}}));
   EXPECT_EQ(current_usage, 1122334456);
   EXPECT_EQ(swap_usage, 1235);
+  EXPECT_EQ(swap_max, 2048);
+  EXPECT_EQ(effective_swap_max, 0);
   EXPECT_EQ(memory_low, 11223345);
   EXPECT_EQ(memory_min, 112234);
   EXPECT_EQ(memory_high, 2233445567);
@@ -483,6 +497,26 @@ TEST_F(CgroupContextTest, DataLifeCycle) {
   EXPECT_EQ(io_cost_rate, 45585556220 - 45585556178);
   EXPECT_EQ(pg_scan_cumulative, 5678901234);
   EXPECT_EQ(pg_scan_rate, 5678901234 - 4567890123);
+}
+
+TEST_F(CgroupContextTest, EffectiveSwapMax) {
+  ctx_.setSystemContext(SystemContext{.swaptotal = 3000});
+  F::materialize(F::makeDir(
+      tempDir_,
+      {F::makeDir(
+          "system.slice",
+          {F::makeFile("cgroup.controllers"),
+           F::makeFile("memory.swap.max", "1000\n"),
+           F::makeDir(
+               "oomd.service",
+               {F::makeFile("cgroup.controllers"),
+                F::makeFile("memory.swap.max", "2000\n")})})}));
+
+  auto cgroup_ctx = ASSERT_EXISTS(CgroupContext::make(
+      ctx_, CgroupPath(tempDir_, "system.slice/oomd.service")));
+
+  ASSERT_TRUE(cgroup_ctx.effective_swap_max());
+  ASSERT_EQ(*cgroup_ctx.effective_swap_max(), 1000);
 }
 
 /*
