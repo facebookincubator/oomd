@@ -76,6 +76,7 @@ struct ResourcePressure {
 struct SystemContext {
   uint64_t swaptotal{0};
   uint64_t swapused{0};
+  int swappiness{0};
 };
 
 enum struct KillPreference {

@@ -125,14 +125,14 @@ class CorePluginsTest : public ::testing::Test {
     F::rmrChecked(tempdir_);
   }
   std::string tempdir_;
+  OomdContext ctx_;
 };
 
 class BaseKillPluginTest : public CorePluginsTest {};
 
 TEST_F(BaseKillPluginTest, TryToKillCgroupKillsRecursive) {
-  OomdContext ctx;
   auto target = ASSERT_EXISTS(CgroupContext::make(
-      ctx, CgroupPath("oomd/fixtures/plugins/base_kill_plugin", "one_big")));
+      ctx_, CgroupPath("oomd/fixtures/plugins/base_kill_plugin", "one_big")));
 
   BaseKillPluginShim plugin;
   EXPECT_EQ(plugin.tryToKillCgroup(target, false).has_value(), true);
@@ -251,7 +251,6 @@ TEST_F(StandardKillRecursionTest, Recurses) {
 
   auto plugin = std::make_shared<AlphabeticStandardKillPlugin>();
   ASSERT_NE(plugin, nullptr);
-  OomdContext ctx;
   const PluginConstructionContext compile_context(tempdir_);
   Engine::PluginArgs args;
   args["cgroup"] = "*";
@@ -259,7 +258,7 @@ TEST_F(StandardKillRecursionTest, Recurses) {
   args["post_action_delay"] = "0";
   args["dry"] = "true";
   ASSERT_EQ(plugin->init(std::move(args), compile_context), 0);
-  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
+  EXPECT_EQ(plugin->run(ctx_), Engine::PluginRet::STOP);
 
   EXPECT_EQ(*plugin->killed_cgroup, CgroupPath(tempdir_, "B/F").absolutePath());
 }
@@ -288,14 +287,13 @@ TEST_F(StandardKillRecursionTest, ConfigurableToNotRecurse) {
 
   auto plugin = std::make_shared<AlphabeticStandardKillPlugin>();
   ASSERT_NE(plugin, nullptr);
-  OomdContext ctx;
   const PluginConstructionContext compile_context(tempdir_);
   Engine::PluginArgs args;
   args["cgroup"] = "*";
   args["post_action_delay"] = "0";
   args["dry"] = "true";
   ASSERT_EQ(plugin->init(std::move(args), compile_context), 0);
-  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
+  EXPECT_EQ(plugin->run(ctx_), Engine::PluginRet::STOP);
 
   EXPECT_EQ(*plugin->killed_cgroup, CgroupPath(tempdir_, "B").absolutePath());
 }
@@ -346,7 +344,6 @@ TEST_F(StandardKillRecursionTest, BacktracksUpTreeOnFail) {
   plugin->unkillable_cgroups.emplace(
       CgroupPath(tempdir_, "test.slice/Q/F/P").absolutePath());
 
-  OomdContext ctx;
   const PluginConstructionContext compile_context(tempdir_);
   Engine::PluginArgs args;
   args["cgroup"] = "*";
@@ -354,7 +351,7 @@ TEST_F(StandardKillRecursionTest, BacktracksUpTreeOnFail) {
   args["post_action_delay"] = "0";
   args["dry"] = "true";
   ASSERT_EQ(plugin->init(std::move(args), compile_context), 0);
-  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
+  EXPECT_EQ(plugin->run(ctx_), Engine::PluginRet::STOP);
 
   EXPECT_EQ(
       *plugin->killed_cgroup,
@@ -397,7 +394,6 @@ TEST_F(StandardKillRecursionTest, RespectsMemoryOomGroup) {
                        }),
                })})}));
 
-  OomdContext ctx;
   const PluginConstructionContext compile_context(tempdir_);
   Engine::PluginArgs args;
   args["cgroup"] = "*";
@@ -405,7 +401,7 @@ TEST_F(StandardKillRecursionTest, RespectsMemoryOomGroup) {
   args["post_action_delay"] = "0";
   args["dry"] = "true";
   ASSERT_EQ(plugin->init(std::move(args), compile_context), 0);
-  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
+  EXPECT_EQ(plugin->run(ctx_), Engine::PluginRet::STOP);
 
   EXPECT_EQ(
       *plugin->killed_cgroup,
@@ -532,7 +528,6 @@ TEST_F(StandardKillRecursionTest, IgnoresDeadCgroup) {
                    }),
            })}));
 
-  OomdContext ctx;
   const PluginConstructionContext compile_context(tempdir_);
   Engine::PluginArgs args;
   args["cgroup"] = "*";
@@ -540,7 +535,7 @@ TEST_F(StandardKillRecursionTest, IgnoresDeadCgroup) {
   args["post_action_delay"] = "0";
   args["dry"] = "true";
   ASSERT_EQ(plugin->init(std::move(args), compile_context), 0);
-  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
+  EXPECT_EQ(plugin->run(ctx_), Engine::PluginRet::STOP);
 
   EXPECT_EQ(*plugin->killed_cgroup, CgroupPath(tempdir_, "A/Z").absolutePath());
 }
@@ -579,7 +574,6 @@ TEST_F(StandardKillRecursionTest, IgnoresOutsideConfiguredCgroup) {
       [&](const std::string& cgroup_arg) -> std::string {
     auto plugin = std::make_shared<AlphabeticStandardKillPlugin>();
     EXPECT_NE(plugin, nullptr);
-    OomdContext ctx;
     const PluginConstructionContext compile_context(tempdir_);
     Engine::PluginArgs args;
     args["cgroup"] = cgroup_arg;
@@ -588,7 +582,7 @@ TEST_F(StandardKillRecursionTest, IgnoresOutsideConfiguredCgroup) {
     args["dry"] = "true";
     args["debug"] = "true";
     EXPECT_EQ(plugin->init(std::move(args), compile_context), 0);
-    EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
+    EXPECT_EQ(plugin->run(ctx_), Engine::PluginRet::STOP);
     return *plugin->killed_cgroup;
   };
 
@@ -649,7 +643,6 @@ TEST_F(StandardKillRecursionTest, PrerunsRecursively) {
       [&](bool recurse) -> std::unordered_set<std::string> {
     auto plugin = std::make_shared<AlphabeticStandardKillPlugin>();
     EXPECT_NE(plugin, nullptr);
-    OomdContext ctx;
     const PluginConstructionContext compile_context(tempdir_);
     Engine::PluginArgs args;
     args["cgroup"] = "B,Z,A/*";
@@ -661,7 +654,7 @@ TEST_F(StandardKillRecursionTest, PrerunsRecursively) {
     EXPECT_EQ(plugin->init(std::move(args), compile_context), 0);
 
     std::unordered_set<std::string> touched_cgroup_paths;
-    plugin->prerunOnCgroups(ctx, [&](auto& cgroup_ctx) {
+    plugin->prerunOnCgroups(ctx_, [&](auto& cgroup_ctx) {
       touched_cgroup_paths.emplace(cgroup_ctx.cgroup().relativePath());
     });
     return touched_cgroup_paths;
@@ -697,16 +690,15 @@ TEST_F(PressureRisingBeyondTest, DetectsHighMemPressure) {
 
   ASSERT_EQ(plugin->init(std::move(args), compile_context), 0);
 
-  OomdContext ctx;
   TestHelper::setCgroupData(
-      ctx,
+      ctx_,
       CgroupPath(compile_context.cgroupFs(), "high_pressure"),
       CgroupData{.mem_pressure =
                      ResourcePressure{
                          .sec_10 = 99.99, .sec_60 = 99.99, .sec_300 = 99.99},
                  .current_usage = 987654321});
 
-  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::CONTINUE);
+  EXPECT_EQ(plugin->run(ctx_), Engine::PluginRet::CONTINUE);
 }
 
 TEST_F(PressureRisingBeyondTest, NoDetectLowMemPressure) {
@@ -725,16 +717,15 @@ TEST_F(PressureRisingBeyondTest, NoDetectLowMemPressure) {
 
   ASSERT_EQ(plugin->init(std::move(args), compile_context), 0);
 
-  OomdContext ctx;
   TestHelper::setCgroupData(
-      ctx,
+      ctx_,
       CgroupPath(compile_context.cgroupFs(), "low_pressure"),
       CgroupData{
           .mem_pressure =
               ResourcePressure{.sec_10 = 1.11, .sec_60 = 1.11, .sec_300 = 1.11},
           .current_usage = 987654321});
 
-  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
+  EXPECT_EQ(plugin->run(ctx_), Engine::PluginRet::STOP);
 }
 
 TEST_F(PressureRisingBeyondTest, DetectsHighMemPressureMultiCgroup) {
@@ -754,23 +745,22 @@ TEST_F(PressureRisingBeyondTest, DetectsHighMemPressureMultiCgroup) {
 
   ASSERT_EQ(plugin->init(std::move(args), compile_context), 0);
 
-  OomdContext ctx;
   TestHelper::setCgroupData(
-      ctx,
+      ctx_,
       CgroupPath(compile_context.cgroupFs(), "high_pressure"),
       CgroupData{.mem_pressure =
                      ResourcePressure{
                          .sec_10 = 99.99, .sec_60 = 99.99, .sec_300 = 99.99},
                  .current_usage = 987654321});
   TestHelper::setCgroupData(
-      ctx,
+      ctx_,
       CgroupPath(compile_context.cgroupFs(), "low_pressure"),
       CgroupData{
           .mem_pressure =
               ResourcePressure{.sec_10 = 1.11, .sec_60 = 1.11, .sec_300 = 1.11},
           .current_usage = 987654321});
 
-  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::CONTINUE);
+  EXPECT_EQ(plugin->run(ctx_), Engine::PluginRet::CONTINUE);
 }
 
 TEST_F(PressureRisingBeyondTest, DetectsHighMemPressureWildcard) {
@@ -790,23 +780,22 @@ TEST_F(PressureRisingBeyondTest, DetectsHighMemPressureWildcard) {
 
   ASSERT_EQ(plugin->init(std::move(args), compile_context), 0);
 
-  OomdContext ctx;
   TestHelper::setCgroupData(
-      ctx,
+      ctx_,
       CgroupPath(compile_context.cgroupFs(), "high_pressure"),
       CgroupData{.mem_pressure =
                      ResourcePressure{
                          .sec_10 = 99.99, .sec_60 = 99.99, .sec_300 = 99.99},
                  .current_usage = 987654321});
   TestHelper::setCgroupData(
-      ctx,
+      ctx_,
       CgroupPath(compile_context.cgroupFs(), "low_pressure"),
       CgroupData{
           .mem_pressure =
               ResourcePressure{.sec_10 = 1.11, .sec_60 = 1.11, .sec_300 = 1.11},
           .current_usage = 987654321});
 
-  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::CONTINUE);
+  EXPECT_EQ(plugin->run(ctx_), Engine::PluginRet::CONTINUE);
 }
 
 class PressureAboveTest : public CorePluginsTest {};
@@ -826,16 +815,15 @@ TEST_F(PressureAboveTest, DetectsHighMemPressure) {
 
   ASSERT_EQ(plugin->init(std::move(args), compile_context), 0);
 
-  OomdContext ctx;
   TestHelper::setCgroupData(
-      ctx,
+      ctx_,
       CgroupPath(compile_context.cgroupFs(), "high_pressure"),
       CgroupData{.mem_pressure =
                      ResourcePressure{
                          .sec_10 = 99.99, .sec_60 = 99.99, .sec_300 = 99.99},
                  .current_usage = 987654321});
 
-  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::CONTINUE);
+  EXPECT_EQ(plugin->run(ctx_), Engine::PluginRet::CONTINUE);
 }
 
 TEST_F(PressureAboveTest, NoDetectLowMemPressure) {
@@ -853,16 +841,15 @@ TEST_F(PressureAboveTest, NoDetectLowMemPressure) {
 
   ASSERT_EQ(plugin->init(std::move(args), compile_context), 0);
 
-  OomdContext ctx;
   TestHelper::setCgroupData(
-      ctx,
+      ctx_,
       CgroupPath(compile_context.cgroupFs(), "low_pressure"),
       CgroupData{
           .mem_pressure =
               ResourcePressure{.sec_10 = 1.11, .sec_60 = 1.11, .sec_300 = 1.11},
           .current_usage = 987654321});
 
-  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
+  EXPECT_EQ(plugin->run(ctx_), Engine::PluginRet::STOP);
 }
 
 TEST_F(PressureAboveTest, DetectsHighMemPressureMultiCgroup) {
@@ -881,23 +868,22 @@ TEST_F(PressureAboveTest, DetectsHighMemPressureMultiCgroup) {
 
   ASSERT_EQ(plugin->init(std::move(args), compile_context), 0);
 
-  OomdContext ctx;
   TestHelper::setCgroupData(
-      ctx,
+      ctx_,
       CgroupPath(compile_context.cgroupFs(), "high_pressure"),
       CgroupData{.mem_pressure =
                      ResourcePressure{
                          .sec_10 = 99.99, .sec_60 = 99.99, .sec_300 = 99.99},
                  .current_usage = 987654321});
   TestHelper::setCgroupData(
-      ctx,
+      ctx_,
       CgroupPath(compile_context.cgroupFs(), "low_pressure"),
       CgroupData{
           .mem_pressure =
               ResourcePressure{.sec_10 = 1.11, .sec_60 = 1.11, .sec_300 = 1.11},
           .current_usage = 987654321});
 
-  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::CONTINUE);
+  EXPECT_EQ(plugin->run(ctx_), Engine::PluginRet::CONTINUE);
 }
 
 TEST_F(PressureAboveTest, DetectsHighMemPressureWildcard) {
@@ -916,23 +902,22 @@ TEST_F(PressureAboveTest, DetectsHighMemPressureWildcard) {
 
   ASSERT_EQ(plugin->init(std::move(args), compile_context), 0);
 
-  OomdContext ctx;
   TestHelper::setCgroupData(
-      ctx,
+      ctx_,
       CgroupPath(compile_context.cgroupFs(), "high_pressure"),
       CgroupData{.mem_pressure =
                      ResourcePressure{
                          .sec_10 = 99.99, .sec_60 = 99.99, .sec_300 = 99.99},
                  .current_usage = 987654321});
   TestHelper::setCgroupData(
-      ctx,
+      ctx_,
       CgroupPath(compile_context.cgroupFs(), "low_pressure"),
       CgroupData{
           .mem_pressure =
               ResourcePressure{.sec_10 = 1.11, .sec_60 = 1.11, .sec_300 = 1.11},
           .current_usage = 987654321});
 
-  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::CONTINUE);
+  EXPECT_EQ(plugin->run(ctx_), Engine::PluginRet::CONTINUE);
 }
 
 class MemoryAboveTest : public CorePluginsTest {};
@@ -952,12 +937,11 @@ TEST_F(MemoryAboveTest, DetectsHighMemUsage) {
 
   ASSERT_EQ(plugin->init(std::move(args), compile_context), 0);
 
-  OomdContext ctx;
   TestHelper::setCgroupData(
-      ctx,
+      ctx_,
       CgroupPath(compile_context.cgroupFs(), "high_memory"),
       CgroupData{.current_usage = 2147483648});
-  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::CONTINUE);
+  EXPECT_EQ(plugin->run(ctx_), Engine::PluginRet::CONTINUE);
 }
 
 TEST_F(MemoryAboveTest, NoDetectLowMemUsage) {
@@ -975,12 +959,11 @@ TEST_F(MemoryAboveTest, NoDetectLowMemUsage) {
 
   ASSERT_EQ(plugin->init(std::move(args), compile_context), 0);
 
-  OomdContext ctx;
   TestHelper::setCgroupData(
-      ctx,
+      ctx_,
       CgroupPath(compile_context.cgroupFs(), "low_memory"),
       CgroupData{.current_usage = 1073741824});
-  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
+  EXPECT_EQ(plugin->run(ctx_), Engine::PluginRet::STOP);
 }
 
 TEST_F(MemoryAboveTest, DetectsHighMemUsageCompat) {
@@ -998,12 +981,11 @@ TEST_F(MemoryAboveTest, DetectsHighMemUsageCompat) {
 
   ASSERT_EQ(plugin->init(std::move(args), compile_context), 0);
 
-  OomdContext ctx;
   TestHelper::setCgroupData(
-      ctx,
+      ctx_,
       CgroupPath(compile_context.cgroupFs(), "high_memory"),
       CgroupData{.current_usage = 2147483648});
-  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::CONTINUE);
+  EXPECT_EQ(plugin->run(ctx_), Engine::PluginRet::CONTINUE);
 }
 
 TEST_F(MemoryAboveTest, NoDetectLowMemUsageCompat) {
@@ -1021,12 +1003,11 @@ TEST_F(MemoryAboveTest, NoDetectLowMemUsageCompat) {
 
   ASSERT_EQ(plugin->init(std::move(args), compile_context), 0);
 
-  OomdContext ctx;
   TestHelper::setCgroupData(
-      ctx,
+      ctx_,
       CgroupPath(compile_context.cgroupFs(), "low_memory"),
       CgroupData{.current_usage = 1073741824});
-  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
+  EXPECT_EQ(plugin->run(ctx_), Engine::PluginRet::STOP);
 }
 
 TEST_F(MemoryAboveTest, DetectsHighMemUsagePercent) {
@@ -1044,12 +1025,11 @@ TEST_F(MemoryAboveTest, DetectsHighMemUsagePercent) {
 
   ASSERT_EQ(plugin->init(std::move(args), compile_context), 0);
 
-  OomdContext ctx;
   TestHelper::setCgroupData(
-      ctx,
+      ctx_,
       CgroupPath(compile_context.cgroupFs(), "high_memory"),
       CgroupData{.current_usage = 2147483648});
-  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::CONTINUE);
+  EXPECT_EQ(plugin->run(ctx_), Engine::PluginRet::CONTINUE);
 }
 
 TEST_F(MemoryAboveTest, NoDetectLowMemUsageMultiple) {
@@ -1069,16 +1049,15 @@ TEST_F(MemoryAboveTest, NoDetectLowMemUsageMultiple) {
 
   ASSERT_EQ(plugin->init(std::move(args), compile_context), 0);
 
-  OomdContext ctx;
   TestHelper::setCgroupData(
-      ctx,
+      ctx_,
       CgroupPath(compile_context.cgroupFs(), "low_memory"),
       CgroupData{.current_usage = 1073741824});
   TestHelper::setCgroupData(
-      ctx,
+      ctx_,
       CgroupPath(compile_context.cgroupFs(), "high_memory"),
       CgroupData{.current_usage = 2147483648});
-  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
+  EXPECT_EQ(plugin->run(ctx_), Engine::PluginRet::STOP);
 }
 
 TEST_F(MemoryAboveTest, DetectsHighMemUsageMultiple) {
@@ -1098,16 +1077,15 @@ TEST_F(MemoryAboveTest, DetectsHighMemUsageMultiple) {
 
   ASSERT_EQ(plugin->init(std::move(args), compile_context), 0);
 
-  OomdContext ctx;
   TestHelper::setCgroupData(
-      ctx,
+      ctx_,
       CgroupPath(compile_context.cgroupFs(), "low_memory"),
       CgroupData{.current_usage = 1073741824});
   TestHelper::setCgroupData(
-      ctx,
+      ctx_,
       CgroupPath(compile_context.cgroupFs(), "high_memory"),
       CgroupData{.current_usage = 2147483648});
-  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::CONTINUE);
+  EXPECT_EQ(plugin->run(ctx_), Engine::PluginRet::CONTINUE);
 }
 
 TEST_F(MemoryAboveTest, NoDetectLowMemUsagePercent) {
@@ -1125,8 +1103,7 @@ TEST_F(MemoryAboveTest, NoDetectLowMemUsagePercent) {
 
   ASSERT_EQ(plugin->init(std::move(args), compile_context), 0);
 
-  OomdContext ctx;
-  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
+  EXPECT_EQ(plugin->run(ctx_), Engine::PluginRet::STOP);
 }
 
 TEST_F(MemoryAboveTest, DetectsHighAnonUsage) {
@@ -1144,15 +1121,14 @@ TEST_F(MemoryAboveTest, DetectsHighAnonUsage) {
 
   ASSERT_EQ(plugin->init(std::move(args), compile_context), 0);
 
-  OomdContext ctx;
   TestHelper::setCgroupData(
-      ctx,
+      ctx_,
       CgroupPath(compile_context.cgroupFs(), "high_memory"),
       CgroupData{
           .memory_stat = memory_stat_t{{"anon", 2147483648}},
           .swap_usage = 20,
       });
-  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::CONTINUE);
+  EXPECT_EQ(plugin->run(ctx_), Engine::PluginRet::CONTINUE);
 }
 
 TEST_F(MemoryAboveTest, NoDetectLowAnonUsage) {
@@ -1170,15 +1146,14 @@ TEST_F(MemoryAboveTest, NoDetectLowAnonUsage) {
 
   ASSERT_EQ(plugin->init(std::move(args), compile_context), 0);
 
-  OomdContext ctx;
   TestHelper::setCgroupData(
-      ctx,
+      ctx_,
       CgroupPath(compile_context.cgroupFs(), "low_memory"),
       CgroupData{
           .memory_stat = memory_stat_t{{"anon", 1073741824}},
           .swap_usage = 20,
       });
-  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
+  EXPECT_EQ(plugin->run(ctx_), Engine::PluginRet::STOP);
 }
 
 TEST_F(MemoryAboveTest, DetectsHighAnonUsageIgnoreLowMemUsage) {
@@ -1197,16 +1172,15 @@ TEST_F(MemoryAboveTest, DetectsHighAnonUsageIgnoreLowMemUsage) {
 
   ASSERT_EQ(plugin->init(std::move(args), compile_context), 0);
 
-  OomdContext ctx;
   TestHelper::setCgroupData(
-      ctx,
+      ctx_,
       CgroupPath(compile_context.cgroupFs(), "high_memory"),
       CgroupData{
           .memory_stat = memory_stat_t{{"anon", 2147483648}},
           .current_usage = 1073741824,
           .swap_usage = 20,
       });
-  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::CONTINUE);
+  EXPECT_EQ(plugin->run(ctx_), Engine::PluginRet::CONTINUE);
 }
 
 TEST_F(MemoryAboveTest, NoDetectLowAnonUsageIgnoreHighMemUsage) {
@@ -1225,16 +1199,15 @@ TEST_F(MemoryAboveTest, NoDetectLowAnonUsageIgnoreHighMemUsage) {
 
   ASSERT_EQ(plugin->init(std::move(args), compile_context), 0);
 
-  OomdContext ctx;
   TestHelper::setCgroupData(
-      ctx,
+      ctx_,
       CgroupPath(compile_context.cgroupFs(), "low_memory"),
       CgroupData{
           .memory_stat = memory_stat_t{{"anon", 1073741824}},
           .current_usage = 2147483648,
           .swap_usage = 20,
       });
-  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
+  EXPECT_EQ(plugin->run(ctx_), Engine::PluginRet::STOP);
 }
 
 class MemoryReclaimTest : public CorePluginsTest {};
@@ -1251,10 +1224,9 @@ TEST_F(MemoryReclaimTest, SingleCgroupReclaimSuccess) {
 
   ASSERT_EQ(plugin->init(std::move(args), compile_context), 0);
 
-  OomdContext ctx;
   TestHelper::setCgroupData(
-      ctx, CgroupPath(compile_context.cgroupFs(), "cgroup1"), {});
-  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::CONTINUE);
+      ctx_, CgroupPath(compile_context.cgroupFs(), "cgroup1"), {});
+  EXPECT_EQ(plugin->run(ctx_), Engine::PluginRet::CONTINUE);
 }
 
 TEST_F(MemoryReclaimTest, MultiCgroupReclaimSuccess) {
@@ -1269,12 +1241,11 @@ TEST_F(MemoryReclaimTest, MultiCgroupReclaimSuccess) {
 
   ASSERT_EQ(plugin->init(std::move(args), compile_context), 0);
 
-  OomdContext ctx;
   TestHelper::setCgroupData(
-      ctx, CgroupPath(compile_context.cgroupFs(), "cgroup1"), {});
+      ctx_, CgroupPath(compile_context.cgroupFs(), "cgroup1"), {});
   TestHelper::setCgroupData(
-      ctx, CgroupPath(compile_context.cgroupFs(), "cgroup2"), {});
-  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::CONTINUE);
+      ctx_, CgroupPath(compile_context.cgroupFs(), "cgroup2"), {});
+  EXPECT_EQ(plugin->run(ctx_), Engine::PluginRet::CONTINUE);
 }
 
 class SwapFreeTest : public CorePluginsTest {};
@@ -1290,12 +1261,11 @@ TEST_F(SwapFreeTest, LowSwap) {
 
   ASSERT_EQ(plugin->init(std::move(args), compile_context), 0);
 
-  OomdContext ctx;
   SystemContext system_ctx;
   system_ctx.swaptotal = static_cast<uint64_t>(20971512) * 1024;
   system_ctx.swapused = static_cast<uint64_t>(20971440) * 1024;
-  ctx.setSystemContext(system_ctx);
-  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::CONTINUE);
+  ctx_.setSystemContext(system_ctx);
+  EXPECT_EQ(plugin->run(ctx_), Engine::PluginRet::CONTINUE);
 }
 
 TEST_F(SwapFreeTest, EnoughSwap) {
@@ -1309,12 +1279,11 @@ TEST_F(SwapFreeTest, EnoughSwap) {
 
   ASSERT_EQ(plugin->init(std::move(args), compile_context), 0);
 
-  OomdContext ctx;
   SystemContext system_ctx;
   system_ctx.swaptotal = static_cast<uint64_t>(20971512) * 1024;
   system_ctx.swapused = static_cast<uint64_t>(3310136) * 1024;
-  ctx.setSystemContext(system_ctx);
-  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
+  ctx_.setSystemContext(system_ctx);
+  EXPECT_EQ(plugin->run(ctx_), Engine::PluginRet::STOP);
 }
 
 TEST_F(SwapFreeTest, SwapOff) {
@@ -1327,8 +1296,7 @@ TEST_F(SwapFreeTest, SwapOff) {
   const PluginConstructionContext compile_context("/sys/fs/cgroup");
 
   ASSERT_EQ(plugin->init(std::move(args), compile_context), 0);
-  OomdContext ctx;
-  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
+  EXPECT_EQ(plugin->run(ctx_), Engine::PluginRet::STOP);
 }
 
 class ExistsTest : public CorePluginsTest {};
@@ -1343,13 +1311,11 @@ TEST_F(ExistsTest, Exists) {
 
   ASSERT_EQ(plugin->init(std::move(args), compile_context), 0);
 
-  OomdContext ctx;
-
   F::materialize(F::makeDir(tempdir_, {F::makeDir("cgroup_D")}));
-  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
+  EXPECT_EQ(plugin->run(ctx_), Engine::PluginRet::STOP);
 
   F::materialize(F::makeDir(tempdir_, {F::makeDir("cgroup_C")}));
-  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::CONTINUE);
+  EXPECT_EQ(plugin->run(ctx_), Engine::PluginRet::CONTINUE);
 }
 
 TEST_F(ExistsTest, NotExists) {
@@ -1363,13 +1329,11 @@ TEST_F(ExistsTest, NotExists) {
 
   ASSERT_EQ(plugin->init(std::move(args), compile_context), 0);
 
-  OomdContext ctx;
-
   F::materialize(F::makeDir(tempdir_, {F::makeDir("cgroup_D")}));
-  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::CONTINUE);
+  EXPECT_EQ(plugin->run(ctx_), Engine::PluginRet::CONTINUE);
 
   F::materialize(F::makeDir(tempdir_, {F::makeDir("cgroup_C")}));
-  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
+  EXPECT_EQ(plugin->run(ctx_), Engine::PluginRet::STOP);
 }
 
 class KillIOCostTest : public CorePluginsTest {};
@@ -1387,12 +1351,11 @@ TEST_F(KillIOCostTest, TemporalCounter) {
   ASSERT_EQ(plugin->init(std::move(args), compile_context), 0);
 
   CgroupPath cgroup(compile_context.cgroupFs(), "one_high/cgroup1");
-  OomdContext ctx;
   TestHelper::setCgroupData(
-      ctx, cgroup, CgroupData{.io_cost_cumulative = 10000});
-  plugin->prerun(ctx);
+      ctx_, cgroup, CgroupData{.io_cost_cumulative = 10000});
+  plugin->prerun(ctx_);
   EXPECT_TRUE(
-      TestHelper::getDataRef(*ctx.addToCacheAndGet(cgroup)).io_cost_rate);
+      TestHelper::getDataRef(*ctx_.addToCacheAndGet(cgroup)).io_cost_rate);
 }
 
 TEST_F(KillIOCostTest, KillsHighestIOCost) {
@@ -1407,24 +1370,23 @@ TEST_F(KillIOCostTest, KillsHighestIOCost) {
 
   ASSERT_EQ(plugin->init(std::move(args), compile_context), 0);
 
-  OomdContext ctx;
   TestHelper::setCgroupData(
-      ctx,
+      ctx_,
       CgroupPath(compile_context.cgroupFs(), "one_high/cgroup1"),
       CgroupData{.io_cost_cumulative = 10000, .io_cost_rate = 10});
   TestHelper::setCgroupData(
-      ctx,
+      ctx_,
       CgroupPath(compile_context.cgroupFs(), "one_high/cgroup2"),
       CgroupData{.io_cost_cumulative = 5000, .io_cost_rate = 30});
   TestHelper::setCgroupData(
-      ctx,
+      ctx_,
       CgroupPath(compile_context.cgroupFs(), "one_high/cgroup3"),
       CgroupData{.io_cost_cumulative = 6000, .io_cost_rate = 50});
   TestHelper::setCgroupData(
-      ctx,
+      ctx_,
       CgroupPath(compile_context.cgroupFs(), "sibling/cgroup1"),
       CgroupData{.io_cost_cumulative = 20000, .io_cost_rate = 100});
-  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
+  EXPECT_EQ(plugin->run(ctx_), Engine::PluginRet::STOP);
   EXPECT_THAT(plugin->killed, Contains(111));
   EXPECT_THAT(plugin->killed, Not(Contains(123)));
   EXPECT_THAT(plugin->killed, Not(Contains(456)));
@@ -1445,24 +1407,23 @@ TEST_F(KillIOCostTest, KillsHighestIOCostMultiCgroup) {
 
   ASSERT_EQ(plugin->init(std::move(args), compile_context), 0);
 
-  OomdContext ctx;
   TestHelper::setCgroupData(
-      ctx,
+      ctx_,
       CgroupPath(compile_context.cgroupFs(), "one_high/cgroup1"),
       CgroupData{.io_cost_cumulative = 10000, .io_cost_rate = 10});
   TestHelper::setCgroupData(
-      ctx,
+      ctx_,
       CgroupPath(compile_context.cgroupFs(), "one_high/cgroup2"),
       CgroupData{.io_cost_cumulative = 5000, .io_cost_rate = 30});
   TestHelper::setCgroupData(
-      ctx,
+      ctx_,
       CgroupPath(compile_context.cgroupFs(), "one_high/cgroup3"),
       CgroupData{.io_cost_cumulative = 6000, .io_cost_rate = 50});
   TestHelper::setCgroupData(
-      ctx,
+      ctx_,
       CgroupPath(compile_context.cgroupFs(), "sibling/cgroup1"),
       CgroupData{.io_cost_cumulative = 20000, .io_cost_rate = 100});
-  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
+  EXPECT_EQ(plugin->run(ctx_), Engine::PluginRet::STOP);
   EXPECT_THAT(plugin->killed, Contains(888));
   EXPECT_THAT(plugin->killed, Not(Contains(111)));
   EXPECT_THAT(plugin->killed, Not(Contains(123)));
@@ -1484,24 +1445,23 @@ TEST_F(KillIOCostTest, DoesntKillsHighestIOCostDry) {
 
   ASSERT_EQ(plugin->init(std::move(args), compile_context), 0);
 
-  OomdContext ctx;
   TestHelper::setCgroupData(
-      ctx,
+      ctx_,
       CgroupPath(compile_context.cgroupFs(), "one_high/cgroup1"),
       CgroupData{.io_cost_cumulative = 10000, .io_cost_rate = 10});
   TestHelper::setCgroupData(
-      ctx,
+      ctx_,
       CgroupPath(compile_context.cgroupFs(), "one_high/cgroup2"),
       CgroupData{.io_cost_cumulative = 5000, .io_cost_rate = 30});
   TestHelper::setCgroupData(
-      ctx,
+      ctx_,
       CgroupPath(compile_context.cgroupFs(), "one_high/cgroup3"),
       CgroupData{.io_cost_cumulative = 6000, .io_cost_rate = 50});
   TestHelper::setCgroupData(
-      ctx,
+      ctx_,
       CgroupPath(compile_context.cgroupFs(), "sibling/cgroup1"),
       CgroupData{.io_cost_cumulative = 20000, .io_cost_rate = 100});
-  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
+  EXPECT_EQ(plugin->run(ctx_), Engine::PluginRet::STOP);
   EXPECT_EQ(plugin->killed.size(), 0);
 }
 
@@ -1520,21 +1480,20 @@ TEST_F(KillPgScanTest, TemporalCounter) {
   ASSERT_EQ(plugin->init(std::move(args), compile_context), 0);
 
   CgroupPath cgroup(compile_context.cgroupFs(), "one_high/cgroup1");
-  OomdContext ctx;
   TestHelper::setCgroupData(
-      ctx, cgroup, CgroupData{.pg_scan_cumulative = 10000});
-  plugin->prerun(ctx);
+      ctx_, cgroup, CgroupData{.pg_scan_cumulative = 10000});
+  plugin->prerun(ctx_);
   EXPECT_FALSE(
-      TestHelper::getDataRef(*ctx.addToCacheAndGet(cgroup)).pg_scan_rate);
+      TestHelper::getDataRef(*ctx_.addToCacheAndGet(cgroup)).pg_scan_rate);
 
   TestHelper::setCgroupData(
-      ctx,
+      ctx_,
       cgroup,
       CgroupData{.pg_scan_cumulative = 10000},
       TestHelper::CgroupArchivedData{.pg_scan_cumulative = 5000});
-  plugin->prerun(ctx);
+  plugin->prerun(ctx_);
   EXPECT_TRUE(
-      TestHelper::getDataRef(*ctx.addToCacheAndGet(cgroup)).pg_scan_rate);
+      TestHelper::getDataRef(*ctx_.addToCacheAndGet(cgroup)).pg_scan_rate);
 }
 
 TEST_F(KillPgScanTest, KillsHighestPgScan) {
@@ -1549,24 +1508,23 @@ TEST_F(KillPgScanTest, KillsHighestPgScan) {
 
   ASSERT_EQ(plugin->init(std::move(args), compile_context), 0);
 
-  OomdContext ctx;
   TestHelper::setCgroupData(
-      ctx,
+      ctx_,
       CgroupPath(compile_context.cgroupFs(), "one_high/cgroup1"),
       CgroupData{.pg_scan_cumulative = 10000, .pg_scan_rate = 10});
   TestHelper::setCgroupData(
-      ctx,
+      ctx_,
       CgroupPath(compile_context.cgroupFs(), "one_high/cgroup2"),
       CgroupData{.pg_scan_cumulative = 5000, .pg_scan_rate = 30});
   TestHelper::setCgroupData(
-      ctx,
+      ctx_,
       CgroupPath(compile_context.cgroupFs(), "one_high/cgroup3"),
       CgroupData{.pg_scan_cumulative = 6000, .pg_scan_rate = 50});
   TestHelper::setCgroupData(
-      ctx,
+      ctx_,
       CgroupPath(compile_context.cgroupFs(), "sibling/cgroup1"),
       CgroupData{.pg_scan_cumulative = 20000, .pg_scan_rate = 100});
-  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
+  EXPECT_EQ(plugin->run(ctx_), Engine::PluginRet::STOP);
   EXPECT_THAT(plugin->killed, Contains(111));
   EXPECT_THAT(plugin->killed, Not(Contains(123)));
   EXPECT_THAT(plugin->killed, Not(Contains(456)));
@@ -1587,24 +1545,23 @@ TEST_F(KillPgScanTest, KillsHighestPgScanMultiCgroup) {
 
   ASSERT_EQ(plugin->init(std::move(args), compile_context), 0);
 
-  OomdContext ctx;
   TestHelper::setCgroupData(
-      ctx,
+      ctx_,
       CgroupPath(compile_context.cgroupFs(), "one_high/cgroup1"),
       CgroupData{.pg_scan_cumulative = 10000, .pg_scan_rate = 10});
   TestHelper::setCgroupData(
-      ctx,
+      ctx_,
       CgroupPath(compile_context.cgroupFs(), "one_high/cgroup2"),
       CgroupData{.pg_scan_cumulative = 5000, .pg_scan_rate = 30});
   TestHelper::setCgroupData(
-      ctx,
+      ctx_,
       CgroupPath(compile_context.cgroupFs(), "one_high/cgroup3"),
       CgroupData{.pg_scan_cumulative = 6000, .pg_scan_rate = 50});
   TestHelper::setCgroupData(
-      ctx,
+      ctx_,
       CgroupPath(compile_context.cgroupFs(), "sibling/cgroup1"),
       CgroupData{.pg_scan_cumulative = 20000, .pg_scan_rate = 100});
-  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
+  EXPECT_EQ(plugin->run(ctx_), Engine::PluginRet::STOP);
   EXPECT_THAT(plugin->killed, Contains(888));
   EXPECT_THAT(plugin->killed, Not(Contains(111)));
   EXPECT_THAT(plugin->killed, Not(Contains(123)));
@@ -1626,24 +1583,23 @@ TEST_F(KillPgScanTest, DoesntKillsHighestPgScanDry) {
 
   ASSERT_EQ(plugin->init(std::move(args), compile_context), 0);
 
-  OomdContext ctx;
   TestHelper::setCgroupData(
-      ctx,
+      ctx_,
       CgroupPath(compile_context.cgroupFs(), "one_high/cgroup1"),
       CgroupData{.pg_scan_cumulative = 10000, .pg_scan_rate = 10});
   TestHelper::setCgroupData(
-      ctx,
+      ctx_,
       CgroupPath(compile_context.cgroupFs(), "one_high/cgroup2"),
       CgroupData{.pg_scan_cumulative = 5000, .pg_scan_rate = 30});
   TestHelper::setCgroupData(
-      ctx,
+      ctx_,
       CgroupPath(compile_context.cgroupFs(), "one_high/cgroup3"),
       CgroupData{.pg_scan_cumulative = 6000, .pg_scan_rate = 50});
   TestHelper::setCgroupData(
-      ctx,
+      ctx_,
       CgroupPath(compile_context.cgroupFs(), "sibling/cgroup1"),
       CgroupData{.pg_scan_cumulative = 20000, .pg_scan_rate = 100});
-  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
+  EXPECT_EQ(plugin->run(ctx_), Engine::PluginRet::STOP);
   EXPECT_EQ(plugin->killed.size(), 0);
 }
 
@@ -1680,28 +1636,27 @@ TEST_F(KillPgScanTest, CanTargetRecursively) {
 
   ASSERT_EQ(plugin->init(std::move(args), compile_context), 0);
 
-  OomdContext ctx;
   TestHelper::setCgroupData(
-      ctx,
+      ctx_,
       CgroupPath(compile_context.cgroupFs(), "A"),
       CgroupData{.pg_scan_rate = 1000});
   TestHelper::setCgroupData(
-      ctx,
+      ctx_,
       CgroupPath(compile_context.cgroupFs(), "A/Z"),
       CgroupData{.pg_scan_rate = 900});
   TestHelper::setCgroupData(
-      ctx,
+      ctx_,
       CgroupPath(compile_context.cgroupFs(), "A/X"),
       CgroupData{.pg_scan_rate = 100});
   TestHelper::setCgroupData(
-      ctx,
+      ctx_,
       CgroupPath(compile_context.cgroupFs(), "B"),
       CgroupData{.pg_scan_rate = 200});
   TestHelper::setCgroupData(
-      ctx,
+      ctx_,
       CgroupPath(compile_context.cgroupFs(), "sibling"),
       CgroupData{.pg_scan_rate = 30000});
-  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
+  EXPECT_EQ(plugin->run(ctx_), Engine::PluginRet::STOP);
   EXPECT_EQ(*plugin->killed_cgroup, CgroupPath(tempdir_, "A/Z").absolutePath());
 }
 
@@ -1715,13 +1670,11 @@ TEST_F(ExistsTest, ExistsWildcard) {
 
   ASSERT_EQ(plugin->init(std::move(args), compile_context), 0);
 
-  OomdContext ctx;
-
   F::materialize(F::makeDir(tempdir_, {F::makeDir("cgroup_SOMETHING")}));
-  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
+  EXPECT_EQ(plugin->run(ctx_), Engine::PluginRet::STOP);
 
   F::materialize(F::makeDir(tempdir_, {F::makeDir("cgroup_PREFIXhere")}));
-  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::CONTINUE);
+  EXPECT_EQ(plugin->run(ctx_), Engine::PluginRet::CONTINUE);
 }
 
 TEST_F(ExistsTest, NotExistsWildcard) {
@@ -1735,13 +1688,11 @@ TEST_F(ExistsTest, NotExistsWildcard) {
 
   ASSERT_EQ(plugin->init(std::move(args), compile_context), 0);
 
-  OomdContext ctx;
-
   F::materialize(F::makeDir(tempdir_, {F::makeDir("cgroup_SOMETHING")}));
-  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::CONTINUE);
+  EXPECT_EQ(plugin->run(ctx_), Engine::PluginRet::CONTINUE);
 
   F::materialize(F::makeDir(tempdir_, {F::makeDir("cgroup_PREFIXhere")}));
-  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
+  EXPECT_EQ(plugin->run(ctx_), Engine::PluginRet::STOP);
 }
 
 class NrDyingDescendantsTest : public CorePluginsTest {};
@@ -1761,18 +1712,17 @@ TEST_F(NrDyingDescendantsTest, SingleCgroupLte) {
 
   ASSERT_EQ(plugin->init(std::move(args), compile_context), 0);
 
-  OomdContext ctx;
   TestHelper::setCgroupData(
-      ctx,
+      ctx_,
       CgroupPath(compile_context.cgroupFs(), "cg"),
       CgroupData{.nr_dying_descendants = 123});
-  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
+  EXPECT_EQ(plugin->run(ctx_), Engine::PluginRet::STOP);
 
   TestHelper::setCgroupData(
-      ctx,
+      ctx_,
       CgroupPath(compile_context.cgroupFs(), "cg"),
       CgroupData{.nr_dying_descendants = 90});
-  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::CONTINUE);
+  EXPECT_EQ(plugin->run(ctx_), Engine::PluginRet::CONTINUE);
 }
 
 TEST_F(NrDyingDescendantsTest, SingleCgroupGt) {
@@ -1790,18 +1740,17 @@ TEST_F(NrDyingDescendantsTest, SingleCgroupGt) {
 
   ASSERT_EQ(plugin->init(std::move(args), compile_context), 0);
 
-  OomdContext ctx;
   TestHelper::setCgroupData(
-      ctx,
+      ctx_,
       CgroupPath(compile_context.cgroupFs(), "cg"),
       CgroupData{.nr_dying_descendants = 123});
-  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::CONTINUE);
+  EXPECT_EQ(plugin->run(ctx_), Engine::PluginRet::CONTINUE);
 
   TestHelper::setCgroupData(
-      ctx,
+      ctx_,
       CgroupPath(compile_context.cgroupFs(), "cg"),
       CgroupData{.nr_dying_descendants = 90});
-  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
+  EXPECT_EQ(plugin->run(ctx_), Engine::PluginRet::STOP);
 }
 
 TEST_F(NrDyingDescendantsTest, RootCgroup) {
@@ -1817,12 +1766,11 @@ TEST_F(NrDyingDescendantsTest, RootCgroup) {
 
   ASSERT_EQ(plugin->init(std::move(args), compile_context), 0);
 
-  OomdContext ctx;
   TestHelper::setCgroupData(
-      ctx,
+      ctx_,
       CgroupPath(compile_context.cgroupFs(), ""),
       CgroupData{.nr_dying_descendants = 30});
-  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::CONTINUE);
+  EXPECT_EQ(plugin->run(ctx_), Engine::PluginRet::CONTINUE);
 }
 
 TEST_F(NrDyingDescendantsTest, MultiCgroupGt) {
@@ -1842,20 +1790,19 @@ TEST_F(NrDyingDescendantsTest, MultiCgroupGt) {
 
   ASSERT_EQ(plugin->init(std::move(args), compile_context), 0);
 
-  OomdContext ctx;
   TestHelper::setCgroupData(
-      ctx,
+      ctx_,
       CgroupPath(compile_context.cgroupFs(), "above"),
       CgroupData{.nr_dying_descendants = 200});
   TestHelper::setCgroupData(
-      ctx,
+      ctx_,
       CgroupPath(compile_context.cgroupFs(), "above1"),
       CgroupData{.nr_dying_descendants = 300});
   TestHelper::setCgroupData(
-      ctx,
+      ctx_,
       CgroupPath(compile_context.cgroupFs(), "below"),
       CgroupData{.nr_dying_descendants = 90});
-  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::CONTINUE);
+  EXPECT_EQ(plugin->run(ctx_), Engine::PluginRet::CONTINUE);
 }
 
 class KillMemoryGrowthTest : public CorePluginsTest {};
@@ -1873,11 +1820,10 @@ TEST_F(KillMemoryGrowthTest, TemporalCounter) {
   ASSERT_EQ(plugin->init(std::move(args), compile_context), 0);
 
   CgroupPath cgroup(compile_context.cgroupFs(), "one_big/cgroup1");
-  OomdContext ctx;
-  TestHelper::setCgroupData(ctx, cgroup, CgroupData{.current_usage = 60});
-  plugin->prerun(ctx);
+  TestHelper::setCgroupData(ctx_, cgroup, CgroupData{.current_usage = 60});
+  plugin->prerun(ctx_);
   EXPECT_TRUE(
-      TestHelper::getDataRef(*ctx.addToCacheAndGet(cgroup)).average_usage);
+      TestHelper::getDataRef(*ctx_.addToCacheAndGet(cgroup)).average_usage);
 }
 
 TEST_F(KillMemoryGrowthTest, KillsBigCgroup) {
@@ -1892,36 +1838,35 @@ TEST_F(KillMemoryGrowthTest, KillsBigCgroup) {
 
   ASSERT_EQ(plugin->init(std::move(args), compile_context), 0);
 
-  OomdContext ctx;
   TestHelper::setCgroupData(
-      ctx,
+      ctx_,
       CgroupPath(compile_context.cgroupFs(), "one_big/cgroup1"),
       CgroupData{
           .current_usage = 60,
           .average_usage = 60,
       });
   TestHelper::setCgroupData(
-      ctx,
+      ctx_,
       CgroupPath(compile_context.cgroupFs(), "one_big/cgroup2"),
       CgroupData{
           .current_usage = 20,
           .average_usage = 20,
       });
   TestHelper::setCgroupData(
-      ctx,
+      ctx_,
       CgroupPath(compile_context.cgroupFs(), "one_big/cgroup3"),
       CgroupData{
           .current_usage = 20,
           .average_usage = 20,
       });
   TestHelper::setCgroupData(
-      ctx,
+      ctx_,
       CgroupPath(compile_context.cgroupFs(), "sibling/cgroup1"),
       CgroupData{
           .current_usage = 20,
           .average_usage = 20,
       });
-  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
+  EXPECT_EQ(plugin->run(ctx_), Engine::PluginRet::STOP);
   EXPECT_THAT(plugin->killed, Contains(123));
   EXPECT_THAT(plugin->killed, Contains(456));
   EXPECT_THAT(plugin->killed, Not(Contains(789)));
@@ -1944,16 +1889,15 @@ TEST_F(KillMemoryGrowthTest, PreferredOverridesSize) {
 
   ASSERT_EQ(plugin->init(std::move(args), compile_context), 0);
 
-  OomdContext ctx;
   TestHelper::setCgroupData(
-      ctx,
+      ctx_,
       CgroupPath(compile_context.cgroupFs(), "one_big/cgroup1"),
       CgroupData{
           .current_usage = 60,
           .average_usage = 60,
       });
   TestHelper::setCgroupData(
-      ctx,
+      ctx_,
       CgroupPath(compile_context.cgroupFs(), "one_big/cgroup2"),
       CgroupData{
           .current_usage = 20,
@@ -1961,20 +1905,20 @@ TEST_F(KillMemoryGrowthTest, PreferredOverridesSize) {
           .average_usage = 20,
       });
   TestHelper::setCgroupData(
-      ctx,
+      ctx_,
       CgroupPath(compile_context.cgroupFs(), "one_big/cgroup3"),
       CgroupData{
           .current_usage = 20,
           .average_usage = 20,
       });
   TestHelper::setCgroupData(
-      ctx,
+      ctx_,
       CgroupPath(compile_context.cgroupFs(), "sibling/cgroup1"),
       CgroupData{
           .current_usage = 20,
           .average_usage = 20,
       });
-  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
+  EXPECT_EQ(plugin->run(ctx_), Engine::PluginRet::STOP);
   EXPECT_THAT(plugin->killed, Contains(789));
   EXPECT_THAT(plugin->killed, Not(Contains(123)));
   EXPECT_THAT(plugin->killed, Not(Contains(456)));
@@ -1997,9 +1941,8 @@ TEST_F(KillMemoryGrowthTest, AvoidedOverridesSize) {
 
   ASSERT_EQ(plugin->init(std::move(args), compile_context), 0);
 
-  OomdContext ctx;
   TestHelper::setCgroupData(
-      ctx,
+      ctx_,
       CgroupPath(compile_context.cgroupFs(), "one_big/cgroup1"),
       CgroupData{
           .current_usage = 60,
@@ -2007,27 +1950,27 @@ TEST_F(KillMemoryGrowthTest, AvoidedOverridesSize) {
           .average_usage = 60,
       });
   TestHelper::setCgroupData(
-      ctx,
+      ctx_,
       CgroupPath(compile_context.cgroupFs(), "one_big/cgroup2"),
       CgroupData{
           .current_usage = 30,
           .average_usage = 30,
       });
   TestHelper::setCgroupData(
-      ctx,
+      ctx_,
       CgroupPath(compile_context.cgroupFs(), "one_big/cgroup3"),
       CgroupData{
           .current_usage = 20,
           .average_usage = 20,
       });
   TestHelper::setCgroupData(
-      ctx,
+      ctx_,
       CgroupPath(compile_context.cgroupFs(), "sibling/cgroup1"),
       CgroupData{
           .current_usage = 20,
           .average_usage = 20,
       });
-  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
+  EXPECT_EQ(plugin->run(ctx_), Engine::PluginRet::STOP);
   EXPECT_THAT(plugin->killed, Contains(789));
   EXPECT_THAT(plugin->killed, Not(Contains(123)));
   EXPECT_THAT(plugin->killed, Not(Contains(456)));
@@ -2051,16 +1994,15 @@ TEST_F(KillMemoryGrowthTest, AvoidedNoEffect) {
 
   ASSERT_EQ(plugin->init(std::move(args), compile_context), 0);
 
-  OomdContext ctx;
   TestHelper::setCgroupData(
-      ctx,
+      ctx_,
       CgroupPath(compile_context.cgroupFs(), "one_big/cgroup1"),
       CgroupData{
           .current_usage = 60,
           .average_usage = 60,
       });
   TestHelper::setCgroupData(
-      ctx,
+      ctx_,
       CgroupPath(compile_context.cgroupFs(), "one_big/cgroup2"),
       CgroupData{
           .current_usage = 30,
@@ -2068,7 +2010,7 @@ TEST_F(KillMemoryGrowthTest, AvoidedNoEffect) {
           .average_usage = 30,
       });
   TestHelper::setCgroupData(
-      ctx,
+      ctx_,
       CgroupPath(compile_context.cgroupFs(), "one_big/cgroup3"),
       CgroupData{
           .current_usage = 20,
@@ -2076,13 +2018,13 @@ TEST_F(KillMemoryGrowthTest, AvoidedNoEffect) {
           .average_usage = 20,
       });
   TestHelper::setCgroupData(
-      ctx,
+      ctx_,
       CgroupPath(compile_context.cgroupFs(), "sibling/cgroup1"),
       CgroupData{
           .current_usage = 20,
           .average_usage = 20,
       });
-  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
+  EXPECT_EQ(plugin->run(ctx_), Engine::PluginRet::STOP);
   EXPECT_THAT(plugin->killed, Contains(123));
   EXPECT_THAT(plugin->killed, Contains(456));
   EXPECT_THAT(plugin->killed, Not(Contains(789)));
@@ -2106,9 +2048,8 @@ TEST_F(KillMemoryGrowthTest, PreferredNoEffect) {
 
   ASSERT_EQ(plugin->init(std::move(args), compile_context), 0);
 
-  OomdContext ctx;
   TestHelper::setCgroupData(
-      ctx,
+      ctx_,
       CgroupPath(compile_context.cgroupFs(), "one_big/cgroup1"),
       CgroupData{
           .current_usage = 60,
@@ -2116,7 +2057,7 @@ TEST_F(KillMemoryGrowthTest, PreferredNoEffect) {
           .average_usage = 60,
       });
   TestHelper::setCgroupData(
-      ctx,
+      ctx_,
       CgroupPath(compile_context.cgroupFs(), "one_big/cgroup2"),
       CgroupData{
           .current_usage = 30,
@@ -2124,7 +2065,7 @@ TEST_F(KillMemoryGrowthTest, PreferredNoEffect) {
           .average_usage = 30,
       });
   TestHelper::setCgroupData(
-      ctx,
+      ctx_,
       CgroupPath(compile_context.cgroupFs(), "one_big/cgroup3"),
       CgroupData{
           .current_usage = 20,
@@ -2132,14 +2073,14 @@ TEST_F(KillMemoryGrowthTest, PreferredNoEffect) {
           .average_usage = 20,
       });
   TestHelper::setCgroupData(
-      ctx,
+      ctx_,
       CgroupPath(compile_context.cgroupFs(), "sibling/cgroup1"),
       CgroupData{
           .current_usage = 20,
           .kill_preference = KillPreference::PREFER,
           .average_usage = 20,
       });
-  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
+  EXPECT_EQ(plugin->run(ctx_), Engine::PluginRet::STOP);
   EXPECT_THAT(plugin->killed, Contains(123));
   EXPECT_THAT(plugin->killed, Contains(456));
   EXPECT_THAT(plugin->killed, Not(Contains(789)));
@@ -2164,9 +2105,8 @@ TEST_F(KillMemoryGrowthTest, KillsOneOfPreferred) {
 
   ASSERT_EQ(plugin->init(std::move(args), compile_context), 0);
 
-  OomdContext ctx;
   TestHelper::setCgroupData(
-      ctx,
+      ctx_,
       CgroupPath(compile_context.cgroupFs(), "one_big/cgroup1"),
       CgroupData{
           .current_usage = 60,
@@ -2174,7 +2114,7 @@ TEST_F(KillMemoryGrowthTest, KillsOneOfPreferred) {
           .average_usage = 60,
       });
   TestHelper::setCgroupData(
-      ctx,
+      ctx_,
       CgroupPath(compile_context.cgroupFs(), "one_big/cgroup2"),
       CgroupData{
           .current_usage = 30,
@@ -2182,7 +2122,7 @@ TEST_F(KillMemoryGrowthTest, KillsOneOfPreferred) {
           .average_usage = 30,
       });
   TestHelper::setCgroupData(
-      ctx,
+      ctx_,
       CgroupPath(compile_context.cgroupFs(), "one_big/cgroup3"),
       CgroupData{
           .current_usage = 20,
@@ -2190,14 +2130,14 @@ TEST_F(KillMemoryGrowthTest, KillsOneOfPreferred) {
           .average_usage = 20,
       });
   TestHelper::setCgroupData(
-      ctx,
+      ctx_,
       CgroupPath(compile_context.cgroupFs(), "sibling/cgroup1"),
       CgroupData{
           .current_usage = 20,
           .kill_preference = KillPreference::PREFER,
           .average_usage = 20,
       });
-  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
+  EXPECT_EQ(plugin->run(ctx_), Engine::PluginRet::STOP);
   EXPECT_THAT(plugin->killed, Contains(123));
   EXPECT_THAT(plugin->killed, Contains(456));
   EXPECT_THAT(plugin->killed, Not(Contains(111)));
@@ -2218,33 +2158,31 @@ TEST_F(KillMemoryGrowthTest, KillsBigCgroupGrowth) {
 
   ASSERT_EQ(plugin->init(std::move(args), compile_context), 0);
 
-  OomdContext ctx;
-
   // First test that we do the last ditch size killing.
   //
   // cgroup3 should be killed even though (30 / (21+20+30) < .5)
   TestHelper::setCgroupData(
-      ctx,
+      ctx_,
       CgroupPath(compile_context.cgroupFs(), "growth_big/cgroup1"),
       CgroupData{
           .current_usage = 21,
           .average_usage = 20,
       });
   TestHelper::setCgroupData(
-      ctx,
+      ctx_,
       CgroupPath(compile_context.cgroupFs(), "growth_big/cgroup2"),
       CgroupData{
           .current_usage = 20,
           .average_usage = 20,
       });
   TestHelper::setCgroupData(
-      ctx,
+      ctx_,
       CgroupPath(compile_context.cgroupFs(), "growth_big/cgroup3"),
       CgroupData{
           .current_usage = 30,
           .average_usage = 30,
       });
-  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
+  EXPECT_EQ(plugin->run(ctx_), Engine::PluginRet::STOP);
   EXPECT_THAT(plugin->killed, Contains(111));
   EXPECT_THAT(plugin->killed, Not(Contains(123)));
   EXPECT_THAT(plugin->killed, Not(Contains(456)));
@@ -2253,7 +2191,7 @@ TEST_F(KillMemoryGrowthTest, KillsBigCgroupGrowth) {
   // Now lower average usage to artificially "boost" growth rate to trigger
   // growth kill
   TestHelper::setCgroupData(
-      ctx,
+      ctx_,
       CgroupPath(compile_context.cgroupFs(), "growth_big/cgroup1"),
       CgroupData{
           .current_usage = 21,
@@ -2263,14 +2201,14 @@ TEST_F(KillMemoryGrowthTest, KillsBigCgroupGrowth) {
   // Do the same thing for a sibling cgroup, but set the growth higher. This
   // tests that sibling removal occurs for growth kills too.
   TestHelper::setCgroupData(
-      ctx,
+      ctx_,
       CgroupPath(compile_context.cgroupFs(), "sibling/cgroup1"),
       CgroupData{
           .current_usage = 99,
           .average_usage = 5,
       });
 
-  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
+  EXPECT_EQ(plugin->run(ctx_), Engine::PluginRet::STOP);
   EXPECT_THAT(plugin->killed, Not(Contains(888)));
   EXPECT_THAT(plugin->killed, Not(Contains(789)));
   EXPECT_THAT(plugin->killed, Contains(123));
@@ -2287,23 +2225,22 @@ TEST_F(KillMemoryGrowthTest, DoesntGrowthKillBelowUsageThreshold) {
     args["size_threshold"] = "50";
     args.merge(extra_args);
 
-    OomdContext ctx;
     TestHelper::setCgroupData(
-        ctx,
+        ctx_,
         CgroupPath(compile_context.cgroupFs(), "growth_big/cgroup1"),
         CgroupData{
             .current_usage = 40,
             .average_usage = 7,
         });
     TestHelper::setCgroupData(
-        ctx,
+        ctx_,
         CgroupPath(compile_context.cgroupFs(), "growth_big/cgroup2"),
         CgroupData{
             .current_usage = 50,
             .average_usage = 30,
         });
     TestHelper::setCgroupData(
-        ctx,
+        ctx_,
         CgroupPath(compile_context.cgroupFs(), "growth_big/cgroup3"),
         CgroupData{
             .current_usage = 60,
@@ -2313,7 +2250,7 @@ TEST_F(KillMemoryGrowthTest, DoesntGrowthKillBelowUsageThreshold) {
     auto plugin = std::make_shared<KillMemoryGrowth<BaseKillPluginMock>>();
     EXPECT_NE(plugin, nullptr);
     EXPECT_EQ(plugin->init(std::move(args), compile_context), 0);
-    EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
+    EXPECT_EQ(plugin->run(ctx_), Engine::PluginRet::STOP);
     return plugin->killed;
   };
 
@@ -2368,10 +2305,8 @@ TEST_F(KillMemoryGrowthTest, KillsByPreferredGrowth) {
 
   ASSERT_EQ(plugin->init(std::move(args), compile_context), 0);
 
-  OomdContext ctx;
-
   TestHelper::setCgroupData(
-      ctx,
+      ctx_,
       CgroupPath(compile_context.cgroupFs(), "growth_big/cgroup1"),
       CgroupData{
           .current_usage = 21 << 20,
@@ -2379,7 +2314,7 @@ TEST_F(KillMemoryGrowthTest, KillsByPreferredGrowth) {
           .average_usage = 5 << 20,
       });
   TestHelper::setCgroupData(
-      ctx,
+      ctx_,
       CgroupPath(compile_context.cgroupFs(), "growth_big/cgroup2"),
       CgroupData{
           .current_usage = 99 << 20,
@@ -2387,13 +2322,13 @@ TEST_F(KillMemoryGrowthTest, KillsByPreferredGrowth) {
           .average_usage = 5 << 20,
       });
   TestHelper::setCgroupData(
-      ctx,
+      ctx_,
       CgroupPath(compile_context.cgroupFs(), "growth_big/cgroup3"),
       CgroupData{
           .current_usage = 1000 << 20,
           .average_usage = 1000 << 20,
       });
-  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
+  EXPECT_EQ(plugin->run(ctx_), Engine::PluginRet::STOP);
   EXPECT_THAT(plugin->killed, Contains(789));
   EXPECT_THAT(plugin->killed, Not(Contains(123)));
   EXPECT_THAT(plugin->killed, Not(Contains(456)));
@@ -2423,10 +2358,8 @@ TEST_P(KillMemoryGrowthConsistentWithPreference, SizeThreshold) {
 
   ASSERT_EQ(plugin->init(std::move(args), compile_context), 0);
 
-  OomdContext ctx;
-
   TestHelper::setCgroupData(
-      ctx,
+      ctx_,
       CgroupPath(compile_context.cgroupFs(), "growth_big/cgroup1"),
       CgroupData{
           .current_usage = 21,
@@ -2434,7 +2367,7 @@ TEST_P(KillMemoryGrowthConsistentWithPreference, SizeThreshold) {
           .average_usage = 5,
       });
   TestHelper::setCgroupData(
-      ctx,
+      ctx_,
       CgroupPath(compile_context.cgroupFs(), "growth_big/cgroup2"),
       CgroupData{
           .current_usage = 99,
@@ -2442,13 +2375,13 @@ TEST_P(KillMemoryGrowthConsistentWithPreference, SizeThreshold) {
           .average_usage = 5,
       });
   TestHelper::setCgroupData(
-      ctx,
+      ctx_,
       CgroupPath(compile_context.cgroupFs(), "growth_big/cgroup3"),
       CgroupData{
           .current_usage = 30,
           .average_usage = 30,
       });
-  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
+  EXPECT_EQ(plugin->run(ctx_), Engine::PluginRet::STOP);
   EXPECT_THAT(plugin->killed, Contains(789));
   EXPECT_THAT(plugin->killed, Not(Contains(111)));
   EXPECT_THAT(plugin->killed, Not(Contains(123)));
@@ -2473,36 +2406,35 @@ TEST_F(KillMemoryGrowthTest, KillsBigCgroupMultiCgroup) {
 
   ASSERT_EQ(plugin->init(std::move(args), compile_context), 0);
 
-  OomdContext ctx;
   TestHelper::setCgroupData(
-      ctx,
+      ctx_,
       CgroupPath(compile_context.cgroupFs(), "one_big/cgroup1"),
       CgroupData{
           .current_usage = 60,
           .average_usage = 60,
       });
   TestHelper::setCgroupData(
-      ctx,
+      ctx_,
       CgroupPath(compile_context.cgroupFs(), "one_big/cgroup2"),
       CgroupData{
           .current_usage = 20,
           .average_usage = 20,
       });
   TestHelper::setCgroupData(
-      ctx,
+      ctx_,
       CgroupPath(compile_context.cgroupFs(), "one_big/cgroup3"),
       CgroupData{
           .current_usage = 20,
           .average_usage = 20,
       });
   TestHelper::setCgroupData(
-      ctx,
+      ctx_,
       CgroupPath(compile_context.cgroupFs(), "sibling/cgroup1"),
       CgroupData{
           .current_usage = 100,
           .average_usage = 100,
       });
-  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
+  EXPECT_EQ(plugin->run(ctx_), Engine::PluginRet::STOP);
   EXPECT_THAT(plugin->killed, Contains(888));
   EXPECT_THAT(plugin->killed, Not(Contains(123)));
   EXPECT_THAT(plugin->killed, Not(Contains(456)));
@@ -2543,43 +2475,42 @@ TEST_F(KillMemoryGrowthTest, CanTargetRecursively) {
 
   ASSERT_EQ(plugin->init(std::move(args), compile_context), 0);
 
-  OomdContext ctx;
   TestHelper::setCgroupData(
-      ctx,
+      ctx_,
       CgroupPath(compile_context.cgroupFs(), "A"),
       CgroupData{
           .current_usage = 60,
           .average_usage = 60,
       });
   TestHelper::setCgroupData(
-      ctx,
+      ctx_,
       CgroupPath(compile_context.cgroupFs(), "A/Z"),
       CgroupData{
           .current_usage = 20,
           .average_usage = 20,
       });
   TestHelper::setCgroupData(
-      ctx,
+      ctx_,
       CgroupPath(compile_context.cgroupFs(), "A/X"),
       CgroupData{
           .current_usage = 40,
           .average_usage = 40,
       });
   TestHelper::setCgroupData(
-      ctx,
+      ctx_,
       CgroupPath(compile_context.cgroupFs(), "B"),
       CgroupData{
           .current_usage = 20,
           .average_usage = 20,
       });
   TestHelper::setCgroupData(
-      ctx,
+      ctx_,
       CgroupPath(compile_context.cgroupFs(), "sibling"),
       CgroupData{
           .current_usage = 100,
           .average_usage = 100,
       });
-  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
+  EXPECT_EQ(plugin->run(ctx_), Engine::PluginRet::STOP);
   EXPECT_EQ(*plugin->killed_cgroup, CgroupPath(tempdir_, "A/X").absolutePath());
 }
 
@@ -2596,29 +2527,28 @@ TEST_F(KillMemoryGrowthTest, DoesntKillBigCgroupInDry) {
 
   ASSERT_EQ(plugin->init(std::move(args), compile_context), 0);
 
-  OomdContext ctx;
   TestHelper::setCgroupData(
-      ctx,
+      ctx_,
       CgroupPath(compile_context.cgroupFs(), "one_big/cgroup1"),
       CgroupData{
           .current_usage = 60,
           .average_usage = 60,
       });
   TestHelper::setCgroupData(
-      ctx,
+      ctx_,
       CgroupPath(compile_context.cgroupFs(), "one_big/cgroup2"),
       CgroupData{
           .current_usage = 20,
           .average_usage = 20,
       });
   TestHelper::setCgroupData(
-      ctx,
+      ctx_,
       CgroupPath(compile_context.cgroupFs(), "one_big/cgroup3"),
       CgroupData{
           .current_usage = 20,
           .average_usage = 20,
       });
-  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
+  EXPECT_EQ(plugin->run(ctx_), Engine::PluginRet::STOP);
   EXPECT_EQ(plugin->killed.size(), 0);
 }
 
@@ -2636,20 +2566,19 @@ TEST_F(KillSwapUsageTest, KillsBigSwapCgroup) {
 
   ASSERT_EQ(plugin->init(std::move(args), compile_context), 0);
 
-  OomdContext ctx;
   TestHelper::setCgroupData(
-      ctx,
+      ctx_,
       CgroupPath(compile_context.cgroupFs(), "one_big/cgroup1"),
       CgroupData{.swap_usage = 20});
   TestHelper::setCgroupData(
-      ctx,
+      ctx_,
       CgroupPath(compile_context.cgroupFs(), "one_big/cgroup2"),
       CgroupData{.swap_usage = 60});
   TestHelper::setCgroupData(
-      ctx,
+      ctx_,
       CgroupPath(compile_context.cgroupFs(), "one_big/cgroup3"),
       CgroupData{.swap_usage = 40});
-  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
+  EXPECT_EQ(plugin->run(ctx_), Engine::PluginRet::STOP);
   EXPECT_THAT(plugin->killed, Contains(789));
   EXPECT_THAT(plugin->killed, Not(Contains(123)));
   EXPECT_THAT(plugin->killed, Not(Contains(456)));
@@ -2670,34 +2599,33 @@ TEST_F(KillSwapUsageTest, ThresholdTest) {
 
   ASSERT_EQ(plugin->init(std::move(args), compile_context), 0);
 
-  OomdContext ctx;
   TestHelper::setCgroupData(
-      ctx,
+      ctx_,
       CgroupPath(compile_context.cgroupFs(), "one_big/cgroup1"),
       CgroupData{.swap_usage = 1});
   TestHelper::setCgroupData(
-      ctx,
+      ctx_,
       CgroupPath(compile_context.cgroupFs(), "one_big/cgroup2"),
       CgroupData{.swap_usage = 2});
   TestHelper::setCgroupData(
-      ctx,
+      ctx_,
       CgroupPath(compile_context.cgroupFs(), "one_big/cgroup3"),
       CgroupData{.swap_usage = 3});
-  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::CONTINUE);
+  EXPECT_EQ(plugin->run(ctx_), Engine::PluginRet::CONTINUE);
 
   TestHelper::setCgroupData(
-      ctx,
+      ctx_,
       CgroupPath(compile_context.cgroupFs(), "one_big/cgroup1"),
       CgroupData{.swap_usage = 20 << 10});
   TestHelper::setCgroupData(
-      ctx,
+      ctx_,
       CgroupPath(compile_context.cgroupFs(), "one_big/cgroup2"),
       CgroupData{.swap_usage = 60 << 10});
   TestHelper::setCgroupData(
-      ctx,
+      ctx_,
       CgroupPath(compile_context.cgroupFs(), "one_big/cgroup3"),
       CgroupData{.swap_usage = 40 << 10});
-  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
+  EXPECT_EQ(plugin->run(ctx_), Engine::PluginRet::STOP);
   EXPECT_THAT(plugin->killed, Contains(789));
   EXPECT_THAT(plugin->killed, Not(Contains(123)));
   EXPECT_THAT(plugin->killed, Not(Contains(456)));
@@ -2716,24 +2644,23 @@ TEST_F(KillSwapUsageTest, KillsBigSwapCgroupMultiCgroup) {
 
   ASSERT_EQ(plugin->init(std::move(args), compile_context), 0);
 
-  OomdContext ctx;
   TestHelper::setCgroupData(
-      ctx,
+      ctx_,
       CgroupPath(compile_context.cgroupFs(), "one_big/cgroup1"),
       CgroupData{.swap_usage = 20});
   TestHelper::setCgroupData(
-      ctx,
+      ctx_,
       CgroupPath(compile_context.cgroupFs(), "one_big/cgroup2"),
       CgroupData{.swap_usage = 60});
   TestHelper::setCgroupData(
-      ctx,
+      ctx_,
       CgroupPath(compile_context.cgroupFs(), "one_big/cgroup3"),
       CgroupData{.swap_usage = 40});
   TestHelper::setCgroupData(
-      ctx,
+      ctx_,
       CgroupPath(compile_context.cgroupFs(), "sibling/cgroup1"),
       CgroupData{.swap_usage = 70});
-  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
+  EXPECT_EQ(plugin->run(ctx_), Engine::PluginRet::STOP);
   EXPECT_THAT(plugin->killed, Contains(555));
   EXPECT_THAT(plugin->killed, Not(Contains(123)));
   EXPECT_THAT(plugin->killed, Not(Contains(456)));
@@ -2754,20 +2681,19 @@ TEST_F(KillSwapUsageTest, DoesntKillBigSwapCgroupDry) {
 
   ASSERT_EQ(plugin->init(std::move(args), compile_context), 0);
 
-  OomdContext ctx;
   TestHelper::setCgroupData(
-      ctx,
+      ctx_,
       CgroupPath(compile_context.cgroupFs(), "one_big/cgroup1"),
       CgroupData{.swap_usage = 20});
   TestHelper::setCgroupData(
-      ctx,
+      ctx_,
       CgroupPath(compile_context.cgroupFs(), "one_big/cgroup2"),
       CgroupData{.swap_usage = 60});
   TestHelper::setCgroupData(
-      ctx,
+      ctx_,
       CgroupPath(compile_context.cgroupFs(), "one_big/cgroup3"),
       CgroupData{.swap_usage = 40});
-  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
+  EXPECT_EQ(plugin->run(ctx_), Engine::PluginRet::STOP);
   EXPECT_EQ(plugin->killed.size(), 0);
 }
 
@@ -2784,20 +2710,19 @@ TEST_F(KillSwapUsageTest, DoesntKillNoSwap) {
 
   ASSERT_EQ(plugin->init(std::move(args), compile_context), 0);
 
-  OomdContext ctx;
   TestHelper::setCgroupData(
-      ctx,
+      ctx_,
       CgroupPath(compile_context.cgroupFs(), "one_big/cgroup1"),
       CgroupData{});
   TestHelper::setCgroupData(
-      ctx,
+      ctx_,
       CgroupPath(compile_context.cgroupFs(), "one_big/cgroup2"),
       CgroupData{});
   TestHelper::setCgroupData(
-      ctx,
+      ctx_,
       CgroupPath(compile_context.cgroupFs(), "one_big/cgroup3"),
       CgroupData{});
-  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::CONTINUE);
+  EXPECT_EQ(plugin->run(ctx_), Engine::PluginRet::CONTINUE);
   EXPECT_EQ(plugin->killed.size(), 0);
 }
 
@@ -2816,37 +2741,36 @@ TEST_F(KillPressureTest, KillsHighestPressure) {
 
   ASSERT_EQ(plugin->init(std::move(args), compile_context), 0);
 
-  OomdContext ctx;
   TestHelper::setCgroupData(
-      ctx,
+      ctx_,
       CgroupPath(compile_context.cgroupFs(), "one_high/cgroup1"),
       CgroupData{.io_pressure = ResourcePressure{
                      .sec_10 = 60,
                      .sec_60 = 60,
                  }});
   TestHelper::setCgroupData(
-      ctx,
+      ctx_,
       CgroupPath(compile_context.cgroupFs(), "one_high/cgroup2"),
       CgroupData{.io_pressure = ResourcePressure{
                      .sec_10 = 50,
                      .sec_60 = 70,
                  }});
   TestHelper::setCgroupData(
-      ctx,
+      ctx_,
       CgroupPath(compile_context.cgroupFs(), "one_high/cgroup3"),
       CgroupData{.io_pressure = ResourcePressure{
                      .sec_10 = 80,
                      .sec_60 = 80,
                  }});
   TestHelper::setCgroupData(
-      ctx,
+      ctx_,
       CgroupPath(compile_context.cgroupFs(), "sibling/cgroup1"),
       CgroupData{.io_pressure = ResourcePressure{
                      .sec_10 = 99,
                      .sec_60 = 99,
                      .sec_300 = 99,
                  }});
-  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
+  EXPECT_EQ(plugin->run(ctx_), Engine::PluginRet::STOP);
   EXPECT_THAT(plugin->killed, Contains(111));
   EXPECT_THAT(plugin->killed, Not(Contains(123)));
   EXPECT_THAT(plugin->killed, Not(Contains(456)));
@@ -2867,37 +2791,36 @@ TEST_F(KillPressureTest, KillsHighestPressureMultiCgroup) {
 
   ASSERT_EQ(plugin->init(std::move(args), compile_context), 0);
 
-  OomdContext ctx;
   TestHelper::setCgroupData(
-      ctx,
+      ctx_,
       CgroupPath(compile_context.cgroupFs(), "one_high/cgroup1"),
       CgroupData{.io_pressure = ResourcePressure{
                      .sec_10 = 60,
                      .sec_60 = 60,
                  }});
   TestHelper::setCgroupData(
-      ctx,
+      ctx_,
       CgroupPath(compile_context.cgroupFs(), "one_high/cgroup2"),
       CgroupData{.io_pressure = ResourcePressure{
                      .sec_10 = 50,
                      .sec_60 = 70,
                  }});
   TestHelper::setCgroupData(
-      ctx,
+      ctx_,
       CgroupPath(compile_context.cgroupFs(), "one_high/cgroup3"),
       CgroupData{.io_pressure = ResourcePressure{
                      .sec_10 = 80,
                      .sec_60 = 80,
                  }});
   TestHelper::setCgroupData(
-      ctx,
+      ctx_,
       CgroupPath(compile_context.cgroupFs(), "sibling/cgroup1"),
       CgroupData{.io_pressure = ResourcePressure{
                      .sec_10 = 99,
                      .sec_60 = 99,
                      .sec_300 = 99,
                  }});
-  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
+  EXPECT_EQ(plugin->run(ctx_), Engine::PluginRet::STOP);
   EXPECT_THAT(plugin->killed, Contains(888));
   EXPECT_THAT(plugin->killed, Not(Contains(111)));
   EXPECT_THAT(plugin->killed, Not(Contains(123)));
@@ -2919,37 +2842,36 @@ TEST_F(KillPressureTest, DoesntKillsHighestPressureDry) {
 
   ASSERT_EQ(plugin->init(std::move(args), compile_context), 0);
 
-  OomdContext ctx;
   TestHelper::setCgroupData(
-      ctx,
+      ctx_,
       CgroupPath(compile_context.cgroupFs(), "one_high/cgroup1"),
       CgroupData{.io_pressure = ResourcePressure{
                      .sec_10 = 60,
                      .sec_60 = 60,
                  }});
   TestHelper::setCgroupData(
-      ctx,
+      ctx_,
       CgroupPath(compile_context.cgroupFs(), "one_high/cgroup2"),
       CgroupData{.io_pressure = ResourcePressure{
                      .sec_10 = 50,
                      .sec_60 = 70,
                  }});
   TestHelper::setCgroupData(
-      ctx,
+      ctx_,
       CgroupPath(compile_context.cgroupFs(), "one_high/cgroup3"),
       CgroupData{.io_pressure = ResourcePressure{
                      .sec_10 = 80,
                      .sec_60 = 80,
                  }});
   TestHelper::setCgroupData(
-      ctx,
+      ctx_,
       CgroupPath(compile_context.cgroupFs(), "sibling/cgroup1"),
       CgroupData{.io_pressure = ResourcePressure{
                      .sec_10 = 99,
                      .sec_60 = 99,
                      .sec_300 = 99,
                  }});
-  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
+  EXPECT_EQ(plugin->run(ctx_), Engine::PluginRet::STOP);
   EXPECT_EQ(plugin->killed.size(), 0);
 }
 
@@ -2964,8 +2886,7 @@ TEST_F(StopTest, Stops) {
 
   ASSERT_EQ(plugin->init(std::move(args), compile_context), 0);
 
-  OomdContext ctx;
-  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
+  EXPECT_EQ(plugin->run(ctx_), Engine::PluginRet::STOP);
 }
 
 class SenpaiTest : public CorePluginsTest {
@@ -3008,11 +2929,10 @@ class SenpaiTest : public CorePluginsTest {
     const PluginConstructionContext compile_context(tempdir_);
     ASSERT_EQ(plugin_->init(std::move(args_), compile_context), 0);
 
-    OomdContext ctx;
     // Pressure is always zero. Each tick should drive memory.high.tmp lower.
     for (int i = 0; i < 100; i++) {
-      EXPECT_EQ(plugin_->run(ctx), Engine::PluginRet::CONTINUE);
-      ctx.refresh();
+      EXPECT_EQ(plugin_->run(ctx_), Engine::PluginRet::CONTINUE);
+      ctx_.refresh();
     }
     auto senpai_test_slice =
         ASSERT_SYS_OK(Fs::DirFd::open(tempdir_ + "/senpai_test.slice"));
@@ -3029,19 +2949,18 @@ class SenpaiTest : public CorePluginsTest {
     auto senpai_test_slice =
         ASSERT_SYS_OK(Fs::DirFd::open(tempdir_ + "/senpai_test.slice"));
 
-    OomdContext ctx;
-    EXPECT_EQ(plugin_->run(ctx), Engine::PluginRet::CONTINUE);
+    EXPECT_EQ(plugin_->run(ctx_), Engine::PluginRet::CONTINUE);
     // First tick, senpai sets memory.high.tmp to memory.current
     auto memhightmp = ASSERT_SYS_OK(Fs::readMemhightmpAt(senpai_test_slice));
     EXPECT_EQ(memhightmp, memcurr);
 
-    ctx.refresh();
+    ctx_.refresh();
     // Increase memory.pressure so senpai will backoff
     F::materialize(F::makeFile(
         tempdir_ + "/senpai_test.slice/memory.pressure",
         "some avg10=0.00 avg60=0.00 avg300=0.00 total=20000\n"
         "full avg10=0.00 avg60=0.00 avg300=0.00 total=0\n"));
-    EXPECT_EQ(plugin_->run(ctx), Engine::PluginRet::CONTINUE);
+    EXPECT_EQ(plugin_->run(ctx_), Engine::PluginRet::CONTINUE);
     // Second tick, senpai backs off by increasing memory.high.tmp, but capped
     memhightmp = ASSERT_SYS_OK(Fs::readMemhightmpAt(senpai_test_slice));
     EXPECT_EQ(memhightmp, limit);
@@ -3058,8 +2977,7 @@ TEST_F(SenpaiTest, FallbackMemHigh) {
   const PluginConstructionContext compile_context(tempdir_);
   ASSERT_EQ(plugin_->init(std::move(args_), compile_context), 0);
 
-  OomdContext ctx;
-  EXPECT_EQ(plugin_->run(ctx), Engine::PluginRet::CONTINUE);
+  EXPECT_EQ(plugin_->run(ctx_), Engine::PluginRet::CONTINUE);
   // Same as memory.current
   auto senpai_test_slice =
       ASSERT_SYS_OK(Fs::DirFd::open(tempdir_ + "/senpai_test.slice"));
@@ -3073,8 +2991,7 @@ TEST_F(SenpaiTest, PreferMemHighTmp) {
   const PluginConstructionContext compile_context(tempdir_);
   ASSERT_EQ(plugin_->init(std::move(args_), compile_context), 0);
 
-  OomdContext ctx;
-  EXPECT_EQ(plugin_->run(ctx), Engine::PluginRet::CONTINUE);
+  EXPECT_EQ(plugin_->run(ctx_), Engine::PluginRet::CONTINUE);
   // Same as memory.current
   auto senpai_test_slice =
       ASSERT_SYS_OK(Fs::DirFd::open(tempdir_ + "/senpai_test.slice"));
@@ -3095,6 +3012,42 @@ TEST_F(SenpaiTest, LimitMinBytes) {
               "memory.stat",
               "active_file 10240000\n"
               "inactive_file 10240000")})}));
+  args_["limit_min_bytes"] = "20480000";
+  checkLowerLimit(40960000);
+}
+
+TEST_F(SenpaiTest, LimitMinBytesWithSwap) {
+  ctx_.setSystemContext(SystemContext{.swaptotal = 20480000, .swappiness = 60});
+  F::materialize(F::makeDir(
+      tempdir_,
+      {F::makeDir(
+          "senpai_test.slice",
+          {F::makeFile(
+               "memory.stat",
+               "active_file 10240000\n"
+               "inactive_file 10240000\n"
+               "active_anon 10240000\n"
+               "inactive_anon 10240000\n"),
+           F::makeFile("memory.swap.current", "10240000\n"),
+           F::makeFile("memory.swap.max", "40960000\n")})}));
+  args_["limit_min_bytes"] = "20480000";
+  checkLowerLimit(20480000);
+}
+
+TEST_F(SenpaiTest, LimitMinBytesWithZeroSwappiness) {
+  ctx_.setSystemContext(SystemContext{.swaptotal = 20480000, .swappiness = 0});
+  F::materialize(F::makeDir(
+      tempdir_,
+      {F::makeDir(
+          "senpai_test.slice",
+          {F::makeFile(
+               "memory.stat",
+               "active_file 10240000\n"
+               "inactive_file 10240000\n"
+               "active_anon 10240000\n"
+               "inactive_anon 10240000\n"),
+           F::makeFile("memory.swap.current", "10240000\n"),
+           F::makeFile("memory.swap.max", "40960000\n")})}));
   args_["limit_min_bytes"] = "20480000";
   checkLowerLimit(40960000);
 }
@@ -3162,6 +3115,5 @@ TEST_F(SenpaiTest, InvalidCgroup) {
   ASSERT_EQ(plugin_->init(std::move(args_), compile_context), 0);
 
   // Invalid cgroup should be handled properly and shouldn't crash oomd.
-  OomdContext ctx;
-  EXPECT_EQ(plugin_->run(ctx), Engine::PluginRet::CONTINUE);
+  EXPECT_EQ(plugin_->run(ctx_), Engine::PluginRet::CONTINUE);
 }

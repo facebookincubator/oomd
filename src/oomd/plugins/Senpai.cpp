@@ -250,18 +250,14 @@ bool Senpai::resetMemhigh(const CgroupContext& cgroup_ctx) {
   return false;
 }
 
-/**
- * Return the maximum of the following:
- *  memory.current - file_cache + limit_min_bytes (default: 100M)
- *    where file_cache = memory.stat[active_file] + memory.stat[inactive_file]
- *  memory.min
- */
-std::optional<int64_t> Senpai::getLimitMinBytes(
+/** Returns file cache + swappable anon. */
+SystemMaybe<int64_t> Senpai::getReclaimableBytes(
     const CgroupContext& cgroup_ctx) {
   const auto& stat_opt = cgroup_ctx.memory_stat();
   if (!stat_opt) {
-    return std::nullopt;
+    return SYSTEM_ERROR(ENOENT);
   }
+
   auto active_file_pos = stat_opt->find("active_file");
   auto inactive_file_pos = stat_opt->find("inactive_file");
   if (active_file_pos == stat_opt->end() ||
@@ -269,13 +265,43 @@ std::optional<int64_t> Senpai::getLimitMinBytes(
     throw std::runtime_error("Invalid memory.stat cgroup file");
   }
   auto file_cache = active_file_pos->second + inactive_file_pos->second;
+
+  int64_t swappable = 0;
+  const auto& system_ctx = cgroup_ctx.oomd_ctx().getSystemContext();
+  if (system_ctx.swaptotal > 0 && system_ctx.swappiness > 0) {
+    auto effective_swap_max_opt = cgroup_ctx.effective_swap_max();
+    if (!effective_swap_max_opt) {
+      return SYSTEM_ERROR(ENOENT);
+    } else if (*effective_swap_max_opt > 0) {
+      auto active_anon_pos = stat_opt->find("active_anon");
+      auto inactive_anon_pos = stat_opt->find("inactive_anon");
+      if (active_anon_pos == stat_opt->end() ||
+          inactive_anon_pos == stat_opt->end()) {
+        return SYSTEM_ERROR(EINVAL);
+      }
+      auto anon_size = active_anon_pos->second + inactive_anon_pos->second;
+      // NB: Consider all anon swappable, as senpai should backoff well before
+      // swap depletion.
+      swappable = anon_size;
+    }
+  }
+
+  return file_cache + swappable;
+}
+
+/** Returns unreclaimable + limit_min_bytes. */
+std::optional<int64_t> Senpai::getLimitMinBytes(
+    const CgroupContext& cgroup_ctx) {
   auto memcurr_opt = cgroup_ctx.current_usage();
   if (!memcurr_opt) {
     return std::nullopt;
   }
-  // TODO(lnyng): test the effect of swap and take that into account
-  // Set limit min bytes based on unreclaimable memory
-  auto limit_min_bytes = limit_min_bytes_ + (*memcurr_opt - file_cache);
+  auto reclaimable_maybe = getReclaimableBytes(cgroup_ctx);
+  if (!reclaimable_maybe) {
+    return std::nullopt;
+  }
+  auto unreclaimable = *memcurr_opt - *reclaimable_maybe;
+  auto limit_min_bytes = limit_min_bytes_ + unreclaimable;
 
   auto memmin_opt = cgroup_ctx.memory_min();
   if (!memmin_opt) {

@@ -18,6 +18,7 @@
 #pragma once
 
 #include "oomd/engine/BasePlugin.h"
+#include "oomd/util/SystemMaybe.h"
 
 #include <chrono>
 #include <map>
@@ -70,6 +71,7 @@ class Senpai : public Engine::BasePlugin {
   std::optional<int64_t> readMemhigh(const CgroupContext& cgroup_ctx);
   bool writeMemhigh(const CgroupContext& cgroup_ctx, int64_t value);
   bool resetMemhigh(const CgroupContext& cgroup_ctx);
+  SystemMaybe<int64_t> getReclaimableBytes(const CgroupContext& cgroup_ctx);
   std::optional<int64_t> getLimitMinBytes(const CgroupContext& cgroup_ctx);
   std::optional<int64_t> getLimitMaxBytes(const CgroupContext& cgroup_ctx);
 
