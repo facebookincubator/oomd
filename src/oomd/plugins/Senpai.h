@@ -62,9 +62,9 @@ class Senpai : public Engine::BasePlugin {
     std::chrono::microseconds cumulative{0};
     // Count-down to decision to probe/backoff
     int64_t ticks;
-    // Reclaim statistics for logging
-    uint64_t reclaim_bytes{0};
-    uint64_t reclaim_count{0};
+    // Probe statistics for logging
+    uint64_t probe_bytes{0};
+    uint64_t probe_count{0};
   };
 
   std::optional<bool> hasMemoryHighTmp(const CgroupContext& cgroup_ctx);

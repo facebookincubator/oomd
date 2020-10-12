@@ -115,7 +115,7 @@ Engine::PluginRet Senpai::run(OomdContext& ctx) {
   auto trackedIt = tracked_cgroups_.begin();
 
   bool do_aggregate_log = false;
-  if (immediate_backoff_ && ++log_ticks_ >= log_interval_) {
+  if (++log_ticks_ >= log_interval_) {
     log_ticks_ = 0;
     do_aggregate_log = true;
   }
@@ -147,13 +147,12 @@ Engine::PluginRet Senpai::run(OomdContext& ctx) {
         auto& state = trackedIt->second;
         std::ostringstream oss;
         oss << "cgroup " << cgroup_ctx.cgroup().relativePath() << " "
-            << state.reclaim_count << " reclaim attempts ("
-            << std::setprecision(3) << std::fixed
-            << state.reclaim_bytes / (double)(1 << 30UL) << " gb)";
+            << state.probe_count << " probe attempts (" << std::setprecision(3)
+            << std::fixed << state.probe_bytes / (double)(1 << 30UL) << " gb)";
         OLOG << oss.str();
         // Reset stats
-        state.reclaim_count = 0;
-        state.reclaim_bytes = 0;
+        state.probe_count = 0;
+        state.probe_bytes = 0;
       }
       // Keep the tracked cgroups if they are still valid after tick
       trackedIt = tick_result ? std::next(trackedIt)
@@ -359,7 +358,6 @@ bool Senpai::tick(const CgroupContext& cgroup_ctx, CgroupState& state) {
   if (!limit_opt) {
     return false;
   }
-  auto limit = *limit_opt;
   auto factor = 0.0;
 
   if (*limit_opt != state.limit) {
@@ -368,7 +366,7 @@ bool Senpai::tick(const CgroupContext& cgroup_ctx, CgroupState& state) {
     // unfortuantely, the rest of this logic is still racy after this
     // point
     std::ostringstream oss;
-    oss << "cgroup " << name << " memory.high " << limit
+    oss << "cgroup " << name << " memory.high " << *limit_opt
         << " does not match recorded state " << state.limit
         << ". Resetting cgroup";
     OLOG << oss.str();
@@ -425,7 +423,7 @@ bool Senpai::tick(const CgroupContext& cgroup_ctx, CgroupState& state) {
 
     std::ostringstream oss;
     oss << "cgroup " << name << std::setprecision(3) << std::fixed
-        << " limitgb " << limit / (double)(1 << 30UL) << " totalus "
+        << " limitgb " << *limit_opt / (double)(1 << 30UL) << " totalus "
         << total.count() << " deltaus " << delta.count() << " cumus "
         << cumulative << " ticks " << state.ticks << std::defaultfloat
         << " adjust " << factor;
@@ -445,6 +443,10 @@ bool Senpai::tick(const CgroupContext& cgroup_ctx, CgroupState& state) {
     factor = -factor;
     if (!adjust(factor)) {
       return false;
+    }
+    if (*limit_opt > state.limit) {
+      state.probe_count++;
+      state.probe_bytes += *limit_opt - state.limit;
     }
   }
   return true;
@@ -495,8 +497,8 @@ bool Senpai::tick_immediate_backoff(
       if (!writeMemhigh(cgroup_ctx, limit) || !resetMemhigh(cgroup_ctx)) {
         return false;
       }
-      state.reclaim_count++;
-      state.reclaim_bytes += *current_opt - limit;
+      state.probe_count++;
+      state.probe_bytes += *current_opt - limit;
       state.ticks = interval_;
     }
   }
