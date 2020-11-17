@@ -463,11 +463,13 @@ bool Senpai::tick_immediate_backoff(
     return true;
   }
 
-  auto mem_pressure_maybe = Fs::readMempressureAt(cgroup_ctx.fd());
+  auto mem_pressure_maybe =
+      Fs::readMempressureAt(cgroup_ctx.fd(), Fs::PressureType::SOME);
   if (!mem_pressure_maybe) {
     return false;
   }
-  auto io_pressure_maybe = Fs::readIopressureAt(cgroup_ctx.fd());
+  auto io_pressure_maybe =
+      Fs::readIopressureAt(cgroup_ctx.fd(), Fs::PressureType::SOME);
   if (!io_pressure_maybe) {
     return false;
   }
