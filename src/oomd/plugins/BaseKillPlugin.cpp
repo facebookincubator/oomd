@@ -398,7 +398,9 @@ void BaseKillPlugin::logKill(
       << "ruleset:[" << ruleset << "] "
       << "detectorgroup:[" << action_context.detectorgroup << "] "
       << "killer:" << (dry ? "(dry)" : "") << getName() << " v2";
-  Oomd::incrementStat(CoreStats::kKillsKey, 1);
+  if (!dry) {
+    Oomd::incrementStat(CoreStats::kKillsKey, 1);
+  }
   OOMD_KMSG_LOG(oss.str(), "oomd kill");
 
   dumpKillInfo(killed_cgroup, context, action_context, kill_uuid, dry);
