@@ -33,6 +33,25 @@ matrix:
       script:
         - ./clang-format.sh
         - git diff --exit-code
+#adding code to run on power systems
+    - compiler: gcc
+      arch: ppc64le
+      env:
+        - CC="gcc-8" CXX="g++-8"
+
+    - compiler: clang
+      arch: ppc64le
+
+    - env:
+        - JOB_TYPE="clang-format"
+      arch: ppc64le  
+      addons:
+        apt:
+          packages:
+            - clang-format
+      script:
+        - ./clang-format.sh
+        - git diff --exit-code
 
 notifications:
   irc:
