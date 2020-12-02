@@ -121,6 +121,19 @@ Engine::PluginRet BaseKillPlugin::run(OomdContext& ctx) {
   return Engine::PluginRet::STOP;
 }
 
+namespace {
+struct KillCandidate {
+ public:
+  const CgroupContext& cgroup_ctx;
+  // .kill_root and .peers are for logging
+  // .kill_root is for when recursive targeting is enabled. It is the ancestor
+  // cgroup of .cgroup_ctx that was targeted in the plugin's "cgroup" arg. When
+  // recursive targeting is disabled, .kill_root == .cgroup_ctx
+  const CgroupContext& kill_root;
+  std::shared_ptr<const std::vector<OomdContext::ConstCgroupContextRef>> peers;
+};
+} // namespace
+
 bool BaseKillPlugin::tryToKillSomething(
     OomdContext& ctx,
     std::vector<OomdContext::ConstCgroupContextRef>&& initial_cgroups) {
@@ -130,13 +143,11 @@ bool BaseKillPlugin::tryToKillSomething(
   // The stack tracks (cgroup, siblings) because ologKillTarget needs to know
   // what peers a cgroup was compared to when it was picked.
   // initial_cgroups are treated as siblings.
-  std::stack<std::pair<
-      OomdContext::ConstCgroupContextRef,
-      std::shared_ptr<const std::vector<OomdContext::ConstCgroupContextRef>>>>
-      stack;
+  std::stack<KillCandidate> stack;
 
   auto push_siblings_onto_stack =
-      [&](std::vector<OomdContext::ConstCgroupContextRef>&& peers) {
+      [&](std::vector<OomdContext::ConstCgroupContextRef>&& peers,
+          std::optional<OomdContext::ConstCgroupContextRef> kill_root) {
         auto shared_peers = std::make_shared<
             const std::vector<OomdContext::ConstCgroupContextRef>>(
             std::move(peers));
@@ -150,23 +161,29 @@ bool BaseKillPlugin::tryToKillSomething(
         // ranked sibling is on top
         reverse(sorted.begin(), sorted.end());
         for (const auto& cgroup_ctx : sorted) {
-          stack.emplace(std::make_pair(cgroup_ctx, shared_peers));
+          stack.emplace(
+              KillCandidate{.cgroup_ctx = cgroup_ctx,
+                            // kill_root is nullopt when peers are themselves
+                            // the roots, in the first call. Each cgroup is then
+                            // its own kill_root.
+                            .kill_root = kill_root.value_or(cgroup_ctx),
+                            .peers = shared_peers});
         }
       };
 
-  push_siblings_onto_stack(std::move(initial_cgroups));
+  push_siblings_onto_stack(std::move(initial_cgroups), std::nullopt);
 
   while (!stack.empty()) {
-    const CgroupContext& cgroup_ctx = stack.top().first;
-    auto peers = stack.top().second;
+    const auto candidate = stack.top();
     stack.pop();
 
-    bool may_recurse = recursive_ && !cgroup_ctx.oom_group().value_or(false);
+    bool may_recurse =
+        recursive_ && !candidate.cgroup_ctx.oom_group().value_or(false);
     if (may_recurse) {
-      auto children = ctx.addChildrenToCacheAndGet(cgroup_ctx);
+      auto children = ctx.addChildrenToCacheAndGet(candidate.cgroup_ctx);
       if (children.size() > 0) {
-        ologKillTarget(ctx, cgroup_ctx, *peers);
-        push_siblings_onto_stack(std::move(children));
+        ologKillTarget(ctx, candidate.cgroup_ctx, *candidate.peers);
+        push_siblings_onto_stack(std::move(children), candidate.kill_root);
         continue;
       }
     }
@@ -178,16 +195,17 @@ bool BaseKillPlugin::tryToKillSomething(
     // PREFER cgroup first, but that won't fix the problem so it will kill
     // again; on the second time around, it first targets the now-empty PREFER
     // cgroup before moving on to a better victim.
-    if (!cgroup_ctx.is_populated().value_or(true)) {
+    if (!candidate.cgroup_ctx.is_populated().value_or(true)) {
       continue;
     }
 
-    ologKillTarget(ctx, cgroup_ctx, *peers);
+    ologKillTarget(ctx, candidate.cgroup_ctx, *candidate.peers);
 
-    if (auto kill_uuid = tryToKillCgroup(cgroup_ctx, dry_)) {
+    if (auto kill_uuid = tryToKillCgroup(candidate.cgroup_ctx, dry_)) {
       logKill(
-          cgroup_ctx.cgroup(),
-          cgroup_ctx,
+          candidate.cgroup_ctx.cgroup(),
+          candidate.cgroup_ctx,
+          candidate.kill_root,
           ctx.getActionContext(),
           *kill_uuid,
           dry_);
@@ -384,6 +402,7 @@ void BaseKillPlugin::reportKillUuidToXattr(
 void BaseKillPlugin::logKill(
     const CgroupPath& killed_cgroup,
     const CgroupContext& context,
+    const CgroupContext& kill_root,
     const ActionContext& action_context,
     const std::string& kill_uuid,
     bool dry) const {
@@ -403,6 +422,7 @@ void BaseKillPlugin::logKill(
   }
   OOMD_KMSG_LOG(oss.str(), "oomd kill");
 
-  dumpKillInfo(killed_cgroup, context, action_context, kill_uuid, dry);
+  dumpKillInfo(
+      killed_cgroup, context, kill_root, action_context, kill_uuid, dry);
 }
 } // namespace Oomd

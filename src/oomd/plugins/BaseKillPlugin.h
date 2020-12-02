@@ -175,6 +175,7 @@ class BaseKillPlugin : public Oomd::Engine::BasePlugin {
   virtual void logKill(
       const CgroupPath& killed_group,
       const CgroupContext& context,
+      const CgroupContext& kill_root,
       const ActionContext& action_context,
       const std::string& kill_uuid,
       bool dry = false) const;
@@ -182,6 +183,7 @@ class BaseKillPlugin : public Oomd::Engine::BasePlugin {
   virtual void dumpKillInfo(
       const CgroupPath& killed_group,
       const CgroupContext& context,
+      const CgroupContext& kill_root,
       const ActionContext& action_context,
       const std::string& kill_uuid,
       bool dry = false) const;
