@@ -32,6 +32,7 @@ namespace Engine {
 enum class PluginRet {
   CONTINUE = 0,
   STOP,
+  ASYNC_PAUSED,
 };
 
 using PluginArgs = std::unordered_map<std::string, std::string>;

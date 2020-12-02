@@ -56,6 +56,9 @@ bool DetectorGroup::check(OomdContext& context, uint32_t silenced_logs) {
       case PluginRet::STOP:
         triggered = false;
         break;
+      case PluginRet::ASYNC_PAUSED:
+        // ASYNC_PAUSED is not supported for detectors. Treat as no-op
+        continue;
         // missing default to protect against future PluginRet vals
     }
   }

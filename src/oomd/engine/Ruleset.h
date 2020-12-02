@@ -86,6 +86,14 @@ class Ruleset {
   bool actiongroup_dropin_enabled_{false};
   uint32_t silenced_logs_{0};
   int32_t numTargeted_{0};
+
+  std::optional<std::reference_wrapper<BasePlugin>> active_async_plugin_{
+      std::nullopt};
+  int run_action_chain(
+      std::vector<std::unique_ptr<BasePlugin>>::iterator action_chain_start,
+      std::vector<std::unique_ptr<BasePlugin>>::iterator action_chain_end,
+      OomdContext& context);
+
   std::chrono::steady_clock::time_point pause_actions_until_ =
       std::chrono::steady_clock::time_point();
 };

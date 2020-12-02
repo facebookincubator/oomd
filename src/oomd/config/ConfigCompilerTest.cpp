@@ -36,6 +36,7 @@ int prerun_count;
 int prerun_stored_count;
 int count;
 int stored_count;
+bool controlled_detector_on;
 } // namespace
 
 static constexpr auto kRandomCgroupFs = "/some/random/fs";
@@ -137,6 +138,63 @@ class StoreCountPlugin : public BasePlugin {
   ~StoreCountPlugin() override = default;
 };
 
+class ControlledDetectorPlugin : public BasePlugin {
+ public:
+  int init(
+      const PluginArgs& /* unused */,
+      const PluginConstructionContext& /* unused */) override {
+    return 0;
+  }
+
+  void prerun(OomdContext& /* unused */) override {
+    ++prerun_count;
+  }
+
+  PluginRet run(OomdContext& /* unused */) override {
+    return controlled_detector_on ? PluginRet::CONTINUE : PluginRet::STOP;
+  }
+
+  static ControlledDetectorPlugin* create() {
+    return new ControlledDetectorPlugin();
+  }
+
+  ~ControlledDetectorPlugin() override = default;
+};
+
+class AsyncPausePlugin : public BasePlugin {
+  int pause_count_{3};
+  int pauses_left_;
+
+ public:
+  int init(
+      const PluginArgs& /* unused */,
+      const PluginConstructionContext& /* unused */) override {
+    pauses_left_ = pause_count_;
+    return 0;
+  }
+
+  void prerun(OomdContext& /* unused */) override {
+    ++prerun_count;
+  }
+
+  PluginRet run(OomdContext& /* unused */) override {
+    bool will_pause = pauses_left_ > 0;
+    if (will_pause) {
+      pauses_left_--;
+      return PluginRet::ASYNC_PAUSED;
+    } else {
+      pauses_left_ = pause_count_;
+      return PluginRet::CONTINUE;
+    }
+  }
+
+  static AsyncPausePlugin* create() {
+    return new AsyncPausePlugin();
+  }
+
+  ~AsyncPausePlugin() override = default;
+};
+
 class NoInitPlugin : public BasePlugin {
  public:
   int init(
@@ -164,6 +222,8 @@ REGISTER_PLUGIN(Continue, ContinuePlugin::create);
 REGISTER_PLUGIN(Stop, StopPlugin::create);
 REGISTER_PLUGIN(IncrementCount, IncrementCountPlugin::create);
 REGISTER_PLUGIN(StoreCount, StoreCountPlugin::create);
+REGISTER_PLUGIN(ControlledDetector, ControlledDetectorPlugin::create);
+REGISTER_PLUGIN(AsyncPause, AsyncPausePlugin::create);
 REGISTER_PLUGIN(NoInit, NoInitPlugin::create);
 
 } // namespace Oomd
@@ -175,6 +235,7 @@ class CompilerTest : public ::testing::Test {
     prerun_stored_count = 0;
     count = 0;
     stored_count = 0;
+    controlled_detector_on = false;
   }
 
   std::unique_ptr<::Oomd::Engine::Engine> compile() {
@@ -252,6 +313,125 @@ TEST_F(CompilerTest, MultiGroupIncrementCount) {
   }
 
   EXPECT_EQ(count, 6);
+}
+
+TEST_F(CompilerTest, AsyncAction) {
+  IR::Action cont{IR::Plugin{.name = "Continue"}};
+  IR::Action inc{IR::Plugin{.name = "IncrementCount"}};
+  IR::Action stop{IR::Plugin{.name = "Stop"}};
+  IR::Action pause{IR::Plugin{.name = "AsyncPause"}};
+
+  IR::DetectorGroup dg{
+      .name = "dg",
+      .detectors = {IR::Detector{IR::Plugin{.name = "Continue"}}}};
+
+  // Each enabled plugin will prerun() once, including action that's not taken.
+  root.rulesets = {
+      IR::Ruleset{.name = "async_pausing",
+                  .dgs = {dg},
+                  .acts = {inc,
+                           inc,
+                           pause, // (1)
+                           inc,
+                           inc,
+                           inc,
+                           pause, // (2)
+                           inc,
+                           stop}}, // (3)
+      IR::Ruleset{
+          .name = "concurrently_always_running", .dgs = {dg}, .acts = {inc}},
+  };
+
+  auto engine = compile();
+  ASSERT_TRUE(engine);
+
+  auto run_once = [&] {
+    const int count_before = count;
+    engine->prerun(context);
+    engine->runOnce(context);
+    int delta_count = count - count_before;
+    return delta_count;
+  };
+
+  // Run 3 times to check for ruleset's state is reset when finished executing
+  // action chain. behavior. AsyncPausePlugin resets itself.
+  for (int i = 0; i < 3; i++) {
+    // reset count on each run
+    count = 0;
+
+    EXPECT_EQ(run_once(), 3); // (1) + 1 from concurrently_always_running
+    // 2 more pauses in 3-run pause, each w/ 1 from concurrently_always_running
+    EXPECT_EQ(run_once(), 1);
+    EXPECT_EQ(run_once(), 1);
+    EXPECT_EQ(run_once(), 4); // (2) + 1 from concurrently_always_running
+    // 2 more pauses in 3-run pause
+    EXPECT_EQ(run_once(), 1);
+    EXPECT_EQ(run_once(), 1);
+    EXPECT_EQ(run_once(), 2); // (3) + 1 from concurrently_always_running
+  }
+}
+
+TEST_F(CompilerTest, TwoChainsIndependentlyPaused) {
+  IR::Action cont{IR::Plugin{.name = "Continue"}};
+  IR::Action inc{IR::Plugin{.name = "IncrementCount"}};
+  IR::Action stop{IR::Plugin{.name = "Stop"}};
+  IR::Action pause{IR::Plugin{.name = "AsyncPause"}};
+
+  IR::DetectorGroup always_yes{
+      .name = "dg",
+      .detectors = {IR::Detector{IR::Plugin{.name = "Continue"}}}};
+
+  // Each enabled plugin will prerun() once, including action that's not taken.
+  root.rulesets = {IR::Ruleset{.name = "A",
+                               .dgs = {always_yes},
+                               .acts = {inc,
+                                        inc,
+                                        pause, // (1)
+                                        inc,
+                                        inc,
+                                        inc,
+                                        pause, // (2)
+                                        inc,
+                                        stop}}, // (3)
+                   IR::Ruleset{.name = "B",
+                               .dgs = {IR::DetectorGroup{
+                                   .name = "ctld",
+                                   .detectors = {IR::Detector{IR::Plugin{
+                                       .name = "ControlledDetector"}}}}},
+                               .acts = {inc,
+                                        inc,
+                                        inc,
+                                        pause, // (4)
+                                        inc,
+                                        inc}}}; // (5)
+
+  auto engine = compile();
+  ASSERT_TRUE(engine);
+
+  auto run_once = [&] {
+    const int count_before = count;
+    engine->prerun(context);
+    engine->runOnce(context);
+    int delta_count = count - count_before;
+    return delta_count;
+  };
+
+  // Run 3 times to check for ruleset's state is reset when finished executing
+  // action chain. behavior. AsyncPausePlugin resets itself.
+  for (int i = 0; i < 1; i++) {
+    // reset count on each run
+    count = 0;
+
+    EXPECT_EQ(run_once(), 2); // A.1, B idle
+    EXPECT_EQ(run_once(), 0); // A.1 pause 2, B idle
+    controlled_detector_on = true; // while A is paused, start B
+    EXPECT_EQ(run_once(), 3); // A.1 pause 3, B.4
+    controlled_detector_on = false;
+    EXPECT_EQ(run_once(), 3); // A.2, B.4 pause 2
+    EXPECT_EQ(run_once(), 0); // A.2 pause 2, B.4 pause 3
+    EXPECT_EQ(run_once(), 2); // A.2 pause 3, B.5
+    EXPECT_EQ(run_once(), 1); // A.3, B idle
+  }
 }
 
 TEST_F(CompilerTest, IncrementCountNoop) {

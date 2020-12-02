@@ -71,7 +71,7 @@ conforming config is evaluated at runtime are described in the next section.
 
 ## Runtime evaluation rules
 
-* Every plugin must return CONTINUE or STOP.
+* Every plugin must return CONTINUE, STOP or ASYNC_PAUSE.
   * CONTINUE
     * For DETECTORs, noop
       chain
@@ -79,12 +79,22 @@ conforming config is evaluated at runtime are described in the next section.
   * STOP
     * For DETECTORs, evaluate the current DETECTOR_GROUP chain to false
     * For ACTIONs, abort execution of the current ACTION chain
+  * ASYNC_PAUSE
+    * For DETECTORs, not supported. If used, noop (in other words, CONTINUE)
+    * For ACTIONs, pause the action chain until the next event loop tick.
 
 * DETECTOR_GROUPs evaluate true if and only if all DETECTORs in the chain
   return CONTINUE
 
 * For each RULESET, if _any_ DETECTOR_GROUP fires, the associated ACTION chain
   will begin execution
+
+* ACTIONs may take multiple event loop ticks to complete. Returning
+  ASYNC_PAUSE allows other RULESETs and all DETECTORs to run concurrently. An
+  ACTION returning ASNYC_PAUSE will be run() again on the next tick, allowing it
+  to do more work and either re-ASYNC_PAUSE, or STOP or CONTINUE. If it
+  CONTINUEs, the ACTION chain will resume executing the subsequent ACTION
+  plugins.
 
 ### Notes
 

@@ -120,10 +120,6 @@ uint32_t Ruleset::runOnce(OomdContext& context) {
     }
   }
 
-  if (!run_actions) {
-    return 0;
-  }
-
   OOMD_SCOPE_EXIT {
     context.setActionContext({nullptr, "", ""});
   };
@@ -134,8 +130,33 @@ uint32_t Ruleset::runOnce(OomdContext& context) {
     return 0;
   }
 
+  if (active_async_plugin_ != std::nullopt) {
+    // clear active_async_plugin_ and save it to a temp
+    std::reference_wrapper<BasePlugin> target = active_async_plugin_.value();
+    active_async_plugin_ = std::nullopt;
+
+    for (auto&& it = action_group_.begin(); it != action_group_.end(); ++it) {
+      if (it->get() == &target.get()) {
+        return run_action_chain(it, action_group_.end(), context);
+      }
+    }
+  }
+
+  if (!run_actions) {
+    return 0;
+  }
+
   // Begin running action chain
-  for (const auto& action : action_group_) {
+  return run_action_chain(action_group_.begin(), action_group_.end(), context);
+}
+
+int Ruleset::run_action_chain(
+    std::vector<std::unique_ptr<BasePlugin>>::iterator action_chain_start,
+    std::vector<std::unique_ptr<BasePlugin>>::iterator action_chain_end,
+    OomdContext& context) {
+  for (; action_chain_start != action_chain_end; ++action_chain_start) {
+    const std::unique_ptr<BasePlugin>& action = *action_chain_start;
+
     if (!(silenced_logs_ & LogSources::ENGINE)) {
       OLOG << "Running Action=" << action->getName();
     }
@@ -163,6 +184,11 @@ uint32_t Ruleset::runOnce(OomdContext& context) {
                << " returned STOP. Terminating action chain.";
         }
         break; // break out of switch
+      case PluginRet::ASYNC_PAUSED:
+        active_async_plugin_ = std::make_optional(std::ref(*action.get()));
+        OLOG << "Action=" << action->getName()
+             << " returned ASYNC. Yielding action chain.";
+        return 0; // don't return 1 until action returns STOP
         // missing default to protect against future PluginRet vals
     }
 
