@@ -29,9 +29,7 @@ matrix:
       addons:
         apt:
           packages:
-            - clang-format
-   
-        
+            - clang-format        
  #adding code to run on power systems       
     - compiler: gcc
       arch: ppc64le
