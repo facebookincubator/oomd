@@ -463,23 +463,12 @@ bool Senpai::tick_immediate_backoff(
     return true;
   }
 
-  auto mem_pressure_maybe =
-      Fs::readMempressureAt(cgroup_ctx.fd(), Fs::PressureType::SOME);
-  if (!mem_pressure_maybe) {
-    return false;
-  }
-  auto io_pressure_maybe =
-      Fs::readIopressureAt(cgroup_ctx.fd(), Fs::PressureType::SOME);
-  if (!io_pressure_maybe) {
+  auto validate_maybe = validatePressure(cgroup_ctx);
+  if (!validate_maybe) {
     return false;
   }
 
-  // Only drive senpai if both short and long term pressure from memory and I/O
-  // are lower than target
-  if (std::max({mem_pressure_maybe->sec_10,
-                mem_pressure_maybe->sec_60,
-                io_pressure_maybe->sec_10,
-                io_pressure_maybe->sec_60}) < pressure_pct_) {
+  if (*validate_maybe) {
     auto limit_min_bytes_opt = getLimitMinBytes(cgroup_ctx);
     if (!limit_min_bytes_opt) {
       return false;
@@ -530,4 +519,25 @@ std::optional<Senpai::CgroupState> Senpai::initializeCgroup(
   return CgroupState(start_limit, *total_opt, interval_);
 }
 
+// Validate that pressure is low enough to drive Senpai
+SystemMaybe<bool> Senpai::validatePressure(
+    const CgroupContext& cgroup_ctx) const {
+  auto mem_pressure_maybe =
+      Fs::readMempressureAt(cgroup_ctx.fd(), Fs::PressureType::SOME);
+  if (!mem_pressure_maybe) {
+    return SYSTEM_ERROR(mem_pressure_maybe);
+  }
+  auto io_pressure_maybe =
+      Fs::readIopressureAt(cgroup_ctx.fd(), Fs::PressureType::SOME);
+  if (!io_pressure_maybe) {
+    return SYSTEM_ERROR(io_pressure_maybe);
+  }
+
+  // Only drive senpai if both short and long term pressure from memory and I/O
+  // are lower than target
+  return std::max({mem_pressure_maybe->sec_10,
+                   mem_pressure_maybe->sec_60,
+                   io_pressure_maybe->sec_10,
+                   io_pressure_maybe->sec_60}) < pressure_pct_;
+}
 } // namespace Oomd
