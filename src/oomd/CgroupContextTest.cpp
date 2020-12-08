@@ -520,7 +520,7 @@ TEST_F(CgroupContextTest, EffectiveSwapMax) {
 }
 
 TEST_F(CgroupContextTest, EffectiveSwapUtilPct) {
-  ctx_.setSystemContext(SystemContext{.swapused = 100, .swaptotal = 400});
+  ctx_.setSystemContext(SystemContext{.swaptotal = 400, .swapused = 100});
   F::materialize(F::makeDir(
       tempDir_,
       {F::makeDir(
@@ -567,7 +567,7 @@ TEST_F(CgroupContextTest, EffectiveSwapUtilPct) {
 
 TEST_F(CgroupContextTest, EffectiveSwapUtilPctNoSwap) {
   // Check that with no swap available on the root slice, this still works
-  ctx_.setSystemContext(SystemContext{.swapused = 0, .swaptotal = 0});
+  ctx_.setSystemContext(SystemContext{.swaptotal = 0, .swapused = 0});
   {
     auto cgroup_ctx =
         ASSERT_EXISTS(CgroupContext::make(ctx_, CgroupPath(tempDir_, "")));
