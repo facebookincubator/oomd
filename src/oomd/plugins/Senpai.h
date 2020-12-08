@@ -75,6 +75,7 @@ class Senpai : public Engine::BasePlugin {
   std::optional<int64_t> getLimitMinBytes(const CgroupContext& cgroup_ctx);
   std::optional<int64_t> getLimitMaxBytes(const CgroupContext& cgroup_ctx);
   SystemMaybe<bool> validatePressure(const CgroupContext& cgroup_ctx) const;
+  SystemMaybe<bool> validateSwap(const CgroupContext& cgroup_ctx) const;
 
   bool tick(const CgroupContext& cgroup_ctx, CgroupState& state);
   bool tick_immediate_backoff(
@@ -107,6 +108,8 @@ class Senpai : public Engine::BasePlugin {
   double max_backoff_{1.0};
   double coeff_probe_{10};
   double coeff_backoff_{20};
+  double swap_threshold_{0.8};
+  bool swap_validation_{false};
   bool immediate_backoff_{false};
 };
 

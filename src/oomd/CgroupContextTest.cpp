@@ -519,6 +519,63 @@ TEST_F(CgroupContextTest, EffectiveSwapMax) {
   ASSERT_EQ(*cgroup_ctx.effective_swap_max(), 1000);
 }
 
+TEST_F(CgroupContextTest, EffectiveSwapUtilPct) {
+  ctx_.setSystemContext(SystemContext{.swapused = 100, .swaptotal = 400});
+  F::materialize(F::makeDir(
+      tempDir_,
+      {F::makeDir(
+           "system.slice",
+           {F::makeFile("cgroup.controllers"),
+            F::makeFile("memory.swap.max", "max\n"),
+            F::makeFile("memory.swap.current", "100\n"),
+            F::makeDir(
+                "oomd.service",
+                {
+                    F::makeFile("cgroup.controllers"),
+                    F::makeFile("memory.swap.max", "200\n"),
+                    F::makeFile("memory.swap.current", "100\n"),
+                })}),
+       F::makeDir(
+           "foo.slice",
+           {F::makeFile("cgroup.controllers"),
+            F::makeFile("memory.swap.max", "0\n"),
+            F::makeFile("memory.swap.current", "0\n")})}));
+
+  {
+    // system.slice is limited by the total amount of the swap on the
+    // machine - 100 / 400 = 0.25
+    auto cgroup_ctx = ASSERT_EXISTS(
+        CgroupContext::make(ctx_, CgroupPath(tempDir_, "system.slice")));
+    ASSERT_TRUE(cgroup_ctx.effective_swap_util_pct());
+    ASSERT_EQ(*cgroup_ctx.effective_swap_util_pct(), 0.25);
+  }
+  {
+    // oomd.service is limited by memory.swap.max
+    auto cgroup_ctx = ASSERT_EXISTS(CgroupContext::make(
+        ctx_, CgroupPath(tempDir_, "system.slice/oomd.service")));
+    ASSERT_TRUE(cgroup_ctx.effective_swap_util_pct());
+    ASSERT_EQ(*cgroup_ctx.effective_swap_util_pct(), 0.5);
+  }
+  {
+    // swap.max of 0 on foo.slice results in 0% util
+    auto cgroup_ctx = ASSERT_EXISTS(
+        CgroupContext::make(ctx_, CgroupPath(tempDir_, "foo.slice")));
+    ASSERT_TRUE(cgroup_ctx.effective_swap_util_pct());
+    ASSERT_EQ(*cgroup_ctx.effective_swap_util_pct(), 0);
+  }
+}
+
+TEST_F(CgroupContextTest, EffectiveSwapUtilPctNoSwap) {
+  // Check that with no swap available on the root slice, this still works
+  ctx_.setSystemContext(SystemContext{.swapused = 0, .swaptotal = 0});
+  {
+    auto cgroup_ctx =
+        ASSERT_EXISTS(CgroupContext::make(ctx_, CgroupPath(tempDir_, "")));
+    ASSERT_TRUE(cgroup_ctx.effective_swap_util_pct());
+    ASSERT_EQ(*cgroup_ctx.effective_swap_util_pct(), 0);
+  }
+}
+
 /*
  * Verify that CgroupContext won't read from a recreated cgroup.
  */

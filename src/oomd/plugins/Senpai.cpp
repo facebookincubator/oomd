@@ -90,6 +90,18 @@ int Senpai::init(
     }
   }
 
+  if (args.find("swap_threshold") != args.end()) {
+    swap_threshold_ = std::stod(args.at("swap_threshold"));
+  }
+
+  if (args.find("swap_validation") != args.end()) {
+    const std::string& val = args.at("swap_validation");
+
+    if (val == "true" || val == "True" || val == "1") {
+      swap_validation_ = true;
+    }
+  }
+
   if (args.find("log_interval") != args.end()) {
     log_interval_ = std::stoull(args.at("log_interval"));
   }
@@ -463,12 +475,20 @@ bool Senpai::tick_immediate_backoff(
     return true;
   }
 
-  auto validate_maybe = validatePressure(cgroup_ctx);
-  if (!validate_maybe) {
+  auto validate_pressure_maybe = validatePressure(cgroup_ctx);
+  if (!validate_pressure_maybe) {
     return false;
   }
 
-  if (*validate_maybe) {
+  auto validate = *validate_pressure_maybe;
+  if (swap_validation_) {
+    auto validate_swap_maybe = validateSwap(cgroup_ctx);
+    if (!validate_swap_maybe) {
+      return false;
+    }
+    validate = validate && *validate_swap_maybe;
+  }
+  if (validate) {
     auto limit_min_bytes_opt = getLimitMinBytes(cgroup_ctx);
     if (!limit_min_bytes_opt) {
       return false;
@@ -539,5 +559,32 @@ SystemMaybe<bool> Senpai::validatePressure(
                    mem_pressure_maybe->sec_60,
                    io_pressure_maybe->sec_10,
                    io_pressure_maybe->sec_60}) < pressure_pct_;
+}
+
+// Validate that swap is sufficient to run Senpai
+SystemMaybe<bool> Senpai::validateSwap(const CgroupContext& cgroup_ctx) const {
+  const auto& system_ctx = cgroup_ctx.oomd_ctx().getSystemContext();
+  // If there's no swap at all, then there's nothing to validate
+  if (system_ctx.swaptotal == 0 || system_ctx.swappiness == 0) {
+    return true;
+  }
+
+  // Similarly if effective swap.max is zero, nothing to validate
+  auto effective_swap_max_opt = cgroup_ctx.effective_swap_max();
+  if (!effective_swap_max_opt) {
+    return SYSTEM_ERROR(ENOENT);
+  }
+  if (*effective_swap_max_opt == 0) {
+    return true;
+  }
+
+  // We validate that the effective swap usage is below the defined
+  // threshold. This is useful to prevent OOM killing due to swap
+  // depletion.
+  auto effective_swap_util_pct_opt = cgroup_ctx.effective_swap_util_pct();
+  if (!effective_swap_util_pct_opt) {
+    return SYSTEM_ERROR(ENOENT);
+  }
+  return *effective_swap_util_pct_opt >= swap_threshold_;
 }
 } // namespace Oomd

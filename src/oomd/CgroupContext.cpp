@@ -14,7 +14,6 @@
  * with this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
-
 #include "oomd/CgroupContext.h"
 #include <unistd.h>
 
@@ -125,6 +124,7 @@ PROXY(is_populated, Fs::readIsPopulatedAt(cgroup_dir_))
 PROXY(kill_preference, Fs::readKillPreferenceAt(cgroup_dir_))
 PROXY(oom_group, Fs::readMemoryOomGroupAt(cgroup_dir_))
 PROXY(effective_swap_max, getEffectiveSwapMax(err))
+PROXY(effective_swap_util_pct, getEffectiveSwapUtilPct(err))
 PROXY(io_cost_cumulative, getIoCostCumulative(err))
 PROXY(pg_scan_cumulative, getPgScanCumulative(err))
 PROXY(memory_protection, getMemoryProtection(err))
@@ -262,13 +262,60 @@ std::optional<int64_t> CgroupContext::getEffectiveSwapMax(Error* err) const {
   }
 }
 
+// Looks up the hierarchy to determine which level has the highest
+// swap utilization (usage / max) and returns that value. This is
+// useful for detecting or avoiding swap depletion.
+std::optional<double> CgroupContext::getEffectiveSwapUtilPct(Error* err) const {
+  if (cgroup_.isRoot()) {
+    const auto& sys = ctx_.getSystemContext();
+    if (sys.swaptotal == 0) {
+      return 0;
+    }
+    return static_cast<double>(sys.swapused) /
+        static_cast<double>(sys.swaptotal);
+  }
+
+  auto swap_max_opt = swap_max(err);
+  if (!swap_max_opt) {
+    return std::nullopt;
+  }
+
+  if (*swap_max_opt == 0) {
+    return 0;
+  }
+
+  auto swap_usage_opt = swap_usage(err);
+  if (!swap_usage_opt) {
+    return std::nullopt;
+  }
+
+  auto local_util_pct =
+      static_cast<double>(*swap_usage_opt) / static_cast<double>(*swap_max_opt);
+  auto parent_cgroup = cgroup_.getParent();
+  auto parent_ctx = ctx_.addToCacheAndGet(parent_cgroup);
+  if (!parent_ctx) {
+    if (err) {
+      *err = Error::INVALID_CGROUP;
+    }
+    return std::nullopt;
+  }
+
+  if (auto parent_effective_swap_util_pct =
+          parent_ctx->get().effective_swap_util_pct(err);
+      !parent_effective_swap_util_pct) {
+    return std::nullopt;
+  } else {
+    return std::max(*parent_effective_swap_util_pct, local_util_pct);
+  }
+}
+
 /*
  * Calculate memory protection, taking into account actual distribution of
  * memory protection.
  *
- * Let's say R(cgrp) is the raw protection amount a cgroup has according to its
- * own config, P(cgrp) is the amount of actual protection it gets. This function
- * returns P(cgrp).
+ * Let's say R(cgrp) is the raw protection amount a cgroup has according to
+ * its own config, P(cgrp) is the amount of actual protection it gets. This
+ * function returns P(cgrp).
  *
  * Let R(cgrp) = min(cgrp.memory.current, max(cgrp.memory.min,
  * cgrp.memory.low))
@@ -335,8 +382,9 @@ std::optional<double> CgroupContext::getIoCostCumulative(Error* err) const {
         break;
     }
     // Dot product between dev io stat and io cost coeffs. A more sensible way
-    // is to do dot product between rate of change (bandwidth, iops) with coeffs
-    // but since the coeffs are constant, we can calculate rate of change later.
+    // is to do dot product between rate of change (bandwidth, iops) with
+    // coeffs but since the coeffs are constant, we can calculate rate of
+    // change later.
     cost += stat.rios * coeffs.read_iops + stat.rbytes * coeffs.readbw +
         stat.wios * coeffs.write_iops + stat.wbytes * coeffs.writebw +
         stat.dios * coeffs.trim_iops + stat.dbytes * coeffs.trimbw;
