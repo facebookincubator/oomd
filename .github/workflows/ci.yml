@@ -13,7 +13,7 @@ jobs:
     name: Check clang format
     runs-on: ubuntu-latest
     steps:
-      - run: sudo apt install clang-format
+      - run: sudo apt-get install clang-format
       - name: Checkout code
         uses: actions/checkout@v2
       - run: ./clang-format.sh
@@ -33,12 +33,13 @@ jobs:
       CXX: ${{ matrix.cxx }}
     steps:
       - name: Install dependencies
-        run: sudo apt install \
-          pkg-config \
-          libsystemd-dev \
-          libjsoncpp-dev \
-          googletest \
-          meson \
+        run: >
+          sudo apt-get install
+          pkg-config
+          libsystemd-dev
+          libjsoncpp-dev
+          googletest
+          meson
           g++-8
       - name: Checkout code
         uses: actions/checkout@v2
