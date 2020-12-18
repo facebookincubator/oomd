@@ -243,7 +243,9 @@ void Fs::removePrefix(std::string& str, const std::string& prefix) {
 
 /* Reads a file and returns a newline separated vector of strings */
 SystemMaybe<std::vector<std::string>> Fs::readFileByLine(
-    const std::string& path) {
+    const std::string& path,
+    const char delim
+) {
   std::ifstream f(path, std::ios::in);
   if (!f.is_open()) {
     return SYSTEM_ERROR(ENOENT);
@@ -251,7 +253,7 @@ SystemMaybe<std::vector<std::string>> Fs::readFileByLine(
 
   std::string s;
   std::vector<std::string> v;
-  while (std::getline(f, s)) {
+  while (std::getline(f, s, f.widen(delim))) {
     v.push_back(std::move(s));
   }
 

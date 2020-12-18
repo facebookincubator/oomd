@@ -166,7 +166,8 @@ class Fs {
 
   /* Reads a file and returns a newline separated vector of strings */
   static SystemMaybe<std::vector<std::string>> readFileByLine(
-      const std::string& path);
+      const std::string& path,
+      const char delim = '\n');
   /*
    * Same as variant taking string as argument except rvalue Fd is used, which
    * will be closed right after the call as it is read as a whole and we don't
