@@ -280,10 +280,10 @@ SystemMaybe<int64_t> Senpai::getReclaimableBytes(
   int64_t swappable = 0;
   const auto& system_ctx = cgroup_ctx.oomd_ctx().getSystemContext();
   if (system_ctx.swaptotal > 0 && system_ctx.swappiness > 0) {
-    auto effective_swap_max_opt = cgroup_ctx.effective_swap_max();
-    if (!effective_swap_max_opt) {
+    auto effective_swap_free_opt = cgroup_ctx.effective_swap_free();
+    if (!effective_swap_free_opt) {
       return SYSTEM_ERROR(ENOENT);
-    } else if (*effective_swap_max_opt > 0) {
+    } else if (*effective_swap_free_opt > 0) {
       auto active_anon_pos = stat_opt->find("active_anon");
       auto inactive_anon_pos = stat_opt->find("inactive_anon");
       if (active_anon_pos == stat_opt->end() ||
@@ -291,9 +291,7 @@ SystemMaybe<int64_t> Senpai::getReclaimableBytes(
         return SYSTEM_ERROR(EINVAL);
       }
       auto anon_size = active_anon_pos->second + inactive_anon_pos->second;
-      // NB: Consider all anon swappable, as senpai should backoff well before
-      // swap depletion.
-      swappable = anon_size;
+      swappable = std::min(*effective_swap_free_opt, anon_size);
     }
   }
 
