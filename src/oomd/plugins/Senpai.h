@@ -76,6 +76,8 @@ class Senpai : public Engine::BasePlugin {
   std::optional<int64_t> getLimitMaxBytes(const CgroupContext& cgroup_ctx);
   SystemMaybe<bool> validatePressure(const CgroupContext& cgroup_ctx) const;
   SystemMaybe<bool> validateSwap(const CgroupContext& cgroup_ctx) const;
+  SystemMaybe<double> calculateSwappinessFactor(
+      const CgroupContext& cgroup_ctx) const;
 
   bool tick(const CgroupContext& cgroup_ctx, CgroupState& state);
   bool tick_immediate_backoff(
@@ -111,6 +113,7 @@ class Senpai : public Engine::BasePlugin {
   double swap_threshold_{0.8};
   bool swap_validation_{false};
   bool immediate_backoff_{false};
+  bool modulate_swappiness_{false};
 };
 
 } // namespace Oomd

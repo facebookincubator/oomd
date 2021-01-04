@@ -23,6 +23,7 @@
 #include "oomd/Log.h"
 #include "oomd/PluginRegistry.h"
 #include "oomd/util/Fs.h"
+#include "oomd/util/ScopeGuard.h"
 #include "oomd/util/Util.h"
 
 namespace Oomd {
@@ -99,6 +100,14 @@ int Senpai::init(
 
     if (val == "true" || val == "True" || val == "1") {
       swap_validation_ = true;
+    }
+  }
+
+  if (args.find("modulate_swappiness") != args.end()) {
+    const std::string& val = args.at("modulate_swappiness");
+
+    if (val == "true" || val == "True" || val == "1") {
+      modulate_swappiness_ = true;
     }
   }
 
@@ -501,6 +510,23 @@ bool Senpai::tick_immediate_backoff(
           (*current_opt - *limit_min_bytes_opt) * (1 - max_probe_);
       // Memory high is always a multiple of 4K
       limit &= ~0xFFF;
+
+      int original_swappiness;
+      if (modulate_swappiness_) {
+        original_swappiness =
+            cgroup_ctx.oomd_ctx().getSystemContext().swappiness;
+        auto swappiness_factor_maybe = calculateSwappinessFactor(cgroup_ctx);
+        if (!swappiness_factor_maybe) {
+          return false;
+        }
+        Fs::setSwappiness(original_swappiness * (*swappiness_factor_maybe));
+      }
+      OOMD_SCOPE_EXIT {
+        if (modulate_swappiness_) {
+          Fs::setSwappiness(original_swappiness);
+        }
+      };
+
       // Poking by setting memory limit and immediately resetting it, which
       // prevents sudden allocation later from triggering thrashing
       if (!writeMemhigh(cgroup_ctx, limit) || !resetMemhigh(cgroup_ctx)) {
@@ -584,5 +610,21 @@ SystemMaybe<bool> Senpai::validateSwap(const CgroupContext& cgroup_ctx) const {
     return SYSTEM_ERROR(ENOENT);
   }
   return *effective_swap_util_pct_opt >= swap_threshold_;
+}
+
+// Calculate swappiness factor (between 0 and 1) for a cgroup to modulate swap
+// behavior.
+SystemMaybe<double> Senpai::calculateSwappinessFactor(
+    const CgroupContext& cgroup_ctx) const {
+  if (swap_threshold_ <= 0) {
+    return 0;
+  }
+  auto effective_swap_util_pct_opt = cgroup_ctx.effective_swap_util_pct();
+  if (!effective_swap_util_pct_opt) {
+    return SYSTEM_ERROR(ENOENT);
+  }
+  // If cgroup has swap usage close to or above threshold, factor will be close
+  // to or equal to 0. If instead usage is close to 0, factor approaches 1.
+  return 1.0 - std::min(1.0, *effective_swap_util_pct_opt / swap_threshold_);
 }
 } // namespace Oomd
