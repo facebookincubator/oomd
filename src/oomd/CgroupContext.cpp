@@ -125,6 +125,7 @@ PROXY(kill_preference, Fs::readKillPreferenceAt(cgroup_dir_))
 PROXY(oom_group, Fs::readMemoryOomGroupAt(cgroup_dir_))
 PROXY(effective_swap_max, getEffectiveSwapMax(err))
 PROXY(effective_swap_util_pct, getEffectiveSwapUtilPct(err))
+PROXY(effective_swap_free, getEffectiveSwapFree(err))
 PROXY(io_cost_cumulative, getIoCostCumulative(err))
 PROXY(pg_scan_cumulative, getPgScanCumulative(err))
 PROXY(memory_protection, getMemoryProtection(err))
@@ -259,6 +260,45 @@ std::optional<int64_t> CgroupContext::getEffectiveSwapMax(Error* err) const {
     return std::nullopt;
   } else {
     return std::min(*parent_effective_swap_max, *self_swap_max);
+  }
+}
+
+// Looks up the hierarchy to determine which level has the lowest
+// swap free (max - usage) and returns that value. This is
+// useful for detecting or avoiding swap depletion. Value may be
+// negative.
+std::optional<int64_t> CgroupContext::getEffectiveSwapFree(Error* err) const {
+  if (cgroup_.isRoot()) {
+    const auto& sys = ctx_.getSystemContext();
+    return sys.swaptotal - sys.swapused;
+  }
+
+  auto swap_max_opt = swap_max(err);
+  if (!swap_max_opt) {
+    return std::nullopt;
+  }
+
+  auto swap_usage_opt = swap_usage(err);
+  if (!swap_usage_opt) {
+    return std::nullopt;
+  }
+
+  auto local_free = *swap_max_opt - *swap_usage_opt;
+  auto parent_cgroup = cgroup_.getParent();
+  auto parent_ctx = ctx_.addToCacheAndGet(parent_cgroup);
+  if (!parent_ctx) {
+    if (err) {
+      *err = Error::INVALID_CGROUP;
+    }
+    return std::nullopt;
+  }
+
+  if (auto parent_effective_swap_free =
+          parent_ctx->get().effective_swap_free(err);
+      !parent_effective_swap_free) {
+    return std::nullopt;
+  } else {
+    return std::min(*parent_effective_swap_free, local_free);
   }
 }
 

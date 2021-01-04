@@ -119,6 +119,9 @@ class CgroupContext {
   std::optional<bool> oom_group(Error* err = nullptr) const;
   // swap_max taking into account ancestor configs
   std::optional<int64_t> effective_swap_max(Error* err = nullptr) const;
+  // Available swap for this cgroup taking into account usage and limits of
+  // ancestors. Value may be negative.
+  std::optional<int64_t> effective_swap_free(Error* err = nullptr) const;
   // Largest percentage of swap consumed by this cgroup taking into
   // account usage and limits of ancestors
   std::optional<double> effective_swap_util_pct(Error* err = nullptr) const;
@@ -162,6 +165,7 @@ class CgroupContext {
   std::optional<ResourcePressure> getIoPressure() const;
   std::optional<int64_t> getMemcurrent() const;
   std::optional<int64_t> getEffectiveSwapMax(Error* err) const;
+  std::optional<int64_t> getEffectiveSwapFree(Error* err) const;
   std::optional<double> getEffectiveSwapUtilPct(Error* err) const;
   std::optional<int64_t> getMemoryProtection(Error* err) const;
   std::optional<double> getIoCostCumulative(Error* err) const;
@@ -191,6 +195,7 @@ class CgroupContext {
     std::optional<int64_t> swap_max;
     // Cached derived data
     std::optional<int64_t> effective_swap_max;
+    std::optional<int64_t> effective_swap_free;
     std::optional<double> effective_swap_util_pct;
     std::optional<int64_t> memory_protection;
     std::optional<double> io_cost_cumulative;
