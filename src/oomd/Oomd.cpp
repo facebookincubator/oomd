@@ -17,6 +17,7 @@
 
 #include "oomd/Oomd.h"
 
+#include <cmath>
 #include <thread>
 
 #include "oomd/Log.h"
@@ -77,6 +78,25 @@ void Oomd::updateContext() {
   auto swappiness = Fs::getSwappiness();
   if (swappiness) {
     system_ctx.swappiness = *swappiness;
+  }
+
+  if (auto vmstat_opt = Fs::getVmstat()) {
+    system_ctx.vmstat = *vmstat_opt;
+
+    // Factor for calculating moving average
+    const static double factor60 = std::exp(-interval_.count() / 60.0);
+    const static double factor300 = std::exp(-interval_.count() / 300.0);
+
+    auto& prev_system_ctx = ctx_.getSystemContext();
+    if (prev_system_ctx.vmstat.size() > 0) {
+      auto swapout_bps = (system_ctx.vmstat.at("pswpout") -
+                          prev_system_ctx.vmstat.at("pswpout")) *
+          4096.0 / interval_.count();
+      system_ctx.swapout_bps_60 = swapout_bps +
+          factor60 * (prev_system_ctx.swapout_bps_60 - swapout_bps);
+      system_ctx.swapout_bps_300 = swapout_bps +
+          factor300 * (prev_system_ctx.swapout_bps_300 - swapout_bps);
+    }
   }
 
   ctx_.setSystemContext(system_ctx);

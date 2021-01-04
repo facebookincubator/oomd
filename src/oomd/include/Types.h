@@ -77,6 +77,10 @@ struct SystemContext {
   uint64_t swaptotal{0};
   uint64_t swapused{0};
   int swappiness{0};
+  std::unordered_map<std::string, int64_t> vmstat{};
+  // moving avg swap out rate derived from vmstat[pswpout]
+  double swapout_bps_60{0};
+  double swapout_bps_300{0};
 };
 
 enum struct KillPreference {

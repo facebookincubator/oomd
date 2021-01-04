@@ -111,6 +111,7 @@ class Senpai : public Engine::BasePlugin {
   double coeff_probe_{10};
   double coeff_backoff_{20};
   double swap_threshold_{0.8};
+  int64_t swapout_bps_threshold_{3ull << 20};
   bool swap_validation_{false};
   bool immediate_backoff_{false};
   bool modulate_swappiness_{false};

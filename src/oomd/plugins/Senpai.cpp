@@ -95,6 +95,10 @@ int Senpai::init(
     swap_threshold_ = std::stod(args.at("swap_threshold"));
   }
 
+  if (args.find("swapout_bps_threshold") != args.end()) {
+    swapout_bps_threshold_ = std::stoull(args.at("swapout_bps_threshold"));
+  }
+
   if (args.find("swap_validation") != args.end()) {
     const std::string& val = args.at("swap_validation");
 
@@ -619,12 +623,29 @@ SystemMaybe<double> Senpai::calculateSwappinessFactor(
   if (swap_threshold_ <= 0) {
     return 0;
   }
+
+  auto swapout_bps_60 = cgroup_ctx.oomd_ctx().getSystemContext().swapout_bps_60;
+  auto swapout_bps_300 =
+      cgroup_ctx.oomd_ctx().getSystemContext().swapout_bps_300;
+  auto swapout_bps = std::max(swapout_bps_60, swapout_bps_300);
+  if (swapout_bps >= swapout_bps_threshold_) {
+    return 0;
+  }
+  // If system has swapout bps close to or above threshold, factor will be close
+  // to or equal to 0. If instead rate is close to 0, factor approaches 1.
+  auto limit_by_rate = 1.0 - swapout_bps / swapout_bps_threshold_;
+
   auto effective_swap_util_pct_opt = cgroup_ctx.effective_swap_util_pct();
   if (!effective_swap_util_pct_opt) {
     return SYSTEM_ERROR(ENOENT);
   }
+  if (*effective_swap_util_pct_opt >= swap_threshold_) {
+    return 0;
+  }
   // If cgroup has swap usage close to or above threshold, factor will be close
   // to or equal to 0. If instead usage is close to 0, factor approaches 1.
-  return 1.0 - std::min(1.0, *effective_swap_util_pct_opt / swap_threshold_);
+  auto limit_by_size = 1.0 - *effective_swap_util_pct_opt / swap_threshold_;
+
+  return std::min(limit_by_rate, limit_by_size);
 }
 } // namespace Oomd
