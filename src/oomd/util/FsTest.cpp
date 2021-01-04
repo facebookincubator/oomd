@@ -461,3 +461,13 @@ TEST_F(FsTest, WriteMemoryHighTmp) {
   auto memhightmp = ASSERT_SYS_OK(Fs::readMemhightmpAt(dir));
   EXPECT_EQ(memhightmp, 54321);
 }
+
+TEST_F(FsTest, Swappiness) {
+  using F = Fixture;
+  auto path = fixture_.fsDataDir() + "/swappiness";
+  F::materialize(F::makeFile(path));
+
+  ASSERT_SYS_OK(Fs::setSwappiness(42, path));
+  auto swappiness = ASSERT_SYS_OK(Fs::getSwappiness(path));
+  EXPECT_EQ(swappiness, 42);
+}

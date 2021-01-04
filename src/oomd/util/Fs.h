@@ -80,6 +80,8 @@ class Fs {
    public:
     static SystemMaybe<Fd>
     openat(const DirFd& dirfd, const std::string& path, bool read_only = true);
+    // Not safe for accessing cgroup control files. Use Openat instead.
+    static SystemMaybe<Fd> open(const std::string& path, bool read_only = true);
 
     explicit Fd(int fd) : fd_(fd) {}
     Fd() = delete;
@@ -265,6 +267,14 @@ class Fs {
   static SystemMaybe<DeviceType> getDeviceType(
       const std::string& dev_id,
       const std::string& path = "/sys/dev/block");
+
+  // Return system swappiness
+  static SystemMaybe<int> getSwappiness(
+      const std::string& path = "/proc/sys/vm/swappiness");
+
+  static SystemMaybe<Unit> setSwappiness(
+      int swappiness,
+      const std::string& path = "/proc/sys/vm/swappiness");
 
  private:
   static std::unordered_map<std::string, int64_t> getMemstatLikeFromLines(

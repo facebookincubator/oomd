@@ -74,6 +74,15 @@ Fs::Fd::openat(const DirFd& dirfd, const std::string& path, bool read_only) {
   return Fd(fd);
 }
 
+SystemMaybe<Fs::Fd> Fs::Fd::open(const std::string& path, bool read_only) {
+  int flags = read_only ? O_RDONLY : O_WRONLY;
+  const auto fd = ::open(path.c_str(), flags);
+  if (fd == -1) {
+    return SYSTEM_ERROR(errno);
+  }
+  return Fd(fd);
+}
+
 SystemMaybe<uint64_t> Fs::Fd::inode() const {
   struct ::stat buf;
   if (::fstat(fd_, &buf) == 0) {
@@ -881,6 +890,21 @@ SystemMaybe<DeviceType> Fs::getDeviceType(
     }
   }
   return SYSTEM_ERROR(EINVAL, deviceTypeFile);
+}
+
+SystemMaybe<int> Fs::getSwappiness(const std::string& path) {
+  auto str_swappiness = readFileByLine(Fd::open(path));
+  if (!str_swappiness) {
+    return SYSTEM_ERROR(str_swappiness.error());
+  }
+  if (str_swappiness->size() != 1) {
+    return SYSTEM_ERROR(EINVAL, path, " malformed");
+  }
+  return std::stoi((*str_swappiness)[0]);
+}
+
+SystemMaybe<Unit> Fs::setSwappiness(int swappiness, const std::string& path) {
+  return writeControlFileAt(Fd::open(path, false), std::to_string(swappiness));
 }
 
 } // namespace Oomd

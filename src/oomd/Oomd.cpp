@@ -74,12 +74,9 @@ void Oomd::updateContext() {
     }
   }
 
-  auto swappiness = Fs::readFileByLine("/proc/sys/vm/swappiness");
+  auto swappiness = Fs::getSwappiness();
   if (swappiness) {
-    OCHECK_EXCEPT(
-        swappiness->size() == 1,
-        std::runtime_error("/proc/sys/vm/swappiness malformed"));
-    system_ctx.swappiness = std::stoi((*swappiness)[0]);
+    system_ctx.swappiness = *swappiness;
   }
 
   ctx_.setSystemContext(system_ctx);
