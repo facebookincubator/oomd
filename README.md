@@ -30,13 +30,7 @@ Facebook, we've regularly seen 30 minute host lockups go away entirely.
 
 ## Installing from RPMs on Fedora
 
-RPMs are currently available for Fedora 30+ from a COPR repository.
-
-You can enable the COPR repository for oomd with:
-
-    $ sudo dnf copr enable filbranden/oomd
-
-Then install oomd with:
+oomd is packaged in Fedora as of Fedora 32 and can be installed with:
 
     $ sudo dnf install oomd
 
