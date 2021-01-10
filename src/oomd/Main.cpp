@@ -152,12 +152,13 @@ static std::unique_ptr<Oomd::Config2::IR::Root> parseConfig(
 static Oomd::IOCostCoeffs parseCoeffs(const std::string& str_coeffs) {
   Oomd::IOCostCoeffs coeffs = {};
   auto parts = Oomd::Util::split(str_coeffs, ',');
-  auto coeff_fields = {&coeffs.read_iops,
-                       &coeffs.readbw,
-                       &coeffs.write_iops,
-                       &coeffs.writebw,
-                       &coeffs.trim_iops,
-                       &coeffs.trimbw};
+  auto coeff_fields = {
+      &coeffs.read_iops,
+      &coeffs.readbw,
+      &coeffs.write_iops,
+      &coeffs.writebw,
+      &coeffs.trim_iops,
+      &coeffs.trimbw};
 
   size_t idx = 0;
   for (auto& coeff_field : coeff_fields) {

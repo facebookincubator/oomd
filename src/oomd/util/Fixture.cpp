@@ -36,24 +36,26 @@ namespace Oomd {
 Fixture::DirEntryPair Fixture::makeFile(
     const std::string& name,
     const std::string& content) {
-  return {name,
-          DirEntry([content](const std::string& path, const std::string& name) {
-            writeChecked(path + "/" + name, content);
-          })};
+  return {
+      name,
+      DirEntry([content](const std::string& path, const std::string& name) {
+        writeChecked(path + "/" + name, content);
+      })};
 }
 
 // static
 Fixture::DirEntryPair Fixture::makeDir(
     const std::string& name,
     std::unordered_map<std::string, DirEntry> entries) {
-  return {name,
-          DirEntry([entries](const std::string& path, const std::string& name) {
-            mkdirsChecked(name, path);
-            const auto newPath = path + "/" + name;
-            for (const auto& kv : entries) {
-              kv.second.materialize(newPath, kv.first);
-            }
-          })};
+  return {
+      name,
+      DirEntry([entries](const std::string& path, const std::string& name) {
+        mkdirsChecked(name, path);
+        const auto newPath = path + "/" + name;
+        for (const auto& kv : entries) {
+          kv.second.materialize(newPath, kv.first);
+        }
+      })};
 }
 
 const char* getTempDir() {

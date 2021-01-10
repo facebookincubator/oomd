@@ -161,13 +161,13 @@ bool BaseKillPlugin::tryToKillSomething(
         // ranked sibling is on top
         reverse(sorted.begin(), sorted.end());
         for (const auto& cgroup_ctx : sorted) {
-          stack.emplace(
-              KillCandidate{.cgroup_ctx = cgroup_ctx,
-                            // kill_root is nullopt when peers are themselves
-                            // the roots, in the first call. Each cgroup is then
-                            // its own kill_root.
-                            .kill_root = kill_root.value_or(cgroup_ctx),
-                            .peers = shared_peers});
+          stack.emplace(KillCandidate{
+              .cgroup_ctx = cgroup_ctx,
+              // kill_root is nullopt when peers are themselves
+              // the roots, in the first call. Each cgroup is then
+              // its own kill_root.
+              .kill_root = kill_root.value_or(cgroup_ctx),
+              .peers = shared_peers});
         }
       };
 

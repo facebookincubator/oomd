@@ -583,10 +583,11 @@ SystemMaybe<bool> Senpai::validatePressure(
 
   // Only drive senpai if both short and long term pressure from memory and I/O
   // are lower than target
-  return std::max({mem_pressure_maybe->sec_10,
-                   mem_pressure_maybe->sec_60,
-                   io_pressure_maybe->sec_10,
-                   io_pressure_maybe->sec_60}) < pressure_pct_;
+  return std::max(
+             {mem_pressure_maybe->sec_10,
+              mem_pressure_maybe->sec_60,
+              io_pressure_maybe->sec_10,
+              io_pressure_maybe->sec_60}) < pressure_pct_;
 }
 
 // Validate that swap is sufficient to run Senpai

@@ -327,17 +327,19 @@ TEST_F(CompilerTest, AsyncAction) {
 
   // Each enabled plugin will prerun() once, including action that's not taken.
   root.rulesets = {
-      IR::Ruleset{.name = "async_pausing",
-                  .dgs = {dg},
-                  .acts = {inc,
-                           inc,
-                           pause, // (1)
-                           inc,
-                           inc,
-                           inc,
-                           pause, // (2)
-                           inc,
-                           stop}}, // (3)
+      IR::Ruleset{
+          .name = "async_pausing",
+          .dgs = {dg},
+          .acts =
+              {inc,
+               inc,
+               pause, // (1)
+               inc,
+               inc,
+               inc,
+               pause, // (2)
+               inc,
+               stop}}, // (3)
       IR::Ruleset{
           .name = "concurrently_always_running", .dgs = {dg}, .acts = {inc}},
   };
@@ -382,28 +384,33 @@ TEST_F(CompilerTest, TwoChainsIndependentlyPaused) {
       .detectors = {IR::Detector{IR::Plugin{.name = "Continue"}}}};
 
   // Each enabled plugin will prerun() once, including action that's not taken.
-  root.rulesets = {IR::Ruleset{.name = "A",
-                               .dgs = {always_yes},
-                               .acts = {inc,
-                                        inc,
-                                        pause, // (1)
-                                        inc,
-                                        inc,
-                                        inc,
-                                        pause, // (2)
-                                        inc,
-                                        stop}}, // (3)
-                   IR::Ruleset{.name = "B",
-                               .dgs = {IR::DetectorGroup{
-                                   .name = "ctld",
-                                   .detectors = {IR::Detector{IR::Plugin{
-                                       .name = "ControlledDetector"}}}}},
-                               .acts = {inc,
-                                        inc,
-                                        inc,
-                                        pause, // (4)
-                                        inc,
-                                        inc}}}; // (5)
+  root.rulesets = {
+      IR::Ruleset{
+          .name = "A",
+          .dgs = {always_yes},
+          .acts =
+              {inc,
+               inc,
+               pause, // (1)
+               inc,
+               inc,
+               inc,
+               pause, // (2)
+               inc,
+               stop}}, // (3)
+      IR::Ruleset{
+          .name = "B",
+          .dgs = {IR::DetectorGroup{
+              .name = "ctld",
+              .detectors = {IR::Detector{
+                  IR::Plugin{.name = "ControlledDetector"}}}}},
+          .acts = {
+              inc,
+              inc,
+              inc,
+              pause, // (4)
+              inc,
+              inc}}}; // (5)
 
   auto engine = compile();
   ASSERT_TRUE(engine);
@@ -460,37 +467,46 @@ TEST_F(DropInCompilerTest, PrerunCount) {
   // Each enabled plugin will prerun() once, including action that's not taken.
   root.rulesets = {
       // 2 / 0 plugins with/without dropin
-      IR::Ruleset{.name = "disabled_dropin_target",
-                  .dgs = {IR::DetectorGroup{.name = "group1",
-                                            .detectors = {IR::Detector{cont}}}},
-                  .acts = {IR::Action{cont}},
-                  .dropin = IR::DropIn{.disable_on_drop_in = true,
-                                       .actiongroup_enabled = true}},
+      IR::Ruleset{
+          .name = "disabled_dropin_target",
+          .dgs = {IR::DetectorGroup{
+              .name = "group1", .detectors = {IR::Detector{cont}}}},
+          .acts = {IR::Action{cont}},
+          .dropin =
+              IR::DropIn{
+                  .disable_on_drop_in = true, .actiongroup_enabled = true}},
       // 3 plugins (action won't be taken as we stop early)
-      IR::Ruleset{.name = "enabled_dropin_target",
-                  .dgs = {IR::DetectorGroup{
-                      .name = "group1",
-                      .detectors = {IR::Detector{stop}, IR::Detector{cont}}}},
-                  .acts = {IR::Action{cont}},
-                  .dropin = IR::DropIn{.disable_on_drop_in = false,
-                                       .actiongroup_enabled = true}},
+      IR::Ruleset{
+          .name = "enabled_dropin_target",
+          .dgs = {IR::DetectorGroup{
+              .name = "group1",
+              .detectors = {IR::Detector{stop}, IR::Detector{cont}}}},
+          .acts = {IR::Action{cont}},
+          .dropin =
+              IR::DropIn{
+                  .disable_on_drop_in = false, .actiongroup_enabled = true}},
       // 2 plugins (StoreCount stores prerun_count)
-      IR::Ruleset{.name = "rs",
-                  .dgs = {IR::DetectorGroup{.name = "group1",
-                                            .detectors = {IR::Detector{cont}}}},
-                  .acts = {IR::Action{IR::Plugin{.name = "StoreCount"}}}},
+      IR::Ruleset{
+          .name = "rs",
+          .dgs = {IR::DetectorGroup{
+              .name = "group1", .detectors = {IR::Detector{cont}}}},
+          .acts = {IR::Action{IR::Plugin{.name = "StoreCount"}}}},
   };
   // Plugins from dropin should also be prerun()
   dropin_ir.rulesets = {
       // 1 + 2 = 3 plugins
-      IR::Ruleset{.name = "disabled_dropin_target",
-                  .acts = {IR::Action{IR::Plugin{.name = "IncrementCount"}},
-                           IR::Action{IR::Plugin{.name = "IncrementCount"}}}},
+      IR::Ruleset{
+          .name = "disabled_dropin_target",
+          .acts =
+              {IR::Action{IR::Plugin{.name = "IncrementCount"}},
+               IR::Action{IR::Plugin{.name = "IncrementCount"}}}},
       // 2 + 3 = 5 plugins
-      IR::Ruleset{.name = "enabled_dropin_target",
-                  .acts = {IR::Action{IR::Plugin{.name = "IncrementCount"}},
-                           IR::Action{IR::Plugin{.name = "IncrementCount"}},
-                           IR::Action{IR::Plugin{.name = "IncrementCount"}}}},
+      IR::Ruleset{
+          .name = "enabled_dropin_target",
+          .acts =
+              {IR::Action{IR::Plugin{.name = "IncrementCount"}},
+               IR::Action{IR::Plugin{.name = "IncrementCount"}},
+               IR::Action{IR::Plugin{.name = "IncrementCount"}}}},
   };
 
   auto engine = compileBase();
@@ -633,13 +649,14 @@ TEST_F(DropInCompilerTest, DisablesBase) {
   IR::Action increment;
   increment.name = "IncrementCount";
   IR::DetectorGroup dg{"dg", {cont}};
-  IR::Ruleset rs{"rs",
-                 {dg},
-                 {increment},
-                 IR::DropIn{
-                     .disable_on_drop_in = true,
-                     .actiongroup_enabled = true,
-                 }};
+  IR::Ruleset rs{
+      "rs",
+      {dg},
+      {increment},
+      IR::DropIn{
+          .disable_on_drop_in = true,
+          .actiongroup_enabled = true,
+      }};
   root.rulesets.emplace_back(std::move(rs));
 
   IR::Ruleset dropin_rs;
@@ -669,14 +686,15 @@ TEST_F(DropInCompilerTest, PermissionDenied) {
   IR::Action increment;
   increment.name = "IncrementCount";
   IR::DetectorGroup dg{"dg", {cont}};
-  IR::Ruleset rs{"rs",
-                 {dg},
-                 {increment},
-                 IR::DropIn{
-                     .disable_on_drop_in = false,
-                     .detectorgroups_enabled = false,
-                     .actiongroup_enabled = false,
-                 }};
+  IR::Ruleset rs{
+      "rs",
+      {dg},
+      {increment},
+      IR::DropIn{
+          .disable_on_drop_in = false,
+          .detectorgroups_enabled = false,
+          .actiongroup_enabled = false,
+      }};
   root.rulesets.emplace_back(std::move(rs));
 
   IR::Ruleset dropin_rs;
@@ -700,10 +718,11 @@ TEST_F(DropInCompilerTest, RemoveDropIn) {
   IR::Action increment;
   increment.name = "IncrementCount";
   IR::DetectorGroup dg{"dg", {cont}};
-  IR::Ruleset rs{"rs",
-                 {dg},
-                 {increment, increment},
-                 IR::DropIn{.actiongroup_enabled = true}};
+  IR::Ruleset rs{
+      "rs",
+      {dg},
+      {increment, increment},
+      IR::DropIn{.actiongroup_enabled = true}};
   root.rulesets.emplace_back(std::move(rs));
 
   // Drop in ruleset increments once
@@ -739,20 +758,22 @@ TEST_F(DropInCompilerTest, MultipleRulesetDropin) {
   IR::Action noop;
   noop.name = "Continue";
   IR::DetectorGroup dg{"dg", {cont}};
-  IR::Ruleset rs{"rs",
-                 {dg},
-                 {noop},
-                 IR::DropIn{
-                     .disable_on_drop_in = true,
-                     .actiongroup_enabled = true,
-                 }};
-  IR::Ruleset rs2{"rs2",
-                  {dg},
-                  {noop},
-                  IR::DropIn{
-                      .disable_on_drop_in = true,
-                      .actiongroup_enabled = true,
-                  }};
+  IR::Ruleset rs{
+      "rs",
+      {dg},
+      {noop},
+      IR::DropIn{
+          .disable_on_drop_in = true,
+          .actiongroup_enabled = true,
+      }};
+  IR::Ruleset rs2{
+      "rs2",
+      {dg},
+      {noop},
+      IR::DropIn{
+          .disable_on_drop_in = true,
+          .actiongroup_enabled = true,
+      }};
   root.rulesets.emplace_back(std::move(rs));
   root.rulesets.emplace_back(std::move(rs2));
 

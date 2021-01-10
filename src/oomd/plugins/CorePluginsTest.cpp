@@ -693,10 +693,11 @@ TEST_F(PressureRisingBeyondTest, DetectsHighMemPressure) {
   TestHelper::setCgroupData(
       ctx_,
       CgroupPath(compile_context.cgroupFs(), "high_pressure"),
-      CgroupData{.mem_pressure =
-                     ResourcePressure{
-                         .sec_10 = 99.99, .sec_60 = 99.99, .sec_300 = 99.99},
-                 .current_usage = 987654321});
+      CgroupData{
+          .mem_pressure =
+              ResourcePressure{
+                  .sec_10 = 99.99, .sec_60 = 99.99, .sec_300 = 99.99},
+          .current_usage = 987654321});
 
   EXPECT_EQ(plugin->run(ctx_), Engine::PluginRet::CONTINUE);
 }
@@ -748,10 +749,11 @@ TEST_F(PressureRisingBeyondTest, DetectsHighMemPressureMultiCgroup) {
   TestHelper::setCgroupData(
       ctx_,
       CgroupPath(compile_context.cgroupFs(), "high_pressure"),
-      CgroupData{.mem_pressure =
-                     ResourcePressure{
-                         .sec_10 = 99.99, .sec_60 = 99.99, .sec_300 = 99.99},
-                 .current_usage = 987654321});
+      CgroupData{
+          .mem_pressure =
+              ResourcePressure{
+                  .sec_10 = 99.99, .sec_60 = 99.99, .sec_300 = 99.99},
+          .current_usage = 987654321});
   TestHelper::setCgroupData(
       ctx_,
       CgroupPath(compile_context.cgroupFs(), "low_pressure"),
@@ -783,10 +785,11 @@ TEST_F(PressureRisingBeyondTest, DetectsHighMemPressureWildcard) {
   TestHelper::setCgroupData(
       ctx_,
       CgroupPath(compile_context.cgroupFs(), "high_pressure"),
-      CgroupData{.mem_pressure =
-                     ResourcePressure{
-                         .sec_10 = 99.99, .sec_60 = 99.99, .sec_300 = 99.99},
-                 .current_usage = 987654321});
+      CgroupData{
+          .mem_pressure =
+              ResourcePressure{
+                  .sec_10 = 99.99, .sec_60 = 99.99, .sec_300 = 99.99},
+          .current_usage = 987654321});
   TestHelper::setCgroupData(
       ctx_,
       CgroupPath(compile_context.cgroupFs(), "low_pressure"),
@@ -818,10 +821,11 @@ TEST_F(PressureAboveTest, DetectsHighMemPressure) {
   TestHelper::setCgroupData(
       ctx_,
       CgroupPath(compile_context.cgroupFs(), "high_pressure"),
-      CgroupData{.mem_pressure =
-                     ResourcePressure{
-                         .sec_10 = 99.99, .sec_60 = 99.99, .sec_300 = 99.99},
-                 .current_usage = 987654321});
+      CgroupData{
+          .mem_pressure =
+              ResourcePressure{
+                  .sec_10 = 99.99, .sec_60 = 99.99, .sec_300 = 99.99},
+          .current_usage = 987654321});
 
   EXPECT_EQ(plugin->run(ctx_), Engine::PluginRet::CONTINUE);
 }
@@ -871,10 +875,11 @@ TEST_F(PressureAboveTest, DetectsHighMemPressureMultiCgroup) {
   TestHelper::setCgroupData(
       ctx_,
       CgroupPath(compile_context.cgroupFs(), "high_pressure"),
-      CgroupData{.mem_pressure =
-                     ResourcePressure{
-                         .sec_10 = 99.99, .sec_60 = 99.99, .sec_300 = 99.99},
-                 .current_usage = 987654321});
+      CgroupData{
+          .mem_pressure =
+              ResourcePressure{
+                  .sec_10 = 99.99, .sec_60 = 99.99, .sec_300 = 99.99},
+          .current_usage = 987654321});
   TestHelper::setCgroupData(
       ctx_,
       CgroupPath(compile_context.cgroupFs(), "low_pressure"),
@@ -905,10 +910,11 @@ TEST_F(PressureAboveTest, DetectsHighMemPressureWildcard) {
   TestHelper::setCgroupData(
       ctx_,
       CgroupPath(compile_context.cgroupFs(), "high_pressure"),
-      CgroupData{.mem_pressure =
-                     ResourcePressure{
-                         .sec_10 = 99.99, .sec_60 = 99.99, .sec_300 = 99.99},
-                 .current_usage = 987654321});
+      CgroupData{
+          .mem_pressure =
+              ResourcePressure{
+                  .sec_10 = 99.99, .sec_60 = 99.99, .sec_300 = 99.99},
+          .current_usage = 987654321});
   TestHelper::setCgroupData(
       ctx_,
       CgroupPath(compile_context.cgroupFs(), "low_pressure"),
@@ -2261,31 +2267,31 @@ TEST_F(KillMemoryGrowthTest, DoesntGrowthKillBelowUsageThreshold) {
   // at min_growth_ratio=1.25 cgroup1 and cgroup2 are qualified, so only
   // cgroup2 is eligible for growth kill.
   EXPECT_EQ(
-      target_with_args(Engine::PluginArgs{{"growing_size_percentile", "50"},
-                                          {"min_growth_ratio", "1.25"}}),
+      target_with_args(Engine::PluginArgs{
+          {"growing_size_percentile", "50"}, {"min_growth_ratio", "1.25"}}),
       std::unordered_set<int>({789})); // cgroup2
 
   // At growing_size_percentile=20 all cgroups are eligible, and cgroup1 has
   // the highest growth.
   EXPECT_EQ(
-      target_with_args(Engine::PluginArgs{{"growing_size_percentile", "20"},
-                                          {"min_growth_ratio", "1.25"}}),
+      target_with_args(Engine::PluginArgs{
+          {"growing_size_percentile", "20"}, {"min_growth_ratio", "1.25"}}),
       std::unordered_set<int>({123, 456})); // cgroup1
 
   // At growing_size_percentile=67 only cgroup3 is qualified, but it does not
   // meet the min_growth_ratio requirement. We skip the growth kill phase, and
   // fall through to kill by size (no threshold), which picks cgroup3.
   EXPECT_EQ(
-      target_with_args(Engine::PluginArgs{{"growing_size_percentile", "67"},
-                                          {"min_growth_ratio", "1.25"}}),
+      target_with_args(Engine::PluginArgs{
+          {"growing_size_percentile", "67"}, {"min_growth_ratio", "1.25"}}),
       std::unordered_set<int>({111})); // cgroup3
 
   // All cgroups pass growing_size_percentile=20, but none pass
   // min_growth_ratio=10. We skip the growth kill phase, and fall through to
   // kill by size (no threshold), which picks cgroup3.
   EXPECT_EQ(
-      target_with_args(Engine::PluginArgs{{"growing_size_percentile", "20"},
-                                          {"min_growth_ratio", "10"}}),
+      target_with_args(Engine::PluginArgs{
+          {"growing_size_percentile", "20"}, {"min_growth_ratio", "10"}}),
       std::unordered_set<int>({111})); // cgroup3
 }
 
@@ -2744,32 +2750,36 @@ TEST_F(KillPressureTest, KillsHighestPressure) {
   TestHelper::setCgroupData(
       ctx_,
       CgroupPath(compile_context.cgroupFs(), "one_high/cgroup1"),
-      CgroupData{.io_pressure = ResourcePressure{
-                     .sec_10 = 60,
-                     .sec_60 = 60,
-                 }});
+      CgroupData{
+          .io_pressure = ResourcePressure{
+              .sec_10 = 60,
+              .sec_60 = 60,
+          }});
   TestHelper::setCgroupData(
       ctx_,
       CgroupPath(compile_context.cgroupFs(), "one_high/cgroup2"),
-      CgroupData{.io_pressure = ResourcePressure{
-                     .sec_10 = 50,
-                     .sec_60 = 70,
-                 }});
+      CgroupData{
+          .io_pressure = ResourcePressure{
+              .sec_10 = 50,
+              .sec_60 = 70,
+          }});
   TestHelper::setCgroupData(
       ctx_,
       CgroupPath(compile_context.cgroupFs(), "one_high/cgroup3"),
-      CgroupData{.io_pressure = ResourcePressure{
-                     .sec_10 = 80,
-                     .sec_60 = 80,
-                 }});
+      CgroupData{
+          .io_pressure = ResourcePressure{
+              .sec_10 = 80,
+              .sec_60 = 80,
+          }});
   TestHelper::setCgroupData(
       ctx_,
       CgroupPath(compile_context.cgroupFs(), "sibling/cgroup1"),
-      CgroupData{.io_pressure = ResourcePressure{
-                     .sec_10 = 99,
-                     .sec_60 = 99,
-                     .sec_300 = 99,
-                 }});
+      CgroupData{
+          .io_pressure = ResourcePressure{
+              .sec_10 = 99,
+              .sec_60 = 99,
+              .sec_300 = 99,
+          }});
   EXPECT_EQ(plugin->run(ctx_), Engine::PluginRet::STOP);
   EXPECT_THAT(plugin->killed, Contains(111));
   EXPECT_THAT(plugin->killed, Not(Contains(123)));
@@ -2794,32 +2804,36 @@ TEST_F(KillPressureTest, KillsHighestPressureMultiCgroup) {
   TestHelper::setCgroupData(
       ctx_,
       CgroupPath(compile_context.cgroupFs(), "one_high/cgroup1"),
-      CgroupData{.io_pressure = ResourcePressure{
-                     .sec_10 = 60,
-                     .sec_60 = 60,
-                 }});
+      CgroupData{
+          .io_pressure = ResourcePressure{
+              .sec_10 = 60,
+              .sec_60 = 60,
+          }});
   TestHelper::setCgroupData(
       ctx_,
       CgroupPath(compile_context.cgroupFs(), "one_high/cgroup2"),
-      CgroupData{.io_pressure = ResourcePressure{
-                     .sec_10 = 50,
-                     .sec_60 = 70,
-                 }});
+      CgroupData{
+          .io_pressure = ResourcePressure{
+              .sec_10 = 50,
+              .sec_60 = 70,
+          }});
   TestHelper::setCgroupData(
       ctx_,
       CgroupPath(compile_context.cgroupFs(), "one_high/cgroup3"),
-      CgroupData{.io_pressure = ResourcePressure{
-                     .sec_10 = 80,
-                     .sec_60 = 80,
-                 }});
+      CgroupData{
+          .io_pressure = ResourcePressure{
+              .sec_10 = 80,
+              .sec_60 = 80,
+          }});
   TestHelper::setCgroupData(
       ctx_,
       CgroupPath(compile_context.cgroupFs(), "sibling/cgroup1"),
-      CgroupData{.io_pressure = ResourcePressure{
-                     .sec_10 = 99,
-                     .sec_60 = 99,
-                     .sec_300 = 99,
-                 }});
+      CgroupData{
+          .io_pressure = ResourcePressure{
+              .sec_10 = 99,
+              .sec_60 = 99,
+              .sec_300 = 99,
+          }});
   EXPECT_EQ(plugin->run(ctx_), Engine::PluginRet::STOP);
   EXPECT_THAT(plugin->killed, Contains(888));
   EXPECT_THAT(plugin->killed, Not(Contains(111)));
@@ -2845,32 +2859,36 @@ TEST_F(KillPressureTest, DoesntKillsHighestPressureDry) {
   TestHelper::setCgroupData(
       ctx_,
       CgroupPath(compile_context.cgroupFs(), "one_high/cgroup1"),
-      CgroupData{.io_pressure = ResourcePressure{
-                     .sec_10 = 60,
-                     .sec_60 = 60,
-                 }});
+      CgroupData{
+          .io_pressure = ResourcePressure{
+              .sec_10 = 60,
+              .sec_60 = 60,
+          }});
   TestHelper::setCgroupData(
       ctx_,
       CgroupPath(compile_context.cgroupFs(), "one_high/cgroup2"),
-      CgroupData{.io_pressure = ResourcePressure{
-                     .sec_10 = 50,
-                     .sec_60 = 70,
-                 }});
+      CgroupData{
+          .io_pressure = ResourcePressure{
+              .sec_10 = 50,
+              .sec_60 = 70,
+          }});
   TestHelper::setCgroupData(
       ctx_,
       CgroupPath(compile_context.cgroupFs(), "one_high/cgroup3"),
-      CgroupData{.io_pressure = ResourcePressure{
-                     .sec_10 = 80,
-                     .sec_60 = 80,
-                 }});
+      CgroupData{
+          .io_pressure = ResourcePressure{
+              .sec_10 = 80,
+              .sec_60 = 80,
+          }});
   TestHelper::setCgroupData(
       ctx_,
       CgroupPath(compile_context.cgroupFs(), "sibling/cgroup1"),
-      CgroupData{.io_pressure = ResourcePressure{
-                     .sec_10 = 99,
-                     .sec_60 = 99,
-                     .sec_300 = 99,
-                 }});
+      CgroupData{
+          .io_pressure = ResourcePressure{
+              .sec_10 = 99,
+              .sec_60 = 99,
+              .sec_300 = 99,
+          }});
   EXPECT_EQ(plugin->run(ctx_), Engine::PluginRet::STOP);
   EXPECT_EQ(plugin->killed.size(), 0);
 }

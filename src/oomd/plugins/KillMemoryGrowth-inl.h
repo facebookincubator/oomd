@@ -128,10 +128,9 @@ KillMemoryGrowth<Base>::get_ranking_fn(
     // KillMemoryGrowth has 3 phases: cgroups above a usage threshold are
     // targeted first, then cgroups above a growth threshold, and finally
     // the rest.
-    KMGPhase phase = size_phase_eligible
-        ? KMGPhase::SIZE_THRESHOLD
-        : growth_phase_eligible ? KMGPhase::GROWTH
-                                : KMGPhase::SIZE_NO_THRESHOLD;
+    KMGPhase phase = size_phase_eligible ? KMGPhase::SIZE_THRESHOLD
+        : growth_phase_eligible          ? KMGPhase::GROWTH
+                                         : KMGPhase::SIZE_NO_THRESHOLD;
 
     // All cgroups in SIZE_THRESHOLD phase rank first, then groups in
     // KMGPhase::GROWTH, then KMGPhase::SIZE_NO_THRESHOLD because tuples

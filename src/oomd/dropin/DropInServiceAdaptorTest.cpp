@@ -32,15 +32,16 @@ DEFINE_MOCK_PLUGIN(AdaptorTest)
 
 using namespace Config2::IR;
 const Root root{
-    .rulesets = {
-        Ruleset{.name = "drop in ruleset",
-                .dgs = {DetectorGroup{
-                    .name = "detector group 0",
-                    .detectors = {{MockPlugin::createIR("RegularDetector")}}}},
-                .acts = {{MockPlugin::createIR("RegularAction")}},
-                .dropin = DropIn{.disable_on_drop_in = true,
-                                 .detectorgroups_enabled = true,
-                                 .actiongroup_enabled = true}}}};
+    .rulesets = {Ruleset{
+        .name = "drop in ruleset",
+        .dgs = {DetectorGroup{
+            .name = "detector group 0",
+            .detectors = {{MockPlugin::createIR("RegularDetector")}}}},
+        .acts = {{MockPlugin::createIR("RegularAction")}},
+        .dropin = DropIn{
+            .disable_on_drop_in = true,
+            .detectorgroups_enabled = true,
+            .actiongroup_enabled = true}}}};
 const Root drop_in_detector{
     .rulesets = {Ruleset{
         .name = "drop in ruleset",
@@ -48,8 +49,9 @@ const Root drop_in_detector{
             .name = "drop in detector group 0",
             .detectors = {{MockPlugin::createIR("DropInDetector")}}}}}}};
 const Root drop_in_action{
-    .rulesets = {Ruleset{.name = "drop in ruleset",
-                         .acts = {{MockPlugin::createIR("DropInAction")}}}}};
+    .rulesets = {Ruleset{
+        .name = "drop in ruleset",
+        .acts = {{MockPlugin::createIR("DropInAction")}}}}};
 
 class MockAdaptor : public DropInServiceAdaptor {
  public:
@@ -117,10 +119,11 @@ TEST_F(DropInServiceAdaptorTest, AddRemove) {
   ::testing::Mock::VerifyAndClearExpectations(&*adaptor_);
 
   engine_->runOnce(ctx_);
-  expectedRunCounts_ = {{"DropInDetector", 1},
-                        {"RegularAction", 1},
-                        {"RegularDetector", 1},
-                        {"DropInAction", 1}};
+  expectedRunCounts_ = {
+      {"DropInDetector", 1},
+      {"RegularAction", 1},
+      {"RegularDetector", 1},
+      {"DropInAction", 1}};
   EXPECT_EQ(MockPlugin::runCounts(), expectedRunCounts_);
   MockPlugin::runCounts().clear();
 
@@ -189,15 +192,17 @@ TEST_F(DropInServiceAdaptorTest, QueuedAddRemove) {
 
 TEST_F(DropInServiceAdaptorTest, AddFail) {
   Root bad_drop_in_action{
-      .rulesets = {Ruleset{.name = "drop in ruleset",
-                           .acts = {Action{Plugin{.name = "BadPluginName"}}}}}};
+      .rulesets = {Ruleset{
+          .name = "drop in ruleset",
+          .acts = {Action{Plugin{.name = "BadPluginName"}}}}}};
 
   EXPECT_FALSE(
       adaptor_->scheduleDropInAdd("drop_in_action.json", bad_drop_in_action));
 
   Root bad_drop_in_ruleset{
-      .rulesets = {Ruleset{.name = "bad drop in ruleset",
-                           .acts = {Action{Plugin{.name = "AdaptorTest"}}}}}};
+      .rulesets = {Ruleset{
+          .name = "bad drop in ruleset",
+          .acts = {Action{Plugin{.name = "AdaptorTest"}}}}}};
   EXPECT_FALSE(
       adaptor_->scheduleDropInAdd("drop_in_action.json", bad_drop_in_ruleset));
 

@@ -30,15 +30,16 @@ DEFINE_MOCK_PLUGIN(FsDropInTest);
 
 using namespace Config2::IR;
 const Root root{
-    .rulesets = {
-        Ruleset{.name = "drop in ruleset",
-                .dgs = {DetectorGroup{
-                    .name = "detector group 0",
-                    .detectors = {{MockPlugin::createIR("RegularDetector")}}}},
-                .acts = {{MockPlugin::createIR("RegularAction")}},
-                .dropin = DropIn{.disable_on_drop_in = true,
-                                 .detectorgroups_enabled = true,
-                                 .actiongroup_enabled = true}}}};
+    .rulesets = {Ruleset{
+        .name = "drop in ruleset",
+        .dgs = {DetectorGroup{
+            .name = "detector group 0",
+            .detectors = {{MockPlugin::createIR("RegularDetector")}}}},
+        .acts = {{MockPlugin::createIR("RegularAction")}},
+        .dropin = DropIn{
+            .disable_on_drop_in = true,
+            .detectorgroups_enabled = true,
+            .actiongroup_enabled = true}}}};
 constexpr auto drop_in_action = R"JSON({
   "rulesets": [
     {

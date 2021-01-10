@@ -32,18 +32,20 @@ class CgroupContextTest : public Test {
  public:
   CgroupContextTest() {
     params_.io_devs = {{"1:10", DeviceType::HDD}, {"1:11", DeviceType::SSD}};
-    params_.hdd_coeffs = {.read_iops = 6,
-                          .readbw = 5,
-                          .write_iops = 4,
-                          .writebw = 3,
-                          .trim_iops = 2,
-                          .trimbw = 1};
-    params_.ssd_coeffs = {.read_iops = 1,
-                          .readbw = 2,
-                          .write_iops = 3,
-                          .writebw = 4,
-                          .trim_iops = 5,
-                          .trimbw = 6};
+    params_.hdd_coeffs = {
+        .read_iops = 6,
+        .readbw = 5,
+        .write_iops = 4,
+        .writebw = 3,
+        .trim_iops = 2,
+        .trimbw = 1};
+    params_.ssd_coeffs = {
+        .read_iops = 1,
+        .readbw = 2,
+        .write_iops = 3,
+        .writebw = 4,
+        .trim_iops = 5,
+        .trimbw = 6};
     ctx_ = OomdContext(params_);
   }
 
@@ -362,8 +364,9 @@ TEST_F(CgroupContextTest, DataLifeCycle) {
           {{"anon", 123456789}, {"file", 12345678}, {"pgscan", 4567890123}}));
   EXPECT_EQ(
       io_stat,
-      IOStat({{"1:10", 1111111, 2222222, 33, 44, 5555555555, 6},
-              {"1:11", 2222222, 3333333, 44, 55, 6666666666, 7}}));
+      IOStat(
+          {{"1:10", 1111111, 2222222, 33, 44, 5555555555, 6},
+           {"1:11", 2222222, 3333333, 44, 55, 6666666666, 7}}));
   EXPECT_EQ(current_usage, 1122334455);
   EXPECT_EQ(swap_usage, 1234);
   EXPECT_EQ(swap_max, 1024);
@@ -476,8 +479,9 @@ TEST_F(CgroupContextTest, DataLifeCycle) {
           {{"anon", 123456790}, {"file", 12345679}, {"pgscan", 5678901234}}));
   EXPECT_EQ(
       io_stat,
-      IOStat({{"1:10", 1111112, 2222223, 34, 45, 5555555556, 7},
-              {"1:11", 2222223, 3333334, 45, 56, 6666666667, 8}}));
+      IOStat(
+          {{"1:10", 1111112, 2222223, 34, 45, 5555555556, 7},
+           {"1:11", 2222223, 3333334, 45, 56, 6666666667, 8}}));
   EXPECT_EQ(current_usage, 1122334456);
   EXPECT_EQ(swap_usage, 1235);
   EXPECT_EQ(swap_max, 2048);

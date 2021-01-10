@@ -51,9 +51,10 @@ std::optional<CgroupContext> CgroupContext::createChildCgroupCtx(
 }
 
 bool CgroupContext::refresh() {
-  archive_ = {.average_usage = data_->average_usage,
-              .io_cost_cumulative = data_->io_cost_cumulative,
-              .pg_scan_cumulative = data_->pg_scan_cumulative};
+  archive_ = {
+      .average_usage = data_->average_usage,
+      .io_cost_cumulative = data_->io_cost_cumulative,
+      .pg_scan_cumulative = data_->pg_scan_cumulative};
   *data_ = {};
   return Fs::isCgroupValid(cgroup_dir_);
 }
