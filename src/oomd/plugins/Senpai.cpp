@@ -17,6 +17,11 @@
 
 #include "oomd/plugins/Senpai.h"
 
+#include <pthread.h>
+
+#include <cerrno>
+#include <csignal>
+#include <future>
 #include <iomanip>
 #include <sstream>
 
@@ -89,6 +94,11 @@ int Senpai::init(
     if (val == "true" || val == "True" || val == "1") {
       immediate_backoff_ = true;
     }
+  }
+
+  if (args.find("memory_high_timeout_ms") != args.end()) {
+    memory_high_timeout_ = std::chrono::milliseconds(
+        std::stoull(args.at("memory_high_timeout_ms")));
   }
 
   if (args.find("swap_threshold") != args.end()) {
@@ -254,6 +264,72 @@ bool Senpai::writeMemhigh(const CgroupContext& cgroup_ctx, int64_t value) {
     return true;
   }
   return false;
+}
+
+/*
+ * Invoke functor with some timeout. If functor does not return after timeout,
+ * a signal is sent to the thread running functor to interrupt the running
+ * syscall every second. Won't help if functor is uninterruptable or spinning.
+ */
+template <class Functor, class Duration>
+SystemMaybe<typename std::invoke_result<Functor>::type> timed_invoke(
+    Functor&& fn,
+    Duration timeout) {
+  // ensure signal handler is setup before waiting on functor execution
+  std::promise<void> barrier;
+  auto barrier_future = barrier.get_future();
+
+  std::promise<typename std::invoke_result<Functor>::type> result;
+  auto future = result.get_future();
+
+  std::thread t(
+      [](auto&& barrier, auto&& result, Functor&& fn) {
+        // Empty signal handler to interrupt syscall in fn
+        std::signal(SIGUSR1, [](int) {});
+        barrier.set_value();
+        result.set_value(fn());
+      },
+      std::move(barrier),
+      std::move(result),
+      std::forward<Functor>(fn));
+
+  barrier_future.wait();
+  if (future.wait_for(timeout) == std::future_status::timeout) {
+    // Send signal to interrupt every second until we hear back from thread
+    do {
+      if (auto rc = ::pthread_kill(t.native_handle(), SIGUSR1); rc != 0) {
+        // Something very wrong...
+        OLOG << "pthread_kill failed";
+        std::terminate();
+      }
+    } while (future.wait_for(std::chrono::seconds(1)) ==
+             std::future_status::timeout);
+    t.join();
+    return systemError(ETIMEDOUT, "Timed out waiting execution");
+  } else {
+    t.join();
+    return future.get();
+  }
+}
+
+// Call writeMemhigh in a different thread and send signal to interrupt write
+// after timeout. Workaround for a kernel "feature" that blocks such write
+// indefinitely if reclaim target is too low.
+bool Senpai::writeMemhighTimeout(
+    const CgroupContext& cgroup_ctx,
+    int64_t value,
+    std::chrono::milliseconds timeout) {
+  auto valid_maybe =
+      timed_invoke([&]() { return writeMemhigh(cgroup_ctx, value); }, timeout);
+  if (!valid_maybe) {
+    // Most likely write timed out. Assume cgroup still valid and verify later.
+    OLOG << "Failed to write memory limit for "
+         << cgroup_ctx.cgroup().relativePath() << ": "
+         << valid_maybe.error().what();
+    return true;
+  } else {
+    return valid_maybe.value();
+  }
 }
 
 // Reset memory.high.tmp (preferred) or memory.high of a given cgroup to max.
@@ -533,7 +609,16 @@ bool Senpai::tick_immediate_backoff(
 
       // Poking by setting memory limit and immediately resetting it, which
       // prevents sudden allocation later from triggering thrashing
-      if (!writeMemhigh(cgroup_ctx, limit) || !resetMemhigh(cgroup_ctx)) {
+      if (memory_high_timeout_.count() > 0) {
+        if (!writeMemhighTimeout(cgroup_ctx, limit, memory_high_timeout_)) {
+          return false;
+        }
+      } else {
+        if (!writeMemhigh(cgroup_ctx, limit)) {
+          return false;
+        }
+      }
+      if (!resetMemhigh(cgroup_ctx)) {
         return false;
       }
       state.probe_count++;

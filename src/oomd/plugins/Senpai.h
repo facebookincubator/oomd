@@ -70,6 +70,10 @@ class Senpai : public Engine::BasePlugin {
   std::optional<bool> hasMemoryHighTmp(const CgroupContext& cgroup_ctx);
   std::optional<int64_t> readMemhigh(const CgroupContext& cgroup_ctx);
   bool writeMemhigh(const CgroupContext& cgroup_ctx, int64_t value);
+  bool writeMemhighTimeout(
+      const CgroupContext& cgroup_ctx,
+      int64_t value,
+      std::chrono::milliseconds timeout);
   bool resetMemhigh(const CgroupContext& cgroup_ctx);
   SystemMaybe<int64_t> getReclaimableBytes(const CgroupContext& cgroup_ctx);
   std::optional<int64_t> getLimitMinBytes(const CgroupContext& cgroup_ctx);
@@ -112,6 +116,7 @@ class Senpai : public Engine::BasePlugin {
   double coeff_backoff_{20};
   double swap_threshold_{0.8};
   int64_t swapout_bps_threshold_{3ull << 20};
+  std::chrono::milliseconds memory_high_timeout_{};
   bool swap_validation_{false};
   bool immediate_backoff_{false};
   bool modulate_swappiness_{false};
