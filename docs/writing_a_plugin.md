@@ -20,7 +20,6 @@ Ignoring the comments and less relevant bits, every plugin must implement
 the following two methods:
 
       virtual int init(
-          MonitoredResources& resources,
           const PluginArgs& args,
           const PluginConstructionContext& context) = 0;
 
