@@ -69,7 +69,12 @@ int Senpai::init(
 
   // Currently only used for immediate backoff
   if (args.find("pressure_pct") != args.end()) {
-    pressure_pct_ = std::stod(args.at("pressure_pct"));
+    mem_pressure_pct_ = std::stod(args.at("pressure_pct"));
+  }
+
+  // Currently only used for immediate backoff
+  if (args.find("io_pressure_pct") != args.end()) {
+    io_pressure_pct_ = std::stod(args.at("io_pressure_pct"));
   }
 
   if (args.find("max_probe") != args.end()) {
@@ -668,11 +673,10 @@ SystemMaybe<bool> Senpai::validatePressure(
 
   // Only drive senpai if both short and long term pressure from memory and I/O
   // are lower than target
-  return std::max(
-             {mem_pressure_maybe->sec_10,
-              mem_pressure_maybe->sec_60,
-              io_pressure_maybe->sec_10,
-              io_pressure_maybe->sec_60}) < pressure_pct_;
+  return std::max(mem_pressure_maybe->sec_10, mem_pressure_maybe->sec_60) <
+      mem_pressure_pct_ &&
+      std::max(io_pressure_maybe->sec_10, io_pressure_maybe->sec_60) <
+      io_pressure_pct_;
 }
 
 // Validate that swap is sufficient to run Senpai
