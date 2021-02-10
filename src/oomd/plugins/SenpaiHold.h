@@ -21,6 +21,25 @@
 
 // This is a Senpai plugin which works by continuously adjusting a
 // memory limit in order to keep pressure steady.
+//
+// When deciding when to act, Senpai will take a look at the
+// observed pressure vs the target pressure and calculate some
+// error function - `abs(observed - target) / target`
+
+// Senpai can act every "tick" of the oomd loop or do nothing. The
+// time since the last action (e.g. setting of the memory limit)
+// must factor in here because it captures some level of certainty
+// that the observed pressure was due to the last action or not.
+
+// To give an example, Senpai could set a limit too low, reclaim a
+// bunch of memory and then in the next tick adjust the limit much
+// higher. Refaults from memory reclaimed in the first setting could
+// cause pressure after the second setting. The longer it has been
+// since Senpai last took action, the more certain we are that the
+// observed pressure is a function of the last action.
+//
+// In order to capture this, Senpai will act when the error exceeds
+// some threshold that decays exponentially over time.
 namespace Oomd {
 template <>
 struct CgroupState<class SenpaiHold> {
@@ -30,8 +49,8 @@ struct CgroupState<class SenpaiHold> {
   std::chrono::microseconds last_total;
   // Cumulative memory pressure since last adjustment
   std::chrono::microseconds cumulative{0};
-  // Count-down to decision to probe/backoff
-  int64_t ticks;
+  // Time of last Senpai action
+  std::chrono::time_point<std::chrono::steady_clock> last_action_time;
   // Probe statistics for logging
   uint64_t probe_bytes{0};
   uint64_t probe_count{0};
@@ -60,9 +79,29 @@ class SenpaiHold : public SenpaiCommon<SenpaiHold> {
   SystemMaybe<double> calculateSwappinessFactor(
       const CgroupContext& cgroup_ctx) const;
 
-  std::chrono::microseconds pressure_ms_{std::chrono::milliseconds{10}};
+  // This is the target pressure Senpai will aim to maintain
+  double pressure_target_{0.02};
+
+  // If the error rate is above the exponential curve intersecting
+  // (0, blowout_threshold_) and (max_action_interval_ms_, epsilon)
+  // then Senpai will take action. You can think of these as
+  // sensitivty parameters - the lower they are, the more
+  // aggressively Senpai will adjust limits based on observed
+  // pressure.
+
+  // The blowout factor is the error threshold at which Senpai will
+  // always act, no matter how long it's been since the last
+  // action.
+  double blowout_threshold_{4};
+  // This value represents how long before Senpai will act no matter
+  // how small the error.
+  std::chrono::milliseconds max_action_interval_ms_{std::chrono::seconds(10)};
+  // Calculated in init() based on the above two parameters
+  double error_threshold_exponent_;
+
+  // These parameters effect how aggressively or conservatively
+  // Senpai adjusts the limit once it has decided to act.
   double max_backoff_{1.0};
-  double coeff_probe_{10};
-  double coeff_backoff_{20};
+  double coeff_backoff_{19};
 };
 } // namespace Oomd

@@ -17,6 +17,7 @@
 
 #include "oomd/plugins/SenpaiHold.h"
 
+#include <cmath>
 #include <iomanip>
 
 #include "oomd/PluginRegistry.h"
@@ -32,22 +33,35 @@ int SenpaiHold::init(
     return 1;
   }
 
-  if (args.find("pressure_ms") != args.end()) {
-    pressure_ms_ =
-        std::chrono::milliseconds(std::stoull(args.at("pressure_ms")));
+  if (args.find("pressure_target") != args.end()) {
+    pressure_target_ = std::stod(args.at("pressure_target"));
+  }
+
+  if (args.find("blowout_threshold") != args.end()) {
+    blowout_threshold_ = std::stod(args.at("blowout_threshold"));
+  }
+
+  if (args.find("max_action_interval_ms") != args.end()) {
+    max_action_interval_ms_ = std::chrono::milliseconds(
+        std::stoull(args.at("max_action_interval_ms")));
   }
 
   if (args.find("max_backoff") != args.end()) {
     max_backoff_ = std::stod(args.at("max_backoff"));
   }
 
-  if (args.find("coeff_probe") != args.end()) {
-    coeff_probe_ = std::stod(args.at("coeff_probe"));
-  }
-
   if (args.find("coeff_backoff") != args.end()) {
     coeff_backoff_ = std::stod(args.at("coeff_backoff"));
   }
+
+  // We must calculate the exponential function of the form f(x) = Ae^(kx) that
+  // intersects (0, blowout_threshold_) and (max_action_interval_ms_, epsilon).
+  // Given two points (x0, y0) and (x1, y1) the exponent k is calculated as:
+  // k = ln(y0/y1) / (x0 - x1)
+  // Because f(0) = blowout_threshold_, A = blowout_threshold_
+  double epsilon = 0.01;
+  error_threshold_exponent_ = std::log(blowout_threshold_ / epsilon) /
+      (-1 * max_action_interval_ms_.count());
 
   return 0;
 }
@@ -77,6 +91,9 @@ std::optional<SenpaiHold::CgroupState> SenpaiHold::initializeCgroup(
   if (!current_opt) {
     return std::nullopt;
   }
+
+  auto now = std::chrono::steady_clock::now();
+
   if (!writeMemhigh(cgroup_ctx, *current_opt)) {
     return std::nullopt;
   }
@@ -86,7 +103,7 @@ std::optional<SenpaiHold::CgroupState> SenpaiHold::initializeCgroup(
     return std::nullopt;
   }
   return CgroupState{
-      .limit = start_limit, .last_total = *total_opt, .ticks = interval_};
+      .limit = start_limit, .last_total = *total_opt, .last_action_time = now};
 }
 
 // Update state of a cgroup. Return if the cgroup is still valid.
@@ -96,7 +113,6 @@ bool SenpaiHold::tick(const CgroupContext& cgroup_ctx, CgroupState& state) {
   if (!limit_opt) {
     return false;
   }
-  auto factor = 0.0;
 
   if (*limit_opt != state.limit) {
     // Something else changed limits on this cgroup or it was
@@ -131,10 +147,11 @@ bool SenpaiHold::tick(const CgroupContext& cgroup_ctx, CgroupState& state) {
         *limit_min_bytes_opt, std::min(*limit_max_bytes_opt, state.limit));
     // Memory high is always a multiple of 4K
     state.limit &= ~0xFFF;
-    state.ticks = interval_;
+    state.last_action_time = std::chrono::steady_clock::now();
     state.cumulative = std::chrono::microseconds{0};
     return writeMemhigh(cgroup_ctx, state.limit);
   };
+  auto now = std::chrono::steady_clock::now();
   auto total_opt = getPressureTotalSome(cgroup_ctx);
   if (!total_opt) {
     return false;
@@ -145,46 +162,68 @@ bool SenpaiHold::tick(const CgroupContext& cgroup_ctx, CgroupState& state) {
   state.cumulative += delta;
   auto cumulative = state.cumulative.count();
 
-  if (state.cumulative >= pressure_ms_) {
-    // Excessive pressure, back off. The rate scales exponentially
-    // with pressure deviation. The coefficient defines how sensitive
-    // we are to fluctuations around the target pressure: when the
-    // coefficient is 10, the adjustment curve reaches the backoff
-    // limit when observed pressure is ten times the target pressure.
-    double error = state.cumulative / pressure_ms_;
-    factor = error / coeff_backoff_;
-    factor *= factor;
-    factor = std::min(factor * max_backoff_, max_backoff_);
-    if (!adjust(factor)) {
-      return false;
-    }
+  using std::chrono::duration_cast;
+  using std::chrono::microseconds;
+  using std::chrono::milliseconds;
+  double cumulative_us = duration_cast<microseconds>(state.cumulative).count();
+  double elapsed_us =
+      duration_cast<microseconds>(now - state.last_action_time).count();
+  auto pressure_observed = cumulative_us / elapsed_us;
+  // This is a very simple error function. We could consider adding
+  // asymmetry to it (e.g. seeing pressure too-high is penalized more
+  // than too-low) or exponentiation (to treat 1.0 vs 2.0 differently
+  // than 10.0 vs 11.0).
+  auto error =
+      std::abs(pressure_observed - pressure_target_) / pressure_target_;
 
-    std::ostringstream oss;
-    oss << "cgroup " << name << std::setprecision(3) << std::fixed
-        << " limitgb " << *limit_opt / (double)(1 << 30UL) << " totalus "
-        << total.count() << " deltaus " << delta.count() << " cumus "
-        << cumulative << " ticks " << state.ticks << std::defaultfloat
-        << " adjust " << factor;
-    OLOG << oss.str();
-  } else if (state.ticks) {
-    --state.ticks;
-  } else {
-    // Pressure too low, tighten the limit. Like when backing off, the
-    // adjustment becomes exponentially more aggressive as observed
-    // pressure falls below the target pressure. The adjustment limit
-    // is reached when stall time falls through pressure/coeff_probe_.
-    auto one = std::chrono::microseconds{1};
-    double error = pressure_ms_ / std::max(state.cumulative, one);
-    factor = error / coeff_probe_;
-    factor *= factor;
-    factor = std::min(factor * max_probe_, max_probe_);
-    factor = -factor;
-    if (!adjust(factor)) {
-      return false;
-    }
-    if (*limit_opt > state.limit) {
-      state.probe_count++;
-      state.probe_bytes += *limit_opt - state.limit;
+  auto elapsed_ms =
+      duration_cast<milliseconds>(now - state.last_action_time).count();
+  auto threshold =
+      blowout_threshold_ * std::exp(error_threshold_exponent_ * elapsed_ms);
+  if (error > threshold) {
+    if (pressure_observed > pressure_target_) {
+      // Excessive pressure, back off. The rate scales exponentially
+      // with pressure deviation. The coefficient defines how sensitive
+      // we are to fluctuations around the target pressure: when the
+      // coefficient is 9, the adjustment curve reaches the backoff
+      // limit when observed pressure is ten times the target pressure.
+      auto factor = error / coeff_backoff_;
+      factor *= factor;
+      factor = std::min(factor * max_backoff_, max_backoff_);
+      if (!adjust(factor)) {
+        return false;
+      }
+
+      std::ostringstream oss;
+      oss << "cgroup " << name << std::setprecision(3) << std::fixed
+          << " limitgb " << *limit_opt / (double)(1 << 30UL) << " totalus "
+          << total.count() << " deltaus " << delta.count() << " cumus "
+          << cumulative << " elapsed ms " << (uint64_t)elapsed_ms
+          << std::defaultfloat << " adjust " << factor;
+      OLOG << oss.str();
+    } else {
+      // Pressure too low, tighten the limit. Like when backing off, the
+      // adjustment becomes exponentially more aggressive as observed
+      // pressure falls below the target pressure.
+      auto factor = error;
+      factor *= factor;
+      factor = std::min(factor * max_probe_, max_probe_);
+      factor = -factor;
+      if (!adjust(factor)) {
+        return false;
+      }
+      if (*limit_opt > state.limit) {
+        state.probe_count++;
+        state.probe_bytes += *limit_opt - state.limit;
+      }
+
+      std::ostringstream oss;
+      oss << "cgroup " << name << std::setprecision(3) << std::fixed
+          << " limitgb " << *limit_opt / (double)(1 << 30UL) << " totalus "
+          << total.count() << " deltaus " << delta.count() << " cumus "
+          << cumulative << " elapsed ms " << (uint64_t)elapsed_ms
+          << std::defaultfloat << " adjust " << factor;
+      OLOG << oss.str();
     }
   }
   return true;
