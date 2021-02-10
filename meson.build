@@ -51,6 +51,8 @@ srcs = files('''
     src/oomd/plugins/PressureRisingBeyond.cpp
     src/oomd/plugins/SwapFree.cpp
     src/oomd/plugins/Senpai.cpp
+    src/oomd/plugins/SenpaiHold.cpp
+    src/oomd/plugins/SenpaiPoking.cpp
     src/oomd/plugins/Exists.cpp
     src/oomd/plugins/KillIOCost.cpp
     src/oomd/plugins/KillMemoryGrowth.cpp
