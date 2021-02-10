@@ -19,12 +19,66 @@
 
 #include <cmath>
 #include <iomanip>
+#include <iostream>
+
+#include <fcntl.h>
+#include <sys/epoll.h>
+#include <sys/eventfd.h>
 
 #include "oomd/PluginRegistry.h"
+#include "oomd/include/Assert.h"
 #include "oomd/util/ScopeGuard.h"
 
 namespace Oomd {
 REGISTER_PLUGIN(senpai_hold, SenpaiHold::create);
+
+namespace {
+// This is the main epoll thread loop. It blocks on epoll_wait
+// forever until either a pressure trigger fires (in which case we
+// write "max" to the memory.high) or the eventfd triggers (in
+// which case the thread exits)
+void runEpollThread(std::shared_ptr<EpollThreadState> state) {
+  struct epoll_event event;
+  while (true) {
+    auto ret = ::epoll_wait(state->epoll_fd.fd(), &event, 1, -1);
+    if (ret == -1) {
+      if (errno == EINTR) {
+        continue;
+      }
+
+      // Some really unexpected error would have to
+      // happen to hit this case, just abort
+      OLOG << "Unexpected error " << errno << " from epoll_wait()";
+      OCHECK(false);
+    }
+
+    auto cgroup_id = event.data.u64;
+    if (!cgroup_id) {
+      // Woken up via eventfd - means we are exiting
+      break;
+    } else if (event.events & EPOLLPRI) {
+      const std::lock_guard<std::mutex> lock(state->mutex);
+      auto it = state->cgroups.find(cgroup_id);
+      if (it == state->cgroups.end()) {
+        // It's possible destruction of the cgroup (and associated
+        // state) raced with a notification we just received - just
+        // ignore it in that case.
+        continue;
+      }
+      auto& cgroup_state = it->second;
+      std::string val;
+      if (cgroup_state.use_memory_high_tmp) {
+        val = "max 20000000";
+      } else {
+        val = "max";
+      }
+      // Ignore return value, not much we can do
+      // other than try to write here
+      Util::writeFull(cgroup_state.mem_high_fd.fd(), val.c_str(), val.size());
+    }
+  }
+}
+} // namespace
 
 int SenpaiHold::init(
     const Engine::PluginArgs& args,
@@ -63,7 +117,42 @@ int SenpaiHold::init(
   error_threshold_exponent_ = std::log(blowout_threshold_ / epsilon) /
       (-1 * max_action_interval_ms_.count());
 
+  // Setup epoll and communication with epoll thread
+  auto ret = ::eventfd(0, EFD_NONBLOCK);
+  if (ret == -1) {
+    return 1;
+  }
+
+  epoll_eventfd_ = Fs::Fd(ret);
+
+  ret = ::epoll_create(1);
+  if (ret == -1) {
+    return 1;
+  }
+  auto epoll_fd = Fs::Fd(ret);
+  struct epoll_event event = {
+      .events = EPOLLIN, .data = {.u64 = 0}, // 0 here indicates the eventfd
+  };
+  ret = ::epoll_ctl(epoll_fd.fd(), EPOLL_CTL_ADD, epoll_eventfd_.fd(), &event);
+  if (ret) {
+    return 1;
+  }
+
+  epoll_thread_state_ = std::make_shared<EpollThreadState>(std::move(epoll_fd));
+  epoll_thread_ = std::thread([state = epoll_thread_state_]() mutable {
+    runEpollThread(std::move(state));
+  });
+
   return 0;
+}
+
+SenpaiHold::~SenpaiHold() {
+  if (epoll_thread_.joinable()) {
+    uint64_t val = 1;
+    auto ret = Util::writeFull(epoll_eventfd_.fd(), (char*)&val, sizeof(val));
+    OCHECK(ret != -1);
+    epoll_thread_.join();
+  }
 }
 
 namespace {
@@ -83,21 +172,102 @@ std::optional<std::chrono::microseconds> getPressureTotalSome(
 }
 } // namespace
 
+CgroupState<SenpaiHold>::~CgroupState() noexcept {
+  if (epoll_thread_state) {
+    const std::lock_guard<std::mutex> lock(epoll_thread_state->mutex);
+    // We don't need to remove the fd from the epoll. Closing the
+    // file descriptor should do that automatically
+    epoll_thread_state->cgroups.erase(cgroup_id);
+  }
+}
+
 SystemMaybe<Unit> SenpaiHold::initializeCgroup(
     const CgroupContext& cgroup_ctx,
     CgroupState& state) {
-  int64_t start_limit = 0;
+  auto pres_fd = Fs::Fd::openat(
+      cgroup_ctx.fd(), Fs::kMemPressureFile, /* read_only =  */ false);
+  if (!pres_fd) {
+    return SYSTEM_ERROR(pres_fd);
+  }
+
+  auto has_memory_high_tmp_opt = hasMemoryHighTmp(cgroup_ctx);
+  if (!has_memory_high_tmp_opt) {
+    return SYSTEM_ERROR(ENOENT);
+  }
+
+  auto high_fd = Fs::Fd::openat(
+      cgroup_ctx.fd(),
+      *has_memory_high_tmp_opt ? Fs::kMemHighTmpFile : Fs::kMemHighFile,
+      /* read_only = */ false);
+  if (!high_fd) {
+    return SYSTEM_ERROR(high_fd);
+  }
+
+  state.epoll_thread_state = epoll_thread_state_;
+  auto id = cgroup_ctx.id();
+  if (!id) {
+    return SYSTEM_ERROR(EINVAL);
+  }
+  state.cgroup_id = *id;
+  auto pressure_fd = pres_fd->fd();
+  {
+    const std::lock_guard<std::mutex> lock(state.epoll_thread_state->mutex);
+    state.epoll_thread_state->cgroups.emplace(
+        std::piecewise_construct,
+        std::forward_as_tuple(state.cgroup_id),
+        std::forward_as_tuple(
+            std::move(*pres_fd),
+            std::move(*high_fd),
+            *has_memory_high_tmp_opt));
+  }
+  std::chrono::microseconds min_window = std::chrono::milliseconds(500);
+  uint64_t trigger_value =
+      pressure_target_ * blowout_threshold_ * min_window.count();
+  std::string msg = "some " + std::to_string(trigger_value) + " " +
+      std::to_string(min_window.count());
+  auto ret = Util::writeFull(pressure_fd, msg.c_str(), msg.size());
+  if (ret == -1) {
+    return SYSTEM_ERROR(errno);
+  }
+
+  struct epoll_event event = {
+      .events = EPOLLPRI,
+      .data = {.u64 = state.cgroup_id},
+  };
+  // We grab the lock on the cgroup state here to ensure that we can't
+  // race until we've finished initializing it.
+  const std::lock_guard<std::mutex> lock(state.epoll_thread_state->mutex);
+  ret = ::epoll_ctl(
+      state.epoll_thread_state->epoll_fd.fd(),
+      EPOLL_CTL_ADD,
+      pressure_fd,
+      &event);
+  if (ret) {
+    return SYSTEM_ERROR(errno);
+  }
+
+  return resetLimit(cgroup_ctx, state);
+}
+
+SystemMaybe<Unit> SenpaiHold::resetLimit(
+    const CgroupContext& cgroup_ctx,
+    CgroupState& state) {
   auto current_opt = cgroup_ctx.current_usage();
   if (!current_opt) {
     return SYSTEM_ERROR(ENOENT);
   }
 
-  auto now = std::chrono::steady_clock::now();
-
-  if (!writeMemhigh(cgroup_ctx, *current_opt)) {
+  auto limit_min_bytes_opt = getLimitMinBytes(cgroup_ctx);
+  if (!limit_min_bytes_opt) {
     return SYSTEM_ERROR(ENOENT);
   }
-  start_limit = *current_opt;
+
+  auto start_limit = *current_opt;
+  auto now = std::chrono::steady_clock::now();
+
+  if (!writeMemhigh(cgroup_ctx, start_limit)) {
+    return SYSTEM_ERROR(ENOENT);
+  }
   auto total_opt = getPressureTotalSome(cgroup_ctx);
   if (!total_opt) {
     return SYSTEM_ERROR(ENOENT);
@@ -110,6 +280,7 @@ SystemMaybe<Unit> SenpaiHold::initializeCgroup(
 
 // Update state of a cgroup. Return if the cgroup is still valid.
 bool SenpaiHold::tick(const CgroupContext& cgroup_ctx, CgroupState& state) {
+  const std::lock_guard<std::mutex> lock(state.epoll_thread_state->mutex);
   auto name = cgroup_ctx.cgroup().absolutePath();
   auto limit_opt = readMemhigh(cgroup_ctx);
   if (!limit_opt) {
@@ -117,16 +288,9 @@ bool SenpaiHold::tick(const CgroupContext& cgroup_ctx, CgroupState& state) {
   }
 
   if (*limit_opt != state.limit) {
-    // Something else changed limits on this cgroup or it was
-    // recreated in-between ticks - reset the state and return,
-    // unfortuantely, the rest of this logic is still racy after this
-    // point
-    std::ostringstream oss;
-    oss << "cgroup " << name << " memory.high " << *limit_opt
-        << " does not match recorded state " << state.limit
-        << ". Resetting cgroup";
-    OLOG << oss.str();
-    if (initializeCgroup(cgroup_ctx, state)) {
+    // This can happen if the trigger fired or if the cgroup was
+    // recreated.
+    if (resetLimit(cgroup_ctx, state)) {
       return true;
     }
     return false;

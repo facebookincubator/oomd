@@ -84,10 +84,11 @@ class CgroupContext {
     return ctx_;
   }
 
-  // Use by plugins to identify a CgroupContext across intervals. CgroupPath,
-  // cgroup dir_fd, and memory address can all be recycled if cgroup has been
-  // recreated. This id is guaranteed to be unique to each cgroup, but semantics
-  // is implementation details.
+  // Use by plugins to identify a CgroupContext across
+  // intervals. CgroupPath, cgroup dir_fd, and memory address can all
+  // be recycled if cgroup has been recreated. This id is guaranteed
+  // to be non-zero and unique to each cgroup, but semantics is
+  // implementation details.
   using Id = uint64_t;
 
   // Accessors to cgroup fields. If error is encountered, std::nullopt will be

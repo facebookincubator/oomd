@@ -84,7 +84,7 @@ class Fs {
     static SystemMaybe<Fd> open(const std::string& path, bool read_only = true);
 
     explicit Fd(int fd) : fd_(fd) {}
-    Fd() = delete;
+    Fd() = default;
     Fd(const Fd& other) = delete;
     Fd(Fd&& other) noexcept {
       *this = std::move(other);

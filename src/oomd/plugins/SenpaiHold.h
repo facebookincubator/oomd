@@ -41,8 +41,37 @@
 // In order to capture this, Senpai will act when the error exceeds
 // some threshold that decays exponentially over time.
 namespace Oomd {
+struct EpollThreadState;
+
+// This is the per-cgroup state that is shared by the epoll thread
+// and the main Senpai logic
+struct EpollCgroupState {
+  EpollCgroupState(Fs::Fd p_fd, Fs::Fd m_fd, bool high_tmp)
+      : pressure_fd(std::move(p_fd)),
+        mem_high_fd(std::move(m_fd)),
+        use_memory_high_tmp(high_tmp) {}
+  Fs::Fd pressure_fd;
+  Fs::Fd mem_high_fd;
+  bool use_memory_high_tmp;
+};
+
+struct EpollThreadState {
+  explicit EpollThreadState(Fs::Fd e_fd) : epoll_fd(std::move(e_fd)) {}
+  Fs::Fd epoll_fd;
+  // This mutex serializes operation to the following map which
+  // involves both adding/removing cgroups and operating on
+  // those individual cgroups (e.g. reading memory.current,
+  // writing memory.high).
+  std::mutex mutex;
+  std::unordered_map<uint64_t, EpollCgroupState> cgroups;
+};
 template <>
 struct CgroupState<class SenpaiHold> {
+  CgroupState() = default;
+  ~CgroupState() noexcept;
+  std::shared_ptr<EpollThreadState> epoll_thread_state;
+  uint64_t
+      cgroup_id; // just used to index into the EpollThreadState cgroups map
   // Current memory limit
   int64_t limit;
   // Last recorded total memory pressure
@@ -73,13 +102,20 @@ class SenpaiHold : public SenpaiCommon<SenpaiHold> {
       CgroupState& state);
   bool tick(const CgroupContext& cgroup_ctx, CgroupState& state);
 
-  ~SenpaiHold() override = default;
+  ~SenpaiHold() override;
 
  private:
+  SystemMaybe<Unit> resetLimit(
+      const CgroupContext& cgroup_ctx,
+      CgroupState& state);
   SystemMaybe<bool> validatePressure(const CgroupContext& cgroup_ctx) const;
   SystemMaybe<bool> validateSwap(const CgroupContext& cgroup_ctx) const;
   SystemMaybe<double> calculateSwappinessFactor(
       const CgroupContext& cgroup_ctx) const;
+
+  std::shared_ptr<EpollThreadState> epoll_thread_state_;
+  std::thread epoll_thread_;
+  Fs::Fd epoll_eventfd_;
 
   // This is the target pressure Senpai will aim to maintain
   double pressure_target_{0.02};
