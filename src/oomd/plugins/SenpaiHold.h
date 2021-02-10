@@ -68,7 +68,9 @@ class SenpaiHold : public SenpaiCommon<SenpaiHold> {
 
   using CgroupState = CgroupState<SenpaiHold>;
 
-  std::optional<CgroupState> initializeCgroup(const CgroupContext& cgroup_ctx);
+  SystemMaybe<Unit> initializeCgroup(
+      const CgroupContext& cgroup_ctx,
+      CgroupState& state);
   bool tick(const CgroupContext& cgroup_ctx, CgroupState& state);
 
   ~SenpaiHold() override = default;

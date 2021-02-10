@@ -106,10 +106,13 @@ Engine::PluginRet SenpaiCommon<T>::run(OomdContext& ctx) {
     if (trackedIt == tracked_cgroups_.end() || *id_opt < trackedIt->first) {
       // Resolved cgroup not in tracked map, track it
       // New cgroups will be polled after a "tick" has elapsed
-      if (auto new_cgroup_state_opt =
-              static_cast<T&>(*this).initializeCgroup(cgroup_ctx)) {
-        tracked_cgroups_.emplace_hint(
-            trackedIt, *id_opt, *new_cgroup_state_opt);
+      auto it = tracked_cgroups_.emplace_hint(
+          trackedIt,
+          std::piecewise_construct,
+          std::forward_as_tuple(*id_opt),
+          std::forward_as_tuple());
+      if (!static_cast<T&>(*this).initializeCgroup(cgroup_ctx, it->second)) {
+        tracked_cgroups_.erase(it);
       }
       ++resolvedIt;
     } else if (*cgroup_ctx.id() > trackedIt->first) {

@@ -68,9 +68,10 @@ int SenpaiPoking::init(
   return 0;
 }
 
-std::optional<SenpaiPoking::CgroupState> SenpaiPoking::initializeCgroup(
-    const CgroupContext& /* unused */) {
-  return SenpaiPoking::CgroupState{.ticks = interval_};
+SystemMaybe<Unit> SenpaiPoking::initializeCgroup(
+    const CgroupContext& /* unused  */,
+    CgroupState& /* unused */) {
+  return noSystemError();
 }
 
 bool SenpaiPoking::tick(
@@ -78,8 +79,7 @@ bool SenpaiPoking::tick(
     SenpaiPoking::CgroupState& state) {
   // Wait for interval to prevent making senpai too aggressive
   // May wait longer if pressures are too high
-  if (state.ticks) {
-    state.ticks--;
+  if (++state.ticks < interval_) {
     return true;
   }
 
@@ -144,7 +144,7 @@ bool SenpaiPoking::tick(
       }
       state.probe_count++;
       state.probe_bytes += *current_opt - limit;
-      state.ticks = interval_;
+      state.ticks = 0;
     }
   }
 

@@ -83,27 +83,29 @@ std::optional<std::chrono::microseconds> getPressureTotalSome(
 }
 } // namespace
 
-std::optional<SenpaiHold::CgroupState> SenpaiHold::initializeCgroup(
-    const CgroupContext& cgroup_ctx) {
+SystemMaybe<Unit> SenpaiHold::initializeCgroup(
+    const CgroupContext& cgroup_ctx,
+    CgroupState& state) {
   int64_t start_limit = 0;
-  // Immediate backoff does not use limit as a state.
   auto current_opt = cgroup_ctx.current_usage();
   if (!current_opt) {
-    return std::nullopt;
+    return SYSTEM_ERROR(ENOENT);
   }
 
   auto now = std::chrono::steady_clock::now();
 
   if (!writeMemhigh(cgroup_ctx, *current_opt)) {
-    return std::nullopt;
+    return SYSTEM_ERROR(ENOENT);
   }
   start_limit = *current_opt;
   auto total_opt = getPressureTotalSome(cgroup_ctx);
   if (!total_opt) {
-    return std::nullopt;
+    return SYSTEM_ERROR(ENOENT);
   }
-  return CgroupState{
-      .limit = start_limit, .last_total = *total_opt, .last_action_time = now};
+  state.limit = start_limit;
+  state.last_total = *total_opt;
+  state.last_action_time = now;
+  return noSystemError();
 }
 
 // Update state of a cgroup. Return if the cgroup is still valid.
@@ -124,8 +126,7 @@ bool SenpaiHold::tick(const CgroupContext& cgroup_ctx, CgroupState& state) {
         << " does not match recorded state " << state.limit
         << ". Resetting cgroup";
     OLOG << oss.str();
-    if (auto state_opt = initializeCgroup(cgroup_ctx)) {
-      state = *state_opt;
+    if (initializeCgroup(cgroup_ctx, state)) {
       return true;
     }
     return false;

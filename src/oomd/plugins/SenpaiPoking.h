@@ -25,8 +25,8 @@
 namespace Oomd {
 template <>
 struct CgroupState<class SenpaiPoking> {
-  // Count-down to decision to probe/backoff
-  int64_t ticks;
+  // Count-up to decision
+  int64_t ticks{0};
   // Probe statistics for logging
   uint64_t probe_bytes{0};
   uint64_t probe_count{0};
@@ -44,7 +44,9 @@ class SenpaiPoking : public SenpaiCommon<SenpaiPoking> {
 
   using CgroupState = CgroupState<SenpaiPoking>;
 
-  std::optional<CgroupState> initializeCgroup(const CgroupContext& cgroup_ctx);
+  SystemMaybe<Unit> initializeCgroup(
+      const CgroupContext& cgroup_ctx,
+      CgroupState& state);
   bool tick(const CgroupContext& cgroup_ctx, CgroupState& state);
   std::ostream& log(std::ostream& os, CgroupState& state);
 
