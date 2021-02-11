@@ -108,10 +108,6 @@ class SenpaiHold : public SenpaiCommon<SenpaiHold> {
   SystemMaybe<Unit> resetLimit(
       const CgroupContext& cgroup_ctx,
       CgroupState& state);
-  SystemMaybe<bool> validatePressure(const CgroupContext& cgroup_ctx) const;
-  SystemMaybe<bool> validateSwap(const CgroupContext& cgroup_ctx) const;
-  SystemMaybe<double> calculateSwappinessFactor(
-      const CgroupContext& cgroup_ctx) const;
 
   std::shared_ptr<EpollThreadState> epoll_thread_state_;
   std::thread epoll_thread_;
