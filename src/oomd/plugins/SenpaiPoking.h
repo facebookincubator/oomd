@@ -42,7 +42,7 @@ class SenpaiPoking : public SenpaiCommon<SenpaiPoking> {
     return new SenpaiPoking();
   }
 
-  using CgroupState = CgroupState<SenpaiPoking>;
+  using CgroupState = Oomd::CgroupState<SenpaiPoking>;
 
   SystemMaybe<Unit> initializeCgroup(
       const CgroupContext& cgroup_ctx,
