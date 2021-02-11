@@ -9,15 +9,6 @@ on:
     - master
 
 jobs:
-  check-format:
-    name: Check clang format
-    runs-on: ubuntu-latest
-    steps:
-      - run: sudo apt-get install clang-format
-      - name: Checkout code
-        uses: actions/checkout@v2
-      - run: ./clang-format.sh
-      - run: git diff --exit-code
   build:
     name: Build and test repo
     runs-on: ubuntu-latest
