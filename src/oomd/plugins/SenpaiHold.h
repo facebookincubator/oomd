@@ -95,7 +95,7 @@ class SenpaiHold : public SenpaiCommon<SenpaiHold> {
     return new SenpaiHold();
   }
 
-  using CgroupState = CgroupState<SenpaiHold>;
+  using CgroupState = Oomd::CgroupState<SenpaiHold>;
 
   SystemMaybe<Unit> initializeCgroup(
       const CgroupContext& cgroup_ctx,
