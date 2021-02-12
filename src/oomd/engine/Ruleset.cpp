@@ -111,10 +111,6 @@ uint32_t Ruleset::runOnce(OomdContext& context) {
   bool run_actions = false;
   for (const auto& dg : detector_groups_) {
     if (dg->check(context, silenced_logs_) && !run_actions) {
-      if (!(silenced_logs_ & LogSources::ENGINE)) {
-        OLOG << "DetectorGroup=" << dg->name()
-             << " has fired for Ruleset=" << name_ << ". Running action chain.";
-      }
       run_actions = true;
       context.setActionContext({this, dg->name(), Util::generateUuid()});
     }
@@ -144,6 +140,11 @@ uint32_t Ruleset::runOnce(OomdContext& context) {
 
   if (!run_actions) {
     return 0;
+  }
+
+  if (!(silenced_logs_ & LogSources::ENGINE)) {
+    OLOG << "DetectorGroup=" << context.getActionContext().detectorgroup
+         << " has fired for Ruleset=" << name_ << ". Running action chain.";
   }
 
   // Begin running action chain
