@@ -141,7 +141,15 @@ static void OOMD_KMSG_LOG(Args&&... args) {
   Log::get().kmsgLog(std::forward<Args>(args)...);
 }
 
+#ifdef __FILE_NAME__
+#define FILENAME __FILE_NAME__
+#elif defined __BASE_NAME__
+#define FILENAME __BASE_NAME__
+#else
+#define FILENAME __FILE__
+#endif
+
 // This has to be a macro so __FILE__ and __LINE__ are captured
-#define OLOG ::Oomd::LogStream() << "[" << __FILE__ << ":" << __LINE__ << "] "
+#define OLOG ::Oomd::LogStream() << "[" << FILENAME << ":" << __LINE__ << "] "
 
 } // namespace Oomd
