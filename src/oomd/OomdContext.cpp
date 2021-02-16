@@ -115,6 +115,14 @@ void OomdContext::setSystemContext(const SystemContext& context) {
   system_ctx_ = context;
 }
 
+const std::optional<Engine::Ruleset*> OomdContext::getInvokingRuleset() {
+  return invoking_ruleset_;
+}
+
+void OomdContext::setInvokingRuleset(std::optional<Engine::Ruleset*> ruleset) {
+  invoking_ruleset_ = ruleset;
+}
+
 void OomdContext::dump() {
   std::vector<ConstCgroupContextRef> cgroups;
   for (auto& pair : cgroups_) {

@@ -115,8 +115,8 @@ Engine::PluginRet BaseKillPlugin::run(OomdContext& ctx) {
   if (!ret || always_continue_) {
     return Engine::PluginRet::CONTINUE;
   }
-  if (auto ruleset = ctx.getActionContext().ruleset) {
-    ruleset->pause_actions(std::chrono::seconds(post_action_delay_));
+  if (auto ruleset = ctx.getInvokingRuleset()) {
+    (*ruleset)->pause_actions(std::chrono::seconds(post_action_delay_));
   }
   return Engine::PluginRet::STOP;
 }
@@ -407,14 +407,12 @@ void BaseKillPlugin::logKill(
     const std::string& kill_uuid,
     bool dry) const {
   auto mem_pressure = context.mem_pressure().value_or(ResourcePressure{});
-  auto ruleset =
-      action_context.ruleset ? action_context.ruleset->getName() : "";
   std::ostringstream oss;
   oss << std::setprecision(2) << std::fixed;
   oss << mem_pressure.sec_10 << " " << mem_pressure.sec_60 << " "
       << mem_pressure.sec_300 << " " << killed_cgroup.relativePath() << " "
       << context.current_usage().value_or(0) << " "
-      << "ruleset:[" << ruleset << "] "
+      << "ruleset:[" << action_context.ruleset_name << "] "
       << "detectorgroup:[" << action_context.detectorgroup << "] "
       << "killer:" << (dry ? "(dry)" : "") << getName() << " v2";
   if (!dry) {

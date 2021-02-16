@@ -36,7 +36,7 @@ class Ruleset;
 }
 
 struct ActionContext {
-  Engine::Ruleset* ruleset{nullptr};
+  std::string ruleset_name;
   std::string detectorgroup;
   std::string action_group_run_uuid;
 };
@@ -154,6 +154,13 @@ class OomdContext {
   void setSystemContext(const SystemContext& context);
 
   /*
+   * Lets action plugins call pause_actions(post_action_delay) on their owning
+   * ruleset. Only available while the ruleset is running its action chain.
+   */
+  const std::optional<Engine::Ruleset*> getInvokingRuleset();
+  void setInvokingRuleset(std::optional<Engine::Ruleset*> ruleset);
+
+  /*
    * Refresh all cgroups and remove ones no longer exist.
    */
   void refresh();
@@ -166,6 +173,7 @@ class OomdContext {
   std::unordered_map<CgroupPath, CgroupContext> cgroups_;
   ActionContext action_context_;
   SystemContext system_ctx_;
+  std::optional<Engine::Ruleset*> invoking_ruleset_{std::nullopt};
 };
 
 } // namespace Oomd

@@ -112,12 +112,14 @@ uint32_t Ruleset::runOnce(OomdContext& context) {
   for (const auto& dg : detector_groups_) {
     if (dg->check(context, silenced_logs_) && !run_actions) {
       run_actions = true;
-      context.setActionContext({this, dg->name(), Util::generateUuid()});
+      context.setActionContext({name_, dg->name(), Util::generateUuid()});
+      context.setInvokingRuleset(this);
     }
   }
 
   OOMD_SCOPE_EXIT {
-    context.setActionContext({nullptr, "", ""});
+    context.setActionContext({"", "", ""});
+    context.setInvokingRuleset(std::nullopt);
   };
 
   // run actions if now() == pause_actions_until_ because a delay of 0 should
