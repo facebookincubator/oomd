@@ -55,7 +55,7 @@ class SenpaiPoking : public SenpaiCommon<SenpaiPoking> {
  private:
   SystemMaybe<bool> validatePressure(const CgroupContext& cgroup_ctx) const;
   SystemMaybe<bool> validateSwap(const CgroupContext& cgroup_ctx) const;
-  SystemMaybe<double> calculateSwappinessFactor(
+  SystemMaybe<double> calculateSwapFactor(
       const CgroupContext& cgroup_ctx) const;
 
   double mem_pressure_pct_{0.1};

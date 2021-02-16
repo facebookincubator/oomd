@@ -106,21 +106,33 @@ bool SenpaiPoking::tick(
       return false;
     }
     if (*current_opt > *limit_min_bytes_opt) {
+      double swap_factor = 1.0;
+      if (modulate_swappiness_) {
+        auto swap_factor_maybe = calculateSwapFactor(cgroup_ctx);
+        if (!swap_factor_maybe) {
+          return false;
+        }
+        swap_factor = *swap_factor_maybe;
+      }
       // Set the limit to somewhere between memory.current and lower limit
-      int64_t limit = *limit_min_bytes_opt +
-          (*current_opt - *limit_min_bytes_opt) * (1 - max_probe_);
+      // Scale down reclaim if we need to reduce swap activity
+      int64_t reclaim_size =
+          (*current_opt - *limit_min_bytes_opt) * max_probe_ * swap_factor;
       // Memory high is always a multiple of 4K
-      limit &= ~0xFFF;
+      int64_t limit = (*current_opt - reclaim_size) & ~0xFFF;
 
       int original_swappiness;
       if (modulate_swappiness_) {
         original_swappiness =
             cgroup_ctx.oomd_ctx().getSystemContext().swappiness;
-        auto swappiness_factor_maybe = calculateSwappinessFactor(cgroup_ctx);
-        if (!swappiness_factor_maybe) {
-          return false;
+        int temp_swappiness = original_swappiness * swap_factor;
+        // In case swappiness == 0, we are potentially reclaiming from little
+        // file cache, which is likely to trigger race with workload allocation.
+        // Workaround until we get better way to trigger reclaim.
+        if (temp_swappiness == 0) {
+          return true;
         }
-        Fs::setSwappiness(original_swappiness * (*swappiness_factor_maybe));
+        Fs::setSwappiness(temp_swappiness);
       }
       OOMD_SCOPE_EXIT {
         if (modulate_swappiness_) {
@@ -211,9 +223,9 @@ SystemMaybe<bool> SenpaiPoking::validateSwap(
   return *effective_swap_util_pct_opt >= swap_threshold_;
 }
 
-// Calculate swappiness factor (between 0 and 1) for a cgroup to modulate swap
-// behavior.
-SystemMaybe<double> SenpaiPoking::calculateSwappinessFactor(
+// Calculate swap factor (between 0 and 1) for a cgroup to modulate swap
+// behavior. Zero means we should not swap for this cgroup for now.
+SystemMaybe<double> SenpaiPoking::calculateSwapFactor(
     const CgroupContext& cgroup_ctx) const {
   if (swap_threshold_ <= 0) {
     return 0;
