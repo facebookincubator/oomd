@@ -78,6 +78,8 @@ class SenpaiCommon : public Engine::BasePlugin {
 
   int64_t log_interval_{60};
   int64_t log_ticks_{0};
+
+  bool verbose_{false};
 };
 
 } // namespace Oomd

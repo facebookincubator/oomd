@@ -83,6 +83,8 @@ bool SenpaiPoking::tick(
     return true;
   }
 
+  auto& name = cgroup_ctx.cgroup().relativePath();
+
   auto validate_pressure_maybe = validatePressure(cgroup_ctx);
   if (!validate_pressure_maybe) {
     return false;
@@ -130,6 +132,9 @@ bool SenpaiPoking::tick(
         // file cache, which is likely to trigger race with workload allocation.
         // Workaround until we get better way to trigger reclaim.
         if (temp_swappiness == 0) {
+          if (verbose_) {
+            OLOG << "cgroup " << name << " skip reclaim to limit swapout";
+          }
           return true;
         }
         Fs::setSwappiness(temp_swappiness);
@@ -157,7 +162,22 @@ bool SenpaiPoking::tick(
       state.probe_count++;
       state.probe_bytes += *current_opt - limit;
       state.ticks = 0;
+      if (verbose_) {
+        std::ostringstream oss;
+        oss << "cgroup " << name << " current " << std::setprecision(3)
+            << std::fixed << *current_opt / (double)(1 << 30UL)
+            << "gb limit_min " << *limit_min_bytes_opt / (double)(1 << 30UL)
+            << "gb reclaim " << reclaim_size / (double)(1 << 30UL) << "gb";
+        if (modulate_swappiness_) {
+          oss << " swap_factor " << swap_factor;
+        }
+        OLOG << oss.str();
+      }
+    } else if (verbose_) {
+      OLOG << "cgroup " << name << " memory.current lower than limit min bytes";
     }
+  } else if (verbose_) {
+    OLOG << "cgroup " << name << " pressure too high or not sufficient swap";
   }
 
   return true;

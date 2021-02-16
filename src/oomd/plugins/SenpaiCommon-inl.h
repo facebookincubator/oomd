@@ -66,6 +66,14 @@ int SenpaiCommon<T>::init(
         std::stoull(args.at("memory_high_timeout_ms")));
   }
 
+  if (args.find("verbose") != args.end()) {
+    const std::string& val = args.at("verbose");
+
+    if (val == "true" || val == "True" || val == "1") {
+      verbose_ = true;
+    }
+  }
+
   auto meminfo = Fs::getMeminfo();
   // TODO(dschatzberg): Report Error
   if (meminfo) {
