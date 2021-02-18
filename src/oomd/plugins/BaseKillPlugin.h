@@ -17,7 +17,13 @@
 
 #pragma once
 
+#include <memory>
+#include <vector>
+#include "oomd/CgroupContext.h"
+#include "oomd/OomdContext.h"
 #include "oomd/engine/BasePlugin.h"
+#include "oomd/engine/PrekillHook.h"
+#include "oomd/include/CgroupPath.h"
 
 namespace Oomd {
 
@@ -31,7 +37,7 @@ namespace Oomd {
  * If customized behavior is desired, then simply override the relevant
  * methods.
  */
-class BaseKillPlugin : public Oomd::Engine::BasePlugin {
+class BaseKillPlugin : public Engine::BasePlugin {
  public:
   int init(
       const Engine::PluginArgs& args,
@@ -190,9 +196,51 @@ class BaseKillPlugin : public Oomd::Engine::BasePlugin {
 
  private:
   virtual int getAndTryToKillPids(const CgroupContext& target);
-  bool tryToKillSomething(
+
+  enum class KillResult {
+    SUCCESS,
+    FAILED,
+    DEFER,
+  };
+  KillResult tryToKillSomething(
       OomdContext& ctx,
-      std::vector<OomdContext::ConstCgroupContextRef>&& cgroups);
+      const std::vector<OomdContext::ConstCgroupContextRef>& initial_cgroups);
+
+  struct KillCandidate {
+   public:
+    const CgroupContext& cgroup_ctx;
+    // .kill_root and .peers are for logging
+    // .kill_root is for when recursive targeting is enabled. It is the ancestor
+    // cgroup of .cgroup_ctx that was targeted in the plugin's "cgroup" arg.
+    // When recursive targeting is disabled, .kill_root == .cgroup_ctx
+    const CgroupContext& kill_root;
+    std::shared_ptr<std::vector<OomdContext::ConstCgroupContextRef>> peers;
+  };
+  KillResult resumeTryingToKillSomething(
+      OomdContext& ctx,
+      const ActionContext& initial_action_context,
+      std::vector<KillCandidate> next_best_option_stack);
+
+  // returns false on failure
+  bool tryToLogAndKillCgroup(
+      const ActionContext& action_context,
+      const KillCandidate& candidate);
+
+  // SerializedKillCandidates may be held across intervals because unlike
+  // KillCandidates, Serialized* versions do not hold CgroupContext refs.
+  struct SerializedCgroupRef {
+   public:
+    CgroupPath path;
+    // id=nullopt represents a deleted cgroup which is undeserializable
+    std::optional<CgroupContext::Id> id;
+  };
+  struct SerializedKillCandidate {
+   public:
+    SerializedCgroupRef target;
+    SerializedCgroupRef kill_root;
+    std::shared_ptr<std::vector<SerializedCgroupRef>> peers;
+  };
+  KillResult resumeFromPrekillHook(OomdContext& ctx);
 
   std::unordered_set<CgroupPath> cgroups_;
   bool recursive_{false};
@@ -200,6 +248,15 @@ class BaseKillPlugin : public Oomd::Engine::BasePlugin {
   bool dry_{false};
   bool always_continue_{false};
   bool debug_{false};
+
+  struct ActivePrekillHook {
+   public:
+    std::unique_ptr<Engine::PrekillHookInvocation> hook_invocation;
+    SerializedKillCandidate intended_victim;
+    ActionContext action_context;
+    std::vector<SerializedKillCandidate> next_best_option_stack;
+  };
+  std::optional<ActivePrekillHook> prekill_hook_state_{std::nullopt};
 };
 
 } // namespace Oomd

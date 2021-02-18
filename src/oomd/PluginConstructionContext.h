@@ -18,8 +18,13 @@
 #pragma once
 
 #include <string>
+#include <unordered_map>
 
 namespace Oomd {
+
+namespace Engine {
+using PluginArgs = std::unordered_map<std::string, std::string>;
+}
 
 class PluginConstructionContext {
  public:

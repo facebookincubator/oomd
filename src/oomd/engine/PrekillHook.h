@@ -26,17 +26,38 @@
 namespace Oomd {
 namespace Engine {
 
+/*
+ * A PrekillHook subclass's fire() is expected to start work that takes multiple
+ * ticks of the main loop to finish and should not block. Instead, do the work
+ * asynchronously and return an instance of PrekillHookInvocation whose
+ * didFinish() will be polled.
+ * All functions will only be called from main thread, including fire(),
+ * didFinish(), and ~PrekillHookInvocation. None should block for long times.
+ * See docs/prekill_hooks.md for details.
+ */
+
+class PrekillHookInvocation {
+ public:
+  virtual bool didFinish() = 0;
+  virtual ~PrekillHookInvocation() = default;
+};
+
 class PrekillHook {
  public:
   PrekillHook() = default;
-  virtual int init(
-      const PluginArgs& args,
-      const PluginConstructionContext& context) = 0;
-
   virtual ~PrekillHook() = default;
 
   PrekillHook(const PrekillHook&) = delete;
   PrekillHook& operator=(const PrekillHook&) = delete;
+
+  virtual int init(
+      const PluginArgs& /* unused */,
+      const PluginConstructionContext& /* unused */) {
+    return 0;
+  }
+
+  virtual std::unique_ptr<PrekillHookInvocation> fire(
+      const CgroupContext& cgroup_ctx) = 0;
 
   virtual void setName(const std::string& name) {
     name_ = name;

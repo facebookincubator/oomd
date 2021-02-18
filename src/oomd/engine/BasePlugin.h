@@ -35,8 +35,6 @@ enum class PluginRet {
   ASYNC_PAUSED,
 };
 
-using PluginArgs = std::unordered_map<std::string, std::string>;
-
 class BasePlugin {
  public:
   /*

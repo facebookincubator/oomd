@@ -231,6 +231,22 @@ class NoOpPrekillHook : public PrekillHook {
     return new NoOpPrekillHook();
   }
 
+  class NoOpPrekillHookInvocation : public PrekillHookInvocation {
+   public:
+    bool didFinish() override {
+      return true;
+    }
+
+    NoOpPrekillHookInvocation() = default;
+    ~NoOpPrekillHookInvocation() override = default;
+  };
+
+  std::unique_ptr<PrekillHookInvocation> fire(
+      const CgroupContext& /* unused */) override {
+    return std::unique_ptr<PrekillHookInvocation>(
+        new NoOpPrekillHookInvocation());
+  }
+
   ~NoOpPrekillHook() override = default;
 };
 

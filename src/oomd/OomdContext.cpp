@@ -16,8 +16,10 @@
  */
 
 #include "oomd/OomdContext.h"
+#include <optional>
 
 #include "oomd/Log.h"
+#include "oomd/engine/Engine.h"
 #include "oomd/util/Fs.h"
 
 namespace Oomd {
@@ -204,6 +206,20 @@ void OomdContext::refresh() {
   while (it != cgroups_.end()) {
     it = it->second.refresh() ? std::next(it) : cgroups_.erase(it);
   }
+}
+
+void OomdContext::setPrekillHooks(
+    const std::vector<std::unique_ptr<Engine::PrekillHook>>& prekill_hooks) {
+  prekill_hooks_ = prekill_hooks;
+}
+
+std::optional<std::unique_ptr<Engine::PrekillHookInvocation>>
+OomdContext::firePrekillHook(const CgroupContext& cgroup_ctx) {
+  if (!prekill_hooks_ || prekill_hooks_.value().get().size() != 1) {
+    return std::nullopt;
+  }
+
+  return prekill_hooks_.value().get().at(0)->fire(cgroup_ctx);
 }
 
 } // namespace Oomd

@@ -33,7 +33,9 @@ namespace Oomd {
 
 namespace Engine {
 class Ruleset;
-}
+class PrekillHook;
+class PrekillHookInvocation;
+} // namespace Engine
 
 struct ActionContext {
   std::string ruleset_name;
@@ -161,6 +163,14 @@ class OomdContext {
   void setInvokingRuleset(std::optional<Engine::Ruleset*> ruleset);
 
   /*
+   * Used to let pass prekill hooks to kill plugins
+   */
+  void setPrekillHooks(
+      const std::vector<std::unique_ptr<Engine::PrekillHook>>& prekill_hooks);
+  std::optional<std::unique_ptr<Engine::PrekillHookInvocation>> firePrekillHook(
+      const CgroupContext& cgroup_ctx);
+
+  /*
    * Refresh all cgroups and remove ones no longer exist.
    */
   void refresh();
@@ -174,6 +184,9 @@ class OomdContext {
   ActionContext action_context_;
   SystemContext system_ctx_;
   std::optional<Engine::Ruleset*> invoking_ruleset_{std::nullopt};
+  std::optional<std::reference_wrapper<
+      const std::vector<std::unique_ptr<Engine::PrekillHook>>>>
+      prekill_hooks_{std::nullopt};
 };
 
 } // namespace Oomd

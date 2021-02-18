@@ -25,16 +25,20 @@
 #include <csignal>
 #include <fstream>
 #include <iomanip>
-#include <stack>
+#include <map>
+#include <memory>
+#include <optional>
 #include <string>
 #include <unordered_set>
 #include <utility>
 #include <vector>
 
 #include "oomd/Log.h"
+#include "oomd/OomdContext.h"
 #include "oomd/Stats.h"
 #include "oomd/engine/Ruleset.h"
 #include "oomd/include/Assert.h"
+#include "oomd/include/CgroupPath.h"
 #include "oomd/include/CoreStats.h"
 #include "oomd/include/Types.h"
 #include "oomd/util/Fs.h"
@@ -109,10 +113,25 @@ int BaseKillPlugin::init(
 }
 
 Engine::PluginRet BaseKillPlugin::run(OomdContext& ctx) {
-  auto cgroups = ctx.addToCacheAndGet(cgroups_);
-  bool ret = tryToKillSomething(ctx, std::move(cgroups));
+  KillResult ret;
 
-  if (!ret || always_continue_) {
+  if (prekill_hook_state_) {
+    ret = resumeFromPrekillHook(ctx);
+  } else {
+    ret = tryToKillSomething(ctx, ctx.addToCacheAndGet(cgroups_));
+  }
+
+  if (ret == KillResult::DEFER) {
+    return Engine::PluginRet::ASYNC_PAUSED;
+  }
+
+  if (prekill_hook_state_ != std::nullopt) {
+    OLOG << "Error: there shouldn't be a running prekill hook"
+            " once we're done with a kill cycle";
+    prekill_hook_state_ = std::nullopt;
+  }
+
+  if (ret == KillResult::FAILED || always_continue_) {
     return Engine::PluginRet::CONTINUE;
   }
   if (auto ruleset = ctx.getInvokingRuleset()) {
@@ -121,61 +140,151 @@ Engine::PluginRet BaseKillPlugin::run(OomdContext& ctx) {
   return Engine::PluginRet::STOP;
 }
 
-namespace {
-struct KillCandidate {
- public:
-  const CgroupContext& cgroup_ctx;
-  // .kill_root and .peers are for logging
-  // .kill_root is for when recursive targeting is enabled. It is the ancestor
-  // cgroup of .cgroup_ctx that was targeted in the plugin's "cgroup" arg. When
-  // recursive targeting is disabled, .kill_root == .cgroup_ctx
-  const CgroupContext& kill_root;
-  std::shared_ptr<const std::vector<OomdContext::ConstCgroupContextRef>> peers;
-};
-} // namespace
+BaseKillPlugin::KillResult BaseKillPlugin::resumeFromPrekillHook(
+    OomdContext& ctx) {
+  OCHECK(prekill_hook_state_ != std::nullopt);
 
-bool BaseKillPlugin::tryToKillSomething(
-    OomdContext& ctx,
-    std::vector<OomdContext::ConstCgroupContextRef>&& initial_cgroups) {
-  // DFS down tree looking for best kill target. Keep a stack (instead of just
-  // the current target) because if killing fails, we try the next-best target.
-  // This may involve backtracking up the tree.
-  // The stack tracks (cgroup, siblings) because ologKillTarget needs to know
-  // what peers a cgroup was compared to when it was picked.
-  // initial_cgroups are treated as siblings.
-  std::stack<KillCandidate> stack;
+  if (prekill_hook_state_->hook_invocation->didFinish()) {
+    OLOG << "pre-kill hook finished for Ruleset="
+         << prekill_hook_state_->action_context.ruleset_name;
+  } else {
+    OLOG << "Still running pre-kill hook for Ruleset="
+         << prekill_hook_state_->action_context.ruleset_name;
+    return KillResult::DEFER;
+  }
 
-  auto push_siblings_onto_stack =
-      [&](std::vector<OomdContext::ConstCgroupContextRef>&& peers,
-          std::optional<OomdContext::ConstCgroupContextRef> kill_root) {
-        auto shared_peers = std::make_shared<
-            const std::vector<OomdContext::ConstCgroupContextRef>>(
-            std::move(peers));
+  auto deserialize_cgroup_ref = [&](const SerializedCgroupRef& sc)
+      -> std::optional<OomdContext::ConstCgroupContextRef> {
+    if (auto cgroup_ctx = ctx.addToCacheAndGet(sc.path)) {
+      // Check inodes match and not a re-created cgroup. nullopt ids mean
+      // deleted cgroups, which are never equal to each other.
+      auto id = cgroup_ctx->get().id();
+      if (id.has_value() && sc.id.has_value() && *id == *sc.id) {
+        return cgroup_ctx;
+      }
+    }
+    return std::nullopt;
+  };
 
-        std::vector<OomdContext::ConstCgroupContextRef> sorted =
-            rankForKilling(ctx, *shared_peers);
-
-        OomdContext::dump(sorted, !debug_);
-
-        // push the lowest ranked sibling onto the stack first, so the highest
-        // ranked sibling is on top
-        reverse(sorted.begin(), sorted.end());
-        for (const auto& cgroup_ctx : sorted) {
-          stack.emplace(KillCandidate{
-              .cgroup_ctx = cgroup_ctx,
-              // kill_root is nullopt when peers are themselves
-              // the roots, in the first call. Each cgroup is then
-              // its own kill_root.
-              .kill_root = kill_root.value_or(cgroup_ctx),
-              .peers = shared_peers});
+  // memoize deserialize_peer_group by serialized peer group pointer
+  std::map<
+      std::vector<SerializedCgroupRef>*,
+      std::shared_ptr<std::vector<OomdContext::ConstCgroupContextRef>>>
+      memoized_peer_groups;
+  auto deserialize_peer_group =
+      [&](std::vector<SerializedCgroupRef>* serialized_peers) {
+        auto it = memoized_peer_groups.find(serialized_peers);
+        if (it != memoized_peer_groups.end()) {
+          return it->second;
         }
+        auto deserialized_peers =
+            std::make_shared<std::vector<OomdContext::ConstCgroupContextRef>>();
+        for (const auto& peer : *serialized_peers) {
+          if (auto peer_cgroup_ctx = deserialize_cgroup_ref(peer)) {
+            deserialized_peers->emplace_back(*peer_cgroup_ctx);
+          }
+        }
+        memoized_peer_groups[serialized_peers] = deserialized_peers;
+        return deserialized_peers;
       };
 
-  push_siblings_onto_stack(std::move(initial_cgroups), std::nullopt);
+  auto deserialize_kill_candidate =
+      [&](const SerializedKillCandidate& skc) -> std::optional<KillCandidate> {
+    if (auto candidate_ctx = deserialize_cgroup_ref(skc.target)) {
+      if (auto kill_root_ctx = deserialize_cgroup_ref(skc.kill_root)) {
+        return KillCandidate{
+            .cgroup_ctx = *candidate_ctx,
+            .kill_root = *kill_root_ctx,
+            .peers = deserialize_peer_group(skc.peers.get())};
+      }
+    }
 
-  while (!stack.empty()) {
-    const auto candidate = stack.top();
-    stack.pop();
+    return std::nullopt;
+  };
+
+  // pull state out of prekill_hook_state and clear it to delete the invocation
+  auto intended_victim = std::move(prekill_hook_state_->intended_victim);
+  auto serialized_next_best_option_stack =
+      std::move(prekill_hook_state_->next_best_option_stack);
+  auto action_context = std::move(prekill_hook_state_->action_context);
+  prekill_hook_state_ = std::nullopt;
+
+  // Try to kill intended victim
+  if (auto intended_candidate = deserialize_kill_candidate(intended_victim)) {
+    if (tryToLogAndKillCgroup(action_context, *intended_candidate)) {
+      return KillResult::SUCCESS;
+    }
+  } else {
+    // intended_candidate isn't deserializable means someone else removed it
+    // before we could. Consider that they did our job for us. If we still
+    // need to kill something detectors will fire again in the next interval and
+    // start a fresh kill cycle.
+    return KillResult::FAILED;
+  }
+
+  std::vector<KillCandidate> next_best_option_stack;
+  for (const auto& skc : serialized_next_best_option_stack) {
+    if (auto candidate = deserialize_kill_candidate(skc)) {
+      next_best_option_stack.emplace_back(*candidate);
+    } else {
+      // candidate isn't deserializable means someone else killed it before we
+      // got a chance to. resumeTryingToKillSomething gets to the point where it
+      // would have killed candidate, consider the other folks to have done our
+      // job for us. Don't keep going further down the DFS stack looking for
+      // another cgroup to kill. This means removing all candidates *lower* in
+      // the stack, or *earlier* in the vector.
+      next_best_option_stack.clear();
+    }
+  }
+  serialized_next_best_option_stack.clear();
+
+  return resumeTryingToKillSomething(
+      ctx, action_context, std::move(next_best_option_stack));
+}
+
+BaseKillPlugin::KillResult BaseKillPlugin::tryToKillSomething(
+    OomdContext& ctx,
+    const std::vector<OomdContext::ConstCgroupContextRef>& initial_cgroups) {
+  std::vector<KillCandidate> next_best_option_stack;
+
+  auto sorted =
+      std::make_shared<std::vector<OomdContext::ConstCgroupContextRef>>(
+          rankForKilling(ctx, initial_cgroups));
+  OomdContext::dump(*sorted, !debug_);
+
+  // push the lowest ranked sibling onto the next_best_option_stack first, so
+  // the highest ranked sibling is on top
+  reverse(sorted->begin(), sorted->end());
+  for (const auto& cgroup_ctx : *sorted) {
+    next_best_option_stack.emplace_back(KillCandidate{
+        .cgroup_ctx = cgroup_ctx,
+        // kill_roots are the initial_cgroups
+        .kill_root = cgroup_ctx,
+        .peers = sorted});
+  }
+
+  return resumeTryingToKillSomething(
+      ctx, ctx.getActionContext(), std::move(next_best_option_stack));
+}
+
+// DFS down tree looking for best kill target. Keep a next_best_option_stack
+// (instead of just the current target) because if killing fails, we try the
+// next-best target. This may involve backtracking up the tree. The
+// next_best_option_stack tracks (cgroup, siblings) because ologKillTarget needs
+// to know what peers a cgroup was compared to when it was picked.
+// initial_cgroups are treated as siblings.
+BaseKillPlugin::KillResult BaseKillPlugin::resumeTryingToKillSomething(
+    OomdContext& ctx,
+    const ActionContext& initial_action_context,
+    std::vector<KillCandidate> next_best_option_stack) {
+  OCHECK_EXCEPT(
+      prekill_hook_state_ == std::nullopt,
+      std::runtime_error("Shouldn't be trying to kill anything while pre-kill"
+                         " hook is still running"));
+
+  while (!next_best_option_stack.empty()) {
+    const auto candidate = next_best_option_stack.back();
+    next_best_option_stack.pop_back();
 
     bool may_recurse =
         recursive_ && !candidate.cgroup_ctx.oom_group().value_or(false);
@@ -183,7 +292,26 @@ bool BaseKillPlugin::tryToKillSomething(
       auto children = ctx.addChildrenToCacheAndGet(candidate.cgroup_ctx);
       if (children.size() > 0) {
         ologKillTarget(ctx, candidate.cgroup_ctx, *candidate.peers);
-        push_siblings_onto_stack(std::move(children), candidate.kill_root);
+
+        auto sorted =
+            std::make_shared<std::vector<OomdContext::ConstCgroupContextRef>>(
+                rankForKilling(ctx, children));
+
+        OomdContext::dump(*sorted, !debug_);
+
+        // push the lowest ranked sibling onto the next_best_option_stack first,
+        // so the highest ranked sibling is on top
+        reverse(sorted->begin(), sorted->end());
+        for (const auto& cgroup_ctx : *sorted) {
+          next_best_option_stack.emplace_back(KillCandidate{
+              .cgroup_ctx = cgroup_ctx,
+              // kill_root is nullopt when peers are themselves
+              // the roots, in the first call. Each cgroup is then
+              // its own kill_root.
+              .kill_root = candidate.kill_root,
+              .peers = sorted});
+        }
+
         continue;
       }
     }
@@ -201,18 +329,76 @@ bool BaseKillPlugin::tryToKillSomething(
 
     ologKillTarget(ctx, candidate.cgroup_ctx, *candidate.peers);
 
-    if (auto kill_uuid = tryToKillCgroup(candidate.cgroup_ctx, dry_)) {
-      logKill(
-          candidate.cgroup_ctx.cgroup(),
-          candidate.cgroup_ctx,
-          candidate.kill_root,
-          ctx.getActionContext(),
-          *kill_uuid,
-          dry_);
-      return true;
+    if (auto hook_invocation = ctx.firePrekillHook(candidate.cgroup_ctx)) {
+      if (!(*hook_invocation)->didFinish()) {
+        auto serialize_cgroup_ref = [&](const CgroupContext& cgroup_ctx) {
+          // cgroup_ctx.id() may be nullopt, which means the cgroup is deleted
+          return SerializedCgroupRef{
+              .path = cgroup_ctx.cgroup(), .id = cgroup_ctx.id()};
+        };
+
+        // memoize serialize_peer_group by unserialized peer group pointer
+        std::map<
+            const std::vector<OomdContext::ConstCgroupContextRef>*,
+            std::shared_ptr<std::vector<SerializedCgroupRef>>>
+            memoized_peer_groups;
+        auto serialize_peer_group =
+            [&](const std::vector<OomdContext::ConstCgroupContextRef>* peers) {
+              auto it = memoized_peer_groups.find(peers);
+              if (it != memoized_peer_groups.end()) {
+                return it->second;
+              }
+              auto serialized_peers =
+                  std::make_shared<std::vector<SerializedCgroupRef>>();
+              for (const auto& peer : *peers) {
+                serialized_peers->emplace_back(serialize_cgroup_ref(peer));
+              }
+              memoized_peer_groups[peers] = serialized_peers;
+              return serialized_peers;
+            };
+
+        auto serialize_kill_candidate = [&](const KillCandidate& kc) {
+          return SerializedKillCandidate{
+              .target = serialize_cgroup_ref(kc.cgroup_ctx),
+              .kill_root = serialize_cgroup_ref(kc.cgroup_ctx),
+              .peers = serialize_peer_group(kc.peers.get())};
+        };
+
+        prekill_hook_state_ = ActivePrekillHook{
+            .hook_invocation = std::move(*hook_invocation),
+            .intended_victim = serialize_kill_candidate(candidate),
+            .action_context = initial_action_context};
+
+        for (KillCandidate& kc : next_best_option_stack) {
+          prekill_hook_state_->next_best_option_stack.emplace_back(
+              serialize_kill_candidate(kc));
+        }
+
+        return KillResult::DEFER;
+      }
+    }
+
+    if (tryToLogAndKillCgroup(initial_action_context, candidate)) {
+      return KillResult::SUCCESS;
     }
   }
 
+  return KillResult::FAILED;
+}
+
+bool BaseKillPlugin::tryToLogAndKillCgroup(
+    const ActionContext& action_context,
+    const KillCandidate& candidate) {
+  if (auto kill_uuid = tryToKillCgroup(candidate.cgroup_ctx, dry_)) {
+    logKill(
+        candidate.cgroup_ctx.cgroup(),
+        candidate.cgroup_ctx,
+        candidate.kill_root,
+        action_context,
+        *kill_uuid,
+        dry_);
+    return true;
+  }
   return false;
 }
 

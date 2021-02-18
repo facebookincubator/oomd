@@ -100,6 +100,7 @@ void Oomd::updateContext() {
   }
 
   ctx_.setSystemContext(system_ctx);
+  ctx_.setPrekillHooks(engine_->getPrekillHooks());
   ctx_.refresh();
 }
 

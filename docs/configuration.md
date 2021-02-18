@@ -54,7 +54,8 @@ oomd configs have a loosely defined BNF:
 
     ROOT:
     {
-        "rulesets": [ RULESET[,RULESET[,...]]  ]
+        "rulesets": [ RULESET[,RULESET[,...]]  ],
+        "prekill_hooks": [ PLUGIN ]
     }
 
 In plain english, the general idea is that each oomd config one or more
@@ -62,6 +63,9 @@ RULESETs.  Each RULESET has a set of DETECTOR_GROUPs and a set of ACTIONs. Each
 DETECTOR_GROUP has a set of DETECTORs. Both DETECTORs and ACTIONs are PLUGIN
 types. That means _everything_ is a plugin in oomd. The rules on how a
 conforming config is evaluated at runtime are described in the next section.
+
+See [prekill_hooks.md](prekill_hooks.md) for details of the experimental
+"prekill_hooks" feature.
 
 ### Notes
 
