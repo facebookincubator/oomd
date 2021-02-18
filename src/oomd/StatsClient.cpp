@@ -23,6 +23,7 @@
 #include <sys/un.h>
 #include <unistd.h>
 #include <iostream>
+#include <optional>
 #include <vector>
 #include "oomd/Stats.h"
 #include "oomd/util/ScopeGuard.h"

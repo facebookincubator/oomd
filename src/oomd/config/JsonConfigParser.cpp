@@ -17,6 +17,7 @@
 
 #include "oomd/config/JsonConfigParser.h"
 
+#include <optional>
 #include <sstream>
 
 #include <json/reader.h>

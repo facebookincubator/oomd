@@ -22,6 +22,7 @@
 #include <json/value.h>
 #include <sys/socket.h>
 #include <iostream>
+#include <optional>
 #include "oomd/StatsClient.h"
 
 #include "oomd/util/Util.h"

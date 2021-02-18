@@ -18,6 +18,7 @@
 #include "oomd/include/CgroupPath.h"
 
 #include <exception>
+#include <optional>
 
 #include "oomd/util/Fs.h"
 #include "oomd/util/Util.h"
