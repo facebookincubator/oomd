@@ -22,6 +22,7 @@
 #include <unordered_map>
 
 #include "oomd/engine/BasePlugin.h"
+#include "oomd/engine/PrekillHook.h"
 
 namespace Oomd {
 
@@ -65,5 +66,11 @@ PluginRegistry<Engine::BasePlugin>& getPluginRegistry();
 #define REGISTER_PLUGIN(plugin_name, create_func) \
   bool plugin_name##_plugin_entry =               \
       getPluginRegistry().add(#plugin_name, (create_func))
+
+PluginRegistry<Engine::PrekillHook>& getPrekillHookRegistry();
+
+#define REGISTER_PREKILL_HOOK(hook_name, create_func) \
+  bool plugin_name##_plugin_entry =                   \
+      getPrekillHookRegistry().add(#hook_name, (create_func))
 
 } // namespace Oomd

@@ -15,18 +15,39 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#include "PluginRegistry.h"
+#pragma once
+
+#include <memory>
+#include "oomd/CgroupContext.h"
+#include "oomd/PluginConstructionContext.h"
+#include "oomd/include/CgroupPath.h"
+#include "oomd/include/Types.h"
 
 namespace Oomd {
+namespace Engine {
 
-PluginRegistry<Engine::BasePlugin>& getPluginRegistry() {
-  static PluginRegistry<Engine::BasePlugin> r;
-  return r;
-}
+class PrekillHook {
+ public:
+  PrekillHook() = default;
+  virtual int init(
+      const PluginArgs& args,
+      const PluginConstructionContext& context) = 0;
 
-PluginRegistry<Engine::PrekillHook>& getPrekillHookRegistry() {
-  static PluginRegistry<Engine::PrekillHook> r;
-  return r;
-}
+  virtual ~PrekillHook() = default;
 
+  PrekillHook(const PrekillHook&) = delete;
+  PrekillHook& operator=(const PrekillHook&) = delete;
+
+  virtual void setName(const std::string& name) {
+    name_ = name;
+  }
+  virtual const std::string& getName() const {
+    return name_;
+  }
+
+ private:
+  std::string name_;
+};
+
+} // namespace Engine
 } // namespace Oomd

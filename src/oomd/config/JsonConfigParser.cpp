@@ -139,6 +139,11 @@ std::unique_ptr<IR::Root> JsonConfigParser::parse(const std::string& input) {
     ir_root->rulesets.emplace_back(parseRuleset(ruleset));
   }
 
+  for (const auto& prekill_hook : json_root.get("prekill_hooks", {})) {
+    ir_root->prekill_hooks.emplace_back(
+        parsePlugin<Oomd::Config2::IR::PrekillHook>(prekill_hook));
+  }
+
   IR::dumpIR(*ir_root);
   return ir_root;
 }

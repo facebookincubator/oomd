@@ -25,6 +25,7 @@
 #include "oomd/config/ConfigCompiler.h"
 #include "oomd/config/ConfigTypes.h"
 #include "oomd/engine/BasePlugin.h"
+#include "oomd/engine/PrekillHook.h"
 
 using namespace Oomd;
 using namespace Oomd::Config2;
@@ -218,6 +219,21 @@ class NoInitPlugin : public BasePlugin {
   ~NoInitPlugin() override = default;
 };
 
+class NoOpPrekillHook : public PrekillHook {
+ public:
+  int init(
+      const PluginArgs& /* unused */,
+      const PluginConstructionContext& /* unused */) override {
+    return 0;
+  }
+
+  static NoOpPrekillHook* create() {
+    return new NoOpPrekillHook();
+  }
+
+  ~NoOpPrekillHook() override = default;
+};
+
 REGISTER_PLUGIN(Continue, ContinuePlugin::create);
 REGISTER_PLUGIN(Stop, StopPlugin::create);
 REGISTER_PLUGIN(IncrementCount, IncrementCountPlugin::create);
@@ -225,6 +241,7 @@ REGISTER_PLUGIN(StoreCount, StoreCountPlugin::create);
 REGISTER_PLUGIN(ControlledDetector, ControlledDetectorPlugin::create);
 REGISTER_PLUGIN(AsyncPause, AsyncPausePlugin::create);
 REGISTER_PLUGIN(NoInit, NoInitPlugin::create);
+REGISTER_PREKILL_HOOK(NoOpPrekillHook, NoOpPrekillHook::create);
 
 } // namespace Oomd
 
@@ -459,6 +476,14 @@ TEST_F(CompilerTest, IncrementCountNoop) {
   }
 
   EXPECT_EQ(count, 0);
+}
+
+TEST_F(CompilerTest, PrekillHook) {
+  IR::PrekillHook hook{IR::Plugin{.name = "NoOpPrekillHook"}};
+  root.prekill_hooks.push_back(std::move(hook));
+  auto engine = compile();
+  ASSERT_TRUE(engine);
+  ASSERT_EQ(engine->getPrekillHooks().size(), 1);
 }
 
 TEST_F(DropInCompilerTest, PrerunCount) {

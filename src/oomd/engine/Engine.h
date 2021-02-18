@@ -24,6 +24,7 @@
 
 #include "oomd/OomdContext.h"
 #include "oomd/engine/BasePlugin.h"
+#include "oomd/engine/PrekillHook.h"
 #include "oomd/engine/Ruleset.h"
 
 namespace Oomd {
@@ -31,7 +32,9 @@ namespace Engine {
 
 class Engine {
  public:
-  explicit Engine(std::vector<std::unique_ptr<Ruleset>> rulesets);
+  explicit Engine(
+      std::vector<std::unique_ptr<Ruleset>> rulesets,
+      std::vector<std::unique_ptr<PrekillHook>> prekill_hooks);
   ~Engine() = default;
 
   /*
@@ -61,6 +64,8 @@ class Engine {
    */
   void runOnce(OomdContext& context);
 
+  const std::vector<std::unique_ptr<PrekillHook>>& getPrekillHooks();
+
  private:
   struct DropInRuleset {
     std::string tag; // required field
@@ -73,6 +78,7 @@ class Engine {
   };
 
   std::vector<BaseRuleset> rulesets_;
+  std::vector<std::unique_ptr<PrekillHook>> prekill_hooks_;
 };
 
 } // namespace Engine

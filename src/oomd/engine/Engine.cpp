@@ -26,12 +26,16 @@
 namespace Oomd {
 namespace Engine {
 
-Engine::Engine(std::vector<std::unique_ptr<Ruleset>> rulesets) {
+Engine::Engine(
+    std::vector<std::unique_ptr<Ruleset>> rulesets,
+    std::vector<std::unique_ptr<PrekillHook>> prekill_hooks) {
   for (auto& rs : rulesets) {
     if (rs) {
       rulesets_.emplace_back(BaseRuleset{.ruleset = std::move(rs)});
     }
   }
+
+  prekill_hooks_ = std::move(prekill_hooks);
 }
 
 bool Engine::addDropInConfig(
@@ -121,6 +125,10 @@ void Engine::runOnce(OomdContext& context) {
   }
 
   Oomd::incrementStat(CoreStats::kNumDropInFired, nr_dropins_run);
+}
+
+const std::vector<std::unique_ptr<PrekillHook>>& Engine::getPrekillHooks() {
+  return prekill_hooks_;
 }
 
 } // namespace Engine

@@ -92,6 +92,11 @@ TEST(JsonConfigParserTest, LoadIR) {
   EXPECT_EQ(second.acts[2].name, "kill_by_swap_usage");
   EXPECT_EQ(
       second.acts[2].args.at("cgroup"), "workload.slice/workload-tw.slice");
+
+  // Check prekill hooks
+  ASSERT_EQ(root->prekill_hooks.size(), 1);
+  ASSERT_EQ(root->prekill_hooks[0].name, "hypothetical_prekill_hook");
+  ASSERT_EQ(root->prekill_hooks[0].args.size(), 0);
 }
 
 TEST(JsonConfigParserTest, LoadIRBadInput) {

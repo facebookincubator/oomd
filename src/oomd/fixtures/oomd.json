@@ -72,5 +72,11 @@
                 }
             ]
         }
+    ],
+    "prekill_hooks": [
+        {
+            "name": "hypothetical_prekill_hook",
+            "args": {}
+        }
     ]
 }

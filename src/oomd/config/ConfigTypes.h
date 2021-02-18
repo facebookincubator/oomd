@@ -51,6 +51,8 @@ struct Detector : Plugin {};
 
 struct Action : Plugin {};
 
+struct PrekillHook : Plugin {};
+
 struct DetectorGroup {
   std::string name;
   std::vector<Detector> detectors;
@@ -72,6 +74,7 @@ struct Ruleset {
 
 struct Root {
   std::vector<Ruleset> rulesets;
+  std::vector<PrekillHook> prekill_hooks;
 };
 
 void dumpIR(const Root& root);

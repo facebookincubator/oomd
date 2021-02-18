@@ -28,8 +28,9 @@
 
 namespace {
 
-template <typename T>
-std::unique_ptr<Oomd::Engine::BasePlugin> compilePlugin(
+template <typename T, typename PluginT>
+std::unique_ptr<PluginT> compilePluginGeneric(
+    Oomd::PluginRegistry<PluginT>& registry,
     const T& plugin,
     const Oomd::PluginConstructionContext& context) {
   if (plugin.name.empty()) {
@@ -37,8 +38,7 @@ std::unique_ptr<Oomd::Engine::BasePlugin> compilePlugin(
     return nullptr;
   }
 
-  std::unique_ptr<Oomd::Engine::BasePlugin> instance(
-      Oomd::getPluginRegistry().create(plugin.name));
+  std::unique_ptr<PluginT> instance(registry.create(plugin.name));
   if (!instance) {
     OLOG << "Could not locate plugin=" << plugin.name << " in plugin registry";
     return nullptr;
@@ -53,6 +53,22 @@ std::unique_ptr<Oomd::Engine::BasePlugin> compilePlugin(
   }
 
   return instance;
+}
+
+template <typename T>
+std::unique_ptr<Oomd::Engine::BasePlugin> compilePlugin(
+    const T& plugin,
+    const Oomd::PluginConstructionContext& context) {
+  return compilePluginGeneric<T, Oomd::Engine::BasePlugin>(
+      Oomd::getPluginRegistry(), plugin, context);
+}
+
+std::unique_ptr<Oomd::Engine::PrekillHook> compilePrekillHook(
+    const Oomd::Config2::IR::PrekillHook& hook,
+    const Oomd::PluginConstructionContext& context) {
+  return compilePluginGeneric<
+      Oomd::Config2::IR::PrekillHook,
+      Oomd::Engine::PrekillHook>(Oomd::getPrekillHookRegistry(), hook, context);
 }
 
 std::unique_ptr<Oomd::Engine::DetectorGroup> compileDetectorGroup(
@@ -170,7 +186,25 @@ std::unique_ptr<Engine::Engine> compile(
     rulesets.emplace_back(std::move(compiled_ruleset));
   }
 
-  return std::make_unique<Engine::Engine>(std::move(rulesets));
+  std::vector<std::unique_ptr<Engine::PrekillHook>> prekill_hooks;
+
+  for (const auto& prekill_hook : root.prekill_hooks) {
+    auto compiled_prekill_hook_plugin =
+        compilePrekillHook(prekill_hook, context);
+    if (!compiled_prekill_hook_plugin) {
+      return nullptr;
+    }
+
+    prekill_hooks.emplace_back(std::move(compiled_prekill_hook_plugin));
+  }
+
+  if (prekill_hooks.size() > 1) {
+    OLOG << "Config cannot have more than 1 prekill hook";
+    return nullptr;
+  }
+
+  return std::make_unique<Engine::Engine>(
+      std::move(rulesets), std::move(prekill_hooks));
 }
 
 std::optional<DropInUnit> compileDropIn(
