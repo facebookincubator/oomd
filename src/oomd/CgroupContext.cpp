@@ -107,8 +107,10 @@ void proxy(T val, S& field, CgroupContext::Error* err) {
   __PROXY(field, expr, const FIELD_TYPE(field)&)
 
 PROXY_CONST_REF(children, getChildren())
-PROXY_CONST_REF(mem_pressure, getMemPressure())
-PROXY_CONST_REF(io_pressure, getIoPressure())
+PROXY_CONST_REF(mem_pressure, getMemPressure(Fs::PressureType::FULL))
+PROXY_CONST_REF(mem_pressure_some, getMemPressure(Fs::PressureType::SOME))
+PROXY_CONST_REF(io_pressure, getIoPressure(Fs::PressureType::FULL))
+PROXY_CONST_REF(io_pressure_some, getIoPressure(Fs::PressureType::SOME))
 PROXY_CONST_REF(memory_stat, Fs::getMemstatAt(cgroup_dir_))
 PROXY_CONST_REF(io_stat, Fs::readIostatAt(cgroup_dir_))
 PROXY(id, cgroup_dir_.inode())
@@ -187,16 +189,18 @@ std::optional<T> to_opt(SystemMaybe<T> maybe) {
 }
 } // namespace
 
-std::optional<ResourcePressure> CgroupContext::getMemPressure() const {
+std::optional<ResourcePressure> CgroupContext::getMemPressure(
+    Fs::PressureType type) const {
   return to_opt(
-      cgroup_.isRoot() ? Fs::readRootMempressure()
-                       : Fs::readMempressureAt(cgroup_dir_));
+      cgroup_.isRoot() ? Fs::readRootMempressure(type)
+                       : Fs::readMempressureAt(cgroup_dir_, type));
 }
 
-std::optional<ResourcePressure> CgroupContext::getIoPressure() const {
+std::optional<ResourcePressure> CgroupContext::getIoPressure(
+    Fs::PressureType type) const {
   return to_opt(
-      cgroup_.isRoot() ? Fs::readRootIopressure()
-                       : Fs::readIopressureAt(cgroup_dir_));
+      cgroup_.isRoot() ? Fs::readRootIopressure(type)
+                       : Fs::readIopressureAt(cgroup_dir_, type));
 }
 
 std::optional<int64_t> CgroupContext::getMemcurrent() const {

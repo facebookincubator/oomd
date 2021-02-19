@@ -100,7 +100,11 @@ class CgroupContext {
       Error* err = nullptr) const;
   const std::optional<ResourcePressure>& mem_pressure(
       Error* err = nullptr) const;
+  const std::optional<ResourcePressure>& mem_pressure_some(
+      Error* err = nullptr) const;
   const std::optional<ResourcePressure>& io_pressure(
+      Error* err = nullptr) const;
+  const std::optional<ResourcePressure>& io_pressure_some(
       Error* err = nullptr) const;
   const std::optional<std::unordered_map<std::string, int64_t>>& memory_stat(
       Error* err = nullptr) const;
@@ -162,8 +166,8 @@ class CgroupContext {
   friend class TestHelper;
 
   std::vector<std::string> getChildren() const;
-  std::optional<ResourcePressure> getMemPressure() const;
-  std::optional<ResourcePressure> getIoPressure() const;
+  std::optional<ResourcePressure> getMemPressure(Fs::PressureType type) const;
+  std::optional<ResourcePressure> getIoPressure(Fs::PressureType type) const;
   std::optional<int64_t> getMemcurrent() const;
   std::optional<int64_t> getEffectiveSwapMax(Error* err) const;
   std::optional<int64_t> getEffectiveSwapFree(Error* err) const;
@@ -178,7 +182,9 @@ class CgroupContext {
   struct CgroupData {
     std::optional<std::vector<std::string>> children;
     std::optional<ResourcePressure> mem_pressure;
+    std::optional<ResourcePressure> mem_pressure_some;
     std::optional<ResourcePressure> io_pressure;
+    std::optional<ResourcePressure> io_pressure_some;
     std::optional<std::unordered_map<std::string, int64_t>> memory_stat;
     std::optional<IOStat> io_stat;
     std::optional<Id> id;
