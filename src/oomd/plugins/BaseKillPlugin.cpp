@@ -386,22 +386,6 @@ BaseKillPlugin::KillResult BaseKillPlugin::resumeTryingToKillSomething(
   return KillResult::FAILED;
 }
 
-bool BaseKillPlugin::tryToLogAndKillCgroup(
-    const ActionContext& action_context,
-    const KillCandidate& candidate) {
-  if (auto kill_uuid = tryToKillCgroup(candidate.cgroup_ctx, dry_)) {
-    logKill(
-        candidate.cgroup_ctx.cgroup(),
-        candidate.cgroup_ctx,
-        candidate.kill_root,
-        action_context,
-        *kill_uuid,
-        dry_);
-    return true;
-  }
-  return false;
-}
-
 BaseKillPlugin::BaseKillPlugin() {
   /*
    * Initializes kKillsKey in stats for immediate reporting,
@@ -453,8 +437,9 @@ int BaseKillPlugin::getAndTryToKillPids(const CgroupContext& target) {
   return nr_killed;
 }
 
-std::optional<BaseKillPlugin::KillUuid> BaseKillPlugin::tryToKillCgroup(
+bool BaseKillPlugin::tryToKillCgroup(
     const CgroupContext& target,
+    const KillUuid& kill_uuid,
     bool dry) {
   using namespace std::chrono_literals;
 
@@ -464,11 +449,9 @@ std::optional<BaseKillPlugin::KillUuid> BaseKillPlugin::tryToKillCgroup(
   int nr_killed = 0;
   int tries = 10;
 
-  KillUuid kill_uuid = generateKillUuid();
-
   if (dry) {
     OLOG << "OOMD: In dry-run mode; would have tried to kill " << cgroup_path;
-    return kill_uuid;
+    return true;
   }
 
   OLOG << "Trying to kill " << cgroup_path;
@@ -496,7 +479,7 @@ std::optional<BaseKillPlugin::KillUuid> BaseKillPlugin::tryToKillCgroup(
     last_nr_killed = nr_killed;
   }
   reportKillCompletionToXattr(cgroup_path, nr_killed);
-  return nr_killed > 0 ? kill_uuid : std::optional<KillUuid>{};
+  return nr_killed > 0;
 }
 
 int BaseKillPlugin::tryToKillPids(const std::vector<int>& pids) {
@@ -585,28 +568,40 @@ void BaseKillPlugin::reportKillUuidToXattr(
   }
 }
 
-void BaseKillPlugin::logKill(
-    const CgroupPath& killed_cgroup,
-    const CgroupContext& context,
-    const CgroupContext& kill_root,
+bool BaseKillPlugin::tryToLogAndKillCgroup(
     const ActionContext& action_context,
-    const std::string& kill_uuid,
-    bool dry) const {
-  auto mem_pressure = context.mem_pressure().value_or(ResourcePressure{});
-  std::ostringstream oss;
-  oss << std::setprecision(2) << std::fixed;
-  oss << mem_pressure.sec_10 << " " << mem_pressure.sec_60 << " "
-      << mem_pressure.sec_300 << " " << killed_cgroup.relativePath() << " "
-      << context.current_usage().value_or(0) << " "
-      << "ruleset:[" << action_context.ruleset_name << "] "
-      << "detectorgroup:[" << action_context.detectorgroup << "] "
-      << "killer:" << (dry ? "(dry)" : "") << getName() << " v2";
-  if (!dry) {
-    Oomd::incrementStat(CoreStats::kKillsKey, 1);
+    const KillCandidate& candidate) {
+  KillUuid kill_uuid = generateKillUuid();
+
+  bool success = tryToKillCgroup(candidate.cgroup_ctx, kill_uuid, dry_);
+
+  if (success) {
+    auto mem_pressure =
+        candidate.cgroup_ctx.mem_pressure().value_or(ResourcePressure{});
+    std::ostringstream oss;
+    oss << std::setprecision(2) << std::fixed;
+    oss << mem_pressure.sec_10 << " " << mem_pressure.sec_60 << " "
+        << mem_pressure.sec_300 << " "
+        << candidate.cgroup_ctx.cgroup().relativePath() << " "
+        << candidate.cgroup_ctx.current_usage().value_or(0) << " "
+        << "ruleset:[" << action_context.ruleset_name << "] "
+        << "detectorgroup:[" << action_context.detectorgroup << "] "
+        << "killer:" << (dry_ ? "(dry)" : "") << getName() << " v2";
+    if (!dry_) {
+      Oomd::incrementStat(CoreStats::kKillsKey, 1);
+    }
+    OOMD_KMSG_LOG(oss.str(), "oomd kill");
   }
-  OOMD_KMSG_LOG(oss.str(), "oomd kill");
 
   dumpKillInfo(
-      killed_cgroup, context, kill_root, action_context, kill_uuid, dry);
+      candidate.cgroup_ctx.cgroup(),
+      candidate.cgroup_ctx,
+      candidate.kill_root,
+      action_context,
+      kill_uuid,
+      success,
+      dry_);
+
+  return success;
 }
 } // namespace Oomd

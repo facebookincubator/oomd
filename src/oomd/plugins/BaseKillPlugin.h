@@ -128,10 +128,13 @@ class BaseKillPlugin : public Engine::BasePlugin {
    * Kills a cgroup
    *
    * @param target is the cgroup to kill
+   * @param kill_uuid is the name of this kill to use in logs
    * @param dry sets whether or not we should actually issue SIGKILLs
+   * @returns true if successfully killed anything
    */
-  virtual std::optional<KillUuid> tryToKillCgroup(
+  virtual bool tryToKillCgroup(
       const CgroupContext& target,
+      const KillUuid& kill_uuid,
       bool dry);
 
   /*
@@ -175,24 +178,14 @@ class BaseKillPlugin : public Engine::BasePlugin {
       const std::string& cgroup_path,
       const std::string& kill_uuid);
 
-  /*
-   * Logs a structured kill message to kmsg and stderr
-   */
-  virtual void logKill(
-      const CgroupPath& killed_group,
-      const CgroupContext& context,
-      const CgroupContext& kill_root,
-      const ActionContext& action_context,
-      const std::string& kill_uuid,
-      bool dry = false) const;
-
   virtual void dumpKillInfo(
       const CgroupPath& killed_group,
       const CgroupContext& context,
       const CgroupContext& kill_root,
       const ActionContext& action_context,
       const std::string& kill_uuid,
-      bool dry = false) const;
+      bool success,
+      bool dry) const;
 
  private:
   virtual int getAndTryToKillPids(const CgroupContext& target);
@@ -221,7 +214,10 @@ class BaseKillPlugin : public Engine::BasePlugin {
       const ActionContext& initial_action_context,
       std::vector<KillCandidate> next_best_option_stack);
 
-  // returns false on failure
+  /*
+   * Kills cgroup and logs a structured kill message to kmsg and stderr.
+   * Returns false on failure.
+   */
   bool tryToLogAndKillCgroup(
       const ActionContext& action_context,
       const KillCandidate& candidate);

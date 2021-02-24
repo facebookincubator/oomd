@@ -62,18 +62,20 @@ class BaseKillPluginMock : public BaseKillPlugin {
     return ret;
   }
 
-  std::optional<KillUuid> tryToKillCgroup(const CgroupContext& target, bool dry)
-      override {
+  bool tryToKillCgroup(
+      const CgroupContext& target,
+      const KillUuid& kill_uuid,
+      bool dry) override {
     if (unkillable_cgroups.count(target.cgroup().absolutePath()) > 0) {
       OLOG << "tried to kill " << target.cgroup().absolutePath()
            << ", failed b/c it's in unkillable_cgroups";
-      return std::nullopt;
+      return false;
     }
 
     OLOG << "killed " << target.cgroup().absolutePath();
     killed_cgroup = target.cgroup().absolutePath();
 
-    return BaseKillPlugin::tryToKillCgroup(target, dry);
+    return BaseKillPlugin::tryToKillCgroup(target, kill_uuid, dry);
   }
 
   std::optional<std::string> killed_cgroup{std::nullopt};
@@ -135,7 +137,7 @@ TEST_F(BaseKillPluginTest, TryToKillCgroupKillsRecursive) {
       ctx_, CgroupPath("oomd/fixtures/plugins/base_kill_plugin", "one_big")));
 
   BaseKillPluginShim plugin;
-  EXPECT_EQ(plugin.tryToKillCgroup(target, false).has_value(), true);
+  EXPECT_EQ(plugin.tryToKillCgroup(target, "fake_kill_uuid", false), true);
 
   int expected_total = 0;
   for (int i = 1; i <= 30; ++i) {
