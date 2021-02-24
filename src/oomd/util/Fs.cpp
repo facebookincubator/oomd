@@ -759,7 +759,7 @@ SystemMaybe<int64_t> Fs::getNrDyingDescendantsAt(const DirFd& dirfd) {
 }
 
 SystemMaybe<KillPreference> Fs::readKillPreferenceAt(const DirFd& path) {
-  auto maybe = Fs::hasxattrAt(path, kOomdPreferXAttr);
+  auto maybe = Fs::hasxattrAt(path, kOomdSystemPreferXAttr);
   if (!maybe) {
     return SYSTEM_ERROR(maybe.error());
   }
@@ -768,7 +768,25 @@ SystemMaybe<KillPreference> Fs::readKillPreferenceAt(const DirFd& path) {
     return KillPreference::PREFER;
   }
 
-  maybe = Fs::hasxattrAt(path, kOomdAvoidXAttr);
+  maybe = Fs::hasxattrAt(path, kOomdUserPreferXAttr);
+  if (!maybe) {
+    return SYSTEM_ERROR(maybe.error());
+  }
+
+  if (*maybe) {
+    return KillPreference::PREFER;
+  }
+
+  maybe = Fs::hasxattrAt(path, kOomdSystemAvoidXAttr);
+  if (!maybe) {
+    return SYSTEM_ERROR(maybe.error());
+  }
+
+  if (*maybe) {
+    return KillPreference::AVOID;
+  }
+
+  maybe = Fs::hasxattrAt(path, kOomdUserAvoidXAttr);
   if (!maybe) {
     return SYSTEM_ERROR(maybe.error());
   }
@@ -827,7 +845,7 @@ SystemMaybe<std::string> Fs::getxattr(
 SystemMaybe<bool> Fs::hasxattrAt(const DirFd& dirfd, const std::string& attr) {
   auto ret = ::fgetxattr(dirfd.fd(), attr.c_str(), nullptr, 0);
   if (ret == -1) {
-    if (errno == ENODATA) {
+    if (errno == ENODATA || errno == EOPNOTSUPP) {
       return false;
     }
     return SYSTEM_ERROR(errno);

@@ -53,8 +53,10 @@ class Fs {
   static constexpr auto kIoStatFile = "io.stat";
   static constexpr auto kDeviceTypeDir = "queue";
   static constexpr auto kDeviceTypeFile = "rotational";
-  static constexpr auto kOomdPreferXAttr = "trusted.oomd_prefer";
-  static constexpr auto kOomdAvoidXAttr = "trusted.oomd_avoid";
+  static constexpr auto kOomdSystemPreferXAttr = "trusted.oomd_prefer";
+  static constexpr auto kOomdUserPreferXAttr = "user.oomd_prefer";
+  static constexpr auto kOomdSystemAvoidXAttr = "trusted.oomd_avoid";
+  static constexpr auto kOomdUserAvoidXAttr = "user.oomd_avoid";
 
   struct DirEnts {
     std::vector<std::string> dirs;
