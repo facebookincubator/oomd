@@ -17,8 +17,6 @@
 
 #include "oomd/plugins/Exists.h"
 
-#include <fnmatch.h>
-
 #include <iomanip>
 #include <string>
 

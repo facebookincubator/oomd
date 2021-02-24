@@ -30,7 +30,6 @@
 using namespace Oomd;
 using namespace Oomd::Config2;
 using namespace Oomd::Engine;
-using namespace testing;
 
 namespace {
 int prerun_count;
