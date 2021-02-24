@@ -134,8 +134,10 @@ Engine::PluginRet BaseKillPlugin::run(OomdContext& ctx) {
   if (ret == KillResult::FAILED || always_continue_) {
     return Engine::PluginRet::CONTINUE;
   }
-  if (auto ruleset = ctx.getInvokingRuleset()) {
-    (*ruleset)->pause_actions(std::chrono::seconds(post_action_delay_));
+
+  auto ruleset = ctx.getInvokingRuleset();
+  if (ruleset && post_action_delay_) {
+    (*ruleset)->pause_actions(std::chrono::seconds(*post_action_delay_));
   }
   return Engine::PluginRet::STOP;
 }

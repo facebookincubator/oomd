@@ -43,11 +43,15 @@ oomd configs have a loosely defined BNF:
     SILENCE_LOGS:
     "silence-logs": "NAME[,NAME[,...]]"
 
+    POST_ACTION_DELAY:
+    "post_action_delay": "<int>"
+
     RULESET:
     [
         NAME,
         DROPIN,
         SILENCE_LOGS,
+        POST_ACTION_DELAY,
         "detectors": [ [DETECTOR_GROUP[,DETECTOR_GROUP[,...]]] ],
         "actions": [ [ACTION[,ACTION[,...]]] ],
     ]
@@ -72,6 +76,9 @@ See [prekill_hooks.md](prekill_hooks.md) for details of the experimental
 * For `SILENCE_LOGS`, the currently supported log entities are
   * `engine`: oomd engine logs
   * `plugins`: logs written by plugins
+* `post_action_delay` may be overridden by an action plugin's arg of the same
+  name. After an ACTION returns STOP, the ruleset is paused for
+  post_action_delay seconds.
 
 ## Runtime evaluation rules
 

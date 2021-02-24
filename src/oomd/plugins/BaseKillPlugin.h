@@ -18,6 +18,7 @@
 #pragma once
 
 #include <memory>
+#include <optional>
 #include <vector>
 #include "oomd/CgroupContext.h"
 #include "oomd/OomdContext.h"
@@ -240,7 +241,7 @@ class BaseKillPlugin : public Engine::BasePlugin {
 
   std::unordered_set<CgroupPath> cgroups_;
   bool recursive_{false};
-  int post_action_delay_{15};
+  std::optional<int> post_action_delay_{std::nullopt};
   bool dry_{false};
   bool always_continue_{false};
   bool debug_{false};

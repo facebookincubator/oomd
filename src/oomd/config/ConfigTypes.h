@@ -70,6 +70,7 @@ struct Ruleset {
   std::vector<Action> acts;
   DropIn dropin;
   std::string silence_logs;
+  std::string post_action_delay;
 };
 
 struct Root {

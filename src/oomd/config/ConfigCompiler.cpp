@@ -105,6 +105,8 @@ std::unique_ptr<Oomd::Engine::Ruleset> compileRuleset(
     bool dropin,
     const Oomd::PluginConstructionContext& context) {
   uint32_t silenced_logs = 0;
+  int post_action_delay = DEFAULT_POST_ACTION_DELAY;
+
   std::vector<std::unique_ptr<Oomd::Engine::DetectorGroup>> detector_groups;
   std::vector<std::unique_ptr<Oomd::Engine::BasePlugin>> actions;
 
@@ -138,6 +140,15 @@ std::unique_ptr<Oomd::Engine::Ruleset> compileRuleset(
     return nullptr;
   }
 
+  // post_action_delay field is optional
+  if (ruleset.post_action_delay.size()) {
+    post_action_delay = std::stoi(ruleset.post_action_delay);
+    if (post_action_delay < 0) {
+      OLOG << "Ruleset post_action_delay must be non-negative";
+      return nullptr;
+    }
+  }
+
   for (const auto& dg : ruleset.dgs) {
     auto compiled_detectorgroup = compileDetectorGroup(dg, context);
     if (!compiled_detectorgroup) {
@@ -164,7 +175,8 @@ std::unique_ptr<Oomd::Engine::Ruleset> compileRuleset(
       ruleset.dropin.disable_on_drop_in,
       ruleset.dropin.detectorgroups_enabled,
       ruleset.dropin.actiongroup_enabled,
-      silenced_logs);
+      silenced_logs,
+      post_action_delay);
 }
 
 } // namespace

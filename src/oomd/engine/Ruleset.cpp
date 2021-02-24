@@ -31,10 +31,12 @@ Ruleset::Ruleset(
     bool disable_on_drop_in,
     bool detectorgroups_dropin_enabled,
     bool actiongroup_dropin_enabled,
-    uint32_t silence_logs)
+    uint32_t silence_logs,
+    int post_action_delay)
     : name_(name),
       detector_groups_(std::move(detector_groups)),
       action_group_(std::move(action_group)),
+      post_action_delay_(post_action_delay),
       disable_on_drop_in_(disable_on_drop_in),
       detectorgroups_dropin_enabled_(detectorgroups_dropin_enabled),
       actiongroup_dropin_enabled_(actiongroup_dropin_enabled),
@@ -186,6 +188,13 @@ int Ruleset::run_action_chain(
           OLOG << "Action=" << action->getName()
                << " returned STOP. Terminating action chain.";
         }
+
+        if (!plugin_overrode_post_action_delay_) {
+          pause_actions_until_ = std::chrono::steady_clock::now() +
+              std::chrono::seconds(post_action_delay_);
+        }
+        plugin_overrode_post_action_delay_ = false;
+
         break; // break out of switch
       case PluginRet::ASYNC_PAUSED:
         active_async_plugin_ = std::make_optional(std::ref(*action.get()));
@@ -202,8 +211,8 @@ int Ruleset::run_action_chain(
 }
 
 void Ruleset::pause_actions(std::chrono::seconds duration) {
-  pause_actions_until_ = std::max(
-      pause_actions_until_, std::chrono::steady_clock::now() + duration);
+  pause_actions_until_ = std::chrono::steady_clock::now() + duration;
+  plugin_overrode_post_action_delay_ = true;
 }
 
 } // namespace Engine

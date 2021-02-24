@@ -8,6 +8,7 @@
                 "disable-on-drop-in": true
             },
             "silence-logs": "engine,plugins",
+            "post_action_delay": "10",
             "detectors": [
                 [
                     "group1",

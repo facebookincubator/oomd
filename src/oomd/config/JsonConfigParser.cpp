@@ -113,6 +113,9 @@ Oomd::Config2::IR::Ruleset parseRuleset(const Json::Value& ruleset) {
 
   ir_ruleset.silence_logs = ruleset.get("silence-logs", {}).asString();
 
+  ir_ruleset.post_action_delay =
+      ruleset.get("post_action_delay", {}).asString();
+
   for (const auto& detector_group : ruleset.get("detectors", {})) {
     ir_ruleset.dgs.emplace_back(parseDetectorGroup(detector_group));
   }
