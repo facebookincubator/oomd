@@ -45,6 +45,33 @@ Oomd currently supports at most one prekill hook at a time. Prekill hooks are
 an experimental feature, and it is not obvious how multiple prekill hooks should
 compose.
 
+Rulesets may set a "prekill_hook_timeout" in seconds. If unset, the default is 5
+seconds.
+
+  {
+      "rulesets": [
+            {
+                "name": "memory pressure protection",
+                "prekill_hook_timeout": "30",
+                "detectors": [...],
+                "actions": [...]
+      ],
+      "prekill_hooks": [...]
+  }
+
+The prekill hook timeout sets a window for all prekill hooks in an action
+chain to finish running. For example, consider:
+- a ruleset with two kill plugin actions and a 5s prekill hook timeout
+- the action chain fires
+- the first action targets /foo.slice and fires a prekill hook on it
+- the prekill hook finishes in 3s
+- /foo.slice fails to die, so the first action returns CONTINUE
+- the second kill plugin runs, targets /bar.slice, and fires a prekill hook
+
+The second prekill hook only has 2s to run before it times out, since it's been
+3s (or more) since the action chain started, and the action chain set a 5s
+max window for prekill hooks to run.
+
 ## API
 
 Prekill hook implementers should subclass PrekillHook and PrekillHookInvocation

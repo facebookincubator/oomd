@@ -27,6 +27,7 @@ namespace Oomd {
 namespace Engine {
 
 #define DEFAULT_POST_ACTION_DELAY 15
+#define DEFAULT_PREKILL_HOOK_TIMEOUT 5
 
 class Ruleset {
  public:
@@ -38,7 +39,8 @@ class Ruleset {
       bool detectorgroups_dropin_enabled = false,
       bool actiongroup_dropin_enabled = false,
       uint32_t silenced_logs = 0,
-      int post_action_delay = DEFAULT_POST_ACTION_DELAY);
+      int post_action_delay = DEFAULT_POST_ACTION_DELAY,
+      int prekill_hook_timeout = DEFAULT_PREKILL_HOOK_TIMEOUT);
   ~Ruleset() = default;
 
   /*
@@ -84,6 +86,7 @@ class Ruleset {
   std::vector<std::unique_ptr<DetectorGroup>> detector_groups_;
   std::vector<std::unique_ptr<BasePlugin>> action_group_;
   int post_action_delay_{DEFAULT_POST_ACTION_DELAY};
+  int prekill_hook_timeout_{DEFAULT_PREKILL_HOOK_TIMEOUT};
   bool enabled_{true};
   bool disable_on_drop_in_{false};
   bool detectorgroups_dropin_enabled_{false};

@@ -149,6 +149,9 @@ BaseKillPlugin::KillResult BaseKillPlugin::resumeFromPrekillHook(
   if (prekill_hook_state_->hook_invocation->didFinish()) {
     OLOG << "pre-kill hook finished for Ruleset="
          << ctx.getActionContext().ruleset_name;
+  } else if (pastPrekillHookTimeout(ctx)) {
+    OLOG << "pre-kill hook timed out for Ruleset="
+         << ctx.getActionContext().ruleset_name;
   } else {
     OLOG << "Still running pre-kill hook for Ruleset="
          << ctx.getActionContext().ruleset_name;
@@ -327,8 +330,9 @@ BaseKillPlugin::KillResult BaseKillPlugin::resumeTryingToKillSomething(
 
     ologKillTarget(ctx, candidate.cgroup_ctx, *candidate.peers);
 
-    if (auto hook_invocation = ctx.firePrekillHook(candidate.cgroup_ctx)) {
-      if (!(*hook_invocation)->didFinish()) {
+    if (!pastPrekillHookTimeout(ctx)) {
+      auto hook_invocation = ctx.firePrekillHook(candidate.cgroup_ctx);
+      if (hook_invocation && !(*hook_invocation)->didFinish()) {
         auto serialize_cgroup_ref = [&](const CgroupContext& cgroup_ctx) {
           // cgroup_ctx.id() may be nullopt, which means the cgroup is deleted
           return SerializedCgroupRef{
@@ -381,6 +385,11 @@ BaseKillPlugin::KillResult BaseKillPlugin::resumeTryingToKillSomething(
   }
 
   return KillResult::FAILED;
+}
+
+bool BaseKillPlugin::pastPrekillHookTimeout(const OomdContext& ctx) const {
+  auto timeout = ctx.getActionContext().prekill_hook_timeout_ts;
+  return timeout.has_value() && std::chrono::steady_clock::now() > timeout;
 }
 
 BaseKillPlugin::BaseKillPlugin() {

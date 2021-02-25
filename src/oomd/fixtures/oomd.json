@@ -9,6 +9,7 @@
             },
             "silence-logs": "engine,plugins",
             "post_action_delay": "10",
+            "prekill_hook_timeout": "40",
             "detectors": [
                 [
                     "group1",

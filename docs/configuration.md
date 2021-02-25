@@ -46,12 +46,16 @@ oomd configs have a loosely defined BNF:
     POST_ACTION_DELAY:
     "post_action_delay": "<int>"
 
+    PREKILL_HOOK_TIMEOUT:
+    "prekill_hook_timeout": "<int>"
+
     RULESET:
     [
         NAME,
         DROPIN,
         SILENCE_LOGS,
         POST_ACTION_DELAY,
+        PREKILL_HOOK_TIMEOUT,
         "detectors": [ [DETECTOR_GROUP[,DETECTOR_GROUP[,...]]] ],
         "actions": [ [ACTION[,ACTION[,...]]] ],
     ]

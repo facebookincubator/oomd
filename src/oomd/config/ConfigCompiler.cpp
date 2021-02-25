@@ -106,6 +106,7 @@ std::unique_ptr<Oomd::Engine::Ruleset> compileRuleset(
     const Oomd::PluginConstructionContext& context) {
   uint32_t silenced_logs = 0;
   int post_action_delay = DEFAULT_POST_ACTION_DELAY;
+  int prekill_hook_timeout = DEFAULT_PREKILL_HOOK_TIMEOUT;
 
   std::vector<std::unique_ptr<Oomd::Engine::DetectorGroup>> detector_groups;
   std::vector<std::unique_ptr<Oomd::Engine::BasePlugin>> actions;
@@ -149,6 +150,15 @@ std::unique_ptr<Oomd::Engine::Ruleset> compileRuleset(
     }
   }
 
+  // prekill_hook_timeout field is optional
+  if (ruleset.prekill_hook_timeout.size()) {
+    prekill_hook_timeout = std::stoi(ruleset.prekill_hook_timeout);
+    if (prekill_hook_timeout < 0) {
+      OLOG << "Ruleset prekill_hook_timeout must be non-negative";
+      return nullptr;
+    }
+  }
+
   for (const auto& dg : ruleset.dgs) {
     auto compiled_detectorgroup = compileDetectorGroup(dg, context);
     if (!compiled_detectorgroup) {
@@ -176,7 +186,8 @@ std::unique_ptr<Oomd::Engine::Ruleset> compileRuleset(
       ruleset.dropin.detectorgroups_enabled,
       ruleset.dropin.actiongroup_enabled,
       silenced_logs,
-      post_action_delay);
+      post_action_delay,
+      prekill_hook_timeout);
 }
 
 } // namespace

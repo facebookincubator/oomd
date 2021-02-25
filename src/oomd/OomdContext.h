@@ -20,6 +20,7 @@
 #include <algorithm>
 #include <functional>
 #include <memory>
+#include <optional>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
@@ -41,6 +42,8 @@ struct ActionContext {
   std::string ruleset_name;
   std::string detectorgroup;
   std::string action_group_run_uuid;
+  std::optional<std::chrono::steady_clock::time_point> prekill_hook_timeout_ts{
+      std::nullopt};
 };
 
 struct ContextParams {

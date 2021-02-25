@@ -71,6 +71,7 @@ struct Ruleset {
   DropIn dropin;
   std::string silence_logs;
   std::string post_action_delay;
+  std::string prekill_hook_timeout;
 };
 
 struct Root {

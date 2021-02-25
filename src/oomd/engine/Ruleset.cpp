@@ -32,11 +32,13 @@ Ruleset::Ruleset(
     bool detectorgroups_dropin_enabled,
     bool actiongroup_dropin_enabled,
     uint32_t silence_logs,
-    int post_action_delay)
+    int post_action_delay,
+    int prekill_hook_timeout)
     : name_(name),
       detector_groups_(std::move(detector_groups)),
       action_group_(std::move(action_group)),
       post_action_delay_(post_action_delay),
+      prekill_hook_timeout_(prekill_hook_timeout),
       disable_on_drop_in_(disable_on_drop_in),
       detectorgroups_dropin_enabled_(detectorgroups_dropin_enabled),
       actiongroup_dropin_enabled_(actiongroup_dropin_enabled),
@@ -114,13 +116,18 @@ uint32_t Ruleset::runOnce(OomdContext& context) {
   for (const auto& dg : detector_groups_) {
     if (dg->check(context, silenced_logs_) && !run_actions) {
       run_actions = true;
-      context.setActionContext({name_, dg->name(), Util::generateUuid()});
+      context.setActionContext(
+          {name_,
+           dg->name(),
+           Util::generateUuid(),
+           std::chrono::steady_clock::now() +
+               std::chrono::seconds(prekill_hook_timeout_)});
       context.setInvokingRuleset(this);
     }
   }
 
   OOMD_SCOPE_EXIT {
-    context.setActionContext({"", "", ""});
+    context.setActionContext({"", "", "", std::nullopt});
     context.setInvokingRuleset(std::nullopt);
   };
 

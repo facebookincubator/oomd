@@ -46,6 +46,8 @@ TEST(JsonConfigParserTest, LoadIR) {
   EXPECT_EQ(first.name, "my first ruleset");
   ASSERT_EQ(first.dgs.size(), 1);
   EXPECT_EQ(first.silence_logs, "engine,plugins");
+  EXPECT_EQ(first.post_action_delay, "10");
+  EXPECT_EQ(first.prekill_hook_timeout, "40");
 
   // Check first ruleset drop in config
   EXPECT_TRUE(first.dropin.detectorgroups_enabled);
