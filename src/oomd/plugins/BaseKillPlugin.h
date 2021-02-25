@@ -212,7 +212,6 @@ class BaseKillPlugin : public Engine::BasePlugin {
   };
   KillResult resumeTryingToKillSomething(
       OomdContext& ctx,
-      const ActionContext& initial_action_context,
       std::vector<KillCandidate> next_best_option_stack);
 
   /*
@@ -220,7 +219,7 @@ class BaseKillPlugin : public Engine::BasePlugin {
    * Returns false on failure.
    */
   bool tryToLogAndKillCgroup(
-      const ActionContext& action_context,
+      const OomdContext& ctx,
       const KillCandidate& candidate);
 
   // SerializedKillCandidates may be held across intervals because unlike
@@ -250,7 +249,6 @@ class BaseKillPlugin : public Engine::BasePlugin {
    public:
     std::unique_ptr<Engine::PrekillHookInvocation> hook_invocation;
     SerializedKillCandidate intended_victim;
-    ActionContext action_context;
     std::vector<SerializedKillCandidate> next_best_option_stack;
   };
   std::optional<ActivePrekillHook> prekill_hook_state_{std::nullopt};

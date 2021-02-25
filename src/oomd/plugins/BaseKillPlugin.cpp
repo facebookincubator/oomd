@@ -148,10 +148,10 @@ BaseKillPlugin::KillResult BaseKillPlugin::resumeFromPrekillHook(
 
   if (prekill_hook_state_->hook_invocation->didFinish()) {
     OLOG << "pre-kill hook finished for Ruleset="
-         << prekill_hook_state_->action_context.ruleset_name;
+         << ctx.getActionContext().ruleset_name;
   } else {
     OLOG << "Still running pre-kill hook for Ruleset="
-         << prekill_hook_state_->action_context.ruleset_name;
+         << ctx.getActionContext().ruleset_name;
     return KillResult::DEFER;
   }
 
@@ -208,12 +208,11 @@ BaseKillPlugin::KillResult BaseKillPlugin::resumeFromPrekillHook(
   auto intended_victim = std::move(prekill_hook_state_->intended_victim);
   auto serialized_next_best_option_stack =
       std::move(prekill_hook_state_->next_best_option_stack);
-  auto action_context = std::move(prekill_hook_state_->action_context);
   prekill_hook_state_ = std::nullopt;
 
   // Try to kill intended victim
   if (auto intended_candidate = deserialize_kill_candidate(intended_victim)) {
-    if (tryToLogAndKillCgroup(action_context, *intended_candidate)) {
+    if (tryToLogAndKillCgroup(ctx, *intended_candidate)) {
       return KillResult::SUCCESS;
     }
   } else {
@@ -240,8 +239,7 @@ BaseKillPlugin::KillResult BaseKillPlugin::resumeFromPrekillHook(
   }
   serialized_next_best_option_stack.clear();
 
-  return resumeTryingToKillSomething(
-      ctx, action_context, std::move(next_best_option_stack));
+  return resumeTryingToKillSomething(ctx, std::move(next_best_option_stack));
 }
 
 BaseKillPlugin::KillResult BaseKillPlugin::tryToKillSomething(
@@ -265,8 +263,7 @@ BaseKillPlugin::KillResult BaseKillPlugin::tryToKillSomething(
         .peers = sorted});
   }
 
-  return resumeTryingToKillSomething(
-      ctx, ctx.getActionContext(), std::move(next_best_option_stack));
+  return resumeTryingToKillSomething(ctx, std::move(next_best_option_stack));
 }
 
 // DFS down tree looking for best kill target. Keep a next_best_option_stack
@@ -277,7 +274,6 @@ BaseKillPlugin::KillResult BaseKillPlugin::tryToKillSomething(
 // initial_cgroups are treated as siblings.
 BaseKillPlugin::KillResult BaseKillPlugin::resumeTryingToKillSomething(
     OomdContext& ctx,
-    const ActionContext& initial_action_context,
     std::vector<KillCandidate> next_best_option_stack) {
   OCHECK_EXCEPT(
       prekill_hook_state_ == std::nullopt,
@@ -368,8 +364,7 @@ BaseKillPlugin::KillResult BaseKillPlugin::resumeTryingToKillSomething(
 
         prekill_hook_state_ = ActivePrekillHook{
             .hook_invocation = std::move(*hook_invocation),
-            .intended_victim = serialize_kill_candidate(candidate),
-            .action_context = initial_action_context};
+            .intended_victim = serialize_kill_candidate(candidate)};
 
         for (KillCandidate& kc : next_best_option_stack) {
           prekill_hook_state_->next_best_option_stack.emplace_back(
@@ -380,7 +375,7 @@ BaseKillPlugin::KillResult BaseKillPlugin::resumeTryingToKillSomething(
       }
     }
 
-    if (tryToLogAndKillCgroup(initial_action_context, candidate)) {
+    if (tryToLogAndKillCgroup(ctx, candidate)) {
       return KillResult::SUCCESS;
     }
   }
@@ -571,9 +566,10 @@ void BaseKillPlugin::reportKillUuidToXattr(
 }
 
 bool BaseKillPlugin::tryToLogAndKillCgroup(
-    const ActionContext& action_context,
+    const OomdContext& ctx,
     const KillCandidate& candidate) {
   KillUuid kill_uuid = generateKillUuid();
+  auto action_context = ctx.getActionContext();
 
   bool success = tryToKillCgroup(candidate.cgroup_ctx, kill_uuid, dry_);
 

@@ -130,13 +130,17 @@ uint32_t Ruleset::runOnce(OomdContext& context) {
     return 0;
   }
 
-  if (active_async_plugin_ != std::nullopt) {
+  if (active_action_chain_state_ != std::nullopt) {
+    // resume the action context from when the action chain was fired
+    context.setActionContext(
+        std::move(active_action_chain_state_->action_context));
+
     // clear active_async_plugin_ and save it to a temp
-    std::reference_wrapper<BasePlugin> target = active_async_plugin_.value();
-    active_async_plugin_ = std::nullopt;
+    BasePlugin& target = active_action_chain_state_->active_plugin;
+    active_action_chain_state_ = std::nullopt;
 
     for (auto&& it = action_group_.begin(); it != action_group_.end(); ++it) {
-      if (it->get() == &target.get()) {
+      if (it->get() == &target) {
         return run_action_chain(it, action_group_.end(), context);
       }
     }
@@ -197,7 +201,9 @@ int Ruleset::run_action_chain(
 
         break; // break out of switch
       case PluginRet::ASYNC_PAUSED:
-        active_async_plugin_ = std::make_optional(std::ref(*action.get()));
+        active_action_chain_state_ = std::make_optional(AsyncActionChainState{
+            .active_plugin = std::ref(*action.get()),
+            .action_context = context.getActionContext()});
         OLOG << "Action=" << action->getName()
              << " returned ASYNC. Yielding action chain.";
         return 0; // don't return 1 until action returns STOP

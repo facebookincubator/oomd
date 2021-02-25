@@ -91,8 +91,12 @@ class Ruleset {
   uint32_t silenced_logs_{0};
   int32_t numTargeted_{0};
 
-  std::optional<std::reference_wrapper<BasePlugin>> active_async_plugin_{
-      std::nullopt};
+  struct AsyncActionChainState {
+   public:
+    std::reference_wrapper<BasePlugin> active_plugin;
+    ActionContext action_context;
+  };
+  std::optional<AsyncActionChainState> active_action_chain_state_{std::nullopt};
   int run_action_chain(
       std::vector<std::unique_ptr<BasePlugin>>::iterator action_chain_start,
       std::vector<std::unique_ptr<BasePlugin>>::iterator action_chain_end,
