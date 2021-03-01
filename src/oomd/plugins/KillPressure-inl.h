@@ -32,18 +32,7 @@ template <typename Base>
 int KillPressure<Base>::init(
     const Engine::PluginArgs& args,
     const PluginConstructionContext& context) {
-  if (args.find("resource") != args.end() &&
-      (args.at("resource") == "io" || args.at("resource") == "memory")) {
-    const auto& res = args.at("resource");
-    if (res == "io") {
-      resource_ = ResourceType::IO;
-    } else if (res == "memory") {
-      resource_ = ResourceType::MEMORY;
-    }
-  } else {
-    OLOG << "Argument=resource missing or not (io|memory)";
-    return 1;
-  }
+  this->argParser_.addArgument("resource", resource_, true);
 
   return Base::init(args, context);
 }

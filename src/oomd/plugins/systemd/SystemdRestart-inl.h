@@ -17,6 +17,7 @@
 
 #include "oomd/plugins/systemd/SystemdRestart.h"
 
+#include <stdexcept>
 #include <string>
 
 #include "oomd/Log.h"
@@ -28,34 +29,26 @@ template <typename Base>
 int SystemdRestart<Base>::init(
     const Engine::PluginArgs& args,
     const PluginConstructionContext& /* unused */) {
-  if (args.find("service") != args.end()) {
-    const std::string& service = args.at("service");
-    if (service.empty()) {
-      OLOG << "Argument=service is empty";
-    }
-    service_ = service;
-  } else {
-    OLOG << "Argument=service not present";
+  this->argParser_.addArgumentCustom(
+      "service",
+      service_,
+      [](const std::string& str) {
+        if (str.empty()) {
+          throw std::invalid_argument("service is empty");
+        }
+        return str;
+      },
+      true);
+
+  this->argParser_.addArgumentCustom(
+      "post_action_delay",
+      post_action_delay_,
+      PluginArgParser::parseUnsignedInt);
+
+  this->argParser_.addArgument("dry", dry_);
+
+  if (!this->argParser_.parse(args)) {
     return 1;
-  }
-
-  if (args.find("post_action_delay") != args.end()) {
-    int val = std::stoi(args.at("post_action_delay"));
-
-    if (val < 0) {
-      OLOG << "Argument=post_action_delay must be non-negative";
-      return 1;
-    }
-
-    post_action_delay_ = val;
-  }
-
-  if (args.find("dry") != args.end()) {
-    const std::string& val = args.at("dry");
-
-    if (val == "true" || val == "True" || val == "1") {
-      dry_ = true;
-    }
   }
 
   Oomd::setStat(kRestartsKey, 0);

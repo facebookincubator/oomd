@@ -32,41 +32,19 @@ REGISTER_PLUGIN(pressure_above, PressureAbove::create);
 int PressureAbove::init(
     const Engine::PluginArgs& args,
     const PluginConstructionContext& context) {
-  if (args.find("cgroup") != args.end()) {
-    const auto& cgroup_fs = context.cgroupFs();
-    auto cgroups = Util::split(args.at("cgroup"), ',');
-    for (const auto& c : cgroups) {
-      cgroups_.emplace(cgroup_fs, c);
-    }
-  } else {
-    OLOG << "Argument=cgroup not present";
-    return 1;
-  }
+  argParser_.addArgumentCustom(
+      "cgroup",
+      cgroups_,
+      [context](const std::string& cgroupStr) {
+        return PluginArgParser::parseCgroup(context, cgroupStr);
+      },
+      true);
 
-  if (args.find("resource") != args.end() &&
-      (args.at("resource") == "io" || args.at("resource") == "memory")) {
-    const auto& res = args.at("resource");
-    if (res == "io") {
-      resource_ = ResourceType::IO;
-    } else if (res == "memory") {
-      resource_ = ResourceType::MEMORY;
-    }
-  } else {
-    OLOG << "Argument=resource missing or not (io|memory)";
-    return 1;
-  }
+  argParser_.addArgument("resource", resource_, true);
+  argParser_.addArgument("threshold", threshold_, true);
+  argParser_.addArgument("duration", duration_, true);
 
-  if (args.find("threshold") != args.end()) {
-    threshold_ = std::stoi(args.at("threshold"));
-  } else {
-    OLOG << "Argument=threshold not present";
-    return 1;
-  }
-
-  if (args.find("duration") != args.end()) {
-    duration_ = std::stoi(args.at("duration"));
-  } else {
-    OLOG << "Argument=duration not present";
+  if (!argParser_.parse(args)) {
     return 1;
   }
 

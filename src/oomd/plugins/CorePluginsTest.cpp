@@ -1264,7 +1264,6 @@ TEST_F(SwapFreeTest, LowSwap) {
 
   Engine::PluginArgs args;
   args["threshold_pct"] = "20";
-  args["duration"] = "0";
   const PluginConstructionContext compile_context("/sys/fs/cgroup");
 
   ASSERT_EQ(plugin->init(std::move(args), compile_context), 0);
@@ -1282,7 +1281,6 @@ TEST_F(SwapFreeTest, EnoughSwap) {
 
   Engine::PluginArgs args;
   args["threshold_pct"] = "20";
-  args["duration"] = "0";
   const PluginConstructionContext compile_context("/sys/fs/cgroup");
 
   ASSERT_EQ(plugin->init(std::move(args), compile_context), 0);
@@ -1300,7 +1298,6 @@ TEST_F(SwapFreeTest, SwapOff) {
 
   Engine::PluginArgs args;
   args["threshold_pct"] = "20";
-  args["duration"] = "0";
   const PluginConstructionContext compile_context("/sys/fs/cgroup");
 
   ASSERT_EQ(plugin->init(std::move(args), compile_context), 0);
@@ -1410,7 +1407,6 @@ TEST_F(KillIOCostTest, KillsHighestIOCostMultiCgroup) {
   const PluginConstructionContext compile_context(
       "oomd/fixtures/plugins/kill_by_io_cost");
   args["cgroup"] = "one_high/*,sibling/*";
-  args["resource"] = "io";
   args["post_action_delay"] = "0";
 
   ASSERT_EQ(plugin->init(std::move(args), compile_context), 0);
@@ -1447,7 +1443,6 @@ TEST_F(KillIOCostTest, DoesntKillsHighestIOCostDry) {
   const PluginConstructionContext compile_context(
       "oomd/fixtures/plugins/kill_by_pressure");
   args["cgroup"] = "one_high/*";
-  args["resource"] = "io";
   args["post_action_delay"] = "0";
   args["dry"] = "true";
 
@@ -1548,7 +1543,6 @@ TEST_F(KillPgScanTest, KillsHighestPgScanMultiCgroup) {
   const PluginConstructionContext compile_context(
       "oomd/fixtures/plugins/kill_by_pg_scan");
   args["cgroup"] = "one_high/*,sibling/*";
-  args["resource"] = "io";
   args["post_action_delay"] = "0";
 
   ASSERT_EQ(plugin->init(std::move(args), compile_context), 0);
@@ -1585,7 +1579,6 @@ TEST_F(KillPgScanTest, DoesntKillsHighestPgScanDry) {
   const PluginConstructionContext compile_context(
       "oomd/fixtures/plugins/kill_by_pg_scan");
   args["cgroup"] = "one_high/*";
-  args["resource"] = "io";
   args["post_action_delay"] = "0";
   args["dry"] = "true";
 

@@ -44,7 +44,7 @@ class PressureRisingBeyond : public Oomd::Engine::BasePlugin {
   // Initialized to bogus values; init() will crash oomd if non-0 return
   int threshold_;
   int duration_;
-  float fast_fall_ratio_;
+  float fast_fall_ratio_{0.85};
 
   ResourcePressure last_pressure_{100, 100, 100};
   std::chrono::steady_clock::time_point hit_thres_at_{};

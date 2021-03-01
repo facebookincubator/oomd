@@ -25,6 +25,7 @@
 #include "oomd/PluginConstructionContext.h"
 #include "oomd/include/CgroupPath.h"
 #include "oomd/include/Types.h"
+#include "oomd/util/PluginArgParser.h"
 
 namespace Oomd {
 namespace Engine {
@@ -77,12 +78,16 @@ class BasePlugin {
 
   virtual void setName(const std::string& name) {
     name_ = name;
+    argParser_.setName(name_);
   }
   virtual const std::string& getName() const {
     return name_;
   }
 
   virtual ~BasePlugin() = default;
+
+ protected:
+  PluginArgParser argParser_;
 
  private:
   std::string name_;

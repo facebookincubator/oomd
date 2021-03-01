@@ -31,22 +31,17 @@ REGISTER_PLUGIN(memory_reclaim, MemoryReclaim::create);
 int MemoryReclaim::init(
     const Engine::PluginArgs& args,
     const PluginConstructionContext& context) {
-  if (args.find("cgroup") != args.end()) {
-    const auto& cgroup_fs = context.cgroupFs();
+  argParser_.addArgumentCustom(
+      "cgroup",
+      cgroups_,
+      [context](const std::string& cgroupStr) {
+        return PluginArgParser::parseCgroup(context, cgroupStr);
+      },
+      true);
 
-    auto cgroups = Util::split(args.at("cgroup"), ',');
-    for (const auto& c : cgroups) {
-      cgroups_.emplace(cgroup_fs, c);
-    }
-  } else {
-    OLOG << "Argument=cgroup not present";
-    return 1;
-  }
+  argParser_.addArgument("duration", duration_, true);
 
-  if (args.find("duration") != args.end()) {
-    duration_ = std::stoi(args.at("duration"));
-  } else {
-    OLOG << "Argument=duration not present";
+  if (!argParser_.parse(args)) {
     return 1;
   }
 

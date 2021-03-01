@@ -39,7 +39,6 @@ class SwapFree : public Oomd::Engine::BasePlugin {
 
  private:
   int threshold_pct_; // will be assigned in init()
-  std::string swaps_location_;
 };
 
 } // namespace Oomd

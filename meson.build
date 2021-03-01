@@ -42,8 +42,6 @@ srcs = files('''
     src/oomd/plugins/StopPlugin.cpp
     src/oomd/plugins/DumpCgroupOverview.cpp
     src/oomd/plugins/DumpKillInfoNoOp.cpp
-    src/oomd/util/Fs.cpp
-    src/oomd/util/Util.cpp
     src/oomd/plugins/MemoryAbove.cpp
     src/oomd/plugins/MemoryReclaim.cpp
     src/oomd/plugins/NrDyingDescendants.cpp
@@ -56,6 +54,9 @@ srcs = files('''
     src/oomd/plugins/KillSwapUsage.cpp
     src/oomd/plugins/KillPgScan.cpp
     src/oomd/plugins/KillPressure.cpp
+    src/oomd/util/Fs.cpp
+    src/oomd/util/Util.cpp
+    src/oomd/util/PluginArgParser.cpp
 '''.split())
 
 fixture_srcs = files('''
@@ -134,7 +135,8 @@ core_tests = [
                      'src/oomd/util/FsTest.cpp',
                      'src/oomd/util/ScopeGuardTest.cpp',
                      'src/oomd/util/SystemMaybeTest.cpp',
-                     'src/oomd/util/UtilTest.cpp')],
+                     'src/oomd/util/UtilTest.cpp',
+                     'src/oomd/util/PluginArgParserTest.cpp')],
   ['cgctx',    files('src/oomd/CgroupContextTest.cpp')],
   ['context',  files('src/oomd/OomdContextTest.cpp')],
   ['log',      files('src/oomd/LogTest.cpp')],
