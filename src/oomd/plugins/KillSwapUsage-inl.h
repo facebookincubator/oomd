@@ -33,25 +33,30 @@ template <typename Base>
 int KillSwapUsage<Base>::init(
     const Engine::PluginArgs& args,
     const PluginConstructionContext& context) {
-  if (args.find("threshold") != args.end()) {
-    auto meminfo = args.find("meminfo_location") != args.end()
-        ? Fs::getMeminfo(args.at("meminfo_location"))
-        : Fs::getMeminfo();
+  auto meminfo = args.find("meminfo_location") != args.end()
+      ? Fs::getMeminfo(args.at("meminfo_location"))
+      : Fs::getMeminfo();
 
-    auto swapTotal = 0;
-    // TODO(dschatzberg): Report Error
-    if (meminfo && meminfo->count("SwapTotal")) {
-      swapTotal = (*meminfo)["SwapTotal"];
-    }
-
-    if (Util::parseSizeOrPercent(
-            args.at("threshold"), &threshold_, swapTotal) != 0) {
-      OLOG << "Failed to parse threshold" << args.at("threshold");
-      return 1;
-    }
+  auto swapTotal = 0;
+  // TODO(dschatzberg): Report Error
+  if (meminfo && meminfo->count("SwapTotal")) {
+    swapTotal = (*meminfo)["SwapTotal"];
   }
 
-  return Base::init(args, context);
+  // erase meminfo_location since we already loaded it
+  auto argsCopy = args;
+  argsCopy.erase("meminfo_location");
+
+  this->argParser_.addArgumentCustom(
+      "threshold", threshold_, [swapTotal](const std::string& str) {
+        int64_t res = 0;
+        if (Util::parseSizeOrPercent(str, &res, swapTotal) != 0) {
+          throw std::invalid_argument("Failed to parse threshold: " + str);
+        }
+        return res;
+      });
+
+  return Base::init(argsCopy, context);
 }
 
 template <typename Base>

@@ -20,9 +20,14 @@
 #include <chrono>
 #include <cstdint>
 #include <iostream>
+#include <unordered_map>
 #include <vector>
 
 namespace Oomd {
+
+namespace Engine {
+using PluginArgs = std::unordered_map<std::string, std::string>;
+}
 
 enum struct ResourceType {
   MEMORY,

@@ -19,6 +19,7 @@
 
 #include "oomd/Log.h"
 #include "oomd/PluginRegistry.h"
+#include "oomd/util/PluginArgParser.h"
 #include "oomd/util/Util.h"
 
 namespace Oomd {
@@ -28,46 +29,21 @@ REGISTER_PLUGIN(nr_dying_descendants, NrDyingDescendants::create);
 int NrDyingDescendants::init(
     const Engine::PluginArgs& args,
     const PluginConstructionContext& context) {
-  if (args.find("cgroup") != args.end()) {
-    const auto& cgroup_fs = context.cgroupFs();
+  argParser_.addArgumentCustom(
+      "cgroup",
+      cgroups_,
+      [context](const std::string& cgroupStr) {
+        return PluginArgParser::parseCgroup(context, cgroupStr);
+      },
+      true);
 
-    auto cgroups = Util::split(args.at("cgroup"), ',');
-    for (const auto& c : cgroups) {
-      cgroups_.emplace(cgroup_fs, c);
-    }
-  } else {
-    OLOG << "Argument=cgroup not present";
+  argParser_.addArgumentCustom(
+      "count", count_, PluginArgParser::parseUnsignedInt, true);
+  argParser_.addArgument("lte", lte_);
+  argParser_.addArgument("debug", debug_);
+
+  if (!argParser_.parse(args)) {
     return 1;
-  }
-
-  if (args.find("count") != args.end()) {
-    int val = std::stoi(args.at("count"));
-    if (val < 0) {
-      OLOG << "Argument=count must be non-negative";
-    }
-    count_ = val;
-  } else {
-    OLOG << "Argument=count not present";
-  }
-
-  if (args.find("lte") != args.end()) {
-    const std::string& val = args.at("lte");
-
-    if (val == "true" || val == "True" || val == "1") {
-      lte_ = true;
-    }
-
-    if (val == "false" || val == "False" || val == "0") {
-      lte_ = false;
-    }
-  }
-
-  if (args.find("debug") != args.end()) {
-    const std::string& val = args.at("debug");
-
-    if (val == "true" || val == "True" || val == "1") {
-      debug_ = true;
-    }
   }
 
   // Success

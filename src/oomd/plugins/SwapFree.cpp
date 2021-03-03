@@ -27,10 +27,9 @@ REGISTER_PLUGIN(swap_free, SwapFree::create);
 int SwapFree::init(
     const Engine::PluginArgs& args,
     const PluginConstructionContext& /* unused */) {
-  if (args.find("threshold_pct") != args.end()) {
-    threshold_pct_ = std::stoi(args.at("threshold_pct"));
-  } else {
-    OLOG << "Argument=threshold_pct not present";
+  argParser_.addArgument("threshold_pct", threshold_pct_, true);
+
+  if (!argParser_.parse(args)) {
     return 1;
   }
 

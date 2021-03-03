@@ -18,10 +18,12 @@
 #include "oomd/plugins/PressureRisingBeyond.h"
 
 #include <iomanip>
+#include <stdexcept>
 #include <string>
 
 #include "oomd/Log.h"
 #include "oomd/PluginRegistry.h"
+#include "oomd/include/Types.h"
 #include "oomd/util/ScopeGuard.h"
 #include "oomd/util/Util.h"
 
@@ -32,49 +34,21 @@ REGISTER_PLUGIN(pressure_rising_beyond, PressureRisingBeyond::create);
 int PressureRisingBeyond::init(
     const Engine::PluginArgs& args,
     const PluginConstructionContext& context) {
-  if (args.find("cgroup") != args.end()) {
-    const auto& cgroup_fs = context.cgroupFs();
-    auto cgroups = Util::split(args.at("cgroup"), ',');
-    for (const auto& c : cgroups) {
-      cgroups_.emplace(cgroup_fs, c);
-    }
-  } else {
-    OLOG << "Argument=cgroup not present";
-    return 1;
-  }
+  argParser_.addArgumentCustom(
+      "cgroup",
+      cgroups_,
+      [context](const std::string& cgroupStr) {
+        return PluginArgParser::parseCgroup(context, cgroupStr);
+      },
+      true);
 
-  if (args.find("resource") != args.end() &&
-      (args.at("resource") == "io" || args.at("resource") == "memory")) {
-    const auto& res = args.at("resource");
-    if (res == "io") {
-      resource_ = ResourceType::IO;
-    } else if (res == "memory") {
-      resource_ = ResourceType::MEMORY;
-    }
-  } else {
-    OLOG << "Argument=resource missing or not (io|memory)";
-    return 1;
-  }
+  argParser_.addArgument("resource", resource_, true);
+  argParser_.addArgument("threshold", threshold_, true);
+  argParser_.addArgument("duration", duration_, true);
+  argParser_.addArgument("fast_fall_ratio", fast_fall_ratio_);
 
-  if (args.find("threshold") != args.end()) {
-    threshold_ = std::stoi(args.at("threshold"));
-  } else {
-    OLOG << "Argument=threshold not present";
+  if (!argParser_.parse(args)) {
     return 1;
-  }
-
-  if (args.find("duration") != args.end()) {
-    duration_ = std::stoi(args.at("duration"));
-  } else {
-    OLOG << "Argument=duration not present";
-    return 1;
-  }
-
-  // `fast_fall_ratio` is optional
-  if (args.find("fast_fall_ratio") != args.end()) {
-    fast_fall_ratio_ = std::stof(args.at("fast_fall_ratio"));
-  } else {
-    fast_fall_ratio_ = 0.85;
   }
 
   // Success

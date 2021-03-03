@@ -32,38 +32,16 @@ template <typename Base>
 int KillMemoryGrowth<Base>::init(
     const Engine::PluginArgs& args,
     const PluginConstructionContext& context) {
-  if (args.find("size_threshold") != args.end()) {
-    int val = std::stoi(args.at("size_threshold"));
+  this->argParser_.addArgumentCustom(
+      "size_threshold", size_threshold_, PluginArgParser::parseUnsignedInt);
 
-    if (val < 0) {
-      OLOG << "Argument=size_threshold must be non-negative";
-      return 1;
-    }
+  this->argParser_.addArgumentCustom(
+      "growing_size_percentile",
+      growing_size_percentile_,
+      PluginArgParser::parseUnsignedInt);
 
-    size_threshold_ = val;
-  }
-
-  if (args.find("growing_size_percentile") != args.end()) {
-    int val = std::stoi(args.at("growing_size_percentile"));
-
-    if (val < 0) {
-      OLOG << "Argument=growing_size_percentile must be non-negative";
-      return 1;
-    }
-
-    growing_size_percentile_ = val;
-  }
-
-  if (args.find("min_growth_ratio") != args.end()) {
-    float val = std::stof(args.at("min_growth_ratio"));
-
-    if (val < 0) {
-      OLOG << "Argument=min_growth_ratio must be non-negative";
-      return 1;
-    }
-
-    min_growth_ratio_ = val;
-  }
+  this->argParser_.addArgumentCustom(
+      "min_growth_ratio", min_growth_ratio_, PluginArgParser::parseUnsignedInt);
 
   return Base::init(args, context);
 }

@@ -53,59 +53,25 @@ namespace Oomd {
 int BaseKillPlugin::init(
     const Engine::PluginArgs& args,
     const PluginConstructionContext& context) {
-  if (args.find("cgroup") != args.end()) {
-    const auto& cgroup_fs = context.cgroupFs();
+  argParser_.addArgumentCustom(
+      "cgroup",
+      cgroups_,
+      [context](const std::string& cgroupStr) {
+        return PluginArgParser::parseCgroup(context, cgroupStr);
+      },
+      true);
 
-    auto cgroups = Util::split(args.at("cgroup"), ',');
-    for (const auto& c : cgroups) {
-      cgroups_.emplace(cgroup_fs, c);
-    }
-  } else {
-    OLOG << "Argument=cgroup not present";
+  argParser_.addArgument("recursive", recursive_);
+  argParser_.addArgumentCustom(
+      "post_action_delay",
+      post_action_delay_,
+      PluginArgParser::parseUnsignedInt);
+  argParser_.addArgument("dry", dry_);
+  argParser_.addArgument("always_continue", always_continue_);
+  argParser_.addArgument("debug", debug_);
+
+  if (!argParser_.parse(args)) {
     return 1;
-  }
-
-  if (args.find("recursive") != args.end()) {
-    const std::string& val = args.at("recursive");
-
-    if (val == "true" || val == "True" || val == "1") {
-      recursive_ = true;
-    }
-  }
-
-  if (args.find("post_action_delay") != args.end()) {
-    int val = std::stoi(args.at("post_action_delay"));
-
-    if (val < 0) {
-      OLOG << "Argument=post_action_delay must be non-negative";
-      return 1;
-    }
-
-    post_action_delay_ = val;
-  }
-
-  if (args.find("dry") != args.end()) {
-    const std::string& val = args.at("dry");
-
-    if (val == "true" || val == "True" || val == "1") {
-      dry_ = true;
-    }
-  }
-
-  if (args.find("always_continue") != args.end()) {
-    const std::string& val = args.at("always_continue");
-
-    if (val == "true" || val == "True" || val == "1") {
-      always_continue_ = true;
-    }
-  }
-
-  if (args.find("debug") != args.end()) {
-    const std::string& val = args.at("debug");
-
-    if (val == "true" || val == "True" || val == "1") {
-      debug_ = true;
-    }
   }
 
   // Success

@@ -32,32 +32,19 @@ REGISTER_PLUGIN(exists, Exists::create);
 int Exists::init(
     const Engine::PluginArgs& args,
     const PluginConstructionContext& context) {
-  if (args.find("cgroup") != args.end()) {
-    const auto& cgroup_fs = context.cgroupFs();
+  argParser_.addArgumentCustom(
+      "cgroup",
+      cgroups_,
+      [context](const std::string& cgroupStr) {
+        return PluginArgParser::parseCgroup(context, cgroupStr);
+      },
+      true);
 
-    auto cgroups = Util::split(args.at("cgroup"), ',');
-    for (const auto& c : cgroups) {
-      cgroups_.emplace(cgroup_fs, c);
-    }
-  } else {
-    OLOG << "Argument=cgroup not present";
+  argParser_.addArgument("negate", negate_);
+  argParser_.addArgument("debug", debug_);
+
+  if (!argParser_.parse(args)) {
     return 1;
-  }
-
-  if (args.find("negate") != args.end()) {
-    const std::string& val = args.at("negate");
-
-    if (val == "true" || val == "True" || val == "1") {
-      negate_ = true;
-    }
-  }
-
-  if (args.find("debug") != args.end()) {
-    const std::string& val = args.at("debug");
-
-    if (val == "true" || val == "True" || val == "1") {
-      debug_ = true;
-    }
   }
 
   // Success

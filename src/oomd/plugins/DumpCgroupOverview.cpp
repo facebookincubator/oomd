@@ -73,22 +73,18 @@ REGISTER_PLUGIN(dump_cgroup_overview, DumpCgroupOverview::create);
 int DumpCgroupOverview::init(
     const Engine::PluginArgs& args,
     const PluginConstructionContext& context) {
-  if (args.find("cgroup") != args.end()) {
-    const auto& cgroup_fs = context.cgroupFs();
-    auto cgroups = Util::split(args.at("cgroup"), ',');
-    for (const auto& c : cgroups) {
-      cgroups_.emplace(cgroup_fs, c);
-    }
-  } else {
-    OLOG << "Argument=cgroup not present";
-    return 1;
-  }
+  argParser_.addArgumentCustom(
+      "cgroup",
+      cgroups_,
+      [context](const std::string& cgroupStr) {
+        return PluginArgParser::parseCgroup(context, cgroupStr);
+      },
+      true);
 
-  if (args.find("always") != args.end()) {
-    const auto& var = args.at("always");
-    if (var == "true" || var == "True" || var == "1") {
-      always_ = true;
-    }
+  argParser_.addArgument("always", always_);
+
+  if (!argParser_.parse(args)) {
+    return 1;
   }
 
   return 0;

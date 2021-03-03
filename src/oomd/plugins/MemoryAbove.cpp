@@ -18,11 +18,13 @@
 #include "oomd/plugins/MemoryAbove.h"
 
 #include <iomanip>
+#include <stdexcept>
 #include <string>
 
 #include "oomd/Log.h"
 #include "oomd/PluginRegistry.h"
 #include "oomd/util/Fs.h"
+#include "oomd/util/PluginArgParser.h"
 #include "oomd/util/ScopeGuard.h"
 #include "oomd/util/Util.h"
 
@@ -33,18 +35,10 @@ REGISTER_PLUGIN(memory_above, MemoryAbove::create);
 int MemoryAbove::init(
     const Engine::PluginArgs& args,
     const PluginConstructionContext& context) {
-  if (args.find("cgroup") != args.end()) {
-    const auto& cgroup_fs = context.cgroupFs();
-
-    auto cgroups = Util::split(args.at("cgroup"), ',');
-    for (const auto& c : cgroups) {
-      cgroups_.emplace(cgroup_fs, c);
-    }
-  } else {
-    OLOG << "Argument=cgroup not present";
-    return 1;
-  }
-
+  // load `meminfo` outside of the PluginArgParser.
+  // Because the threshold arg parsing depends on meminfo, to avoid making the
+  // parser over complicated for this specific case. We handle it as a special
+  // case and make a copy of args with `meminfo` removed.
   auto meminfoMaybe = args.find("meminfo_location") != args.end()
       ? Fs::getMeminfo(args.at("meminfo_location"))
       : Fs::getMeminfo();
@@ -58,37 +52,45 @@ int MemoryAbove::init(
   }
   auto memTotal = (*meminfoMaybe)["MemTotal"];
 
-  if (args.find("threshold_anon") != args.end()) {
-    if (Util::parseSizeOrPercent(
-            args.at("threshold_anon"), &threshold_, memTotal) != 0) {
-      OLOG << "Failed to parse threshold_anon=" << args.at("threshold_anon");
-      return 1;
-    }
+  // erase meminfo_location since we already loaded it
+  auto argsCopy = args;
+  argsCopy.erase("meminfo_location");
+
+  // by default we're looking for `threshold`.
+  // if `threshold_anon` is passed in, use it instead
+  auto thresholdArgName = "threshold";
+  if (argsCopy.find("threshold_anon") != argsCopy.end()) {
+    thresholdArgName = "threshold_anon";
+    // remove threshold so that we don't need to handle it in the parser
+    argsCopy.erase("threshold");
     is_anon_ = true;
-  } else if (args.find("threshold") != args.end()) {
-    if (Util::parseSizeOrPercent(args.at("threshold"), &threshold_, memTotal) <
-        0) {
-      OLOG << "Failed to parse threshold=" << args.at("threshold");
-      return 1;
-    }
-  } else {
-    OLOG << "Argument=[anon_]threshold not present";
-    return 1;
   }
 
-  if (args.find("duration") != args.end()) {
-    duration_ = std::stoi(args.at("duration"));
-  } else {
-    OLOG << "Argument=duration not present";
+  argParser_.addArgumentCustom(
+      "cgroup",
+      cgroups_,
+      [context](const std::string& cgroupStr) {
+        return PluginArgParser::parseCgroup(context, cgroupStr);
+      },
+      true);
+
+  argParser_.addArgumentCustom(
+      thresholdArgName,
+      threshold_,
+      [memTotal](const std::string& str) {
+        int64_t res = 0;
+        if (Util::parseSizeOrPercent(str, &res, memTotal) != 0) {
+          throw std::invalid_argument("Failed to parse threshold: " + str);
+        }
+        return res;
+      },
+      true);
+
+  argParser_.addArgument("duration", duration_, true);
+  argParser_.addArgument("debug", debug_);
+
+  if (!argParser_.parse(argsCopy)) {
     return 1;
-  }
-
-  if (args.find("debug") != args.end()) {
-    const std::string& val = args.at("debug");
-
-    if (val == "true" || val == "True" || val == "1") {
-      debug_ = true;
-    }
   }
 
   // Success
