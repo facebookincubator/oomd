@@ -160,6 +160,14 @@ TEST_F(FsTest, ReadFileBad) {
   EXPECT_FALSE(Fs::readFileByLine(Fs::Fd::openat(dir, "ksldjfksdlfdsjf")));
 }
 
+TEST_F(FsTest, CheckExist) {
+  auto path = fixture_.cgroupDataDir();
+  auto dir = ASSERT_SYS_OK(Fs::DirFd::open(path));
+
+  EXPECT_TRUE(Fs::checkExistAt(dir, Fs::kControllersFile));
+  EXPECT_FALSE(Fs::checkExistAt(dir, "not_exists"));
+}
+
 TEST_F(FsTest, GetPids) {
   auto path = fixture_.cgroupDataDir();
   auto dir = ASSERT_SYS_OK(Fs::DirFd::open(path));

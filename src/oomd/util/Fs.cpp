@@ -306,6 +306,14 @@ SystemMaybe<std::vector<std::string>> Fs::readFileByLine(Fd&& fd) {
   return v;
 }
 
+SystemMaybe<Unit> Fs::checkExistAt(const DirFd& dirfd, const char* name) {
+  if (int rc = ::faccessat(dirfd.fd(), name, F_OK, 0); rc == 0) {
+    return noSystemError();
+  } else {
+    return SYSTEM_ERROR(rc);
+  }
+}
+
 SystemMaybe<std::vector<std::string>> Fs::readControllersAt(
     const DirFd& dirfd) {
   auto lines = readFileByLine(Fs::Fd::openat(dirfd, kControllersFile));

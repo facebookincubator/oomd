@@ -189,6 +189,8 @@ class Fs {
     return SYSTEM_ERROR(fd.error());
   }
 
+  static SystemMaybe<Unit> checkExistAt(const DirFd& dirfd, const char* name);
+
   static SystemMaybe<std::vector<std::string>> readControllersAt(
       const DirFd& dirfd);
   static SystemMaybe<std::vector<int>> getPidsAt(const DirFd& dirfd);
