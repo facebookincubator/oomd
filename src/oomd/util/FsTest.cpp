@@ -471,6 +471,18 @@ TEST_F(FsTest, WriteMemoryHighTmp) {
   EXPECT_EQ(memhightmp, 54321);
 }
 
+TEST_F(FsTest, WriteMemoryReclaim) {
+  using F = Fixture;
+  auto path = fixture_.cgroupDataDir() + "/write_test";
+  F::materialize(F::makeDir(path, {F::makeFile("memory.reclaim")}));
+
+  auto dir = ASSERT_SYS_OK(Fs::DirFd::open(path));
+  ASSERT_SYS_OK(Fs::writeMemReclaimAt(dir, 54321));
+  auto lines = ASSERT_SYS_OK(
+      Fs::readFileByLine(Fs::Fd::openat(dir, Fs::kMemReclaimFile)));
+  EXPECT_EQ(lines, std::vector{std::string("54321")});
+}
+
 TEST_F(FsTest, Swappiness) {
   using F = Fixture;
   auto path = fixture_.fsDataDir() + "/swappiness";

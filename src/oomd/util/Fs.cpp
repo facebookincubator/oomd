@@ -756,6 +756,16 @@ SystemMaybe<Unit> Fs::writeMemhightmpAt(
   return noSystemError();
 }
 
+SystemMaybe<Unit> Fs::writeMemReclaimAt(const DirFd& dirfd, int64_t value) {
+  auto val_str = std::to_string(value);
+  auto ret = writeControlFileAt(
+      Fs::Fd::openat(dirfd, kMemReclaimFile, false), val_str);
+  if (!ret) {
+    return SYSTEM_ERROR(ret.error());
+  }
+  return noSystemError();
+}
+
 SystemMaybe<int64_t> Fs::getNrDyingDescendantsAt(const DirFd& dirfd) {
   auto lines = readFileByLine(Fs::Fd::openat(dirfd, kCgroupStatFile));
   if (!lines) {

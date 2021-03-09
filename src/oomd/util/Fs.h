@@ -43,6 +43,7 @@ class Fs {
   static constexpr auto kMemHighFile = "memory.high";
   static constexpr auto kMemMaxFile = "memory.max";
   static constexpr auto kMemHighTmpFile = "memory.high.tmp";
+  static constexpr auto kMemReclaimFile = "memory.reclaim";
   static constexpr auto kMemMinFile = "memory.min";
   static constexpr auto kMemStatFile = "memory.stat";
   static constexpr auto kCgroupStatFile = "cgroup.stat";
@@ -230,6 +231,7 @@ class Fs {
       const DirFd& dirfd,
       int64_t value,
       std::chrono::microseconds duration);
+  static SystemMaybe<Unit> writeMemReclaimAt(const DirFd& dirfd, int64_t value);
 
   static SystemMaybe<int64_t> getNrDyingDescendantsAt(const DirFd& dirfd);
   static SystemMaybe<KillPreference> readKillPreferenceAt(const DirFd& path);
