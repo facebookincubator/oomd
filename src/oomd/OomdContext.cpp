@@ -215,11 +215,15 @@ void OomdContext::setPrekillHooks(
 
 std::optional<std::unique_ptr<Engine::PrekillHookInvocation>>
 OomdContext::firePrekillHook(const CgroupContext& cgroup_ctx) {
-  if (!prekill_hooks_ || prekill_hooks_.value().get().size() != 1) {
-    return std::nullopt;
+  if (prekill_hooks_) {
+    for (auto& hook : prekill_hooks_.value().get()) {
+      if (hook->canRunOnCgroup(cgroup_ctx)) {
+        return hook->fire(cgroup_ctx);
+      }
+    }
   }
 
-  return prekill_hooks_.value().get().at(0)->fire(cgroup_ctx);
+  return std::nullopt;
 }
 
 } // namespace Oomd

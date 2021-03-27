@@ -18,10 +18,14 @@
 #pragma once
 
 #include <memory>
+#include <optional>
+#include <vector>
 #include "oomd/CgroupContext.h"
 #include "oomd/PluginConstructionContext.h"
 #include "oomd/include/CgroupPath.h"
 #include "oomd/include/Types.h"
+#include "oomd/util/PluginArgParser.h"
+#include "oomd/util/Util.h"
 
 namespace Oomd {
 namespace Engine {
@@ -51,13 +55,35 @@ class PrekillHook {
   PrekillHook& operator=(const PrekillHook&) = delete;
 
   virtual int init(
-      const PluginArgs& /* unused */,
-      const PluginConstructionContext& /* unused */) {
+      const PluginArgs& args,
+      const PluginConstructionContext& context) {
+    argParser_.addArgumentCustom(
+        "cgroup",
+        cgroup_patterns_,
+        [context](const std::string& cgroupStr) {
+          return PluginArgParser::parseCgroup(context, cgroupStr);
+        },
+        true);
+
+    if (!argParser_.parse(args)) {
+      return 1;
+    }
+
     return 0;
   }
 
   virtual std::unique_ptr<PrekillHookInvocation> fire(
       const CgroupContext& cgroup_ctx) = 0;
+
+  virtual bool canRunOnCgroup(const CgroupContext& cgroup_ctx) {
+    for (auto pattern : cgroup_patterns_) {
+      if (cgroup_ctx.cgroup().hasDescendantWithPrefixMatching(pattern)) {
+        return true;
+      }
+    }
+
+    return false;
+  }
 
   virtual void setName(const std::string& name) {
     name_ = name;
@@ -66,8 +92,12 @@ class PrekillHook {
     return name_;
   }
 
+ protected:
+  PluginArgParser argParser_;
+
  private:
   std::string name_;
+  std::unordered_set<CgroupPath> cgroup_patterns_{};
 };
 
 } // namespace Engine

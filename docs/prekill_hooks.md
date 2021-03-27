@@ -36,14 +36,26 @@ expected, and vice versa.
       "prekill_hooks": [
           {
               "name": "hypothetical_prekill_hook",
-              "args": {}
+              "args": {
+                "cgroup": "/foo,/bar/*/baz"
+              }
           }
       ]
   }
 
-Oomd currently supports at most one prekill hook at a time. Prekill hooks are
-an experimental feature, and it is not obvious how multiple prekill hooks should
-compose.
+On a kill, the oomd runs the first configured prekill hook whose "cgroup" arg
+matches the path of the cgroup to be killed. At most one prekill hook runs per
+kill.
+
+The "cgroup" arg is a list of comma-separated patterns. Patterns are cgroup
+paths, except path components may be "*". No other glob matching works except
+star for a single whole path component.
+
+A cgroup path matches a pattern if it 1) exactly matches the pattern, 2) is an
+ancestor of a path that would match the pattern, or 3) is a descendant of a path
+that matches the pattern.
+
+To run on all kills, set `"cgroup": "/"`.
 
 Rulesets may set a "prekill_hook_timeout" in seconds. If unset, the default is 5
 seconds.

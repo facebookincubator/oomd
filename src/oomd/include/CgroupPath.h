@@ -47,6 +47,20 @@ class CgroupPath {
    */
   std::vector<CgroupPath> resolveWildcard() const;
 
+  // hasDescendantWithPrefixMatching is true if any descendant of relativePath()
+  // has a prefix that matches @param pattern.
+  // @param pattern is a glob-like pattern, supporting only wildcard path
+  // components. /foo/*/baz/ matches relativePath() /foo/bar/baz, but the
+  // pattern /foo/b*/baz only matches the exact path "/foo/b*/baz". Leading and
+  // trailing slashes are ignored.
+  // @returns true if
+  //  1. relativePath() matches a prefix of pattern, in which case there may
+  //     exist descendants matching the full pattern,
+  //  2. if pattern matches a prefix of relativePath(), in which case
+  //     relativePath() is a descendant of a path matching pattern, or
+  //  3. if pattern matches relativePath() itself.
+  bool hasDescendantWithPrefixMatching(const CgroupPath& pattern) const;
+
   bool operator==(const CgroupPath& other) const;
   bool operator!=(const CgroupPath& other) const;
   // Do we represent the root cgroup?

@@ -221,11 +221,6 @@ std::unique_ptr<Engine::Engine> compile(
     prekill_hooks.emplace_back(std::move(compiled_prekill_hook_plugin));
   }
 
-  if (prekill_hooks.size() > 1) {
-    OLOG << "Config cannot have more than 1 prekill hook";
-    return nullptr;
-  }
-
   return std::make_unique<Engine::Engine>(
       std::move(rulesets), std::move(prekill_hooks));
 }

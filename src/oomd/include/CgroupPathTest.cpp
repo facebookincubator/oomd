@@ -127,3 +127,49 @@ TEST(CgroupPathTest, ResolveWildcardTest) {
   EXPECT_THAT(resolved, Contains(CgroupPath(tempDir, "wildcard_root/b_dir")));
   EXPECT_THAT(resolved, Contains(CgroupPath(tempDir, "wildcard_root/d_dir")));
 }
+
+TEST(CgroupPathTest, HasDescendantWithPrefixMatchingTest) {
+  const std::string fs = "/cgroup2fs";
+  auto matches = [&](const std::string& path, const std::string& pattern) {
+    return CgroupPath(fs, path).hasDescendantWithPrefixMatching(
+        CgroupPath(fs, pattern));
+  };
+
+  // basic pattern matching
+  EXPECT_TRUE(matches("/foo/bar/baz", "/foo/*/baz"));
+
+  // leading and trailing slashes are ignored
+  EXPECT_TRUE(matches("foo/bar/baz", "/foo/"));
+  EXPECT_TRUE(matches("foo/bar/baz", "foo/"));
+  EXPECT_TRUE(matches("foo/bar/baz/", "foo/"));
+  EXPECT_TRUE(matches("/foo/bar/baz/", "foo/"));
+  EXPECT_TRUE(matches("/foo/bar/baz/", "foo/"));
+
+  // patterns other than simple "*" per path segment are not supported
+  EXPECT_FALSE(matches("foo/bar", "foo/b*"));
+  EXPECT_TRUE(matches("foo/bar", "foo/*"));
+  EXPECT_TRUE(matches("foo/bar", "foo/bar"));
+
+  // paths which are parents of potential matches match
+  EXPECT_TRUE(matches("foo/", "foo/bar/*/qoux/*"));
+  EXPECT_TRUE(matches("foo/bar/baz", "foo/bar/*/qoux/*"));
+
+  // star matches exactly one level of hierarchy
+  EXPECT_FALSE(matches("foo/bar/baz/nux/qoux/muh", "foo/bar/*/qoux/*"));
+
+  // paths which are not on the same lineage as any match do not match
+  EXPECT_FALSE(matches("foo/nux", "foo/bar/*/qoux/*"));
+
+  // paths which whose parents match pattern match pattern
+  EXPECT_TRUE(matches("foo/bar/baz/qoux/nux/", "/foo/bar"));
+  EXPECT_TRUE(matches("/qoux/nux/blah", "/*/nux"));
+  EXPECT_TRUE(matches("/one/two/three", "/one/*"));
+
+  // "/" matches everything
+  EXPECT_TRUE(matches("/foo/bar/baz/", "/"));
+  EXPECT_TRUE(matches("/foo/bar/baz/qoux/nux", "/"));
+  EXPECT_TRUE(matches("/", "/"));
+  EXPECT_TRUE(matches("/toplevel", "/"));
+  EXPECT_TRUE(matches("toplevel/secondlevel", "/"));
+  EXPECT_TRUE(matches("toplevel", "/"));
+}

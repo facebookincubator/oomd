@@ -98,6 +98,19 @@ std::vector<CgroupPath> CgroupPath::resolveWildcard() const {
   return ret;
 }
 
+bool CgroupPath::hasDescendantWithPrefixMatching(
+    const CgroupPath& pattern) const {
+  unsigned int prefix_len =
+      std::min(cgroup_path_.size(), pattern.cgroup_path_.size());
+  for (unsigned int i = 0; i < prefix_len; i++) {
+    if (!(cgroup_path_[i] == pattern.cgroup_path_[i] ||
+          pattern.cgroup_path_[i] == "*")) {
+      return false;
+    }
+  }
+  return true;
+}
+
 bool CgroupPath::operator==(const CgroupPath& other) const {
   return this->absolutePath() == other.absolutePath();
 }
