@@ -8,7 +8,6 @@
 
 #include "oomd/include/Types.h"
 #include "oomd/util/PluginArgParser.h"
-#include "oomd/util/Util.h"
 
 using namespace ::testing;
 
