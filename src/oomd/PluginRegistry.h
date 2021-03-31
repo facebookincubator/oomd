@@ -70,7 +70,7 @@ PluginRegistry<Engine::BasePlugin>& getPluginRegistry();
 PluginRegistry<Engine::PrekillHook>& getPrekillHookRegistry();
 
 #define REGISTER_PREKILL_HOOK(hook_name, create_func) \
-  bool plugin_name##_plugin_entry =                   \
+  bool hook_name##_plugin_entry =                     \
       getPrekillHookRegistry().add(#hook_name, (create_func))
 
 } // namespace Oomd
