@@ -45,6 +45,7 @@ TEST(PluginArgParserTest, testArgParsingSuccess) {
   double valueDouble;
   float valueFloat;
   bool valueBool;
+  std::string valueString;
   std::chrono::milliseconds valueMillis;
   ResourceType valueResourceType;
   std::vector<std::string> valueStrs;
@@ -60,6 +61,7 @@ TEST(PluginArgParserTest, testArgParsingSuccess) {
   p.addArgument("arg_double", valueDouble);
   p.addArgument("arg_float", valueFloat);
   p.addArgument("arg_bool", valueBool);
+  p.addArgument("arg_string", valueString);
   p.addArgument("arg_milli_second", valueMillis);
   p.addArgument("arg_resource_type", valueResourceType);
   p.addArgumentCustom("arg_strs", valueStrs, valueStrsFunc);
@@ -71,6 +73,7 @@ TEST(PluginArgParserTest, testArgParsingSuccess) {
       {"arg_double"},
       {"arg_float"},
       {"arg_bool"},
+      {"arg_string"},
       {"arg_milli_second"},
       {"arg_resource_type"},
       {"arg_strs"}};
@@ -82,6 +85,7 @@ TEST(PluginArgParserTest, testArgParsingSuccess) {
       {"arg_double", "1.234"},
       {"arg_float", "4.321"},
       {"arg_bool", "true"},
+      {"arg_string", "foo"},
       {"arg_milli_second", "456"},
       {"arg_resource_type", "io"},
       {"arg_strs", "some_str"}};
@@ -95,6 +99,7 @@ TEST(PluginArgParserTest, testArgParsingSuccess) {
   EXPECT_EQ(1.234, valueDouble);
   EXPECT_EQ(4.321f, valueFloat);
   EXPECT_EQ(true, valueBool);
+  EXPECT_EQ("foo", valueString);
   EXPECT_EQ(std::chrono::milliseconds(456), valueMillis);
   EXPECT_EQ(ResourceType::IO, valueResourceType);
 

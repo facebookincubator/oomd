@@ -119,6 +119,11 @@ bool PluginArgParser::parseValue(const std::string& valueString) {
 }
 
 template <>
+std::string PluginArgParser::parseValue(const std::string& valueString) {
+  return valueString;
+}
+
+template <>
 std::chrono::milliseconds PluginArgParser::parseValue(
     const std::string& valueString) {
   return std::chrono::milliseconds(std::stoll(valueString));
