@@ -91,6 +91,11 @@ class LogStream {
     ENABLE,
   };
 
+  class Offset {
+   public:
+    uint64_t n;
+  };
+
   LogStream();
   explicit LogStream(LogBase& sink);
   ~LogStream();
@@ -135,6 +140,9 @@ class LogStream {
 // doesn't count) for some weird reason according to the C++ spec.
 template <>
 LogStream& LogStream::operator<<<LogStream::Control>(const Control& ctrl);
+
+template <>
+LogStream& LogStream::operator<<<LogStream::Offset>(const Offset& offset);
 
 template <typename... Args>
 static void OOMD_KMSG_LOG(Args&&... args) {

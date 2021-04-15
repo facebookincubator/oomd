@@ -17,12 +17,17 @@
 
 #include <cassert>
 
+#include <string.h>
 #include "oomd/Log.h"
 #include "oomd/config/ConfigTypes.h"
 
 namespace {
-std::string getIndentSpaces(int depth) {
-  return std::string(depth * 2, ' ');
+/*
+ * Make sure all log lines get consistent indentation, even if OLOG prefixes
+ * vary because some lines numbers are 3 digits and some are 2.
+ */
+Oomd::LogStream::Offset getIndentSpaces(uint64_t depth) {
+  return Oomd::LogStream::Offset{.n = ::strlen(FILENAME) + 7 + depth * 2};
 }
 } // namespace
 
@@ -33,6 +38,26 @@ namespace IR {
 void dumpIR(const Root& root) {
   int indent = 0;
 
+  // Prekill hooks
+  OLOG << getIndentSpaces(indent) << root.prekill_hooks.size()
+       << " PrekillHooks=";
+  ++indent;
+
+  for (const auto& hook : root.prekill_hooks) {
+    OLOG << getIndentSpaces(indent) << "Hook=" << hook.name;
+    ++indent;
+
+    // Print arguments
+    OLOG << getIndentSpaces(indent) << "Args=";
+    ++indent;
+    for (const auto& pair : hook.args) {
+      OLOG << getIndentSpaces(indent) << pair.first << "=" << pair.second;
+    }
+    indent -= 2;
+  }
+  --indent;
+
+  // Rulesets
   OLOG << getIndentSpaces(indent) << root.rulesets.size() << " Rulesets=";
   ++indent;
 
