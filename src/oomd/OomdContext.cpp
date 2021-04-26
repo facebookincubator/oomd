@@ -208,22 +208,19 @@ void OomdContext::refresh() {
   }
 }
 
-void OomdContext::setPrekillHooks(
-    const std::vector<std::unique_ptr<Engine::PrekillHook>>& prekill_hooks) {
-  prekill_hooks_ = prekill_hooks;
+void OomdContext::setPrekillHooksHandler(
+    std::function<std::optional<std::unique_ptr<Engine::PrekillHookInvocation>>(
+        const CgroupContext& cgroup_ctx)> prekill_hook_handler) {
+  prekill_hook_handler_ = prekill_hook_handler;
 }
 
 std::optional<std::unique_ptr<Engine::PrekillHookInvocation>>
 OomdContext::firePrekillHook(const CgroupContext& cgroup_ctx) {
-  if (prekill_hooks_) {
-    for (auto& hook : prekill_hooks_.value().get()) {
-      if (hook->canRunOnCgroup(cgroup_ctx)) {
-        return hook->fire(cgroup_ctx);
-      }
-    }
+  if (!prekill_hook_handler_) {
+    return std::nullopt;
   }
 
-  return std::nullopt;
+  return prekill_hook_handler_(cgroup_ctx);
 }
 
 } // namespace Oomd

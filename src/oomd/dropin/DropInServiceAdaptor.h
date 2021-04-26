@@ -78,7 +78,7 @@ class DropInServiceAdaptor {
   Engine::Engine& engine_;
 
   std::mutex queue_mutex_;
-  std::vector<std::pair<std::string, std::optional<Config2::DropInUnit>>>
+  std::vector<std::pair<std::string, std::optional<Engine::DropInUnit>>>
       drop_in_queue_;
 };
 

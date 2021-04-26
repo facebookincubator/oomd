@@ -33,7 +33,7 @@ void DropInServiceAdaptor::updateDropIns() {
     drop_in_queue = std::move(drop_in_queue_);
   }
 
-  for (auto& [tag, unit] : drop_in_queue) {
+  for (auto&& [tag, unit] : drop_in_queue) {
     // First remove then re-add. We don't do in place modifications as it'll
     // be complicated for the code and it probably wouldn't be what the user
     // expects. The user probably expects the entire drop in config is reset
@@ -44,15 +44,7 @@ void DropInServiceAdaptor::updateDropIns() {
       // If unit is nullopt, we just need to remove it
       handleDropInRemoveResult(tag, true);
     } else {
-      bool drop_in_add_ok = true;
-      for (auto& drop_in : unit->rulesets) {
-        if (!engine_.addDropInConfig(tag, std::move(drop_in))) {
-          // Clean up partial added drop ins
-          engine_.removeDropInConfig(tag);
-          drop_in_add_ok = false;
-          break;
-        }
-      }
+      bool drop_in_add_ok = engine_.addDropInConfig(tag, std::move(*unit));
       handleDropInAddResult(tag, drop_in_add_ok);
     }
   }

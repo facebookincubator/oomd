@@ -18,8 +18,10 @@
 #include "oomd/Oomd.h"
 
 #include <cmath>
+#include <functional>
 #include <thread>
 
+#include "oomd/CgroupContext.h"
 #include "oomd/Log.h"
 #include "oomd/dropin/FsDropInService.h"
 #include "oomd/include/Assert.h"
@@ -100,7 +102,9 @@ void Oomd::updateContext() {
   }
 
   ctx_.setSystemContext(system_ctx);
-  ctx_.setPrekillHooks(engine_->getPrekillHooks());
+  ctx_.setPrekillHooksHandler([&](const CgroupContext& cgroup_ctx) {
+    return engine_->firePrekillHook(cgroup_ctx);
+  });
   ctx_.refresh();
 }
 

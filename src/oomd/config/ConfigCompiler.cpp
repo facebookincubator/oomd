@@ -16,6 +16,7 @@
 
 #include "oomd/config/ConfigCompiler.h"
 
+#include <optional>
 #include <vector>
 
 #include "oomd/Log.h"
@@ -225,11 +226,11 @@ std::unique_ptr<Engine::Engine> compile(
       std::move(rulesets), std::move(prekill_hooks));
 }
 
-std::optional<DropInUnit> compileDropIn(
+std::optional<Engine::DropInUnit> compileDropIn(
     const IR::Root& root,
     const IR::Root& dropin,
     const PluginConstructionContext& context) {
-  DropInUnit ret;
+  Engine::DropInUnit ret;
 
   for (const auto& dropin_rs : dropin.rulesets) {
     bool found_target = false;
@@ -262,6 +263,17 @@ std::optional<DropInUnit> compileDropIn(
       OLOG << "Could not locate targeted ruleset=" << dropin_rs.name;
       return std::nullopt;
     }
+  }
+
+  for (const auto& prekill_hook : dropin.prekill_hooks) {
+    auto compiled_prekill_hook_plugin =
+        compilePrekillHook(prekill_hook, context);
+    if (!compiled_prekill_hook_plugin) {
+      OLOG << "Unknown PrekillHook \"" << prekill_hook.name << "\"";
+      return std::nullopt;
+    }
+
+    ret.prekill_hooks.emplace_back(std::move(compiled_prekill_hook_plugin));
   }
 
   return ret;

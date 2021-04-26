@@ -26,10 +26,6 @@
 namespace Oomd {
 namespace Config2 {
 
-struct DropInUnit {
-  std::vector<std::unique_ptr<Engine::Ruleset>> rulesets;
-};
-
 /*
  * Compiles IR into Oomd::Engine data structures. Also performs full
  * validation on the IR. If the IR is invalid, @method compile will
@@ -44,7 +40,7 @@ std::unique_ptr<Engine::Engine> compile(
  * the same semantics as @method compile. The compiled ruleset
  * must be injected into an existing @class Engine::Engine.
  */
-std::optional<DropInUnit> compileDropIn(
+std::optional<Engine::DropInUnit> compileDropIn(
     const IR::Root& root,
     const IR::Root& dropin,
     const PluginConstructionContext& context);

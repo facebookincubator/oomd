@@ -30,6 +30,11 @@
 namespace Oomd {
 namespace Engine {
 
+struct DropInUnit {
+  std::vector<std::unique_ptr<PrekillHook>> prekill_hooks;
+  std::vector<std::unique_ptr<Ruleset>> rulesets;
+};
+
 class Engine {
  public:
   explicit Engine(
@@ -45,7 +50,9 @@ class Engine {
    *
    * @returns false if @param ruleset's target is not found. true otherwise.
    */
-  bool addDropInConfig(
+  bool addDropInConfig(const std::string& tag, DropInUnit unit);
+
+  bool addDropInRuleset(
       const std::string& tag,
       std::unique_ptr<Ruleset> ruleset);
 
@@ -64,7 +71,8 @@ class Engine {
    */
   void runOnce(OomdContext& context);
 
-  const std::vector<std::unique_ptr<PrekillHook>>& getPrekillHooks();
+  std::optional<std::unique_ptr<PrekillHookInvocation>> firePrekillHook(
+      const CgroupContext& cgroup_ctx);
 
  private:
   struct DropInRuleset {
@@ -78,7 +86,15 @@ class Engine {
   };
 
   std::vector<BaseRuleset> rulesets_;
-  std::vector<std::unique_ptr<PrekillHook>> prekill_hooks_;
+
+  struct TaggedPrekillHook {
+    // dropin_tag is nullopt if hook is not a dropin
+    std::optional<std::string> dropin_tag;
+    std::unique_ptr<PrekillHook> hook;
+  };
+  // stored in reverse order so that dropins, which are pushed to the back,
+  // are run first
+  std::vector<TaggedPrekillHook> prekill_hooks_in_reverse_order_;
 };
 
 } // namespace Engine

@@ -21,11 +21,14 @@
 #include <memory>
 #include <unordered_map>
 
+#include "oomd/Log.h"
 #include "oomd/PluginRegistry.h"
 #include "oomd/config/ConfigCompiler.h"
 #include "oomd/config/ConfigTypes.h"
 #include "oomd/engine/BasePlugin.h"
+#include "oomd/engine/Engine.h"
 #include "oomd/engine/PrekillHook.h"
+#include "oomd/util/TestHelper.h"
 
 using namespace Oomd;
 using namespace Oomd::Config2;
@@ -37,9 +40,20 @@ int prerun_stored_count;
 int count;
 int stored_count;
 bool controlled_detector_on;
+std::unordered_map<std::string, unsigned int> prekill_hook_count;
+
+void reset_counters() {
+  prerun_count = 0;
+  prerun_stored_count = 0;
+  count = 0;
+  stored_count = 0;
+  controlled_detector_on = false;
+  prekill_hook_count.clear();
+}
+
 } // namespace
 
-static constexpr auto kRandomCgroupFs = "/some/random/fs";
+static constexpr auto kRandomCgroupFs = "oomd/fixtures/cgroup";
 
 namespace Oomd {
 
@@ -220,10 +234,10 @@ class NoInitPlugin : public BasePlugin {
 
 class NoOpPrekillHook : public PrekillHook {
  public:
-  int init(
-      const PluginArgs& /* unused */,
-      const PluginConstructionContext& /* unused */) override {
-    return 0;
+  int init(const PluginArgs& args, const PluginConstructionContext& context)
+      override {
+    this->argParser_.addArgument("id", id_);
+    return PrekillHook::init(args, context);
   }
 
   static NoOpPrekillHook* create() {
@@ -242,11 +256,44 @@ class NoOpPrekillHook : public PrekillHook {
 
   std::unique_ptr<PrekillHookInvocation> fire(
       const CgroupContext& /* unused */) override {
+    ++prekill_hook_count[id_];
     return std::unique_ptr<PrekillHookInvocation>(
         new NoOpPrekillHookInvocation());
   }
 
   ~NoOpPrekillHook() override = default;
+
+  std::string id_;
+};
+
+class KillPlugin : public BasePlugin {
+ public:
+  int init(const PluginArgs& args, const PluginConstructionContext& context)
+      override {
+    cgroupFs_ = context.cgroupFs();
+    cgroupPath_ = args.at("cgroup");
+    return 0;
+  }
+
+  void prerun(OomdContext& /* unused */) override {
+    ++prerun_count;
+  }
+
+  PluginRet run(OomdContext& ctx) override {
+    CgroupPath cgroup_path(cgroupFs_, cgroupPath_);
+    TestHelper::setCgroupData(ctx, cgroup_path, TestHelper::CgroupData{});
+    auto cgroup_ctx = EXPECT_EXISTS(ctx.addToCacheAndGet(cgroup_path));
+    ctx.firePrekillHook(cgroup_ctx);
+    return PluginRet::STOP;
+  }
+
+  static KillPlugin* create() {
+    return new KillPlugin();
+  }
+
+  ~KillPlugin() override = default;
+  std::string cgroupFs_;
+  std::string cgroupPath_;
 };
 
 REGISTER_PLUGIN(Continue, ContinuePlugin::create);
@@ -257,17 +304,14 @@ REGISTER_PLUGIN(ControlledDetector, ControlledDetectorPlugin::create);
 REGISTER_PLUGIN(AsyncPause, AsyncPausePlugin::create);
 REGISTER_PLUGIN(NoInit, NoInitPlugin::create);
 REGISTER_PREKILL_HOOK(NoOpPrekillHook, NoOpPrekillHook::create);
+REGISTER_PLUGIN(Kill, KillPlugin::create);
 
 } // namespace Oomd
 
 class CompilerTest : public ::testing::Test {
  public:
   CompilerTest() {
-    prerun_count = 0;
-    prerun_stored_count = 0;
-    count = 0;
-    stored_count = 0;
-    controlled_detector_on = false;
+    reset_counters();
   }
 
   std::unique_ptr<::Oomd::Engine::Engine> compile() {
@@ -282,10 +326,7 @@ class CompilerTest : public ::testing::Test {
 class DropInCompilerTest : public ::testing::Test {
  public:
   DropInCompilerTest() {
-    prerun_count = 0;
-    prerun_stored_count = 0;
-    count = 0;
-    stored_count = 0;
+    reset_counters();
   }
 
   std::unique_ptr<::Oomd::Engine::Engine> compileBase() {
@@ -501,12 +542,36 @@ TEST_F(CompilerTest, IncrementCountNoop) {
 
 TEST_F(CompilerTest, PrekillHook) {
   IR::PrekillHook hook{IR::Plugin{.name = "NoOpPrekillHook"}};
+  hook.args["cgroup"] = "/";
+  hook.args["id"] = "only-hook";
   root.prekill_hooks.push_back(std::move(hook));
+
+  IR::Detector cont;
+  cont.name = "Continue";
+  IR::Action kill;
+  kill.name = "Kill";
+  kill.args["cgroup"] = "/workload.slice";
+  IR::DetectorGroup dgroup{"group1", {std::move(cont)}};
+  IR::Ruleset ruleset{
+      .name = "ruleset1",
+      .dgs = {std::move(dgroup)},
+      .acts = {std::move(kill)}};
+  ruleset.post_action_delay = "0";
+  root.rulesets.emplace_back(std::move(ruleset));
+
   auto engine = compile();
   ASSERT_TRUE(engine);
-  ASSERT_EQ(engine->getPrekillHooks().size(), 1);
-}
 
+  context.setPrekillHooksHandler([&](const CgroupContext& cgroup_ctx) {
+    return engine->firePrekillHook(cgroup_ctx);
+  });
+
+  for (int i = 0; i < 3; i++) {
+    engine->runOnce(context);
+    typeof(prekill_hook_count) expectation = {{"only-hook", i + 1}};
+    ASSERT_EQ(prekill_hook_count, expectation);
+  }
+}
 TEST_F(DropInCompilerTest, PrerunCount) {
   IR::Plugin cont{.name = "Continue"};
   IR::Plugin stop{.name = "Stop"};
@@ -570,8 +635,8 @@ TEST_F(DropInCompilerTest, PrerunCount) {
   ASSERT_TRUE(dropin.has_value());
   EXPECT_EQ(dropin->rulesets.size(), 2);
 
-  EXPECT_TRUE(engine->addDropInConfig("0", std::move(dropin->rulesets.at(0))));
-  EXPECT_TRUE(engine->addDropInConfig("1", std::move(dropin->rulesets.at(1))));
+  EXPECT_TRUE(engine->addDropInRuleset("0", std::move(dropin->rulesets.at(0))));
+  EXPECT_TRUE(engine->addDropInRuleset("1", std::move(dropin->rulesets.at(1))));
   prerun_count = 0;
   engine->prerun(context);
   engine->runOnce(context);
@@ -643,7 +708,7 @@ TEST_F(DropInCompilerTest, DropInConfig) {
   ASSERT_TRUE(dropin.has_value());
   EXPECT_EQ(dropin->rulesets.size(), 1);
 
-  EXPECT_TRUE(engine->addDropInConfig("0", std::move(dropin->rulesets.at(0))));
+  EXPECT_TRUE(engine->addDropInRuleset("0", std::move(dropin->rulesets.at(0))));
   engine->runOnce(context);
   EXPECT_EQ(count, 1);
 }
@@ -672,7 +737,7 @@ TEST_F(DropInCompilerTest, MultipleDropInConfigOrdering) {
   auto dropin = compileDropIn();
   ASSERT_TRUE(dropin.has_value());
   EXPECT_EQ(dropin->rulesets.size(), 1);
-  EXPECT_TRUE(engine->addDropInConfig("0", std::move(dropin->rulesets.at(0))));
+  EXPECT_TRUE(engine->addDropInRuleset("0", std::move(dropin->rulesets.at(0))));
 
   // Second drop in config
   dropin_rs = {};
@@ -688,7 +753,8 @@ TEST_F(DropInCompilerTest, MultipleDropInConfigOrdering) {
   auto dropin2 = compileDropIn();
   ASSERT_TRUE(dropin2.has_value());
   EXPECT_EQ(dropin2->rulesets.size(), 1);
-  EXPECT_TRUE(engine->addDropInConfig("1", std::move(dropin2->rulesets.at(0))));
+  EXPECT_TRUE(
+      engine->addDropInRuleset("1", std::move(dropin2->rulesets.at(0))));
 
   engine->runOnce(context);
   EXPECT_EQ(count, 2);
@@ -727,7 +793,7 @@ TEST_F(DropInCompilerTest, DisablesBase) {
   ASSERT_TRUE(dropin.has_value());
   EXPECT_EQ(dropin->rulesets.size(), 1);
 
-  EXPECT_TRUE(engine->addDropInConfig("0", std::move(dropin->rulesets.at(0))));
+  EXPECT_TRUE(engine->addDropInRuleset("0", std::move(dropin->rulesets.at(0))));
   engine->runOnce(context);
   EXPECT_EQ(count, 1);
 }
@@ -793,7 +859,7 @@ TEST_F(DropInCompilerTest, RemoveDropIn) {
   ASSERT_TRUE(dropin.has_value());
   EXPECT_EQ(dropin->rulesets.size(), 1);
 
-  EXPECT_TRUE(engine->addDropInConfig("0", std::move(dropin->rulesets.at(0))));
+  EXPECT_TRUE(engine->addDropInRuleset("0", std::move(dropin->rulesets.at(0))));
   engine->runOnce(context);
   // Base and drop in
   EXPECT_EQ(count, 5);
@@ -853,8 +919,8 @@ TEST_F(DropInCompilerTest, MultipleRulesetDropin) {
   ASSERT_TRUE(dropin.has_value());
   EXPECT_EQ(dropin->rulesets.size(), 2);
 
-  EXPECT_TRUE(engine->addDropInConfig("0", std::move(dropin->rulesets.at(0))));
-  EXPECT_TRUE(engine->addDropInConfig("0", std::move(dropin->rulesets.at(1))));
+  EXPECT_TRUE(engine->addDropInRuleset("0", std::move(dropin->rulesets.at(0))));
+  EXPECT_TRUE(engine->addDropInRuleset("0", std::move(dropin->rulesets.at(1))));
   engine->runOnce(context);
   EXPECT_EQ(count, 2);
 
@@ -862,4 +928,193 @@ TEST_F(DropInCompilerTest, MultipleRulesetDropin) {
   engine->removeDropInConfig("0");
   engine->runOnce(context);
   EXPECT_EQ(count, 2);
+}
+
+class PrekillHookDropinTest : public CompilerTest {
+ public:
+  void compileEngineWithBaseConfigPrekillHooks(
+      std::vector<IR::PrekillHook> hooks_ir) {
+    root.prekill_hooks = hooks_ir;
+
+    // a single ruleset that will always kill cgroup_to_kill_
+    IR::Detector cont;
+    cont.name = "Continue";
+    IR::Action kill;
+    kill.name = "Kill";
+    kill.args["cgroup"] = cgroup_to_kill_;
+    IR::DetectorGroup dgroup{"group1", {std::move(cont)}};
+    IR::Ruleset ruleset{
+        .name = "ruleset1",
+        .dgs = {std::move(dgroup)},
+        .acts = {std::move(kill)}};
+    ruleset.post_action_delay = "0";
+    root.rulesets.emplace_back(std::move(ruleset));
+
+    engine_ = compile();
+    EXPECT_TRUE(engine_);
+
+    context.setPrekillHooksHandler([&](const CgroupContext& cgroup_ctx) {
+      return engine_->firePrekillHook(cgroup_ctx);
+    });
+  }
+
+  void addDropin(const std::string& tag, IR::Root ir) {
+    const PluginConstructionContext compile_context(kRandomCgroupFs);
+    auto dropin_unit = ASSERT_EXISTS(
+        ::Oomd::Config2::compileDropIn(root, ir, compile_context));
+    engine_->addDropInConfig(tag, std::move(dropin_unit));
+  }
+
+  void expectHook(const std::string& hook_id) {
+    for (int i = 0; i < 3; i++) {
+      engine_->runOnce(context);
+      typeof(prekill_hook_count) expectation = {{hook_id, i + 1}};
+      ASSERT_EQ(prekill_hook_count, expectation);
+    }
+    reset_counters();
+  }
+
+  std::unique_ptr<Oomd::Engine::Engine> engine_;
+  std::string cgroup_to_kill_ = "/workload.slice";
+};
+
+TEST_F(PrekillHookDropinTest, DropinsTakePrecedence) {
+  compileEngineWithBaseConfigPrekillHooks(
+      {IR::PrekillHook{IR::Plugin{
+           .name = "NoOpPrekillHook",
+           .args = {{"cgroup", "/irrelivant"}, {"id", "irrelivant-hook"}}}},
+       IR::PrekillHook{IR::Plugin{
+           .name = "NoOpPrekillHook",
+           .args =
+               {{"cgroup", "/workload.slice"},
+                {"id", "first-matching-base-config-hook"}}}},
+       IR::PrekillHook{IR::Plugin{
+           .name = "NoOpPrekillHook",
+           .args =
+               {{"cgroup", "/workload.slice"},
+                {"id", "second-matching-base-config-hook"}}}},
+       IR::PrekillHook{IR::Plugin{
+           .name = "NoOpPrekillHook",
+           .args = {{"cgroup", "/"}, {"id", "catchall-base-config-hook"}}}}});
+
+  // without any dropins
+  expectHook("first-matching-base-config-hook");
+
+  // with one dropin
+  addDropin(
+      "dropin-1",
+      IR::Root{
+          .prekill_hooks = {IR::PrekillHook{IR::Plugin{
+              .name = "NoOpPrekillHook",
+              .args = {{"cgroup", "/"}, {"id", "dropin-1-hook"}}}}}});
+  expectHook("dropin-1-hook");
+}
+
+TEST_F(PrekillHookDropinTest, MostRecentWins) {
+  compileEngineWithBaseConfigPrekillHooks(
+      {IR::PrekillHook{IR::Plugin{
+           .name = "NoOpPrekillHook",
+           .args = {{"cgroup", "/"}, {"id", "first-base-config-hook"}}}},
+       IR::PrekillHook{IR::Plugin{
+           .name = "NoOpPrekillHook",
+           .args = {{"cgroup", "/"}, {"id", "second-base-config-hook"}}}}});
+  expectHook("first-base-config-hook");
+
+  addDropin(
+      "dropin-1",
+      IR::Root{
+          .prekill_hooks = {IR::PrekillHook{IR::Plugin{
+              .name = "NoOpPrekillHook",
+              .args = {{"cgroup", "/"}, {"id", "dropin-1-hook"}}}}}});
+  expectHook("dropin-1-hook");
+
+  addDropin(
+      "dropin-2",
+      IR::Root{
+          .prekill_hooks = {
+              IR::PrekillHook{IR::Plugin{
+                  .name = "NoOpPrekillHook",
+                  .args =
+                      {{"cgroup", "/irrelivant"},
+                       {"id", "irrelivant-2nd-dropin-hook"}}}},
+              IR::PrekillHook{IR::Plugin{
+                  .name = "NoOpPrekillHook",
+                  .args =
+                      {{"cgroup", "/workload.slice"},
+                       {"id", "first-matching-2nd-dropin-hook"}}}},
+              IR::PrekillHook{IR::Plugin{
+                  .name = "NoOpPrekillHook",
+                  .args =
+                      {{"cgroup", "/workload.slice"},
+                       {"id", "second-matching-2nd-dropin-hook"}}}},
+              IR::PrekillHook{IR::Plugin{
+                  .name = "NoOpPrekillHook",
+                  .args = {
+                      {"cgroup", "/"}, {"id", "catchall-2nd-dropin-hook"}}}}}});
+  expectHook("first-matching-2nd-dropin-hook");
+
+  // removing dropin-1, dropin-2 still takes precidence
+  engine_->removeDropInConfig("dropin-1");
+  expectHook("first-matching-2nd-dropin-hook");
+
+  // removing dropin-2, now only base config is left
+  engine_->removeDropInConfig("dropin-2");
+  expectHook("first-base-config-hook");
+}
+
+TEST_F(PrekillHookDropinTest, RemoveAndReAddBumpsPriority) {
+  compileEngineWithBaseConfigPrekillHooks(
+      {IR::PrekillHook{IR::Plugin{
+           .name = "NoOpPrekillHook",
+           .args = {{"cgroup", "/"}, {"id", "first-base-config-hook"}}}},
+       IR::PrekillHook{IR::Plugin{
+           .name = "NoOpPrekillHook",
+           .args = {{"cgroup", "/"}, {"id", "second-base-config-hook"}}}}});
+  expectHook("first-base-config-hook");
+
+  addDropin(
+      "dropin-1",
+      IR::Root{
+          .prekill_hooks = {IR::PrekillHook{IR::Plugin{
+              .name = "NoOpPrekillHook",
+              .args = {{"cgroup", "/"}, {"id", "dropin-1-hook"}}}}}});
+  expectHook("dropin-1-hook");
+
+  addDropin(
+      "dropin-2",
+      IR::Root{
+          .prekill_hooks = {
+              IR::PrekillHook{IR::Plugin{
+                  .name = "NoOpPrekillHook",
+                  .args =
+                      {{"cgroup", "/irrelivant"},
+                       {"id", "irrelivant-2nd-dropin-hook"}}}},
+              IR::PrekillHook{IR::Plugin{
+                  .name = "NoOpPrekillHook",
+                  .args =
+                      {{"cgroup", "/workload.slice"},
+                       {"id", "first-matching-2nd-dropin-hook"}}}},
+              IR::PrekillHook{IR::Plugin{
+                  .name = "NoOpPrekillHook",
+                  .args =
+                      {{"cgroup", "/workload.slice"},
+                       {"id", "second-matching-2nd-dropin-hook"}}}},
+              IR::PrekillHook{IR::Plugin{
+                  .name = "NoOpPrekillHook",
+                  .args = {
+                      {"cgroup", "/"}, {"id", "catchall-2nd-dropin-hook"}}}}}});
+  expectHook("first-matching-2nd-dropin-hook");
+
+  // removing dropin-1, dropin-2 still takes precidence
+  engine_->removeDropInConfig("dropin-1");
+  expectHook("first-matching-2nd-dropin-hook");
+
+  // removing dropin-2, now only base config is left
+  addDropin(
+      "dropin-1",
+      IR::Root{
+          .prekill_hooks = {IR::PrekillHook{IR::Plugin{
+              .name = "NoOpPrekillHook",
+              .args = {{"cgroup", "/"}, {"id", "new-dropin-1-hook"}}}}}});
+  expectHook("new-dropin-1-hook");
 }

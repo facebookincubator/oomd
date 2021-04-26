@@ -18,6 +18,7 @@
 #include "oomd/engine/Engine.h"
 
 #include <algorithm>
+#include <optional>
 
 #include "oomd/Log.h"
 #include "oomd/Stats.h"
@@ -35,10 +36,35 @@ Engine::Engine(
     }
   }
 
-  prekill_hooks_ = std::move(prekill_hooks);
+  // add base config hooks in reverse order so they'll be tried in forward order
+  for (auto it = prekill_hooks.rbegin(); it != prekill_hooks.rend(); ++it) {
+    prekill_hooks_in_reverse_order_.emplace_back(
+        TaggedPrekillHook{.dropin_tag = std::nullopt, .hook = std::move(*it)});
+  }
 }
 
-bool Engine::addDropInConfig(
+bool Engine::addDropInConfig(const std::string& tag, DropInUnit unit) {
+  for (auto& drop_in : unit.rulesets) {
+    if (!addDropInRuleset(tag, std::move(drop_in))) {
+      // Clean up partial added drop ins
+      removeDropInConfig(tag);
+      return false;
+    }
+  }
+
+  // add dropin hooks in reverse order to the end of
+  // prekill_hooks_in_reverse_order_ so they'll be tried in forward order,
+  // before the base hooks.
+  for (auto it = unit.prekill_hooks.rbegin(); it != unit.prekill_hooks.rend();
+       ++it) {
+    prekill_hooks_in_reverse_order_.emplace_back(
+        TaggedPrekillHook{.dropin_tag = tag, .hook = std::move(*it)});
+  }
+
+  return true;
+}
+
+bool Engine::addDropInRuleset(
     const std::string& tag,
     std::unique_ptr<Ruleset> ruleset) {
   if (!ruleset) {
@@ -95,6 +121,15 @@ void Engine::removeDropInConfig(const std::string& tag) {
     // removed a bunch for some reason.
     Oomd::incrementStat(CoreStats::kNumDropInAdds, -n);
   }
+
+  auto new_hooks_end = std::remove_if(
+      prekill_hooks_in_reverse_order_.begin(),
+      prekill_hooks_in_reverse_order_.end(),
+      [&](const TaggedPrekillHook& tagged_hook) {
+        return tagged_hook.dropin_tag == tag;
+      });
+  prekill_hooks_in_reverse_order_.erase(
+      new_hooks_end, prekill_hooks_in_reverse_order_.end());
 }
 
 void Engine::prerun(OomdContext& context) {
@@ -127,8 +162,18 @@ void Engine::runOnce(OomdContext& context) {
   Oomd::incrementStat(CoreStats::kNumDropInFired, nr_dropins_run);
 }
 
-const std::vector<std::unique_ptr<PrekillHook>>& Engine::getPrekillHooks() {
-  return prekill_hooks_;
+std::optional<std::unique_ptr<PrekillHookInvocation>> Engine::firePrekillHook(
+    const CgroupContext& cgroup_ctx) {
+  // try hooks in reverse order so dropins come first
+  for (auto it = prekill_hooks_in_reverse_order_.rbegin();
+       it != prekill_hooks_in_reverse_order_.rend();
+       ++it) {
+    if (it->hook->canRunOnCgroup(cgroup_ctx)) {
+      return it->hook->fire(cgroup_ctx);
+    }
+  }
+
+  return std::nullopt;
 }
 
 } // namespace Engine

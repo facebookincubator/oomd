@@ -47,6 +47,10 @@ On a kill, the oomd runs the first configured prekill hook whose "cgroup" arg
 matches the path of the cgroup to be killed. At most one prekill hook runs per
 kill.
 
+Dropins may contain prekill_hooks. Dropped-in prekill hooks get priority over
+those in the base configuration. Like ruleset dropins, prekill hook dropins
+added later get higher priority.
+
 The "cgroup" arg is a list of comma-separated patterns. Patterns are cgroup
 paths, except path components may be "*". No other glob matching works except
 star for a single whole path component.

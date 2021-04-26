@@ -166,12 +166,14 @@ class OomdContext {
   void setInvokingRuleset(std::optional<Engine::Ruleset*> ruleset);
 
   /*
-   * Used to let pass prekill hooks to kill plugins
+   * Used to let kill plugins invoke prekill hooks
    */
-  void setPrekillHooks(
-      const std::vector<std::unique_ptr<Engine::PrekillHook>>& prekill_hooks);
   std::optional<std::unique_ptr<Engine::PrekillHookInvocation>> firePrekillHook(
       const CgroupContext& cgroup_ctx);
+  void setPrekillHooksHandler(
+      std::function<
+          std::optional<std::unique_ptr<Engine::PrekillHookInvocation>>(
+              const CgroupContext& cgroup_ctx)> prekill_hook_handler);
 
   /*
    * Refresh all cgroups and remove ones no longer exist.
@@ -187,9 +189,9 @@ class OomdContext {
   ActionContext action_context_;
   SystemContext system_ctx_;
   std::optional<Engine::Ruleset*> invoking_ruleset_{std::nullopt};
-  std::optional<std::reference_wrapper<
-      const std::vector<std::unique_ptr<Engine::PrekillHook>>>>
-      prekill_hooks_{std::nullopt};
+  std::function<std::optional<std::unique_ptr<Engine::PrekillHookInvocation>>(
+      const CgroupContext& cgroup_ctx)>
+      prekill_hook_handler_{nullptr};
 };
 
 } // namespace Oomd

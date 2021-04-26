@@ -29,6 +29,13 @@
     std::move(*x);              \
   })
 
+#define EXPECT_EXISTS(opt_expr) \
+  ({                            \
+    auto x = (opt_expr);        \
+    EXPECT_TRUE(x.has_value()); \
+    std::move(*x);              \
+  })
+
 namespace Oomd {
 
 /*
