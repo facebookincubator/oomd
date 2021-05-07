@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include <sys/types.h>
 #include <algorithm>
 #include <functional>
 #include <memory>
@@ -159,6 +160,12 @@ class OomdContext {
   void setSystemContext(const SystemContext& context);
 
   /*
+   * Used for plugins to know how long it's been since their last run()
+   */
+  uint64_t getCurrentTick();
+  void bumpCurrentTick();
+
+  /*
    * Lets action plugins call pause_actions(post_action_delay) on their owning
    * ruleset. Only available while the ruleset is running its action chain.
    */
@@ -188,6 +195,7 @@ class OomdContext {
   std::unordered_map<CgroupPath, CgroupContext> cgroups_;
   ActionContext action_context_;
   SystemContext system_ctx_;
+  uint64_t current_tick_{0};
   std::optional<Engine::Ruleset*> invoking_ruleset_{std::nullopt};
   std::function<std::optional<std::unique_ptr<Engine::PrekillHookInvocation>>(
       const CgroupContext& cgroup_ctx)>

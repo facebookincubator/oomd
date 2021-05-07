@@ -18,6 +18,7 @@
 #pragma once
 
 #include <chrono>
+#include <optional>
 #include <unordered_set>
 
 #include "oomd/plugins/BaseKillPlugin.h"
@@ -27,7 +28,7 @@ namespace Oomd {
 template <typename Base = BaseKillPlugin>
 class KillPgScan : public Base {
  public:
-  void prerun(OomdContext& ctx) override;
+  Engine::PluginRet run(OomdContext& ctx) override;
 
   static KillPgScan* create() {
     return new KillPgScan();
@@ -44,6 +45,19 @@ class KillPgScan : public Base {
       OomdContext& ctx,
       const CgroupContext& target,
       const std::vector<OomdContext::ConstCgroupContextRef>& peers) override;
+
+  /*
+   * KillPgScan has a 2-tick kill. It needs to collect pgscan data over time
+   * so it can pick the cgroup whose pgscan grew the most over the last tick.
+   * Because this data collection is mildly costly, we do it only on kill.
+   *   On first run(), we collect data and return ASYNC_PAUSED
+   *   On second run(), collect data a second time and do the actual kill.
+   * We collect data every tick until the kill finishes, because a kill can take
+   * multiple ticks (thanks to async prekill hooks) and we don't want
+   * accidentally stale-ish data.
+   * If we haven't collected data in 2 ticks, consider it dropped to be safe.
+   */
+  std::optional<uint64_t> last_tick_data_was_collected_{std::nullopt};
 };
 
 } // namespace Oomd

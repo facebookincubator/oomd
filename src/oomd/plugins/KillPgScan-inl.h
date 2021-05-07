@@ -23,6 +23,7 @@
 #include <vector>
 
 #include "oomd/Log.h"
+#include "oomd/engine/BasePlugin.h"
 #include "oomd/include/Types.h"
 #include "oomd/util/Fs.h"
 #include "oomd/util/Util.h"
@@ -30,9 +31,22 @@
 namespace Oomd {
 
 template <typename Base>
-void KillPgScan<Base>::prerun(OomdContext& ctx) {
+Engine::PluginRet KillPgScan<Base>::run(OomdContext& ctx) {
+  bool has_prev_tick_data =
+      (last_tick_data_was_collected_ == ctx.getCurrentTick() - 1);
+
+  // always collect pg scan data
   Base::prerunOnCgroups(
       ctx, [](const auto& cgroup_ctx) { cgroup_ctx.pg_scan_rate(); });
+  last_tick_data_was_collected_ = ctx.getCurrentTick();
+
+  if (!has_prev_tick_data) {
+    // wait until we have 2 ticks of data to compare
+    return Engine::PluginRet::ASYNC_PAUSED;
+  }
+
+  // run the kill like normal
+  return Base::run(ctx);
 }
 
 template <typename Base>

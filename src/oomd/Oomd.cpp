@@ -106,6 +106,7 @@ void Oomd::updateContext() {
     return engine_->firePrekillHook(cgroup_ctx);
   });
   ctx_.refresh();
+  ctx_.bumpCurrentTick();
 }
 
 int Oomd::run() {

@@ -117,6 +117,14 @@ void OomdContext::setSystemContext(const SystemContext& context) {
   system_ctx_ = context;
 }
 
+uint64_t OomdContext::getCurrentTick() {
+  return current_tick_;
+}
+
+void OomdContext::bumpCurrentTick() {
+  current_tick_++;
+}
+
 const std::optional<Engine::Ruleset*> OomdContext::getInvokingRuleset() {
   return invoking_ruleset_;
 }
