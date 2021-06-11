@@ -53,7 +53,7 @@ void dumpCgroupOverview(const Oomd::CgroupContext& cgroup_ctx, bool always) {
   // TODO(dschatzberg): Report error
   auto vmstat = Oomd::Fs::getVmstat();
   if (vmstat) {
-    pgscan = vmstat[kPgscanSwap] + vmstat[kPgscanDirect];
+    pgscan = (*vmstat)[kPgscanSwap] + (*vmstat)[kPgscanDirect];
   }
 
   std::ostringstream oss;

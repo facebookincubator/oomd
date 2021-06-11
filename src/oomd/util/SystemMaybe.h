@@ -131,7 +131,7 @@ class SystemMaybe final {
     return std::get<1>(std::move(base_));
   }
 
-  constexpr operator bool() const noexcept {
+  constexpr explicit operator bool() const noexcept {
     return !base_.index();
   }
 
