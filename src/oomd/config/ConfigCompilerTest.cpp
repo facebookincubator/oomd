@@ -568,7 +568,7 @@ TEST_F(CompilerTest, PrekillHook) {
 
   for (int i = 0; i < 3; i++) {
     engine->runOnce(context);
-    typeof(prekill_hook_count) expectation = {{"only-hook", i + 1}};
+    decltype(prekill_hook_count) expectation = {{"only-hook", i + 1}};
     ASSERT_EQ(prekill_hook_count, expectation);
   }
 }
@@ -968,7 +968,7 @@ class PrekillHookDropinTest : public CompilerTest {
   void expectHook(const std::string& hook_id) {
     for (int i = 0; i < 3; i++) {
       engine_->runOnce(context);
-      typeof(prekill_hook_count) expectation = {{hook_id, i + 1}};
+      decltype(prekill_hook_count) expectation = {{hook_id, i + 1}};
       ASSERT_EQ(prekill_hook_count, expectation);
     }
     reset_counters();
