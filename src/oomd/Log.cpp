@@ -73,7 +73,7 @@ Log::~Log() {
 }
 
 bool Log::init(const std::string& kmsg_path) {
-  int kmsg_fd = ::open(kmsg_path.c_str(), O_WRONLY | O_CREAT | O_APPEND);
+  int kmsg_fd = ::open(kmsg_path.c_str(), O_WRONLY | O_CREAT | O_APPEND, 0644);
   if (kmsg_fd < 0) {
     perror("open");
     std::cerr << "Unable to open outfile " << kmsg_path << ", not logging\n";
