@@ -23,6 +23,7 @@ jobs:
       CC: ${{ matrix.cc }}
       CXX: ${{ matrix.cxx }}
     steps:
+      - run: sudo apt-get update
       - name: Install dependencies
         run: >
           sudo apt-get install
