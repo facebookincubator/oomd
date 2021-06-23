@@ -48,6 +48,7 @@ srcs = files('''
     src/oomd/plugins/NrDyingDescendants.cpp
     src/oomd/plugins/PressureAbove.cpp
     src/oomd/plugins/PressureRisingBeyond.cpp
+    src/oomd/plugins/Senpai.cpp
     src/oomd/plugins/SwapFree.cpp
     src/oomd/plugins/Exists.cpp
     src/oomd/plugins/KillIOCost.cpp
