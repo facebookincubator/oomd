@@ -21,6 +21,7 @@
 #include <json/reader.h>
 #include <json/value.h>
 #include <sys/socket.h>
+#include <exception>
 #include <iostream>
 #include <optional>
 #include "oomd/StatsClient.h"
@@ -53,7 +54,9 @@ class StatsTest : public ::testing::Test {
  protected:
   std::unique_ptr<Stats> get_instance() {
     socket_path = "/tmp/oomd-XXXXXX.socket";
-    ::mkstemps(socket_path.data(), 7);
+    if (::mkstemps(socket_path.data(), 7) == -1) {
+      throw std::runtime_error("Failed to create temp socket");
+    }
     return Stats::get_for_unittest(socket_path);
   }
 };
