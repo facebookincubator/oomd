@@ -22,6 +22,7 @@
 #include <unordered_map>
 
 #include "oomd/Log.h"
+#include "oomd/OomdContext.h"
 #include "oomd/PluginRegistry.h"
 #include "oomd/config/ConfigCompiler.h"
 #include "oomd/config/ConfigTypes.h"
@@ -255,7 +256,8 @@ class NoOpPrekillHook : public PrekillHook {
   };
 
   std::unique_ptr<PrekillHookInvocation> fire(
-      const CgroupContext& /* unused */) override {
+      const CgroupContext& /* unused */,
+      const ActionContext& /* unused */) override {
     ++prekill_hook_count[id_];
     return std::unique_ptr<PrekillHookInvocation>(
         new NoOpPrekillHookInvocation());
@@ -559,11 +561,12 @@ TEST_F(CompilerTest, PrekillHook) {
   ruleset.post_action_delay = "0";
   root.rulesets.emplace_back(std::move(ruleset));
 
+  OomdContext ctx_;
   auto engine = compile();
   ASSERT_TRUE(engine);
 
   context.setPrekillHooksHandler([&](const CgroupContext& cgroup_ctx) {
-    return engine->firePrekillHook(cgroup_ctx);
+    return engine->firePrekillHook(cgroup_ctx, ctx_);
   });
 
   for (int i = 0; i < 3; i++) {
@@ -950,11 +953,12 @@ class PrekillHookDropinTest : public CompilerTest {
     ruleset.post_action_delay = "0";
     root.rulesets.emplace_back(std::move(ruleset));
 
+    OomdContext ctx_;
     engine_ = compile();
     EXPECT_TRUE(engine_);
 
     context.setPrekillHooksHandler([&](const CgroupContext& cgroup_ctx) {
-      return engine_->firePrekillHook(cgroup_ctx);
+      return engine_->firePrekillHook(cgroup_ctx, ctx_);
     });
   }
 

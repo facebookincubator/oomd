@@ -28,6 +28,10 @@
 #include "oomd/util/Util.h"
 
 namespace Oomd {
+struct ActionContext;
+}
+
+namespace Oomd {
 namespace Engine {
 
 /*
@@ -73,7 +77,8 @@ class PrekillHook {
   }
 
   virtual std::unique_ptr<PrekillHookInvocation> fire(
-      const CgroupContext& cgroup_ctx) = 0;
+      const CgroupContext& cgroup_ctx,
+      const ActionContext& action_ctx) = 0;
 
   virtual bool canRunOnCgroup(const CgroupContext& cgroup_ctx) {
     for (auto pattern : cgroup_patterns_) {

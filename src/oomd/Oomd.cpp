@@ -103,7 +103,7 @@ void Oomd::updateContext() {
 
   ctx_.setSystemContext(system_ctx);
   ctx_.setPrekillHooksHandler([&](const CgroupContext& cgroup_ctx) {
-    return engine_->firePrekillHook(cgroup_ctx);
+    return engine_->firePrekillHook(cgroup_ctx, ctx_);
   });
   ctx_.refresh();
   ctx_.bumpCurrentTick();

@@ -18,6 +18,7 @@
 #include "oomd/plugins/DummyPrekillHook.h"
 
 #include "oomd/Log.h"
+#include "oomd/OomdContext.h"
 #include "oomd/PluginRegistry.h"
 
 namespace Oomd {
@@ -32,7 +33,8 @@ int DummyPrekillHook::init(
 }
 
 std::unique_ptr<Engine::PrekillHookInvocation> DummyPrekillHook::fire(
-    const CgroupContext& cgroup_ctx) {
+    const CgroupContext& cgroup_ctx,
+    const ActionContext& /* unused */) {
   OLOG << "Prekill hook fired on " << cgroup_ctx.cgroup().relativePath();
 
   // this allocation is a waste, but it simplifies the prekill hook mechanism

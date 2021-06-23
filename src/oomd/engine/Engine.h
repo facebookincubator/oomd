@@ -72,7 +72,8 @@ class Engine {
   void runOnce(OomdContext& context);
 
   std::optional<std::unique_ptr<PrekillHookInvocation>> firePrekillHook(
-      const CgroupContext& cgroup_ctx);
+      const CgroupContext& cgroup_ctx,
+      const OomdContext& oomd_context);
 
  private:
   struct DropInRuleset {

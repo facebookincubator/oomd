@@ -163,13 +163,14 @@ void Engine::runOnce(OomdContext& context) {
 }
 
 std::optional<std::unique_ptr<PrekillHookInvocation>> Engine::firePrekillHook(
-    const CgroupContext& cgroup_ctx) {
+    const CgroupContext& cgroup_ctx,
+    const OomdContext& oomd_context) {
   // try hooks in reverse order so dropins come first
   for (auto it = prekill_hooks_in_reverse_order_.rbegin();
        it != prekill_hooks_in_reverse_order_.rend();
        ++it) {
     if (it->hook->canRunOnCgroup(cgroup_ctx)) {
-      return it->hook->fire(cgroup_ctx);
+      return it->hook->fire(cgroup_ctx, oomd_context.getActionContext());
     }
   }
 

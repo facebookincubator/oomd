@@ -38,7 +38,8 @@ class DummyPrekillHook : public Engine::PrekillHook {
   virtual ~DummyPrekillHook() override = default;
 
   virtual std::unique_ptr<Engine::PrekillHookInvocation> fire(
-      const CgroupContext& cgroup_ctx) override;
+      const CgroupContext& cgroup_ctx,
+      const ActionContext& action_ctx) override;
 };
 
 class DummyPrekillHookInvocation : public Engine::PrekillHookInvocation {
