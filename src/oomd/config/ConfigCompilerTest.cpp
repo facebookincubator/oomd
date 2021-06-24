@@ -36,6 +36,7 @@ using namespace Oomd::Config2;
 using namespace Oomd::Engine;
 
 namespace {
+
 int prerun_count;
 int prerun_stored_count;
 int count;
@@ -57,6 +58,7 @@ void reset_counters() {
 static constexpr auto kRandomCgroupFs = "oomd/fixtures/cgroup";
 
 namespace Oomd {
+namespace test {
 
 class ContinuePlugin : public BasePlugin {
  public:
@@ -308,6 +310,7 @@ REGISTER_PLUGIN(NoInit, NoInitPlugin::create);
 REGISTER_PREKILL_HOOK(NoOpPrekillHook, NoOpPrekillHook::create);
 REGISTER_PLUGIN(Kill, KillPlugin::create);
 
+} // namespace test
 } // namespace Oomd
 
 class CompilerTest : public ::testing::Test {
