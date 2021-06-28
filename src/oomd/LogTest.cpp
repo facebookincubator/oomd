@@ -18,9 +18,7 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
-#include <fcntl.h>
 #include <stdio.h>
-#include <sys/types.h>
 #include <fstream>
 #include <sstream>
 #include "oomd/Log.h"
