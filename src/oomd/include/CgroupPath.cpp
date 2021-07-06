@@ -30,7 +30,7 @@ CgroupPath::CgroupPath(
     const std::string& cgroup_path)
     : cgroup_fs_(cgroup_fs) {
   // Strip trailing '/'
-  if (cgroup_fs_.at(cgroup_fs_.size() - 1) == '/' && cgroup_fs.size() > 1) {
+  if (cgroup_fs.size() > 1 && cgroup_fs_.at(cgroup_fs_.size() - 1) == '/') {
     cgroup_fs_.pop_back();
   }
 
