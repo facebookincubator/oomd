@@ -21,9 +21,9 @@ namespace Oomd {
 
 // No-op implementation
 void BaseKillPlugin::dumpKillInfo(
-    const CgroupPath& killed_group,
-    const CgroupContext& context,
-    const CgroupContext& kill_root,
+    const CgroupPath& killed_cgroup,
+    std::optional<OomdContext::ConstCgroupContextRef> context,
+    std::optional<OomdContext::ConstCgroupContextRef> kill_root,
     const ActionContext& action_context,
     const std::string& kill_uuid,
     bool success,

@@ -181,8 +181,8 @@ class BaseKillPlugin : public Engine::BasePlugin {
 
   virtual void dumpKillInfo(
       const CgroupPath& killed_group,
-      const CgroupContext& context,
-      const CgroupContext& kill_root,
+      std::optional<OomdContext::ConstCgroupContextRef> context,
+      std::optional<OomdContext::ConstCgroupContextRef> kill_root,
       const ActionContext& action_context,
       const std::string& kill_uuid,
       bool success,
@@ -207,17 +207,18 @@ class BaseKillPlugin : public Engine::BasePlugin {
 
   struct KillCandidate {
    public:
-    const CgroupContext& cgroup_ctx;
+    OomdContext::ConstCgroupContextRef cgroup_ctx;
     // .kill_root and .peers are for logging
     // .kill_root is for when recursive targeting is enabled. It is the ancestor
     // cgroup of .cgroup_ctx that was targeted in the plugin's "cgroup" arg.
     // When recursive targeting is disabled, .kill_root == .cgroup_ctx
-    const CgroupContext& kill_root;
+    OomdContext::ConstCgroupContextRef kill_root;
     std::shared_ptr<std::vector<OomdContext::ConstCgroupContextRef>> peers;
   };
   KillResult resumeTryingToKillSomething(
       OomdContext& ctx,
-      std::vector<KillCandidate> next_best_option_stack);
+      std::vector<KillCandidate> next_best_option_stack,
+      bool has_tried_to_kill_something_already);
 
   /*
    * Kills cgroup and logs a structured kill message to kmsg and stderr.
