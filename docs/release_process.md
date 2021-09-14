@@ -4,8 +4,8 @@ This document describes how to release a new oomd version.
 
 ## Branching model
 
-Every change goes directly onto master. Releases will simply tag a commit
-from master.
+Every change goes directly onto main. Releases will simply tag a commit
+from main.
 
 ## Semantic versioning
 
@@ -14,7 +14,7 @@ major version < 1 but will matter a lot for >= 1.0.0 releases.
 
 ## Tagging a release
 
-1. Make sure master builds and passes all tests.
+1. Make sure main builds and passes all tests.
 
 1. Update the `version` field in `meson.build`. The format is
    `v<MAJOR>.<MINOR>.<PATCH>`.

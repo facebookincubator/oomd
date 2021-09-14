@@ -1,6 +1,6 @@
 # oomd
 
-[![Build Status](https://github.com/facebookincubator/oomd/workflows/CI/badge.svg?branch=master)](https://github.com/facebookincubator/oomd/actions?query=workflow%3ACI+branch%3Amaster)
+[![Build Status](https://github.com/facebookincubator/oomd/workflows/CI/badge.svg?branch=main)](https://github.com/facebookincubator/oomd/actions?query=workflow%3ACI+branch%3Amain)
 
 oomd is *userspace* Out-Of-Memory (OOM) killer for linux systems.
 
