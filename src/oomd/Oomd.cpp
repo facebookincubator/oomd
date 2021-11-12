@@ -83,7 +83,7 @@ void Oomd::updateContext() {
   }
 
   if (auto vmstat_opt = Fs::getVmstat()) {
-    system_ctx.vmstat = *vmstat_opt;
+    system_ctx.vmstat = std::move(*vmstat_opt);
 
     // Factor for calculating moving average
     const static double factor60 = std::exp(-interval_.count() / 60.0);
