@@ -599,18 +599,18 @@ SystemMaybe<std::unordered_map<std::string, int64_t>> Fs::getVmstat(
     return SYSTEM_ERROR(lines.error());
   }
   std::unordered_map<std::string, int64_t> map;
-  char space{' '};
+  map.reserve((*lines).size());
 
   for (auto& line : *lines) {
-    std::stringstream ss(line);
-    std::string item;
+    auto end_first = line.find(' ');
+    if (end_first == std::string::npos) {
+      return SYSTEM_ERROR(EINVAL, "Invalid vmstat line format: ", line);
+    }
 
-    // get key
-    std::getline(ss, item, space);
-    std::string key{item};
+    auto begin_second = end_first + 1;
+    auto key = line.substr(0, end_first);
+    auto item = line.substr(begin_second, line.size() - begin_second);
 
-    // insert value into map
-    std::getline(ss, item, space);
     map[key] = static_cast<int64_t>(std::stoll(item));
   }
 
