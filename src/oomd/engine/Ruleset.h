@@ -29,7 +29,7 @@ namespace Engine {
 #define DEFAULT_POST_ACTION_DELAY 15
 #define DEFAULT_PREKILL_HOOK_TIMEOUT 5
 
-class Ruleset {
+class __attribute__((__packed__)) Ruleset {
  public:
   Ruleset(
       const std::string& name,

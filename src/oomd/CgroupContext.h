@@ -33,7 +33,7 @@ class OomdContext;
  * Storage class for cgroup states. Data are retrieved from cgroupfs on access
  * and cached until refresh() is called.
  */
-class CgroupContext {
+class __attribute__((__packed__)) CgroupContext {
  public:
   // Error type when retrieving CgroupContext fields
   enum class Error {
@@ -179,7 +179,7 @@ class CgroupContext {
   std::optional<double> getIoCostRate(Error* err) const;
   std::optional<int64_t> getPgScanRate(Error* err) const;
 
-  struct CgroupData {
+  struct __attribute__((__packed__)) CgroupData {
     std::optional<std::vector<std::string>> children;
     std::optional<ResourcePressure> mem_pressure;
     std::optional<ResourcePressure> mem_pressure_some;

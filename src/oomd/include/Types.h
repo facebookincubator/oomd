@@ -67,7 +67,7 @@ struct IOCostCoeffs {
   double trimbw{0};
 };
 
-struct ResourcePressure {
+struct __attribute__((__packed__)) ResourcePressure {
   float sec_10{0};
   float sec_60{0};
   float sec_300{0};
@@ -79,7 +79,7 @@ struct ResourcePressure {
   }
 };
 
-struct SystemContext {
+struct __attribute__((__packed__)) SystemContext {
   uint64_t swaptotal{0};
   uint64_t swapused{0};
   int swappiness{0};
