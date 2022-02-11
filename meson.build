@@ -1,3 +1,5 @@
+# Copyright (C) 2018-present, Meta Platforms, Inc. and affiliates
+
 project('oomd', 'cpp',
   version : 'v0.5.0',
   meson_version : '>= 0.45',

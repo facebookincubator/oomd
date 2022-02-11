@@ -1,4 +1,6 @@
 #!/bin/bash
+#
+# Copyright (C) 2018-present, Meta Platforms, Inc. and affiliates
 
 set -euo pipefail
 
