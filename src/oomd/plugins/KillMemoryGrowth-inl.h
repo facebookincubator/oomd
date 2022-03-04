@@ -154,7 +154,7 @@ void KillMemoryGrowth<Base>::ologKillTarget(
     case KMGPhase::SIZE_THRESHOLD: {
       OLOG << "Picked \"" << target.cgroup().relativePath() << "\" ("
            << target.current_usage().value_or(0) / 1024 / 1024
-           << "MB) based on size > " << size_threshold_ << "% of total "
+           << "MB) based on size > " << size_threshold_ << "% of sibling total "
            << sib_memcurrent / 1024 / 1024 << "MB"
            << " with kill preference "
            << target.kill_preference().value_or(KillPreference::NORMAL);
@@ -178,8 +178,8 @@ void KillMemoryGrowth<Base>::ologKillTarget(
     case KMGPhase::SIZE_NO_THRESHOLD: {
       OLOG << "Picked \"" << target.cgroup().relativePath() << "\" ("
            << target.current_usage().value_or(0) / 1024 / 1024
-           << "MB) based on size > " << size_threshold_ << "% of total "
-           << sib_memcurrent / 1024 / 1024 << "MB (size threshold overridden)"
+           << "MB) based on effective usage of "
+           << target.effective_usage().value_or(0) << "MB"
            << " with kill preference "
            << target.kill_preference().value_or(KillPreference::NORMAL);
       break;
