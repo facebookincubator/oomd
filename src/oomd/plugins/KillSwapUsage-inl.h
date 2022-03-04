@@ -37,10 +37,19 @@ int KillSwapUsage<Base>::init(
       ? Fs::getMeminfo(args.at("meminfo_location"))
       : Fs::getMeminfo();
 
-  auto swapTotal = 0;
   // TODO(dschatzberg): Report Error
+  auto swapTotal = 0;
   if (meminfo && meminfo->count("SwapTotal")) {
     swapTotal = (*meminfo)["SwapTotal"];
+  }
+
+  auto memTotal = 0;
+  if (meminfo && meminfo->count("MemTotal")) {
+    memTotal = (*meminfo)["MemTotal"];
+  }
+
+  if (meminfo && meminfo->count("MemTotal") && memTotal > 0) {
+    swapRatio_ = float(swapTotal) / memTotal;
   }
 
   // erase meminfo_location since we already loaded it
@@ -56,7 +65,20 @@ int KillSwapUsage<Base>::init(
         return res;
       });
 
+  this->argParser_.addArgument("biased_swap_kill", biasedSwapKill_);
+
   return Base::init(argsCopy, context);
+}
+
+template <typename Base>
+int64_t KillSwapUsage<Base>::getSwapExcess(const CgroupContext& cgroup_ctx) {
+  const auto memProtection = cgroup_ctx.memory_protection();
+  if (memProtection) {
+    const int64_t swapLow = swapRatio_ * memProtection.value();
+    const auto excess = cgroup_ctx.swap_usage().value() - swapLow;
+    return excess > 0 ? excess : 0;
+  }
+  return cgroup_ctx.swap_usage().value_or(0);
 }
 
 template <typename Base>
@@ -70,8 +92,12 @@ KillSwapUsage<Base>::rankForKilling(
           [=](const CgroupContext& cgroup_ctx) {
             return cgroup_ctx.swap_usage().value_or(0) >= threshold_;
           }),
-      [](const CgroupContext& cgroup_ctx) {
-        return cgroup_ctx.swap_usage().value_or(0);
+      [this](const CgroupContext& cgroup_ctx) {
+        if (biasedSwapKill_) {
+          return getSwapExcess(cgroup_ctx);
+        } else {
+          return cgroup_ctx.swap_usage().value_or(0);
+        }
       });
 }
 
@@ -80,10 +106,19 @@ void KillSwapUsage<Base>::ologKillTarget(
     OomdContext& ctx,
     const CgroupContext& target,
     const std::vector<OomdContext::ConstCgroupContextRef>& /* unused */) {
-  OLOG << "Picked \"" << target.cgroup().relativePath() << "\" ("
-       << target.current_usage().value_or(0) / 1024 / 1024
-       << "MB) based on swap usage at "
-       << target.swap_usage().value_or(0) / 1024 / 1024 << "MB";
+  if (biasedSwapKill_) {
+    OLOG << "Picked \"" << target.cgroup().relativePath() << "\" ("
+         << target.current_usage().value_or(0) / 1024 / 1024
+         << "MB) based on swap usage at "
+         << target.swap_usage().value_or(0) / 1024 / 1024 << "MB "
+         << "exceeding swapLow value by " << getSwapExcess(target) / 1024 / 1024
+         << "MB";
+  } else {
+    OLOG << "Picked \"" << target.cgroup().relativePath() << "\" ("
+         << target.current_usage().value_or(0) / 1024 / 1024
+         << "MB) based on swap usage at "
+         << target.swap_usage().value_or(0) / 1024 / 1024 << "MB";
+  }
 }
 
 } // namespace Oomd

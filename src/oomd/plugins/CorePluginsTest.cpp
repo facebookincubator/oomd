@@ -2690,6 +2690,122 @@ TEST_F(KillSwapUsageTest, KillsBigSwapCgroup) {
   EXPECT_THAT(plugin->killed, Not(Contains(111)));
 }
 
+TEST_F(KillSwapUsageTest, BiasedSwapKillTest) {
+  auto plugin = std::make_shared<KillSwapUsage<BaseKillPluginMock>>();
+  ASSERT_NE(plugin, nullptr);
+
+  F::materialize(F::makeDir(
+      tempdir_,
+      {F::makeFile("meminfo", "SwapTotal:\t25 kB\nMemTotal:\t100 kB"),
+       F::makeDir(
+           "cgroup1",
+           {
+               F::makeFile("cgroup.procs", "101\n"),
+           }),
+       F::makeDir(
+           "cgroup2",
+           {
+               F::makeFile("cgroup.procs", "201\n"),
+           }),
+       F::makeDir(
+           "cgroup3",
+           {
+               F::makeFile("cgroup.procs", "301\n"),
+           })}));
+
+  const PluginConstructionContext compile_context(tempdir_);
+  Engine::PluginArgs args;
+  args["meminfo_location"] = tempdir_ + "/meminfo";
+  args["cgroup"] = "./*";
+  args["post_action_delay"] = "0";
+  args["biased_swap_kill"] = "true";
+
+  ASSERT_EQ(plugin->init(std::move(args), compile_context), 0);
+
+  TestHelper::setCgroupData(
+      ctx_,
+      CgroupPath(compile_context.cgroupFs(), ""),
+      CgroupData{.swap_usage = 10000});
+  TestHelper::setCgroupData(
+      ctx_,
+      CgroupPath(compile_context.cgroupFs(), "./cgroup1"),
+      CgroupData{.swap_usage = 1900, .memory_protection = 1500});
+  TestHelper::setCgroupData(
+      ctx_,
+      CgroupPath(compile_context.cgroupFs(), "./cgroup2"),
+      CgroupData{.swap_usage = 2000, .memory_protection = 2000});
+  TestHelper::setCgroupData(
+      ctx_,
+      CgroupPath(compile_context.cgroupFs(), "./cgroup3"),
+      CgroupData{.swap_usage = 1500, .memory_protection = 6000});
+
+  EXPECT_EQ(plugin->run(ctx_), Engine::PluginRet::STOP);
+  for (auto i : plugin->killed) {
+    std::cout << i << std::endl;
+  }
+  EXPECT_THAT(plugin->killed, Contains(101));
+  EXPECT_THAT(plugin->killed, Not(Contains(201)));
+  EXPECT_THAT(plugin->killed, Not(Contains(301)));
+}
+
+TEST_F(KillSwapUsageTest, BiasedSwapKillNoSwapExcessTest) {
+  auto plugin = std::make_shared<KillSwapUsage<BaseKillPluginMock>>();
+  ASSERT_NE(plugin, nullptr);
+
+  F::materialize(F::makeDir(
+      tempdir_,
+      {F::makeFile("meminfo", "SwapTotal:\t25 kB\nMemTotal:\t100 kB"),
+       F::makeDir(
+           "cgroup1",
+           {
+               F::makeFile("cgroup.procs", "101\n"),
+           }),
+       F::makeDir(
+           "cgroup2",
+           {
+               F::makeFile("cgroup.procs", "201\n"),
+           }),
+       F::makeDir(
+           "cgroup3",
+           {
+               F::makeFile("cgroup.procs", "301\n"),
+           })}));
+
+  const PluginConstructionContext compile_context(tempdir_);
+  Engine::PluginArgs args;
+  args["meminfo_location"] = tempdir_ + "/meminfo";
+  args["cgroup"] = "./*";
+  args["post_action_delay"] = "0";
+  args["biased_swap_kill"] = "true";
+
+  ASSERT_EQ(plugin->init(std::move(args), compile_context), 0);
+
+  TestHelper::setCgroupData(
+      ctx_,
+      CgroupPath(compile_context.cgroupFs(), ""),
+      CgroupData{.swap_usage = 10000});
+  TestHelper::setCgroupData(
+      ctx_,
+      CgroupPath(compile_context.cgroupFs(), "./cgroup1"),
+      CgroupData{.swap_usage = 350, .memory_protection = 1500});
+  TestHelper::setCgroupData(
+      ctx_,
+      CgroupPath(compile_context.cgroupFs(), "./cgroup2"),
+      CgroupData{.swap_usage = 350, .memory_protection = 2000});
+  TestHelper::setCgroupData(
+      ctx_,
+      CgroupPath(compile_context.cgroupFs(), "./cgroup3"),
+      CgroupData{.swap_usage = 1000, .memory_protection = 6000});
+
+  EXPECT_EQ(plugin->run(ctx_), Engine::PluginRet::STOP);
+  for (auto i : plugin->killed) {
+    std::cout << i << std::endl;
+  }
+  // The goal here is to check that despite that none of the cgroups is in
+  // excess of its swap allowance, one cgroup will still be killed.
+  EXPECT_THAT(plugin->killed, SizeIs(1));
+}
+
 TEST_F(KillSwapUsageTest, ThresholdTest) {
   auto plugin = std::make_shared<KillSwapUsage<BaseKillPluginMock>>();
   ASSERT_NE(plugin, nullptr);

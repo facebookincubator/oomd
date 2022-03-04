@@ -41,6 +41,8 @@ class KillSwapUsage : public Base {
       OomdContext& ctx,
       const std::vector<OomdContext::ConstCgroupContextRef>& cgroups) override;
 
+  int64_t getSwapExcess(const CgroupContext& cgroup_ctx);
+
   void ologKillTarget(
       OomdContext& ctx,
       const CgroupContext& target,
@@ -48,6 +50,8 @@ class KillSwapUsage : public Base {
 
   // Default threshold is to kill something with non-zero swap usage
   int64_t threshold_{1};
+  float swapRatio_{0.0};
+  bool biasedSwapKill_{false};
 };
 
 } // namespace Oomd
