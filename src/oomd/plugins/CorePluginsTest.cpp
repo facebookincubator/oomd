@@ -1891,6 +1891,21 @@ TEST_F(NrDyingDescendantsTest, MultiCgroupGt) {
 
 class KillMemoryGrowthTest : public CorePluginsTest {};
 
+TEST_F(KillMemoryGrowthTest, InvalidArgs) {
+  auto plugin = std::make_shared<KillMemoryGrowth<BaseKillPluginMock>>();
+  ASSERT_NE(plugin, nullptr);
+
+  Engine::PluginArgs args;
+  const PluginConstructionContext compile_context(
+      "oomd/fixtures/plugins/kill_by_memory_size_or_growth");
+  args["cgroup"] = "one_big/cgroup1";
+  args["growing_size_percentile"] = "100";
+  ASSERT_EQ(plugin->init(args, compile_context), 1);
+
+  args["growing_size_percentile"] = "99";
+  ASSERT_EQ(plugin->init(args, compile_context), 0);
+}
+
 TEST_F(KillMemoryGrowthTest, TemporalCounter) {
   auto plugin = std::make_shared<KillMemoryGrowth<BaseKillPluginMock>>();
   ASSERT_NE(plugin, nullptr);
@@ -2354,6 +2369,12 @@ TEST_F(KillMemoryGrowthTest, DoesntGrowthKillBelowUsageThreshold) {
   EXPECT_EQ(
       target_with_args(Engine::PluginArgs{
           {"growing_size_percentile", "20"}, {"min_growth_ratio", "1.25"}}),
+      std::unordered_set<int>({123, 456})); // cgroup1
+
+  // All cgroups are eligible when both restrictions set to zero.
+  EXPECT_EQ(
+      target_with_args(Engine::PluginArgs{
+          {"growing_size_percentile", "0"}, {"min_growth_ratio", "0"}}),
       std::unordered_set<int>({123, 456})); // cgroup1
 
   // At growing_size_percentile=67 only cgroup3 is qualified, but it does not

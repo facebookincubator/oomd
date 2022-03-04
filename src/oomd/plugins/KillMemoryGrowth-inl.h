@@ -38,7 +38,14 @@ int KillMemoryGrowth<Base>::init(
   this->argParser_.addArgumentCustom(
       "growing_size_percentile",
       growing_size_percentile_,
-      PluginArgParser::parseUnsignedInt);
+      [&](const std::string& s) {
+        int v = std::stoi(s);
+        if (v < 0 || v >= 100) {
+          throw std::invalid_argument(
+              "growing_size_percentile must be in range [0, 100)");
+        }
+        return v;
+      });
 
   this->argParser_.addArgumentCustom(
       "min_growth_ratio", min_growth_ratio_, PluginArgParser::parseUnsignedInt);
@@ -74,7 +81,7 @@ KillMemoryGrowth<Base>::get_ranking_fn(
   // for killing by growth. nth is the index of the idx of the cgroup w/
   // smallest usage in the top P(growing_size_percentile_)
   int64_t growth_kill_min_effective_usage_threshold = 0;
-  if (cgroups.size() > 0) {
+  if (cgroups.size() > 0 && growing_size_percentile_ > 0) {
     const size_t nth =
         std::ceil(
             cgroups.size() *
