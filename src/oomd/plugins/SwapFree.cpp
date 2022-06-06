@@ -28,6 +28,7 @@ int SwapFree::init(
     const Engine::PluginArgs& args,
     const PluginConstructionContext& /* unused */) {
   argParser_.addArgument("threshold_pct", threshold_pct_, true);
+  argParser_.addArgument("swapout_bps_threshold", swapout_bps_threshold_);
 
   if (!argParser_.parse(args)) {
     return 1;
@@ -42,10 +43,16 @@ Engine::PluginRet SwapFree::run(OomdContext& ctx) {
   uint64_t swaptotal = system_ctx.swaptotal;
   uint64_t swapused = system_ctx.swapused;
   const uint64_t swapthres = swaptotal * threshold_pct_ / 100;
-  if ((swaptotal - swapused) < swapthres) {
+  if ((swaptotal - swapused) < swapthres &&
+      system_ctx.swapout_bps >= swapout_bps_threshold_) {
     OLOG << "SwapFree " << (swaptotal - swapused) / 1024 / 1024
          << "MB is smaller than the threshold of " << swapthres / 1024 / 1024
          << "MB, total swap is " << swaptotal / 1024 / 1024 << "MB";
+    if (swapout_bps_threshold_ > 0) {
+      OLOG << "SwapOut rate " << (int64_t)system_ctx.swapout_bps
+           << "bps is greater than the threshold of " << swapout_bps_threshold_
+           << "bps";
+    }
     return Engine::PluginRet::CONTINUE;
   } else {
     return Engine::PluginRet::STOP;

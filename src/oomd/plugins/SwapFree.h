@@ -39,6 +39,7 @@ class SwapFree : public Oomd::Engine::BasePlugin {
 
  private:
   int threshold_pct_; // will be assigned in init()
+  int64_t swapout_bps_threshold_{0};
 };
 
 } // namespace Oomd

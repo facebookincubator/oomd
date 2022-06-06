@@ -94,6 +94,7 @@ void Oomd::updateContext() {
       auto swapout_bps = (system_ctx.vmstat.at("pswpout") -
                           prev_system_ctx.vmstat.at("pswpout")) *
           4096.0 / interval_.count();
+      system_ctx.swapout_bps = swapout_bps;
       system_ctx.swapout_bps_60 = swapout_bps +
           factor60 * (prev_system_ctx.swapout_bps_60 - swapout_bps);
       system_ctx.swapout_bps_300 = swapout_bps +

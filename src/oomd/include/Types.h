@@ -85,6 +85,7 @@ struct __attribute__((__packed__)) SystemContext {
   int swappiness{0};
   std::unordered_map<std::string, int64_t> vmstat{};
   // moving avg swap out rate derived from vmstat[pswpout]
+  double swapout_bps{0};
   double swapout_bps_60{0};
   double swapout_bps_300{0};
 };

@@ -1304,6 +1304,31 @@ TEST_F(SwapFreeTest, SwapOff) {
   EXPECT_EQ(plugin->run(ctx_), Engine::PluginRet::STOP);
 }
 
+TEST_F(SwapFreeTest, SwapoutRate) {
+  auto plugin = createPlugin("swap_free");
+  ASSERT_NE(plugin, nullptr);
+
+  Engine::PluginArgs args;
+  args["threshold_pct"] = "20";
+  args["swapout_bps_threshold"] = "1000000";
+  const PluginConstructionContext compile_context("/sys/fs/cgroup");
+
+  ASSERT_EQ(plugin->init(std::move(args), compile_context), 0);
+
+  SystemContext system_ctx;
+  system_ctx.swaptotal = static_cast<uint64_t>(20971512) * 1024;
+  system_ctx.swapused = static_cast<uint64_t>(20971440) * 1024;
+  // Low swapout rate => OK
+  system_ctx.swapout_bps = 800000;
+  ctx_.setSystemContext(system_ctx);
+  EXPECT_EQ(plugin->run(ctx_), Engine::PluginRet::STOP);
+
+  // High swapout rate => trigger
+  system_ctx.swapout_bps = 1200000;
+  ctx_.setSystemContext(system_ctx);
+  EXPECT_EQ(plugin->run(ctx_), Engine::PluginRet::CONTINUE);
+}
+
 class ExistsTest : public CorePluginsTest {};
 
 TEST_F(ExistsTest, Exists) {
