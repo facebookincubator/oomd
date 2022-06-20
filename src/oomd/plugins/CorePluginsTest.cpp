@@ -1617,6 +1617,63 @@ TEST_F(KillPgScanTest, KillsHighestPgScanMultiCgroup) {
   EXPECT_THAT(plugin->killed, Not(Contains(789)));
 }
 
+TEST_F(KillPgScanTest, DoNotKillZeroPgScan) {
+  auto plugin = std::make_shared<KillPgScan<BaseKillPluginMock>>();
+  ASSERT_NE(plugin, nullptr);
+
+  Engine::PluginArgs args;
+  const PluginConstructionContext compile_context(
+      "oomd/fixtures/plugins/kill_by_pg_scan");
+  args["cgroup"] = "one_high/*,sibling/*";
+  args["post_action_delay"] = "0";
+
+  ASSERT_EQ(plugin->init(std::move(args), compile_context), 0);
+
+  TestHelper::setCgroupData(
+      ctx_,
+      CgroupPath(compile_context.cgroupFs(), "one_high/cgroup1"),
+      CgroupData{.pg_scan_cumulative = 10000});
+  TestHelper::setCgroupData(
+      ctx_,
+      CgroupPath(compile_context.cgroupFs(), "one_high/cgroup2"),
+      CgroupData{.pg_scan_cumulative = 5000});
+  TestHelper::setCgroupData(
+      ctx_,
+      CgroupPath(compile_context.cgroupFs(), "one_high/cgroup3"),
+      CgroupData{.pg_scan_cumulative = 6000});
+  TestHelper::setCgroupData(
+      ctx_,
+      CgroupPath(compile_context.cgroupFs(), "sibling/cgroup1"),
+      CgroupData{.pg_scan_cumulative = 20000});
+
+  plugin->prerun(ctx_);
+  EXPECT_EQ(plugin->run(ctx_), Engine::PluginRet::ASYNC_PAUSED);
+  ctx_.refresh();
+  ctx_.bumpCurrentTick();
+
+  TestHelper::setCgroupData(
+      ctx_,
+      CgroupPath(compile_context.cgroupFs(), "one_high/cgroup1"),
+      CgroupData{.pg_scan_cumulative = 10000});
+  TestHelper::setCgroupData(
+      ctx_,
+      CgroupPath(compile_context.cgroupFs(), "one_high/cgroup2"),
+      CgroupData{.pg_scan_cumulative = 5000});
+  TestHelper::setCgroupData(
+      ctx_,
+      CgroupPath(compile_context.cgroupFs(), "one_high/cgroup3"),
+      CgroupData{.pg_scan_cumulative = 6000});
+  TestHelper::setCgroupData(
+      ctx_,
+      CgroupPath(compile_context.cgroupFs(), "sibling/cgroup1"),
+      CgroupData{.pg_scan_cumulative = 20000});
+
+  plugin->prerun(ctx_);
+  EXPECT_EQ(plugin->run(ctx_), Engine::PluginRet::CONTINUE);
+
+  EXPECT_EQ(plugin->killed.size(), 0);
+}
+
 TEST_F(KillPgScanTest, DoesntKillsHighestPgScanDry) {
   auto plugin = std::make_shared<KillPgScan<BaseKillPluginMock>>();
   ASSERT_NE(plugin, nullptr);
