@@ -2884,8 +2884,53 @@ TEST_F(KillSwapUsageTest, BiasedSwapKillNoSwapExcessTest) {
     std::cout << i << std::endl;
   }
   // The goal here is to check that despite that none of the cgroups is in
-  // excess of its swap allowance, one cgroup will still be killed.
+  // excess of its swap allowance, but still use some swap one cgroup will
+  // still be killed.
   EXPECT_THAT(plugin->killed, SizeIs(1));
+}
+
+TEST_F(KillSwapUsageTest, BiasedSwapKillZeroSwapTest) {
+  auto plugin = std::make_shared<KillSwapUsage<BaseKillPluginMock>>();
+  ASSERT_NE(plugin, nullptr);
+
+  F::materialize(F::makeDir(
+      tempdir_,
+      {
+          F::makeFile("meminfo", "SwapTotal:\t25 kB\nMemTotal:\t100 kB"),
+          F::makeDir(
+              "cgroup1",
+              {
+                  F::makeFile("cgroup.procs", "101\n"),
+              }),
+      }));
+
+  const PluginConstructionContext compile_context(tempdir_);
+  Engine::PluginArgs args;
+  args["meminfo_location"] = tempdir_ + "/meminfo";
+  args["cgroup"] = "./*";
+  args["post_action_delay"] = "0";
+  args["biased_swap_kill"] = "true";
+
+  ASSERT_EQ(plugin->init(std::move(args), compile_context), 0);
+
+  TestHelper::setCgroupData(
+      ctx_,
+      CgroupPath(compile_context.cgroupFs(), ""),
+      CgroupData{.swap_usage = 10000});
+  TestHelper::setCgroupData(
+      ctx_,
+      CgroupPath(compile_context.cgroupFs(), "./cgroup1"),
+      CgroupData{.swap_usage = 0, .memory_protection = 1500});
+
+  EXPECT_EQ(plugin->run(ctx_), Engine::PluginRet::CONTINUE);
+  for (auto i : plugin->killed) {
+    std::cout << i << std::endl;
+  }
+
+  // We check that the implicit filtering threshold of 0 is applied.
+  // Ultimately our goal is not to kill any cgroups that do not use
+  // any swap because that's 100% a wrong decision.
+  EXPECT_THAT(plugin->killed, SizeIs(0));
 }
 
 TEST_F(KillSwapUsageTest, ThresholdTest) {

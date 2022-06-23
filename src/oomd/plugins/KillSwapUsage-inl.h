@@ -90,7 +90,7 @@ KillSwapUsage<Base>::rankForKilling(
       Util::filter(
           cgroups,
           [=](const CgroupContext& cgroup_ctx) {
-            return cgroup_ctx.swap_usage().value_or(0) >= threshold_;
+            return cgroup_ctx.swap_usage().value_or(0) > threshold_;
           }),
       [this](const CgroupContext& cgroup_ctx) {
         if (biasedSwapKill_) {
