@@ -18,6 +18,7 @@
 #pragma once
 
 #include <algorithm>
+#include <array>
 #include <condition_variable>
 #include <iostream>
 #include <mutex>
