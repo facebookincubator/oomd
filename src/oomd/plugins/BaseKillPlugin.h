@@ -156,22 +156,22 @@ class BaseKillPlugin : public Engine::BasePlugin {
       const std::string& attr,
       const std::string& val);
   /*
-   * Increments the "trusted.oomd_ooms" extended attribute key on @param
-   * cgroupPath
+   * Increments the "trusted.oomd_ooms" and "user.oomd_ooms" extended attribute
+   * keys on @param cgroupPath
    */
   virtual void reportKillInitiationToXattr(const std::string& cgroupPath);
 
   /*
-   * Increments the "trusted.oomd_kill" extended attribute key by @param
-   * numProcsKilled on @param cgroupPath
+   * Increments the "trusted.oomd_kill" and "user.oomd_kill" extended attribute
+   * keys by @param numProcsKilled on @param cgroupPath
    */
   virtual void reportKillCompletionToXattr(
       const std::string& cgroupPath,
       int numProcsKilled);
 
   /*
-   * Sets the "trusted.oomd_kill_uuid" extended attribute key to @param
-   * killUuid on @param cgroupPath
+   * Sets the "trusted.oomd_kill_uuid" and "user.oomd_kill_uuid" extended
+   * attribute keys to @param killUuid on @param cgroupPath
    */
   virtual void reportKillUuidToXattr(
       const std::string& cgroupPath,

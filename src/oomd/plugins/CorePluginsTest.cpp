@@ -177,33 +177,45 @@ class BaseKillPluginXattrTest : public ::testing::Test,
 TEST_F(BaseKillPluginXattrTest, XattrSetts) {
   auto cgroup_path = "/sys/fs/cgroup/test/test";
 
-  static auto constexpr kOomdKillInitiationXattr = "trusted.oomd_ooms";
-  static auto constexpr kOomdKillCompletionXattr = "trusted.oomd_kill";
-  static auto constexpr kOomdKillUuidXattr = "trusted.oomd_kill_uuid";
+  static auto constexpr kOomdKillInitiationTrustedXattr = "trusted.oomd_ooms";
+  static auto constexpr kOomdKillInitiationUserXattr = "user.oomd_ooms";
+  static auto constexpr kOomdKillCompletionTrustedXattr = "trusted.oomd_kill";
+  static auto constexpr kOomdKillCompletionUserXattr = "user.oomd_kill";
+  static auto constexpr kOomdKillUuidTrustedXattr = "trusted.oomd_kill_uuid";
+  static auto constexpr kOomdKillUuidUserXattr = "user.oomd_kill_uuid";
 
   static auto constexpr kKillUuid1 = "8c774f00-8202-4893-a58d-74bd1515660e";
   static auto constexpr kKillUuid2 = "9c774f00-8202-4893-a58d-74bd1515660e";
 
   // Kill Initiation increments on each kill
-  EXPECT_EQ(getxattr(cgroup_path, kOomdKillInitiationXattr), "");
+  EXPECT_EQ(getxattr(cgroup_path, kOomdKillInitiationTrustedXattr), "");
+  EXPECT_EQ(getxattr(cgroup_path, kOomdKillInitiationUserXattr), "");
   reportKillInitiationToXattr(cgroup_path);
-  EXPECT_EQ(getxattr(cgroup_path, kOomdKillInitiationXattr), "1");
+  EXPECT_EQ(getxattr(cgroup_path, kOomdKillInitiationTrustedXattr), "1");
+  EXPECT_EQ(getxattr(cgroup_path, kOomdKillInitiationUserXattr), "1");
   reportKillInitiationToXattr(cgroup_path);
-  EXPECT_EQ(getxattr(cgroup_path, kOomdKillInitiationXattr), "2");
+  EXPECT_EQ(getxattr(cgroup_path, kOomdKillInitiationTrustedXattr), "2");
+  EXPECT_EQ(getxattr(cgroup_path, kOomdKillInitiationUserXattr), "2");
 
   // Kill Completion sums up for each kill
-  EXPECT_EQ(getxattr(cgroup_path, kOomdKillCompletionXattr), "");
+  EXPECT_EQ(getxattr(cgroup_path, kOomdKillCompletionTrustedXattr), "");
+  EXPECT_EQ(getxattr(cgroup_path, kOomdKillCompletionUserXattr), "");
   reportKillCompletionToXattr(cgroup_path, 10);
-  EXPECT_EQ(getxattr(cgroup_path, kOomdKillCompletionXattr), "10");
+  EXPECT_EQ(getxattr(cgroup_path, kOomdKillCompletionTrustedXattr), "10");
+  EXPECT_EQ(getxattr(cgroup_path, kOomdKillCompletionUserXattr), "10");
   reportKillCompletionToXattr(cgroup_path, 10);
-  EXPECT_EQ(getxattr(cgroup_path, kOomdKillCompletionXattr), "20");
+  EXPECT_EQ(getxattr(cgroup_path, kOomdKillCompletionTrustedXattr), "20");
+  EXPECT_EQ(getxattr(cgroup_path, kOomdKillCompletionUserXattr), "20");
 
   // Kill Uuid resets on each kill
-  EXPECT_EQ(getxattr(cgroup_path, kOomdKillUuidXattr), "");
+  EXPECT_EQ(getxattr(cgroup_path, kOomdKillUuidTrustedXattr), "");
+  EXPECT_EQ(getxattr(cgroup_path, kOomdKillUuidUserXattr), "");
   reportKillUuidToXattr(cgroup_path, kKillUuid1);
-  EXPECT_EQ(getxattr(cgroup_path, kOomdKillUuidXattr), kKillUuid1);
+  EXPECT_EQ(getxattr(cgroup_path, kOomdKillUuidTrustedXattr), kKillUuid1);
+  EXPECT_EQ(getxattr(cgroup_path, kOomdKillUuidUserXattr), kKillUuid1);
   reportKillUuidToXattr(cgroup_path, kKillUuid2);
-  EXPECT_EQ(getxattr(cgroup_path, kOomdKillUuidXattr), kKillUuid2);
+  EXPECT_EQ(getxattr(cgroup_path, kOomdKillUuidTrustedXattr), kKillUuid2);
+  EXPECT_EQ(getxattr(cgroup_path, kOomdKillUuidUserXattr), kKillUuid2);
 }
 
 // Test BaseKillPlugin's cgroup traversal with a subclass that chooses

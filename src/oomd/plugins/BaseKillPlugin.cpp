@@ -44,9 +44,12 @@
 #include "oomd/util/Fs.h"
 #include "oomd/util/Util.h"
 
-static auto constexpr kOomdKillInitiationXattr = "trusted.oomd_ooms";
-static auto constexpr kOomdKillCompletionXattr = "trusted.oomd_kill";
-static auto constexpr kOomdKillUuidXattr = "trusted.oomd_kill_uuid";
+static auto constexpr kOomdKillInitiationTrustedXattr = "trusted.oomd_ooms";
+static auto constexpr kOomdKillInitiationUserXattr = "user.oomd_ooms";
+static auto constexpr kOomdKillCompletionTrustedXattr = "trusted.oomd_kill";
+static auto constexpr kOomdKillCompletionUserXattr = "user.oomd_kill";
+static auto constexpr kOomdKillUuidTrustedXattr = "trusted.oomd_kill_uuid";
+static auto constexpr kOomdKillUuidUserXattr = "user.oomd_kill_uuid";
 
 namespace Oomd {
 
@@ -539,36 +542,55 @@ bool BaseKillPlugin::setxattr(
 
 void BaseKillPlugin::reportKillInitiationToXattr(
     const std::string& cgroupPath) {
-  auto prevXattrStr = getxattr(cgroupPath, kOomdKillInitiationXattr);
-  const int prevXattr = std::stoi(prevXattrStr != "" ? prevXattrStr : "0");
-  std::string newXattrStr = std::to_string(prevXattr + 1);
+  // Helper function that reports kill initiation to an extended attribute
+  const auto reportKillHelperFunc = [this,
+                                     &cgroupPath](const std::string& xattr) {
+    auto prevXattrStr = getxattr(cgroupPath, xattr);
+    const int prevXattr = std::stoi(prevXattrStr != "" ? prevXattrStr : "0");
+    std::string newXattrStr = std::to_string(prevXattr + 1);
 
-  if (setxattr(cgroupPath, kOomdKillInitiationXattr, newXattrStr)) {
-    OLOG << "Set xattr " << kOomdKillInitiationXattr << "=" << newXattrStr
-         << " on " << cgroupPath;
-  }
+    if (setxattr(cgroupPath, xattr, newXattrStr)) {
+      OLOG << "Set xattr " << xattr << "=" << newXattrStr << " on "
+           << cgroupPath;
+    }
+  };
+  reportKillHelperFunc(kOomdKillInitiationTrustedXattr);
+  reportKillHelperFunc(kOomdKillInitiationUserXattr);
 }
 
 void BaseKillPlugin::reportKillCompletionToXattr(
     const std::string& cgroupPath,
     int numProcsKilled) {
-  auto prevXattrStr = getxattr(cgroupPath, kOomdKillCompletionXattr);
-  const int prevXattr = std::stoi(prevXattrStr != "" ? prevXattrStr : "0");
-  std::string newXattrStr = std::to_string(prevXattr + numProcsKilled);
+  // Helper function that reports kill completion to an extended attribute
+  const auto reportKillHelperFunc = [this, &cgroupPath, numProcsKilled](
+                                        const std::string& xattr) {
+    auto prevXattrStr = getxattr(cgroupPath, xattr);
+    const int prevXattr = std::stoi(prevXattrStr != "" ? prevXattrStr : "0");
+    std::string newXattrStr = std::to_string(prevXattr + numProcsKilled);
 
-  if (setxattr(cgroupPath, kOomdKillCompletionXattr, newXattrStr)) {
-    OLOG << "Set xattr " << kOomdKillCompletionXattr << "=" << newXattrStr
-         << " on " << cgroupPath;
-  }
+    if (setxattr(cgroupPath, xattr, newXattrStr)) {
+      OLOG << "Set xattr " << xattr << "=" << newXattrStr << " on "
+           << cgroupPath;
+    }
+  };
+
+  reportKillHelperFunc(kOomdKillCompletionTrustedXattr);
+  reportKillHelperFunc(kOomdKillCompletionUserXattr);
 }
 
 void BaseKillPlugin::reportKillUuidToXattr(
     const std::string& cgroupPath,
     const std::string& killUuid) {
-  if (setxattr(cgroupPath, kOomdKillUuidXattr, killUuid)) {
-    OLOG << "Set xattr " << kOomdKillUuidXattr << "=" << killUuid << " on "
-         << cgroupPath;
-  }
+  // Helper function that reports kill uuid to an extended attribute
+  const auto reportKillHelperFunc = [this, &cgroupPath, &killUuid](
+                                        const std::string& xattr) {
+    if (setxattr(cgroupPath, xattr, killUuid)) {
+      OLOG << "Set xattr " << xattr << "=" << killUuid << " on " << cgroupPath;
+    }
+  };
+
+  reportKillHelperFunc(kOomdKillUuidTrustedXattr);
+  reportKillHelperFunc(kOomdKillUuidUserXattr);
 }
 
 bool BaseKillPlugin::tryToLogAndKillCgroup(
