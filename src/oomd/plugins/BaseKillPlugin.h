@@ -59,23 +59,21 @@ class BaseKillPlugin : public Engine::BasePlugin {
     // shallower than wide.
     std::vector<OomdContext::ConstCgroupContextRef> unvisited;
 
-    const auto& root_cgroups = ctx.addToCacheAndGet(cgroups_);
+    const auto& rootCgroups = ctx.addToCacheAndGet(cgroups_);
     std::move(
-        root_cgroups.begin(),
-        root_cgroups.end(),
-        std::back_inserter(unvisited));
+        rootCgroups.begin(), rootCgroups.end(), std::back_inserter(unvisited));
 
     while (!unvisited.empty()) {
-      const CgroupContext& cgroup_ctx = unvisited.back();
+      const CgroupContext& cgroupCtx = unvisited.back();
       unvisited.pop_back();
 
-      if (recursive_ && !cgroup_ctx.oom_group().value_or(false)) {
-        const auto& children = ctx.addChildrenToCacheAndGet(cgroup_ctx);
+      if (recursive_ && !cgroupCtx.oom_group().value_or(false)) {
+        const auto& children = ctx.addChildrenToCacheAndGet(cgroupCtx);
         std::move(
             children.begin(), children.end(), std::back_inserter(unvisited));
       }
 
-      fn(cgroup_ctx);
+      fn(cgroupCtx);
     }
   }
 
@@ -129,13 +127,13 @@ class BaseKillPlugin : public Engine::BasePlugin {
    * Kills a cgroup
    *
    * @param target is the cgroup to kill
-   * @param kill_uuid is the name of this kill to use in logs
+   * @param killUuid is the name of this kill to use in logs
    * @param dry sets whether or not we should actually issue SIGKILLs
    * @returns true if successfully killed anything
    */
   virtual bool tryToKillCgroup(
       const CgroupContext& target,
-      const KillUuid& kill_uuid,
+      const KillUuid& killUuid,
       bool dry);
 
   /*
@@ -159,32 +157,32 @@ class BaseKillPlugin : public Engine::BasePlugin {
       const std::string& val);
   /*
    * Increments the "trusted.oomd_ooms" extended attribute key on @param
-   * cgroup_path
+   * cgroupPath
    */
-  virtual void reportKillInitiationToXattr(const std::string& cgroup_path);
+  virtual void reportKillInitiationToXattr(const std::string& cgroupPath);
 
   /*
    * Increments the "trusted.oomd_kill" extended attribute key by @param
-   * num_procs_killed on @param cgroup_path
+   * numProcsKilled on @param cgroupPath
    */
   virtual void reportKillCompletionToXattr(
-      const std::string& cgroup_path,
-      int num_procs_killed);
+      const std::string& cgroupPath,
+      int numProcsKilled);
 
   /*
    * Sets the "trusted.oomd_kill_uuid" extended attribute key to @param
-   * kill_uuid on @param cgroup_path
+   * killUuid on @param cgroupPath
    */
   virtual void reportKillUuidToXattr(
-      const std::string& cgroup_path,
-      const std::string& kill_uuid);
+      const std::string& cgroupPath,
+      const std::string& killUuid);
 
   virtual void dumpKillInfo(
-      const CgroupPath& killed_group,
+      const CgroupPath& killedGroup,
       std::optional<OomdContext::ConstCgroupContextRef> context,
-      std::optional<OomdContext::ConstCgroupContextRef> kill_root,
-      const ActionContext& action_context,
-      const std::string& kill_uuid,
+      std::optional<OomdContext::ConstCgroupContextRef> killRoot,
+      const ActionContext& actionContext,
+      const std::string& killUuid,
       bool success,
       bool dry) const;
 
@@ -203,22 +201,22 @@ class BaseKillPlugin : public Engine::BasePlugin {
   };
   KillResult tryToKillSomething(
       OomdContext& ctx,
-      const std::vector<OomdContext::ConstCgroupContextRef>& initial_cgroups);
+      const std::vector<OomdContext::ConstCgroupContextRef>& initialCgroups);
 
   struct KillCandidate {
    public:
-    OomdContext::ConstCgroupContextRef cgroup_ctx;
-    // .kill_root and .peers are for logging
-    // .kill_root is for when recursive targeting is enabled. It is the ancestor
-    // cgroup of .cgroup_ctx that was targeted in the plugin's "cgroup" arg.
-    // When recursive targeting is disabled, .kill_root == .cgroup_ctx
-    OomdContext::ConstCgroupContextRef kill_root;
+    OomdContext::ConstCgroupContextRef cgroupCtx;
+    // .killRoot and .peers are for logging
+    // .killRoot is for when recursive targeting is enabled. It is the ancestor
+    // cgroup of .cgroupCtx that was targeted in the plugin's "cgroup" arg.
+    // When recursive targeting is disabled, .killRoot == .cgroupCtx
+    OomdContext::ConstCgroupContextRef killRoot;
     std::shared_ptr<std::vector<OomdContext::ConstCgroupContextRef>> peers;
   };
   KillResult resumeTryingToKillSomething(
       OomdContext& ctx,
-      std::vector<KillCandidate> next_best_option_stack,
-      bool has_tried_to_kill_something_already);
+      std::vector<KillCandidate> nextBestOptionStack,
+      bool hasTriedToKillSomethingAlready);
 
   /*
    * Kills cgroup and logs a structured kill message to kmsg and stderr.
@@ -239,25 +237,25 @@ class BaseKillPlugin : public Engine::BasePlugin {
   struct SerializedKillCandidate {
    public:
     SerializedCgroupRef target;
-    SerializedCgroupRef kill_root;
+    SerializedCgroupRef killRoot;
     std::shared_ptr<std::vector<SerializedCgroupRef>> peers;
   };
   KillResult resumeFromPrekillHook(OomdContext& ctx);
 
   std::unordered_set<CgroupPath> cgroups_;
   bool recursive_{false};
-  std::optional<int> post_action_delay_{std::nullopt};
+  std::optional<int> postActionDelay_{std::nullopt};
   bool dry_{false};
-  bool always_continue_{false};
+  bool alwaysContinue_{false};
   bool debug_{false};
 
   struct ActivePrekillHook {
    public:
-    std::unique_ptr<Engine::PrekillHookInvocation> hook_invocation;
-    SerializedKillCandidate intended_victim;
-    std::vector<SerializedKillCandidate> next_best_option_stack;
+    std::unique_ptr<Engine::PrekillHookInvocation> hookInvocation;
+    SerializedKillCandidate intendedVictim;
+    std::vector<SerializedKillCandidate> nextBestOptionStack;
   };
-  std::optional<ActivePrekillHook> prekill_hook_state_{std::nullopt};
+  std::optional<ActivePrekillHook> prekillHookState_{std::nullopt};
 };
 
 } // namespace Oomd
