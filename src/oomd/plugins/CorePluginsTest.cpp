@@ -62,7 +62,7 @@ class BaseKillPluginMock : public BaseKillPlugin {
     return ret;
   }
 
-  bool tryToKillCgroup(
+  int tryToKillCgroup(
       const CgroupContext& target,
       const KillUuid& kill_uuid,
       bool dry) override {
@@ -137,7 +137,7 @@ TEST_F(BaseKillPluginTest, TryToKillCgroupKillsRecursive) {
       ctx_, CgroupPath("oomd/fixtures/plugins/base_kill_plugin", "one_big")));
 
   BaseKillPluginShim plugin;
-  EXPECT_EQ(plugin.tryToKillCgroup(target, "fake_kill_uuid", false), true);
+  EXPECT_EQ(plugin.tryToKillCgroup(target, "fake_kill_uuid", false), 31);
 
   int expected_total = 0;
   for (int i = 1; i <= 30; ++i) {

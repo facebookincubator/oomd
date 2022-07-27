@@ -443,7 +443,7 @@ int BaseKillPlugin::getAndTryToKillPids(const CgroupContext& target) {
   return nrKilled;
 }
 
-bool BaseKillPlugin::tryToKillCgroup(
+int BaseKillPlugin::tryToKillCgroup(
     const CgroupContext& target,
     const KillUuid& killUuid,
     bool dry) {
@@ -485,7 +485,7 @@ bool BaseKillPlugin::tryToKillCgroup(
     lastNrKilled = nrKilled;
   }
   reportKillCompletionToXattr(cgroupPath, nrKilled);
-  return nrKilled > 0;
+  return nrKilled;
 }
 
 int BaseKillPlugin::tryToKillPids(const std::vector<int>& pids) {
@@ -599,9 +599,9 @@ bool BaseKillPlugin::tryToLogAndKillCgroup(
   KillUuid killUuid = generateKillUuid();
   auto actionContext = ctx.getActionContext();
 
-  bool success = tryToKillCgroup(candidate.cgroupCtx.get(), killUuid, dry_);
+  int nrKilled = tryToKillCgroup(candidate.cgroupCtx.get(), killUuid, dry_);
 
-  if (success) {
+  if (nrKilled > 0) {
     auto memPressure =
         candidate.cgroupCtx.get().mem_pressure().value_or(ResourcePressure{});
     std::ostringstream oss;
@@ -625,9 +625,9 @@ bool BaseKillPlugin::tryToLogAndKillCgroup(
       candidate.killRoot.get(),
       actionContext,
       killUuid,
-      success,
+      nrKilled,
       dry_);
 
-  return success;
+  return nrKilled > 0;
 }
 } // namespace Oomd

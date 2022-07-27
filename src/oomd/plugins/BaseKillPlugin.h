@@ -129,9 +129,9 @@ class BaseKillPlugin : public Engine::BasePlugin {
    * @param target is the cgroup to kill
    * @param killUuid is the name of this kill to use in logs
    * @param dry sets whether or not we should actually issue SIGKILLs
-   * @returns true if successfully killed anything
+   * @returns the number of processes killed
    */
-  virtual bool tryToKillCgroup(
+  virtual int tryToKillCgroup(
       const CgroupContext& target,
       const KillUuid& killUuid,
       bool dry);
@@ -183,7 +183,7 @@ class BaseKillPlugin : public Engine::BasePlugin {
       std::optional<OomdContext::ConstCgroupContextRef> killRoot,
       const ActionContext& actionContext,
       const std::string& killUuid,
-      bool success,
+      int nrKilled,
       bool dry) const;
 
   /*
@@ -220,7 +220,7 @@ class BaseKillPlugin : public Engine::BasePlugin {
 
   /*
    * Kills cgroup and logs a structured kill message to kmsg and stderr.
-   * Returns false on failure.
+   * Returns true on success.
    */
   bool tryToLogAndKillCgroup(
       const OomdContext& ctx,
