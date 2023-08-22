@@ -144,7 +144,27 @@ std::optional<int64_t> CgroupContext::anon_usage(Error* err) const {
       *err = Error::INVALID_CGROUP;
     }
   }
-  return 0;
+  return std::nullopt;
+}
+std::optional<int64_t> CgroupContext::file_usage(Error* err) const {
+  if (const auto& stat = memory_stat(err)) {
+    if (auto file = stat->find("file"); file != stat->end()) {
+      return file->second;
+    } else if (err) {
+      *err = Error::INVALID_CGROUP;
+    }
+  }
+  return std::nullopt;
+}
+std::optional<int64_t> CgroupContext::shmem_usage(Error* err) const {
+  if (const auto& stat = memory_stat(err)) {
+    if (auto shmem = stat->find("shmem"); shmem != stat->end()) {
+      return shmem->second;
+    } else if (err) {
+      *err = Error::INVALID_CGROUP;
+    }
+  }
+  return std::nullopt;
 }
 
 std::optional<int64_t> CgroupContext::effective_usage(
