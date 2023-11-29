@@ -17,10 +17,12 @@
 
 #include "oomd/Oomd.h"
 
+#include <signal.h>
 #include <cmath>
 #include <functional>
 #include <thread>
 
+#include <strings.h>
 #include "oomd/CgroupContext.h"
 #include "oomd/Log.h"
 #include "oomd/dropin/FsDropInService.h"
@@ -28,7 +30,6 @@
 #include "oomd/include/Defines.h"
 #include "oomd/util/Fs.h"
 #include "oomd/util/Util.h"
-
 namespace Oomd {
 
 Oomd::Oomd(
@@ -110,17 +111,33 @@ void Oomd::updateContext() {
   ctx_.bumpCurrentTick();
 }
 
-int Oomd::run() {
+int Oomd::run(const sigset_t* mask) {
   if (!engine_) {
     OLOG << "Could not run engine. Your config file is probably invalid\n";
     return EXIT_CANT_RECOVER;
   }
 
+  struct timespec ts {
+    .tv_sec = interval_.count(), .tv_nsec = 0,
+  };
+
   OLOG << "Running oomd";
 
   while (true) {
-    /* sleep override */
-    std::this_thread::sleep_for(interval_);
+    // sigtimedwait so if we get a SIGINT or SIGTERM we wake up and exit right
+    // away.
+    int rc;
+    do {
+      rc = sigtimedwait(mask, nullptr, &ts);
+    } while (rc == -1 && errno == EINTR);
+
+    if (rc == -1 && errno != EAGAIN) {
+      perror("sigtimedwait");
+      exit(EXIT_FAILURE);
+    } else if (rc != -1) {
+      OLOG << "Received signal " << rc << ". Exiting!";
+      return 128 + rc;
+    }
 
     if (fs_drop_in_service_) {
       fs_drop_in_service_->updateDropIns();
