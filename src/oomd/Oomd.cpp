@@ -135,8 +135,11 @@ int Oomd::run(const sigset_t* mask) {
       perror("sigtimedwait");
       exit(EXIT_FAILURE);
     } else if (rc != -1) {
-      OLOG << "Received signal " << rc << ". Exiting!";
-      return 128 + rc;
+      // Synchronously log to stderr so there's no buffering
+      std::cerr << "Received signal " << rc << ". Exiting!";
+      pthread_sigmask(SIG_UNBLOCK, mask, nullptr);
+      pthread_kill(pthread_self(), rc);
+      return -1;
     }
 
     if (fs_drop_in_service_) {
