@@ -32,13 +32,13 @@ class ScopeGuard {
  public:
   explicit ScopeGuard(std::function<void()> fn) {
     fn_ = fn;
-  };
+  }
 
   ~ScopeGuard() {
     if (fn_) {
       fn_();
     }
-  };
+  }
 
  private:
   std::function<void()> fn_;
