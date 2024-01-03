@@ -308,7 +308,7 @@ int main(int argc, char** argv) {
       case 'i':
         try {
           interval = std::stoi(optarg, &parsed_len);
-        } catch (const std::invalid_argument& e) {
+        } catch (const std::invalid_argument&) {
           parse_error = true;
         }
         if (parse_error || interval < 1 || parsed_len != strlen(optarg)) {
