@@ -47,7 +47,7 @@ bool operator==(
     const OomdContext::ConstCgroupContextRef& lhs,
     const OomdContext::ConstCgroupContextRef& rhs) {
   return std::addressof(lhs.get()) == std::addressof(rhs.get());
-};
+}
 } // namespace std
 
 TEST_F(OomdContextTest, MoveConstructor) {
