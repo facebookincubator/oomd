@@ -62,7 +62,7 @@ PsiFormat getPsiFormat(const std::vector<std::string>& lines) {
   }
 }
 
-}; // namespace
+} // namespace
 
 namespace Oomd {
 
