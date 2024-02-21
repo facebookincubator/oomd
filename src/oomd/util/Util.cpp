@@ -166,14 +166,24 @@ int Util::parseSizeOrPercent(
 }
 
 std::vector<std::string> Util::split(const std::string& line, char delim) {
-  std::istringstream iss(line);
-  std::string item;
   std::vector<std::string> ret;
-  while (std::getline(iss, item, delim)) {
-    if (item.size()) {
-      ret.push_back(std::move(item));
+
+  auto emplaceNonEmptySubstr = [&ret, &line](size_t beg, size_t end) {
+    if (size_t len = end - beg) {
+      ret.emplace_back(line.begin() + beg, line.begin() + end);
+    }
+  };
+
+  size_t beg = 0;
+  size_t n = line.size();
+  for (size_t i = 0; i < n; ++i) {
+    if (line[i] == delim) {
+      emplaceNonEmptySubstr(beg, i);
+      beg = i + 1;
     }
   }
+  emplaceNonEmptySubstr(beg, n);
+
   return ret;
 }
 
