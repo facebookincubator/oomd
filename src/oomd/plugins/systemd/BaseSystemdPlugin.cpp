@@ -58,7 +58,7 @@ bool BaseSystemdPlugin::talkToSystemdManager(
   if (bus == nullptr) {
     OLOG << "Failed to connect to system bus: bus is null";
     return false;
-  };
+  }
 
   /* Issue the method call and store the respons message in m */
   r = ::sd_bus_call_method(
