@@ -17,38 +17,23 @@
 
 #pragma once
 
-#include <functional>
-
-// Need two levels of indirection here for __LINE__ to correctly expand
-#define OOMD_CONCAT2(a, b) a##b
-#define OOMD_CONCAT(a, b) OOMD_CONCAT2(a, b)
-#define OOMD_ANON_VAR(str) OOMD_CONCAT(str, __LINE__)
+#include "oomd/engine/BasePlugin.h"
 
 namespace Oomd {
 
-enum class ScopeGuardExit {};
-
-class ScopeGuard {
+class KernelPanic : public Oomd::Engine::BasePlugin {
  public:
-  explicit ScopeGuard(std::function<void()> fn) {
-    fn_ = fn;
+  int init(
+      const Engine::PluginArgs& args,
+      const PluginConstructionContext& context) override;
+
+  Engine::PluginRet run(OomdContext& /* unused */) override;
+
+  static KernelPanic* create() {
+    return new KernelPanic();
   }
 
-  ~ScopeGuard() {
-    if (fn_) {
-      fn_();
-    }
-  }
-
- private:
-  std::function<void()> fn_;
+  ~KernelPanic() override = default;
 };
 
-inline ScopeGuard operator+(ScopeGuardExit, std::function<void()> fn) {
-  return ScopeGuard(fn);
-}
-
 } // namespace Oomd
-
-#define OOMD_SCOPE_EXIT \
-  auto OOMD_ANON_VAR(SCOPE_EXIT_STATE) = ScopeGuardExit() + [&]()

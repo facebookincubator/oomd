@@ -99,7 +99,7 @@ std::unordered_set<std::string> PluginArgParser::validArgNames() {
     res.emplace(entry.first);
   }
   return res;
-};
+}
 
 template <>
 int64_t PluginArgParser::parseValue(const std::string& valueString) {

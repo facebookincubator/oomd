@@ -58,7 +58,7 @@ class BasePlugin {
    * because it is guaranteed to be called each interval, but run() may not.
    * Therefore, this function should be lightweight, i.e. no sleep() inside.
    */
-  virtual void prerun(OomdContext& context){};
+  virtual void prerun(OomdContext& context) {}
 
   /*
    * This is the main work method every plugin will implement.

@@ -84,6 +84,18 @@ TEST(UtilTest, Split) {
   toks = Util::split("one two three", ',');
   ASSERT_EQ(toks.size(), 1);
   EXPECT_EQ(toks[0], "one two three");
+
+  toks = Util::split("", ',');
+  ASSERT_EQ(toks.size(), 0);
+
+  toks = Util::split("     ", ' ');
+  ASSERT_EQ(toks.size(), 0);
+
+  toks = Util::split("one two three   ", ' ');
+  ASSERT_EQ(toks.size(), 3);
+  EXPECT_THAT(toks, Contains("one"));
+  EXPECT_THAT(toks, Contains("two"));
+  EXPECT_THAT(toks, Contains("three"));
 }
 
 TEST(UtilTest, StartsWith) {

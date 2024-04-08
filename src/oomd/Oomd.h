@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include <signal.h>
 #include <chrono>
 #include <memory>
 #include <string>
@@ -48,7 +49,7 @@ class Oomd {
   ~Oomd();
 
   void updateContext();
-  int run();
+  int run(const sigset_t* mask);
 
  private:
   // runtime settings

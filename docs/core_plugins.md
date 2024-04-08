@@ -125,6 +125,17 @@ otherwise.
 When `negate` is `true`, if `cgroup` doesn't exist, CONTINUE. STOP
 otherwise.
 
+## kernel_panic
+
+### Arguments
+
+    No argument
+
+### Description
+
+This plugin triggers kernel panic when executed, which helps capture elusive
+memory issues that goes away after OOM kills.
+
 ## nr_dying_descendants
 
 ### Arguments

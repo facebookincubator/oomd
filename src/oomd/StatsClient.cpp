@@ -71,7 +71,7 @@ std::optional<std::unordered_map<std::string, int>> StatsClient::getStats() {
                 << (*root)["error"].toStyledString() << std::endl;
       return std::nullopt;
     }
-  } catch (const std::exception& e) {
+  } catch (const std::exception&) {
     std::cerr << "StatsClient error: parsed error value not an int"
               << std::endl;
     return std::nullopt;
@@ -97,7 +97,7 @@ int StatsClient::resetStats() {
 
   try {
     return (*root)["error"].asInt();
-  } catch (const std::exception& e) {
+  } catch (const std::exception&) {
     std::cerr << "StatsClient error: parsed error value not an int"
               << std::endl;
     return 1;
@@ -117,7 +117,7 @@ int StatsClient::closeSocket() {
 
   try {
     return (*root)["error"].asInt();
-  } catch (const std::exception& e) {
+  } catch (const std::exception&) {
     std::cerr << "StatsClient error: parsed error value not an int"
               << std::endl;
     return 1;

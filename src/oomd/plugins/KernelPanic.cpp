@@ -15,40 +15,34 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#pragma once
+#include "oomd/plugins/KernelPanic.h"
 
-#include <functional>
-
-// Need two levels of indirection here for __LINE__ to correctly expand
-#define OOMD_CONCAT2(a, b) a##b
-#define OOMD_CONCAT(a, b) OOMD_CONCAT2(a, b)
-#define OOMD_ANON_VAR(str) OOMD_CONCAT(str, __LINE__)
+#include "oomd/Log.h"
+#include "oomd/PluginRegistry.h"
+#include "oomd/util/Fs.h"
+#include "oomd/util/Util.h"
 
 namespace Oomd {
 
-enum class ScopeGuardExit {};
+REGISTER_PLUGIN(kernel_panic, KernelPanic::create);
 
-class ScopeGuard {
- public:
-  explicit ScopeGuard(std::function<void()> fn) {
-    fn_ = fn;
+int KernelPanic::init(
+    const Engine::PluginArgs& args,
+    const PluginConstructionContext& /* unused */) {
+  return argParser_.parse(args) ? 0 : 1;
+}
+
+Engine::PluginRet KernelPanic::run(OomdContext& /* unused */) {
+  const auto fd = Fs::Fd::open("/proc/sysrq-trigger", false);
+  if (!fd) {
+    OLOG << "Failed to open /proc/sysrq-trigger";
+    return Engine::PluginRet::CONTINUE;
   }
-
-  ~ScopeGuard() {
-    if (fn_) {
-      fn_();
-    }
+  if (Util::writeFull(fd->fd(), "c", 1) != 1) {
+    OLOG << "Failed to trigger kernel panic";
+    return Engine::PluginRet::CONTINUE;
   }
-
- private:
-  std::function<void()> fn_;
-};
-
-inline ScopeGuard operator+(ScopeGuardExit, std::function<void()> fn) {
-  return ScopeGuard(fn);
+  return Engine::PluginRet::STOP;
 }
 
 } // namespace Oomd
-
-#define OOMD_SCOPE_EXIT \
-  auto OOMD_ANON_VAR(SCOPE_EXIT_STATE) = ScopeGuardExit() + [&]()

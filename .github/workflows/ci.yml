@@ -15,8 +15,8 @@ jobs:
     strategy:
       matrix:
         include:
-          - cc: gcc-8
-            cxx: g++-8
+          - cc: gcc
+            cxx: g++
           - cc: clang
             cxx: clang++
     env:
@@ -32,7 +32,7 @@ jobs:
           libjsoncpp-dev
           googletest
           meson
-          g++-8
+          g++
       - name: Checkout code
         uses: actions/checkout@v2
       - run: meson build/

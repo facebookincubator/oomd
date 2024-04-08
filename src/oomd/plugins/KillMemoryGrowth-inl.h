@@ -101,7 +101,7 @@ KillMemoryGrowth<Base>::get_ranking_fn(
         cgroups_mutable_copy[nth].get().effective_usage().value_or(0);
   }
 
-  return [=](const CgroupContext& cgroup_ctx) {
+  return [=, this](const CgroupContext& cgroup_ctx) {
     int64_t current_usage = cgroup_ctx.current_usage().value_or(0);
     int64_t effective_usage = cgroup_ctx.effective_usage().value_or(0);
     float growth_ratio = cgroup_ctx.memory_growth().value_or(0);

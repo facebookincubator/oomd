@@ -248,6 +248,15 @@ int main(int argc, char** argv) {
   struct Oomd::IOCostCoeffs hdd_coeffs = default_hdd_coeffs;
   struct Oomd::IOCostCoeffs ssd_coeffs = default_ssd_coeffs;
 
+  sigset_t mask;
+  sigemptyset(&mask);
+  sigaddset(&mask, SIGINT);
+  sigaddset(&mask, SIGTERM);
+  if (sigprocmask(SIG_BLOCK, &mask, nullptr) == -1) {
+    perror("sigprocmask");
+    exit(EXIT_FAILURE);
+  }
+
   const char* const short_options = "hvC:w:i:f:c:lD:dr";
   option long_options[] = {
       option{"help", no_argument, nullptr, 'h'},
@@ -299,7 +308,7 @@ int main(int argc, char** argv) {
       case 'i':
         try {
           interval = std::stoi(optarg, &parsed_len);
-        } catch (const std::invalid_argument& e) {
+        } catch (const std::invalid_argument&) {
           parse_error = true;
         }
         if (parse_error || interval < 1 || parsed_len != strlen(optarg)) {
@@ -485,5 +494,5 @@ int main(int argc, char** argv) {
       *io_devs,
       hdd_coeffs,
       ssd_coeffs);
-  return oomd.run();
+  return oomd.run(&mask);
 }
