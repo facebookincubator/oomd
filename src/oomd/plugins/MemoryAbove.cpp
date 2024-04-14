@@ -140,8 +140,8 @@ Engine::PluginRet MemoryAbove::run(OomdContext& ctx) {
       if (debug_) {
         std::ostringstream oss;
         oss << std::setprecision(2) << std::fixed;
-        oss << "cgroup \"" << current_cgroup << "\" "
-            << "current memory usage " << current_memory_usage / 1024 / 1024
+        oss << "cgroup \"" << current_cgroup << "\" " << "current memory usage "
+            << current_memory_usage / 1024 / 1024
             << "MB is over the threshold of " << threshold_ / 1024 / 1024
             << "MB for " << duration_ << " seconds";
         OLOG << oss.str();

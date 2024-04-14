@@ -178,7 +178,7 @@ void Log::ioThread(std::ostream& debug_sink) {
 }
 
 template <>
-LogStream& LogStream::operator<<<LogStream::Control>(const Control& ctrl) {
+LogStream& LogStream::operator<< <LogStream::Control>(const Control& ctrl) {
   switch (ctrl) {
     case Control::DISABLE:
       enabled() = false;
@@ -195,7 +195,7 @@ LogStream& LogStream::operator<<<LogStream::Control>(const Control& ctrl) {
 }
 
 template <>
-LogStream& LogStream::operator<<<LogStream::Offset>(const Offset& offset) {
+LogStream& LogStream::operator<< <LogStream::Offset>(const Offset& offset) {
   int indent = offset.n - stream_.tellp();
   if (indent > 0) {
     stream_ << std::string(offset.n - stream_.tellp(), ' ');

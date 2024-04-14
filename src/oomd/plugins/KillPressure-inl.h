@@ -86,8 +86,8 @@ void KillPressure<Base>::ologKillTarget(
 
   OLOG << "Picked \"" << target.cgroup().relativePath() << "\" ("
        << target.current_usage().value_or(0) / 1024 / 1024
-       << "MB) based on pressure generation at "
-       << "10s=" << pressure10 << " 60s=" << pressure60;
+       << "MB) based on pressure generation at " << "10s=" << pressure10
+       << " 60s=" << pressure60;
 }
 
 } // namespace Oomd

@@ -162,8 +162,7 @@ void KillMemoryGrowth<Base>::ologKillTarget(
       OLOG << "Picked \"" << target.cgroup().relativePath() << "\" ("
            << target.current_usage().value_or(0) / 1024 / 1024
            << "MB) based on size > " << size_threshold_ << "% of sibling total "
-           << sib_memcurrent / 1024 / 1024 << "MB"
-           << " with kill preference "
+           << sib_memcurrent / 1024 / 1024 << "MB" << " with kill preference "
            << target.kill_preference().value_or(KillPreference::NORMAL);
       break;
     }
@@ -174,9 +173,8 @@ void KillMemoryGrowth<Base>::ologKillTarget(
       oss << "Picked \"" << target.cgroup().relativePath() << "\" ("
           << target.current_usage().value_or(0) / 1024 / 1024
           << "MB) based on growth rate " << target.memory_growth().value_or(0)
-          << " (min growth rate " << min_growth_ratio_ << ")"
-          << " among P" << growing_size_percentile_ << " largest,"
-          << " with kill preference "
+          << " (min growth rate " << min_growth_ratio_ << ")" << " among P"
+          << growing_size_percentile_ << " largest," << " with kill preference "
           << target.kill_preference().value_or(KillPreference::NORMAL);
       OLOG << oss.str();
       break;
