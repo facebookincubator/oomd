@@ -355,7 +355,8 @@ TEST_F(CompilerTest, IncrementCount) {
   IR::Action increment;
   increment.name = "IncrementCount";
   IR::DetectorGroup dgroup{"group1", {std::move(cont)}};
-  IR::Ruleset ruleset{"ruleset1", {std::move(dgroup)}, {std::move(increment)}};
+  IR::Ruleset ruleset{
+      "ruleset1", {std::move(dgroup)}, {std::move(increment)}, {}, "", "", ""};
   root.rulesets.emplace_back(std::move(ruleset));
 
   auto engine = compile();
@@ -377,9 +378,9 @@ TEST_F(CompilerTest, MultiGroupIncrementCount) {
   IR::DetectorGroup dgroup1{"group1", {cont}};
   IR::DetectorGroup dgroup2{"group2", {stop}};
   IR::DetectorGroup dgroup3{"group3", {cont}};
-  IR::Ruleset ruleset1{"ruleset1", {dgroup1}, {increment}};
-  IR::Ruleset ruleset2{"ruleset2", {dgroup2}, {increment}};
-  IR::Ruleset ruleset3{"ruleset3", {dgroup3}, {increment}};
+  IR::Ruleset ruleset1{"ruleset1", {dgroup1}, {increment}, {}, "", "", ""};
+  IR::Ruleset ruleset2{"ruleset2", {dgroup2}, {increment}, {}, "", "", ""};
+  IR::Ruleset ruleset3{"ruleset3", {dgroup3}, {increment}, {}, "", "", ""};
   root.rulesets.emplace_back(std::move(ruleset1));
   root.rulesets.emplace_back(std::move(ruleset2));
   root.rulesets.emplace_back(std::move(ruleset3));
@@ -533,7 +534,8 @@ TEST_F(CompilerTest, IncrementCountNoop) {
   IR::Action increment;
   increment.name = "IncrementCount";
   IR::DetectorGroup dgroup{"group1", {std::move(cont), std::move(stop)}};
-  IR::Ruleset ruleset{"ruleset1", {std::move(dgroup)}, {std::move(increment)}};
+  IR::Ruleset ruleset{
+      "ruleset1", {std::move(dgroup)}, {std::move(increment)}, {}, "", "", ""};
   root.rulesets.emplace_back(std::move(ruleset));
 
   auto engine = compile();
@@ -655,7 +657,8 @@ TEST_F(CompilerTest, NoInitPlugin) {
   IR::Action reg;
   reg.name = "Register";
   IR::DetectorGroup dgroup{"group1", {std::move(noinit)}};
-  IR::Ruleset ruleset{"ruleset1", {std::move(dgroup)}, {std::move(reg)}};
+  IR::Ruleset ruleset{
+      "ruleset1", {std::move(dgroup)}, {std::move(reg)}, {}, "", "", ""};
   root.rulesets.emplace_back(std::move(ruleset));
 
   auto engine = compile();
@@ -695,7 +698,8 @@ TEST_F(DropInCompilerTest, DropInConfig) {
   IR::Action noop;
   noop.name = "Continue";
   IR::DetectorGroup dg{"dg", {cont}};
-  IR::Ruleset rs{"rs", {dg}, {noop}, IR::DropIn{.actiongroup_enabled = true}};
+  IR::Ruleset rs{
+      "rs", {dg}, {noop}, IR::DropIn{.actiongroup_enabled = true}, "", "", ""};
   root.rulesets.emplace_back(std::move(rs));
 
   IR::Ruleset dropin_rs;
@@ -726,7 +730,13 @@ TEST_F(DropInCompilerTest, MultipleDropInConfigOrdering) {
   increment.name = "IncrementCount";
   IR::DetectorGroup dg{"dg", {cont}};
   IR::Ruleset rs{
-      "rs", {dg}, {increment}, IR::DropIn{.actiongroup_enabled = true}};
+      "rs",
+      {dg},
+      {increment},
+      IR::DropIn{.actiongroup_enabled = true},
+      "",
+      "",
+      ""};
   root.rulesets.emplace_back(std::move(rs));
 
   // First drop in config
@@ -780,7 +790,10 @@ TEST_F(DropInCompilerTest, DisablesBase) {
       IR::DropIn{
           .disable_on_drop_in = true,
           .actiongroup_enabled = true,
-      }};
+      },
+      "",
+      "",
+      ""};
   root.rulesets.emplace_back(std::move(rs));
 
   IR::Ruleset dropin_rs;
@@ -818,7 +831,10 @@ TEST_F(DropInCompilerTest, PermissionDenied) {
           .disable_on_drop_in = false,
           .detectorgroups_enabled = false,
           .actiongroup_enabled = false,
-      }};
+      },
+      "",
+      "",
+      ""};
   root.rulesets.emplace_back(std::move(rs));
 
   IR::Ruleset dropin_rs;
@@ -846,7 +862,10 @@ TEST_F(DropInCompilerTest, RemoveDropIn) {
       "rs",
       {dg},
       {increment, increment},
-      IR::DropIn{.actiongroup_enabled = true}};
+      IR::DropIn{.actiongroup_enabled = true},
+      "",
+      "",
+      ""};
   root.rulesets.emplace_back(std::move(rs));
 
   // Drop in ruleset increments once
@@ -889,7 +908,10 @@ TEST_F(DropInCompilerTest, MultipleRulesetDropin) {
       IR::DropIn{
           .disable_on_drop_in = true,
           .actiongroup_enabled = true,
-      }};
+      },
+      "",
+      "",
+      ""};
   IR::Ruleset rs2{
       "rs2",
       {dg},
@@ -897,7 +919,10 @@ TEST_F(DropInCompilerTest, MultipleRulesetDropin) {
       IR::DropIn{
           .disable_on_drop_in = true,
           .actiongroup_enabled = true,
-      }};
+      },
+      "",
+      "",
+      ""};
   root.rulesets.emplace_back(std::move(rs));
   root.rulesets.emplace_back(std::move(rs2));
 
