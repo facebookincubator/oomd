@@ -231,7 +231,10 @@ class Fs {
       const DirFd& dirfd,
       int64_t value,
       std::chrono::microseconds duration);
-  static SystemMaybe<Unit> writeMemReclaimAt(const DirFd& dirfd, int64_t value);
+  static SystemMaybe<Unit> writeMemReclaimAt(
+      const DirFd& dirfd,
+      int64_t value,
+      std::optional<int64_t> swappiness);
 
   static SystemMaybe<int64_t> getNrDyingDescendantsAt(const DirFd& dirfd);
   static SystemMaybe<KillPreference> readKillPreferenceAt(const DirFd& path);

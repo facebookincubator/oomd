@@ -756,8 +756,14 @@ SystemMaybe<Unit> Fs::writeMemhightmpAt(
   return noSystemError();
 }
 
-SystemMaybe<Unit> Fs::writeMemReclaimAt(const DirFd& dirfd, int64_t value) {
+SystemMaybe<Unit> Fs::writeMemReclaimAt(
+    const DirFd& dirfd,
+    int64_t value,
+    std::optional<int64_t> swappiness) {
   auto val_str = std::to_string(value);
+  if (swappiness) {
+    val_str += " swappiness=" + std::to_string(*swappiness);
+  }
   auto ret = writeControlFileAt(
       Fs::Fd::openat(dirfd, kMemReclaimFile, false), val_str);
   if (!ret) {

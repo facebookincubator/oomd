@@ -477,10 +477,22 @@ TEST_F(FsTest, WriteMemoryReclaim) {
   F::materialize(F::makeDir(path, {F::makeFile("memory.reclaim")}));
 
   auto dir = ASSERT_SYS_OK(Fs::DirFd::open(path));
-  ASSERT_SYS_OK(Fs::writeMemReclaimAt(dir, 54321));
+  ASSERT_SYS_OK(Fs::writeMemReclaimAt(dir, 54321, std::nullopt));
   auto lines = ASSERT_SYS_OK(
       Fs::readFileByLine(Fs::Fd::openat(dir, Fs::kMemReclaimFile)));
   EXPECT_EQ(lines, std::vector{std::string("54321")});
+}
+
+TEST_F(FsTest, WriteMemoryReclaimWithSwappiness) {
+  using F = Fixture;
+  auto path = fixture_.cgroupDataDir() + "/write_test";
+  F::materialize(F::makeDir(path, {F::makeFile("memory.reclaim")}));
+
+  auto dir = ASSERT_SYS_OK(Fs::DirFd::open(path));
+  ASSERT_SYS_OK(Fs::writeMemReclaimAt(dir, 54321, 0));
+  auto lines = ASSERT_SYS_OK(
+      Fs::readFileByLine(Fs::Fd::openat(dir, Fs::kMemReclaimFile)));
+  EXPECT_EQ(lines, std::vector{std::string("54321 swappiness=0")});
 }
 
 TEST_F(FsTest, Swappiness) {
