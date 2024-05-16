@@ -1,0 +1,100 @@
+@generated SignedSource<<5d13b21f7d62653cb915aa1c8f76bbe0>>
+@codegen-command arc cfgen update-inputs fb-oomd
+{
+  "fqdn": "twshared2871.09.vll2.facebook.com",
+  "region": "newmexico",
+  "clusterType": "SERVICE_GENERIC_NON_MEMCACHE",
+  "modelId": 333376,
+  "kernelRelease": "6.4.3-0_fbk2_785_gacbb203ea6ff",
+  "serverType": "TYPE_I_WEB",
+  "experiments": [],
+  "cpuArchitecture": "skylakede",
+  "metalosRootfs": true,
+  "provisioningConfig": {
+    "ethtoolByInterface": {
+      "eth0": {
+        "maxChannelsCombined": 36
+      }
+    },
+    "cpuCoreCount": 18,
+    "parentModelId": 334303,
+    "recoveryEnvironment": false,
+    "deviceType": "SERVER",
+    "datacenter": "vll2",
+    "cluster": "09",
+    "memTotal": 66986205184,
+    "osVersion": {
+      "distribution_name": "CentOS Stream",
+      "version": 9,
+      "is_in_ramdisk": false,
+      "is_metalos": true,
+      "metalos_variant": "MclassicA"
+    },
+    "pciByAddress": {
+      "0000:02:00.0": {
+        "vendor_id": 5555,
+        "device_id": 4117,
+        "class_code": 131072,
+        "board_part_number": "MCX4431N-GCAN_FB"
+      }
+    },
+    "static_smc_tiers": [],
+    "machine": "x86_64"
+  },
+  "bootConfig": {
+    "ethtoolByInterface": {
+      "eth0": {
+        "driver": "mlx5_core",
+        "driver_version": "6.4.3-0_fbk2_785_gacbb203ea6ff",
+        "firmware_version": "14.32.1206 (FB_0000000006)",
+        "bus_info": "0000:02:00.0"
+      }
+    }
+  },
+  "runtimeConfig": {
+    "hasHighPrivCert": true,
+    "regionRoutableCluster": "vll1.02",
+    "metalos_apis": {
+      "EFI_MOUNT": 1,
+      "GENERATORS": 1,
+      "KDUMP_SUBVOL": 1,
+      "NETCONSOLE": 1,
+      "NETWORKD_ROUTES_IGNORE": 1,
+      "NETWORK_MAX_BUFFER_SIZE": 1,
+      "SERVICE_IMAGE_GC": 1,
+      "SERVICE_IMAGE_HELPER": 1,
+      "SYSTEMD_KEXEC_LOAD": 1,
+      "TMP_SUBVOL": 2,
+      "TW_RESCTRL_MOUNT": 1,
+      "TW_SUBVOL": 1
+    },
+    "block_devices": {
+      "block_devices": {
+        "nvme0n1": {
+          "size_bytes": 256055095296,
+          "is_rotational": false,
+          "model": "WDC CL SN720 SDAQNTW-512G-1020",
+          "serial": "193451801938",
+          "physical_block_size": 512,
+          "logical_block_size": 512,
+          "is_root": true
+        }
+      }
+    },
+    "dynamic_smc_tiers": [],
+    "cluster_state": "CLUSTER_IN_USE",
+    "installed_platforms": [
+      "platform009",
+      "platform010",
+      "platform010-compat"
+    ],
+    "device_nics_enum": [
+      "ETH0",
+      "SVC0"
+    ]
+  },
+  "reservationConfig": {
+    "active_machine_materialization_id": "c090faf2-c3af-4d9a-8960-ceade9e22133",
+    "current_reservation_host_profile_id": "KERNEL:kernel_6.4.3-0_fbk2_785_gacbb203ea6ff_base.v0|KERNEL_ARGS:kargs_default.v2|BOOT_CONFIG:bootloader692_initrd208_swap16G_native_arch"
+  }
+}

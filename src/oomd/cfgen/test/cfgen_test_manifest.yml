@@ -1,0 +1,13 @@
+# Usage:
+# - Run tests:
+#   `arc cfgen test fb-oomd`
+# - Update test result snapshots.
+#   You're usually going to need it when you change the cfgen.
+#   Make sure to verify that the generated changes look as expected.
+#   `arc cfgen update-outputs fb-oomd`
+# - Update test input host-snapshots.
+#   You're only going to need it in rare cases, e.g. when new samples are added.
+#   `arc cfgen ui fb-oomd --remcmd-use-globalcert`
+library_samples:
+  - twshared_vll_shard00
+  # Add more samples from https://fburl.com/code/vjwmkoa1 if needed

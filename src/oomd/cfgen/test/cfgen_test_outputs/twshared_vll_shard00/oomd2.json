@@ -1,0 +1,53 @@
+@generated SignedSource<<7b1dcf1161e9e588cd517eda2cff10b0>>
+@codegen-command arc cfgen update-outputs fb-oomd
+{
+  "rulesets": [
+    {
+      "name": "system_overview",
+      "silence-logs": "engine",
+      "detectors": [
+        [
+          "records system stats",
+          {
+            "name": "dump_cgroup_overview",
+            "args": {
+              "cgroup": "workload.slice"
+            }
+          }
+        ]
+      ],
+      "actions": [
+        {
+          "name": "continue",
+          "args": {}
+        }
+      ]
+    },
+    {
+      "name": "restart smc_proxy.service on memory threshold",
+      "detectors": [
+        [
+          "memory usage above",
+          {
+            "name": "memory_above",
+            "args": {
+              "cgroup": "smc_proxy.service",
+              "threshold_anon": "10G",
+              "duration": "10"
+            }
+          }
+        ]
+      ],
+      "actions": [
+        {
+          "name": "systemd_restart",
+          "args": {
+            "service": "smc_proxy.service",
+            "post_action_delay": "20",
+            "dry": "false"
+          }
+        }
+      ]
+    }
+  ]
+}
