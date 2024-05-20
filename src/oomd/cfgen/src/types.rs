@@ -7,6 +7,7 @@ pub enum HostType {
     Default,
     ShellServer,
     OnDemand,
+    TwShared,
 }
 
 pub struct ConfigParams {
@@ -15,10 +16,11 @@ pub struct ConfigParams {
     pub oomd2: Oomd2Attributes,
     pub devserver: DevServerAttributes,
     pub senpai: SenpaiAttributes,
+    pub disable_senpai_dropin: bool,
 }
 
 pub struct FBTax2Attributes {
-    pub blacklisted_jobs: Vec<String>,
+    pub blacklisted_jobs: Vec<&'static str>,
     pub on_ssd: bool,
     pub io_latency_supported: bool,
     pub io_cost_supported: bool,

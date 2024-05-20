@@ -1,9 +1,9 @@
-@generated SignedSource<<7b1dcf1161e9e588cd517eda2cff10b0>>
+@generated SignedSource<<f3c4897c29db302ec5d910325d1d9af4>>
 @codegen-command arc cfgen update-outputs fb-oomd
 {
   "rulesets": [
     {
-      "name": "system_overview",
+      "name": "system overview",
       "silence-logs": "engine",
       "detectors": [
         [
@@ -32,7 +32,7 @@
             "name": "memory_above",
             "args": {
               "cgroup": "smc_proxy.service",
-              "threshold_anon": "10G",
+              "threshold_anon": "15G",
               "duration": "10"
             }
           }
@@ -48,6 +48,155 @@
           }
         }
       ]
+    },
+    {
+      "name": "protection against heavy workload thrashing",
+      "drop-in": {
+        "disable-on-drop-in": true,
+        "detectors": true,
+        "actions": true
+      },
+      "detectors": [
+        [
+          "sustained high workload memory pressure",
+          {
+            "name": "exists",
+            "args": {
+              "cgroup": "workload.slice/workload-tw.slice/sigrid_online_trainer*,workload.slice/workload-tw.slice/*.reservation.slice/sigrid_online_trainer*,workload.slice/workload-tw.slice/*.allotment.slice/sigrid_online_trainer*,workload.slice/workload-tw.slice/analyzer*,workload.slice/workload-tw.slice/*.reservation.slice/analyzer*,workload.slice/workload-tw.slice/*.allotment.slice/analyzer*,workload.slice/workload-tw.slice/bumblebee.*,workload.slice/workload-tw.slice/*.reservation.slice/bumblebee.*,workload.slice/workload-tw.slice/*.allotment.slice/bumblebee.*",
+              "negate": true
+            }
+          },
+          {
+            "name": "pressure_above",
+            "args": {
+              "cgroup": "workload.slice/workload-tw.slice",
+              "resource": "memory",
+              "threshold": "80",
+              "duration": "180"
+            }
+          },
+          {
+            "name": "memory_reclaim",
+            "args": {
+              "cgroup": "workload.slice/workload-tw.slice",
+              "duration": "10"
+            }
+          }
+        ]
+      ],
+      "actions": [
+        {
+          "name": "kill_by_pg_scan",
+          "args": {
+            "cgroup": "workload.slice/workload-tw.slice/*",
+            "recursive": "true"
+          }
+        }
+      ]
+    },
+    {
+      "name": "protection against low swap",
+      "detectors": [
+        [
+          "free swap goes below 10 percent",
+          {
+            "name": "exists",
+            "args": {
+              "cgroup": "workload.slice/workload-tw.slice/sigrid_online_trainer*,workload.slice/workload-tw.slice/*.reservation.slice/sigrid_online_trainer*,workload.slice/workload-tw.slice/*.allotment.slice/sigrid_online_trainer*,workload.slice/workload-tw.slice/analyzer*,workload.slice/workload-tw.slice/*.reservation.slice/analyzer*,workload.slice/workload-tw.slice/*.allotment.slice/analyzer*,workload.slice/workload-tw.slice/bumblebee.*,workload.slice/workload-tw.slice/*.reservation.slice/bumblebee.*,workload.slice/workload-tw.slice/*.allotment.slice/bumblebee.*",
+              "negate": true
+            }
+          },
+          {
+            "name": "swap_free",
+            "args": {
+              "threshold_pct": "10"
+            }
+          }
+        ]
+      ],
+      "actions": [
+        {
+          "name": "kill_by_swap_usage",
+          "args": {
+            "cgroup": "system.slice/*,workload.slice/workload-wdb.slice/*,workload.slice/workload-tw.slice/*",
+            "biased_swap_kill": "true",
+            "recursive": "true"
+          }
+        }
+      ]
+    },
+    {
+      "name": "senpai ruleset",
+      "silence-logs": "engine",
+      "detectors": [
+        [
+          "continue detector group",
+          {
+            "name": "continue",
+            "args": {}
+          }
+        ]
+      ],
+      "actions": [
+        {
+          "name": "senpai_poking",
+          "args": {
+            "io_pressure_pct": "1.0",
+            "memory_high_timeout_ms": "20",
+            "scuba_logger_dataset": "perfpipe_senpai_events",
+            "limit_min_bytes": "104857600",
+            "cgroup": "system.slice,workload.slice/workload-wdb.slice,hostcritical.slice,workload.slice/workload-wdb.slice/*,hostcritical.slice/*"
+          }
+        }
+      ]
+    },
+    {
+      "name": "senpai drop-in ruleset",
+      "silence-logs": "engine",
+      "drop-in": {
+        "actions": true,
+        "disable-on-drop-in": true
+      },
+      "detectors": [
+        [
+          "continue detector group",
+          {
+            "name": "continue",
+            "args": {}
+          }
+        ]
+      ],
+      "actions": [
+        {
+          "name": "continue",
+          "args": {}
+        }
+      ]
+    },
+    {
+      "name": "tw_container drop-in ruleset",
+      "prekill_hook_timeout": "45",
+      "drop-in": {
+        "detectors": true,
+        "actions": true,
+        "disable-on-drop-in": true
+      },
+      "detectors": [
+        [
+          "continue",
+          {
+            "name": "stop",
+            "args": {}
+          }
+        ]
+      ],
+      "actions": [
+        {
+          "name": "continue",
+          "args": {}
+        }
+      ]
     }
-  ]
+  ],
+  "version": "1.0.0"
 }
