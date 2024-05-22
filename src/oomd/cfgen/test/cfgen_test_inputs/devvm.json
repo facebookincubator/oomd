@@ -1,0 +1,85 @@
+@generated SignedSource<<a0b9ff8a6a1b096881c6f45b66fb9c8e>>
+@codegen-command arc cfgen update-inputs fb-oomd
+{
+  "fqdn": "devvm3170.cln0.facebook.com",
+  "region": "ireland",
+  "clusterType": "DEV",
+  "modelId": 4077,
+  "kernelRelease": "5.19.0-0_fbk11_hardened_11538_g61e82533119f",
+  "serverType": "TYPE_VIRTUAL_MACHINE",
+  "experiments": [],
+  "cpuArchitecture": "",
+  "metalosRootfs": false,
+  "provisioningConfig": {
+    "ethtoolByInterface": {
+      "eth0": {
+        "maxChannelsCombined": 8
+      }
+    },
+    "cpuCoreCount": 72,
+    "parentModelId": 333282,
+    "recoveryEnvironment": false,
+    "deviceType": "SERVER",
+    "datacenter": "cln0",
+    "cluster": "01",
+    "memTotal": 240305004544,
+    "osVersion": {
+      "distribution_name": "CentOS Stream release",
+      "version": 9,
+      "is_in_ramdisk": false,
+      "is_metalos": false
+    },
+    "pciByAddress": {
+      "0000:00:02.0": {
+        "vendor_id": 6900,
+        "device_id": 4096,
+        "class_code": 131072
+      }
+    },
+    "static_smc_tiers": [],
+    "machine": "x86_64"
+  },
+  "bootConfig": {
+    "ethtoolByInterface": {
+      "eth0": {
+        "driver": "virtio_net",
+        "driver_version": "1.0.0",
+        "firmware_version": "",
+        "bus_info": "0000:00:02.0"
+      }
+    }
+  },
+  "runtimeConfig": {
+    "hasHighPrivCert": true,
+    "regionRoutableCluster": "cln1.02",
+    "block_devices": {
+      "block_devices": {
+        "vda": {
+          "vendor": "0x1af4",
+          "size_bytes": 1717986918400,
+          "is_rotational": true,
+          "physical_block_size": 512,
+          "logical_block_size": 512,
+          "is_root": true
+        }
+      }
+    },
+    "dynamic_smc_tiers": [],
+    "cluster_state": "CLUSTER_IN_USE",
+    "installed_platforms": [
+      "platform009",
+      "platform010",
+      "platform010-aarch64",
+      "platform010-compat"
+    ],
+    "device_nics_enum": [
+      "ETH0",
+      "ETH1",
+      "SVC0"
+    ]
+  },
+  "reservationConfig": {
+    "active_machine_materialization_id": "",
+    "current_reservation_host_profile_id": "NEWLY_PROVISIONED_PROFILE"
+  }
+}

@@ -7,9 +7,15 @@ mod types;
 use libcfgen::prelude::*;
 use types::*;
 
+const CONFIG_VERSION: &str = "1.0.0";
+
 fn oomd_json(node: &Node) -> json::JsonValue {
     let attrs = get_attributes(node);
-    default_json_config(&attrs)
+    match attrs.host_type {
+        HostType::DevServer => devserver_json_config(node, &attrs),
+        HostType::OnDemand => od_json_config(&attrs),
+        _ => default_json_config(&attrs),
+    }
     // TODO(chengxiong) add other templates
 }
 
@@ -29,24 +35,45 @@ fn default_json_config(attrs: &ConfigParams) -> json::JsonValue {
         rulesets.push(rule_protection_against_wdb_io_thrashing(attrs));
     }
     if !attrs.fbtax2.disable_swap_protection {
-        rulesets.push(rule_protection_against_low_swap(attrs));
+        rulesets.push(rule_fbtax2_protection_against_low_swap(attrs));
     }
     if attrs.senpai.target.is_some() {
         rulesets.push(rule_senpai_ruleset(attrs));
     }
     rulesets.append(&mut attrs.fbtax2.oomd_extra_rulesets.clone());
     rulesets.push(rule_senpai_drop_in_ruleset(attrs));
-    rulesets.push(rule_tw_container_drop_in_ruleset());
+    rulesets.push(rule_tw_container_drop_in_ruleset(attrs));
 
     // TODO(chengxiong): add more rule sections
     json::object! {
       "rulesets": rulesets,
-      "version": "1.0.0",
+      "version": CONFIG_VERSION,
     }
 }
 
+fn devserver_json_config(node: &Node, attrs: &ConfigParams) -> json::JsonValue {
+    let mut rulesets = json::Array::new();
+    rulesets.push(rule_system_overview(attrs));
+    rulesets.push(rule_user_session_protection(node, attrs));
+    if !attrs.oomd2.disable_swap_protection {
+        rulesets.push(rule_oomd2_protection_against_low_swap(attrs));
+    }
+    rulesets.push(rule_senpai_drop_in_ruleset(attrs));
+    rulesets.append(&mut rules_restart_cgroup_on_mem_threshold(attrs));
+    rulesets.push(rule_tw_container_drop_in_ruleset(attrs));
+    json::object! {
+      "rulesets": rulesets,
+      "version": CONFIG_VERSION,
+    }
+}
+
+fn od_json_config(_attrs: &ConfigParams) -> json::JsonValue {
+    // TODO(chengxiong): implement this.
+    json::object! {}
+}
+
 fn rule_system_overview(attrs: &ConfigParams) -> json::JsonValue {
-    let cgroup = if [HostType::ShellServer, HostType::OnDemand].contains(&attrs.host_type) {
+    let cgroup = if [HostType::DevServer, HostType::OnDemand].contains(&attrs.host_type) {
         attrs.oomd2.oomd_target.as_str()
     } else {
         "workload.slice"
@@ -288,7 +315,7 @@ fn rule_protection_against_wdb_io_thrashing(attrs: &ConfigParams) -> json::JsonV
     }
 }
 
-fn rule_protection_against_low_swap(attrs: &ConfigParams) -> json::JsonValue {
+fn rule_fbtax2_protection_against_low_swap(attrs: &ConfigParams) -> json::JsonValue {
     let mut detector = json::array! {
           format!("free swap goes below {} percent", attrs.fbtax2.low_swap_threshold)
     };
@@ -316,6 +343,33 @@ fn rule_protection_against_low_swap(attrs: &ConfigParams) -> json::JsonValue {
             "cgroup": "system.slice/*,workload.slice/workload-wdb.slice/*,workload.slice/workload-tw.slice/*",
             "biased_swap_kill": "true",
             "recursive": "true",
+          }
+        }
+      ]
+    }
+}
+
+fn rule_oomd2_protection_against_low_swap(attrs: &ConfigParams) -> json::JsonValue {
+    json::object! {
+      "name": "protection against low swap",
+      "detectors": [
+        [
+          format!("free swap goes below {}%", attrs.oomd2.swap_protection_detect_threshold),
+          {
+            "name": "swap_free",
+            "args": {
+              "threshold_pct": attrs.oomd2.swap_protection_detect_threshold.as_str(),
+            }
+          }
+        ]
+      ],
+      "actions": [
+        {
+          "name": "kill_by_swap_usage",
+          "args": {
+            "cgroup": attrs.oomd2.kill_target.as_str(),
+            "threshold": attrs.oomd2.swap_protection_kill_threshold.as_str(),
+            "recursive": true,
           }
         }
       ]
@@ -399,10 +453,9 @@ fn rule_senpai_drop_in_ruleset(attrs: &ConfigParams) -> json::JsonValue {
     }
 }
 
-fn rule_tw_container_drop_in_ruleset() -> json::JsonValue {
-    json::object! {
+fn rule_tw_container_drop_in_ruleset(attrs: &ConfigParams) -> json::JsonValue {
+    let mut rule = json::object! {
       "name": "tw_container drop-in ruleset",
-      "prekill_hook_timeout": "45",
       "drop-in": {
           "detectors": true,
           "actions": true,
@@ -423,6 +476,93 @@ fn rule_tw_container_drop_in_ruleset() -> json::JsonValue {
               "args": {}
           }
       ],
+    };
+
+    if attrs.host_type != HostType::DevServer {
+        rule["prekill_hook_timeout"] = json::JsonValue::String(String::from("45"));
+    }
+
+    rule
+}
+
+fn rule_user_session_protection(node: &Node, attrs: &ConfigParams) -> json::JsonValue {
+    let mut user_pressure_detector = json::array! {
+      format!("user pressure above {} for 300s", attrs.devserver.user_mempress),
+      {
+        "name": "pressure_above",
+        "args": {
+          "cgroup": "user.slice,workload.slice,www.slice",
+          "resource": "memory",
+          "threshold": attrs.devserver.user_mempress.as_str(),
+          "duration": "300",
+        }
+      },
+    };
+
+    let mut system_pressure_detector = json::array! {
+      format!("system pressure above {} for 300s", attrs.devserver.system_mempress),
+      {
+        "name": "pressure_above",
+        "args": {
+          "cgroup": "system.slice",
+          "resource": "memory",
+          "threshold": attrs.devserver.system_mempress.as_str(),
+          "duration": "300"
+        },
+      }
+    };
+
+    if node.in_dynamic_smc_tier("devbig") {
+        _ = user_pressure_detector.push(json::object! {
+        "name": "nr_dying_descendants",
+        "args": {
+            "cgroup": "/",
+            "count": "30000",
+            "lte": "true"
+        }
+        });
+
+        _ = system_pressure_detector.push(json::object! {
+          "name": "nr_dying_descendants",
+          "args": {
+              "cgroup": "/",
+              "count": "30000",
+              "lte": "true"
+          }
+        });
+    }
+
+    _ = user_pressure_detector.push(json::object! {
+        "name": "memory_reclaim",
+        "args": {
+            "cgroup": "user.slice,workload.slice,www.slice",
+            "duration": "30"
+        }
+    });
+
+    _ = system_pressure_detector.push(json::object! {
+      "name": "memory_reclaim",
+      "args": {
+          "cgroup": "system.slice",
+          "duration": "30"
+      }
+    });
+
+    json::object! {
+      "name": "user session protection",
+      "detectors": [
+        user_pressure_detector,
+        system_pressure_detector,
+      ],
+      "actions": [
+        {
+          "name": "kill_by_memory_size_or_growth",
+          "args": {
+            "cgroup": attrs.oomd2.kill_target.as_str(),
+            "recursive": true,
+          }
+        }
+      ]
     }
 }
 
@@ -445,6 +585,7 @@ fn get_attributes(node: &Node) -> ConfigParams {
         oomd2: Oomd2Attributes {
             blacklisted_jobs: Vec::new(),
             disable_swap_protection: false,
+            kill_target: String::from("user.slice/,system.slice/,workload.slice/,www.slice/"),
             plugins: convert_args!(btreemap!(
               "pressure_above" => "pressure_above",
               "pressure_rising_beyond" => "pressure_rising_beyond",
@@ -467,10 +608,14 @@ fn get_attributes(node: &Node) -> ConfigParams {
             oomd_restart_threshold: oomd2_oomd_restart_threshold(),
             oomd_reclaim_duation: String::from("10"),
             oomd_post_action_delay: String::from("15"),
+            swap_protection_detect_threshold: String::from("5"),
+            swap_protection_kill_threshold: String::from("5"),
         },
         devserver: DevServerAttributes {
-            user_mempress: String::from("60"),
-            system_mempress: String::from("80"),
+            // TODO(chengxiong): add overriding logic for user_mempress and system_mempress.
+            // Like this: https://fburl.com/code/rjcg895c
+            user_mempress: String::from("40"),
+            system_mempress: String::from("60"),
         },
         senpai: SenpaiAttributes {
             silence_logs: String::from("engine"),
@@ -567,6 +712,10 @@ fn get_host_type(node: &Node) -> HostType {
     if node.hostname_prefix() == "twshared".into() {
         return HostType::TwShared;
     }
+
+    if node.is_devserver() {
+        return HostType::DevServer;
+    }
     HostType::Default
 }
 
@@ -586,6 +735,7 @@ mod tests {
 
     #[rstest]
     #[case::shard99("twshared2434.02.cco1", HostType::TwShared)]
+    #[case::shard99("devvm3170.cln0", HostType::DevServer)]
     fn test_get_host_type(#[case] hostname: &str, #[case] expected: HostType) {
         let node = FakeNodeBuilder::new().hostname(hostname).build();
         assert_eq!(get_host_type(&node), expected);

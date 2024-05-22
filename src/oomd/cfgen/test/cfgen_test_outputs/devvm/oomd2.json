@@ -1,0 +1,176 @@
+@generated SignedSource<<b80e72a1607c6443250e949f4e5f62c1>>
+@codegen-command arc cfgen update-outputs fb-oomd
+{
+  "rulesets": [
+    {
+      "name": "system overview",
+      "silence-logs": "engine",
+      "detectors": [
+        [
+          "records system stats",
+          {
+            "name": "dump_cgroup_overview",
+            "args": {
+              "cgroup": "system.slice"
+            }
+          }
+        ]
+      ],
+      "actions": [
+        {
+          "name": "continue",
+          "args": {}
+        }
+      ]
+    },
+    {
+      "name": "user session protection",
+      "detectors": [
+        [
+          "user pressure above 40 for 300s",
+          {
+            "name": "pressure_above",
+            "args": {
+              "cgroup": "user.slice,workload.slice,www.slice",
+              "resource": "memory",
+              "threshold": "40",
+              "duration": "300"
+            }
+          },
+          {
+            "name": "memory_reclaim",
+            "args": {
+              "cgroup": "user.slice,workload.slice,www.slice",
+              "duration": "30"
+            }
+          }
+        ],
+        [
+          "system pressure above 60 for 300s",
+          {
+            "name": "pressure_above",
+            "args": {
+              "cgroup": "system.slice",
+              "resource": "memory",
+              "threshold": "60",
+              "duration": "300"
+            }
+          },
+          {
+            "name": "memory_reclaim",
+            "args": {
+              "cgroup": "system.slice",
+              "duration": "30"
+            }
+          }
+        ]
+      ],
+      "actions": [
+        {
+          "name": "kill_by_memory_size_or_growth",
+          "args": {
+            "cgroup": "user.slice/,system.slice/,workload.slice/,www.slice/",
+            "recursive": true
+          }
+        }
+      ]
+    },
+    {
+      "name": "protection against low swap",
+      "detectors": [
+        [
+          "free swap goes below 5%",
+          {
+            "name": "swap_free",
+            "args": {
+              "threshold_pct": "5"
+            }
+          }
+        ]
+      ],
+      "actions": [
+        {
+          "name": "kill_by_swap_usage",
+          "args": {
+            "cgroup": "user.slice/,system.slice/,workload.slice/,www.slice/",
+            "threshold": "5",
+            "recursive": true
+          }
+        }
+      ]
+    },
+    {
+      "name": "senpai drop-in ruleset",
+      "silence-logs": "engine",
+      "drop-in": {
+        "actions": true,
+        "disable-on-drop-in": true
+      },
+      "detectors": [
+        [
+          "continue detector group",
+          {
+            "name": "continue",
+            "args": {}
+          }
+        ]
+      ],
+      "actions": [
+        {
+          "name": "continue",
+          "args": {}
+        }
+      ]
+    },
+    {
+      "name": "restart smc_proxy.service on memory threshold",
+      "detectors": [
+        [
+          "memory usage above",
+          {
+            "name": "memory_above",
+            "args": {
+              "cgroup": "smc_proxy.service",
+              "threshold_anon": "15G",
+              "duration": "10"
+            }
+          }
+        ]
+      ],
+      "actions": [
+        {
+          "name": "systemd_restart",
+          "args": {
+            "service": "smc_proxy.service",
+            "post_action_delay": "20",
+            "dry": "false"
+          }
+        }
+      ]
+    },
+    {
+      "name": "tw_container drop-in ruleset",
+      "drop-in": {
+        "detectors": true,
+        "actions": true,
+        "disable-on-drop-in": true
+      },
+      "detectors": [
+        [
+          "continue",
+          {
+            "name": "stop",
+            "args": {}
+          }
+        ]
+      ],
+      "actions": [
+        {
+          "name": "continue",
+          "args": {}
+        }
+      ]
+    }
+  ],
+  "version": "1.0.0"
+}

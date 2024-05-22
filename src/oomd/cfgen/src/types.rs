@@ -5,7 +5,7 @@ use libcfgen::prelude::json::JsonValue;
 #[derive(Debug, PartialEq, Eq)]
 pub enum HostType {
     Default,
-    ShellServer,
+    DevServer,
     OnDemand,
     TwShared,
 }
@@ -36,6 +36,7 @@ pub struct FBTax2Attributes {
 pub struct Oomd2Attributes {
     pub blacklisted_jobs: Vec<String>,
     pub disable_swap_protection: bool,
+    pub kill_target: String,
     pub plugins: BTreeMap<String, String>,
     pub oomd_dry: bool,
     pub oomd_disable_on_drop_in: bool,
@@ -49,6 +50,8 @@ pub struct Oomd2Attributes {
     pub oomd_restart_threshold: BTreeMap<String, OomdRestartThreshold>,
     pub oomd_reclaim_duation: String,
     pub oomd_post_action_delay: String,
+    pub swap_protection_detect_threshold: String,
+    pub swap_protection_kill_threshold: String,
 }
 
 pub struct DevServerAttributes {

@@ -9,5 +9,6 @@
 #   You're only going to need it in rare cases, e.g. when new samples are added.
 #   `arc cfgen ui fb-oomd --remcmd-use-globalcert`
 library_samples:
+  - devvm
   - twshared_vll_shard00
   # Add more samples from https://fburl.com/code/vjwmkoa1 if needed

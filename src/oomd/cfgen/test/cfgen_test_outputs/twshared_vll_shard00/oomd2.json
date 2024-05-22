@@ -1,4 +1,4 @@
-@generated SignedSource<<f3c4897c29db302ec5d910325d1d9af4>>
+@generated SignedSource<<f4f680533122dcfe6412f990f736c15d>>
 @codegen-command arc cfgen update-outputs fb-oomd
 {
   "rulesets": [
@@ -175,7 +175,6 @@
     },
     {
       "name": "tw_container drop-in ruleset",
-      "prekill_hook_timeout": "45",
       "drop-in": {
         "detectors": true,
         "actions": true,
@@ -195,7 +194,8 @@
           "name": "continue",
           "args": {}
         }
-      ]
+      ],
+      "prekill_hook_timeout": "45"
     }
   ],
   "version": "1.0.0"
