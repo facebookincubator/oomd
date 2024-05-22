@@ -1,0 +1,169 @@
+@generated SignedSource<<60b23c1a40e237850d38e23d98d5a1bb>>
+@codegen-command arc cfgen update-outputs fb-oomd
+{
+  "rulesets": [
+    {
+      "name": "system overview",
+      "silence-logs": "engine",
+      "detectors": [
+        [
+          "records system stats",
+          {
+            "name": "dump_cgroup_overview",
+            "args": {
+              "cgroup": "system.slice,workload.slice/workload-tw.slice/quicksand*.service"
+            }
+          }
+        ]
+      ],
+      "actions": [
+        {
+          "name": "continue",
+          "args": {}
+        }
+      ],
+      "drop-in": {
+        "detectors": true,
+        "actions": true
+      }
+    },
+    {
+      "name": "protection against high memory pressure",
+      "drop-in": {
+        "detectors": true,
+        "actions": true,
+        "disable-on-drop-in": true
+      },
+      "detectors": [
+        [
+          "detects fast growing memory pressure",
+          {
+            "name": "pressure_above",
+            "args": {
+              "cgroup": "system.slice,workload.slice/workload-tw.slice/quicksand*.service",
+              "resource": "memory",
+              "threshold": "80",
+              "duration": "60"
+            }
+          },
+          {
+            "name": "memory_reclaim",
+            "args": {
+              "cgroup": "system.slice,workload.slice/workload-tw.slice/quicksand*.service",
+              "duration": "10"
+            }
+          }
+        ],
+        [
+          "detects slow growing memory pressure",
+          {
+            "name": "pressure_rising_beyond",
+            "args": {
+              "cgroup": "system.slice,workload.slice/workload-tw.slice/quicksand*.service",
+              "resource": "memory",
+              "threshold": "60",
+              "duration": "90"
+            }
+          },
+          {
+            "name": "memory_reclaim",
+            "args": {
+              "cgroup": "system.slice,workload.slice/workload-tw.slice/quicksand*.service",
+              "duration": "10"
+            }
+          }
+        ]
+      ],
+      "actions": [
+        {
+          "name": "kill_by_memory_size_or_growth",
+          "args": {
+            "cgroup": "system.slice/*",
+            "dry": "true"
+          }
+        }
+      ]
+    },
+    {
+      "name": "restart smc_proxy.service on memory threshold",
+      "detectors": [
+        [
+          "memory usage above",
+          {
+            "name": "memory_above",
+            "args": {
+              "cgroup": "smc_proxy.service",
+              "threshold_anon": "15G",
+              "duration": "10"
+            }
+          }
+        ]
+      ],
+      "actions": [
+        {
+          "name": "systemd_restart",
+          "args": {
+            "service": "smc_proxy.service",
+            "post_action_delay": "20",
+            "dry": "false"
+          }
+        }
+      ]
+    },
+    {
+      "name": "senpai drop-in ruleset",
+      "silence-logs": "engine,plugins",
+      "drop-in": {
+        "actions": true,
+        "disable-on-drop-in": true
+      },
+      "detectors": [
+        [
+          "stop detector group",
+          {
+            "name": "exists",
+            "args": {
+              "cgroup": "/",
+              "negate": true
+            }
+          }
+        ]
+      ],
+      "actions": [
+        {
+          "name": "continue",
+          "args": {}
+        }
+      ]
+    },
+    {
+      "name": "protection against low swap",
+      "drop-in": {
+        "detectors": true,
+        "actions": true,
+        "disable-on-drop-in": true
+      },
+      "detectors": [
+        [
+          "free swap goes below 5 percent",
+          {
+            "name": "swap_free",
+            "args": {
+              "threshold_pct": "5"
+            }
+          }
+        ]
+      ],
+      "actions": [
+        {
+          "name": "kill_by_swap_usage",
+          "args": {
+            "cgroup": "system.slice/*",
+            "dry": "true"
+          }
+        }
+      ]
+    }
+  ],
+  "version": "1.0.0"
+}

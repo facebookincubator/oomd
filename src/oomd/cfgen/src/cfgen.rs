@@ -67,18 +67,20 @@ fn devserver_json_config(node: &Node, attrs: &ConfigParams) -> json::JsonValue {
     }
 }
 
-fn od_json_config(_attrs: &ConfigParams) -> json::JsonValue {
-    // TODO(chengxiong): implement this.
-    json::object! {}
+fn od_json_config(attrs: &ConfigParams) -> json::JsonValue {
+    let mut rulesets = json::Array::new();
+    rulesets.push(rule_system_overview(attrs));
+    rulesets.push(rule_protection_against_high_memory_pressure(attrs));
+    rulesets.append(&mut rules_restart_cgroup_on_mem_threshold(attrs));
+    rulesets.push(rule_senpai_drop_in_ruleset(attrs));
+    rulesets.push(rule_od_protection_against_low_swap(attrs));
+    json::object! {
+      "rulesets": rulesets,
+      "version": CONFIG_VERSION,
+    }
 }
 
 fn rule_system_overview(attrs: &ConfigParams) -> json::JsonValue {
-    let cgroup = if [HostType::DevServer, HostType::OnDemand].contains(&attrs.host_type) {
-        attrs.oomd2.oomd_target.as_str()
-    } else {
-        "workload.slice"
-    };
-
     let mut rule = json::object! {
         "name": "system overview",
         "silence-logs": "engine",
@@ -88,7 +90,7 @@ fn rule_system_overview(attrs: &ConfigParams) -> json::JsonValue {
                 {
                     "name": "dump_cgroup_overview",
                     "args": {
-                        "cgroup": cgroup,
+                        "cgroup": attrs.oomd2.oomd_target.as_str(),
                     }
                 }
             ]
@@ -243,7 +245,7 @@ fn rule_protection_against_heavy_workload_thrashing_detectors(
     }
 
     _ = slow_growing_mem_pressure_detector.push(json::object! {
-      "name": "pressure_rising_beyong",
+      "name": "pressure_rising_beyond",
       "args": {
         "cgroup": attrs.fbtax2.workload_monitoring_slice.as_str(),
         "resource": "memory",
@@ -416,7 +418,7 @@ fn rule_senpai_ruleset(attrs: &ConfigParams) -> json::JsonValue {
 fn rule_senpai_drop_in_ruleset(attrs: &ConfigParams) -> json::JsonValue {
     json::object! {
       "name": "senpai drop-in ruleset",
-      "silence-logs": "engine",
+      "silence-logs": if attrs.host_type == HostType::OnDemand {"engine,plugins"} else {"engine"},
       "drop-in": {
         "actions": true,
         "disable-on-drop-in": true,
@@ -566,6 +568,97 @@ fn rule_user_session_protection(node: &Node, attrs: &ConfigParams) -> json::Json
     }
 }
 
+fn rule_protection_against_high_memory_pressure(attrs: &ConfigParams) -> json::JsonValue {
+    json::object! {
+      "name": "protection against high memory pressure",
+      "drop-in": {
+        "detectors": true,
+        "actions": true,
+        "disable-on-drop-in": attrs.oomd2.oomd_disable_on_drop_in,
+      },
+      "detectors": [
+        [
+          "detects fast growing memory pressure",
+          {
+            "name": attrs.oomd2.plugins["pressure_above"].as_str(),
+            "args": {
+              "cgroup": attrs.oomd2.oomd_target.as_str(),
+              "resource": "memory",
+              "threshold": attrs.oomd2.oomd_high_threshold.as_str(),
+              "duration": attrs.oomd2.oomd_high_threshold_duration.as_str(),
+            }
+          },
+          {
+            "name": attrs.oomd2.plugins["memory_reclaim"].as_str(),
+            "args": {
+              "cgroup": attrs.oomd2.oomd_target.as_str(),
+              "duration": attrs.oomd2.oomd_reclaim_duation.as_str(),
+            }
+          }
+        ],
+        [
+          "detects slow growing memory pressure",
+          {
+            "name": attrs.oomd2.plugins["pressure_rising_beyond"].as_str(),
+            "args": {
+              "cgroup": attrs.oomd2.oomd_target.as_str(),
+              "resource": "memory",
+              "threshold": attrs.oomd2.oomd_threshold.as_str(),
+              "duration": attrs.oomd2.oomd_threshold_duration.as_str(),
+            }
+          },
+          {
+            "name": attrs.oomd2.plugins["memory_reclaim"].as_str(),
+            "args": {
+              "cgroup": attrs.oomd2.oomd_target.as_str(),
+              "duration": attrs.oomd2.oomd_reclaim_duation.as_str(),
+            }
+          }
+        ]
+      ],
+      "actions": [
+        {
+          "name": attrs.oomd2.plugins["kill_by_memory_size_or_growth"].as_str(),
+          "args": {
+            "cgroup": attrs.oomd2.oomd_action_target.as_str(),
+            "dry": if attrs.oomd2.oomd_dry { "true" } else {"false"},
+          }
+        }
+      ]
+    }
+}
+
+fn rule_od_protection_against_low_swap(attrs: &ConfigParams) -> json::JsonValue {
+    json::object! {
+      "name": "protection against low swap",
+      "drop-in": {
+        "detectors": true,
+        "actions": true,
+        "disable-on-drop-in": attrs.oomd2.oomd_disable_on_drop_in,
+      },
+      "detectors": [
+        [
+          "free swap goes below 5 percent",
+          {
+            "name": attrs.oomd2.plugins["swap_free"].as_str(),
+            "args": {
+              "threshold_pct": "5",
+            }
+          }
+        ]
+      ],
+      "actions": [
+        {
+          "name": attrs.oomd2.plugins["kill_by_swap_usage"].as_str(),
+          "args": {
+            "cgroup": attrs.oomd2.oomd_action_target.as_str(),
+            "dry": if attrs.oomd2.oomd_dry { "true" } else {"false"},
+          }
+        }
+      ]
+    }
+}
+
 fn get_attributes(node: &Node) -> ConfigParams {
     ConfigParams {
         host_type: get_host_type(node),
@@ -597,14 +690,13 @@ fn get_attributes(node: &Node) -> ConfigParams {
               "senpai" => "senpai",
             )),
             oomd_dry: true,
-            oomd_disable_on_drop_in: false,
-            oomd_target: String::from("system.slice"),
-            oomd_action_target: String::from("system.slice"),
+            oomd_disable_on_drop_in: true,
+            oomd_target: oomd2_oomd_target(node),
+            oomd_action_target: String::from("system.slice/*"),
             oomd_high_threshold: String::from("80"),
             oomd_high_threshold_duration: String::from("60"),
             oomd_threshold: String::from("60"),
             oomd_threshold_duration: String::from("90"),
-            oomd_min_swap_pct: String::from("15"),
             oomd_restart_threshold: oomd2_oomd_restart_threshold(),
             oomd_reclaim_duation: String::from("10"),
             oomd_post_action_delay: String::from("15"),
@@ -625,7 +717,7 @@ fn get_attributes(node: &Node) -> ConfigParams {
             memory_high_timeout_ms: String::from("20"),
             scuba_logger_dataset: String::from("perfpipe_senpai_events"),
         },
-        disable_senpai_dropin: false,
+        disable_senpai_dropin: disable_senpai_dropin(node),
     }
 }
 
@@ -707,10 +799,31 @@ fn senpai_limit_min_bytes(node: &Node) -> Option<String> {
     None
 }
 
+fn oomd2_oomd_target(node: &Node) -> String {
+    match get_host_type(node) {
+        HostType::DevServer => String::from("system.slice"),
+        HostType::OnDemand => {
+            String::from("system.slice,workload.slice/workload-tw.slice/quicksand*.service")
+        }
+        _ => String::from("workload.slice"),
+    }
+}
+
+fn disable_senpai_dropin(node: &Node) -> bool {
+    if get_host_type(node) == HostType::OnDemand {
+        return true;
+    }
+    false
+}
+
 fn get_host_type(node: &Node) -> HostType {
     // TODO(chengxiong): add logic to determine host types.
     if node.hostname_prefix() == "twshared".into() {
         return HostType::TwShared;
+    }
+
+    if node.hostname_prefix() == "od".into() {
+        return HostType::OnDemand;
     }
 
     if node.is_devserver() {
@@ -736,6 +849,7 @@ mod tests {
     #[rstest]
     #[case::shard99("twshared2434.02.cco1", HostType::TwShared)]
     #[case::shard99("devvm3170.cln0", HostType::DevServer)]
+    #[case::shard99("od2228.eag1", HostType::OnDemand)]
     fn test_get_host_type(#[case] hostname: &str, #[case] expected: HostType) {
         let node = FakeNodeBuilder::new().hostname(hostname).build();
         assert_eq!(get_host_type(&node), expected);

@@ -12,3 +12,7 @@ library_samples:
   - devvm
   - twshared_vll_shard00
   # Add more samples from https://fburl.com/code/vjwmkoa1 if needed
+samples:
+  ondemand:
+    # A random host with od hostname prefix.
+    production_host: od2228.eag1.facebook.com

@@ -1,0 +1,93 @@
+@generated SignedSource<<bb1f0a1f74c2f6d1c6ca34e21fa3ca51>>
+@codegen-command arc cfgen update-inputs fb-oomd
+{
+  "fqdn": "od2228.eag1.facebook.com",
+  "region": "utah",
+  "clusterType": "SERVICE_GENERIC_NON_MEMCACHE",
+  "modelId": 341072,
+  "kernelRelease": "5.19.0-0_fbk12_11583_g0bef9520ca2b",
+  "serverType": "TYPE_X_SEARCH",
+  "experiments": [],
+  "cpuArchitecture": "cooperlake",
+  "metalosRootfs": false,
+  "provisioningConfig": {
+    "ethtoolByInterface": {
+      "eth0": {
+        "maxChannelsCombined": 52
+      }
+    },
+    "cpuCoreCount": 26,
+    "parentModelId": 338998,
+    "recoveryEnvironment": false,
+    "deviceType": "SERVER",
+    "datacenter": "eag1",
+    "cluster": "05",
+    "memTotal": 66870956032,
+    "osVersion": {
+      "distribution_name": "CentOS Stream release",
+      "version": 9,
+      "is_in_ramdisk": false,
+      "is_metalos": false
+    },
+    "pciByAddress": {
+      "0000:65:00.0": {
+        "vendor_id": 5555,
+        "device_id": 4125,
+        "class_code": 131072,
+        "board_part_number": "MCX623435MC-CDAE_FB"
+      }
+    },
+    "static_smc_tiers": [],
+    "machine": "x86_64"
+  },
+  "bootConfig": {
+    "ethtoolByInterface": {
+      "eth0": {
+        "driver": "mlx5_core",
+        "driver_version": "5.19.0-0_fbk12_11583_g0bef9520c",
+        "firmware_version": "22.32.1206 (FB_0000000018)",
+        "bus_info": "0000:65:00.0"
+      }
+    }
+  },
+  "runtimeConfig": {
+    "hasHighPrivCert": true,
+    "regionRoutableCluster": "eag1.02",
+    "block_devices": {
+      "block_devices": {
+        "nvme0n1": {
+          "size_bytes": 256055095296,
+          "is_rotational": false,
+          "model": "HFS512GDE9X083N",
+          "serial": "2621CDA6N79781110H6O",
+          "physical_block_size": 512,
+          "logical_block_size": 512,
+          "is_root": true
+        },
+        "nvme1n1": {
+          "size_bytes": 1800360124416,
+          "is_rotational": false,
+          "model": "MZOL21T9HCJR-00AFB",
+          "serial": "S5X8NG0T524955",
+          "physical_block_size": 4096,
+          "logical_block_size": 4096,
+          "is_root": false
+        }
+      }
+    },
+    "dynamic_smc_tiers": [],
+    "cluster_state": "CLUSTER_IN_USE",
+    "installed_platforms": [
+      "platform010",
+      "platform010-compat"
+    ],
+    "device_nics_enum": [
+      "ETH0",
+      "SVC0"
+    ]
+  },
+  "reservationConfig": {
+    "active_machine_materialization_id": "",
+    "current_reservation_host_profile_id": "NEWLY_PROVISIONED_PROFILE"
+  }
+}
