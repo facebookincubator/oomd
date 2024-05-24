@@ -730,7 +730,7 @@ fn oomd2_oomd_restart_threshold() -> BTreeMap<String, OomdRestartThreshold> {
 }
 
 fn on_ssd(node: &Node) -> bool {
-    node.has_ssd_root()
+    node.storage().has_ssd_root()
 }
 
 fn io_latency_supported(_node: &Node) -> bool {
