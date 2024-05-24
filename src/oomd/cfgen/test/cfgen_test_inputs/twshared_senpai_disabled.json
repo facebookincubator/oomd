@@ -1,0 +1,97 @@
+@generated SignedSource<<4e1840d2c3dc9925b88a8f546af46041>>
+@codegen-command arc cfgen update-inputs fb-oomd
+{
+  "fqdn": "twshared44829.07.ash9.facebook.com",
+  "region": "east",
+  "clusterType": "SERVICE_GENERIC_NON_MEMCACHE",
+  "modelId": 333245,
+  "kernelRelease": "5.12.0-0_fbk13_clang_7455_gb24de3bdb045",
+  "serverType": "TYPE_VI_FEED",
+  "experiments": [],
+  "cpuArchitecture": "skylake",
+  "metalosRootfs": false,
+  "provisioningConfig": {
+    "ethtoolByInterface": {
+      "eth0": {
+        "maxChannelsCombined": 128,
+        "maxChannelsRx": 64,
+        "maxChannelsTx": 64
+      }
+    },
+    "cpuCoreCount": 40,
+    "parentModelId": 336939,
+    "recoveryEnvironment": false,
+    "deviceType": "SERVER",
+    "datacenter": "ash9",
+    "cluster": "07",
+    "memTotal": 270023245824,
+    "osVersion": {
+      "distribution_name": "CentOS Stream release",
+      "version": 9,
+      "is_in_ramdisk": false,
+      "is_metalos": false
+    },
+    "pciByAddress": {
+      "0000:5e:00.0": {
+        "vendor_id": 5348,
+        "device_id": 5833,
+        "class_code": 131072,
+        "board_part_number": "BCM957302M3023CBK"
+      }
+    },
+    "static_smc_tiers": [],
+    "machine": "x86_64"
+  },
+  "bootConfig": {
+    "ethtoolByInterface": {
+      "eth0": {
+        "driver": "bnxt_en",
+        "driver_version": "5.12.0-0_fbk13_clang_7455_gb24d",
+        "firmware_version": "20.6.167.0/pkg 20.6.4.12",
+        "bus_info": "0000:5e:00.0"
+      }
+    }
+  },
+  "runtimeConfig": {
+    "hasHighPrivCert": true,
+    "regionRoutableCluster": "ash9.02",
+    "block_devices": {
+      "block_devices": {
+        "nvme0n1": {
+          "size_bytes": 1800360124416,
+          "is_rotational": false,
+          "model": "SAMSUNG MZ1LB1T9HALS-000FB",
+          "serial": "S4JTNA0M941126",
+          "physical_block_size": 4096,
+          "logical_block_size": 4096,
+          "is_root": false
+        },
+        "sda": {
+          "size_bytes": 2000398934016,
+          "is_rotational": true,
+          "model": "ST2000NM0008-2F3100",
+          "serial": "ZDS16SA4",
+          "physical_block_size": 512,
+          "logical_block_size": 512,
+          "is_root": true
+        }
+      }
+    },
+    "dynamic_smc_tiers": [],
+    "cluster_state": "CLUSTER_IN_USE",
+    "installed_platforms": [
+      "platform009",
+      "platform010",
+      "platform010-aarch64",
+      "platform010-compat"
+    ],
+    "device_nics_enum": [
+      "ETH0",
+      "SVC0"
+    ]
+  },
+  "reservationConfig": {
+    "active_machine_materialization_id": "6321b66383934",
+    "current_reservation_host_profile_id": "COMMON:NO_CPU_CONTROLLER|KERNEL:kernel_5.12.0-0_fbk13_clang_7455_gb24de3bdb045_base.v8|STORAGE:XFS_FULL|RUNTIME:DATASTORES_GENERIC_SYSCTLS|KERNEL_ARGS:kargs_default.v2|KERNEL_POLICY:KERNEL_POLICY_DATABASES|BOOT_CONFIG:bootloader814_initrd230_swap16G_native_arch"
+  }
+}

@@ -1,4 +1,4 @@
-@generated SignedSource<<5d13b21f7d62653cb915aa1c8f76bbe0>>
+@generated SignedSource<<227f1d4294407faa34c09b9e9650c02c>>
 @codegen-command arc cfgen update-inputs fb-oomd
 {
   "fqdn": "twshared2871.09.vll2.facebook.com",
@@ -47,7 +47,8 @@
         "driver": "mlx5_core",
         "driver_version": "6.4.3-0_fbk2_785_gacbb203ea6ff",
         "firmware_version": "14.32.1206 (FB_0000000006)",
-        "bus_info": "0000:02:00.0"
+        "bus_info": "0000:02:00.0",
+        "speed_mbps": 50000
       }
     }
   },

@@ -1,4 +1,4 @@
-@generated SignedSource<<a0b9ff8a6a1b096881c6f45b66fb9c8e>>
+@generated SignedSource<<fc0baf1e6e709eabf64b1a0cb966db9e>>
 @codegen-command arc cfgen update-inputs fb-oomd
 {
   "fqdn": "devvm3170.cln0.facebook.com",
@@ -45,7 +45,8 @@
         "driver": "virtio_net",
         "driver_version": "1.0.0",
         "firmware_version": "",
-        "bus_info": "0000:00:02.0"
+        "bus_info": "0000:00:02.0",
+        "speed_mbps": 0
       }
     }
   },

@@ -16,7 +16,6 @@ fn oomd_json(node: &Node) -> json::JsonValue {
         HostType::OnDemand => od_json_config(&attrs),
         _ => default_json_config(&attrs),
     }
-    // TODO(chengxiong) add other templates
 }
 
 fn oomd_dropin(node: &Node) -> Dropin {
@@ -44,7 +43,6 @@ fn default_json_config(attrs: &ConfigParams) -> json::JsonValue {
     rulesets.push(rule_senpai_drop_in_ruleset(attrs));
     rulesets.push(rule_tw_container_drop_in_ruleset(attrs));
 
-    // TODO(chengxiong): add more rule sections
     json::object! {
       "rulesets": rulesets,
       "version": CONFIG_VERSION,
@@ -731,9 +729,8 @@ fn oomd2_oomd_restart_threshold() -> BTreeMap<String, OomdRestartThreshold> {
     }
 }
 
-fn on_ssd(_node: &Node) -> bool {
-    true
-    // TODO(chengxiong): add this logic https://fburl.com/code/dqdu7ves
+fn on_ssd(node: &Node) -> bool {
+    node.has_ssd_root()
 }
 
 fn io_latency_supported(_node: &Node) -> bool {
@@ -783,7 +780,7 @@ fn fbtax2_blacklisted_jobs(node: &Node) -> Vec<&'static str> {
 }
 
 fn senpai_targets(node: &Node) -> Option<String> {
-    if get_host_type(node) == HostType::TwShared {
+    if should_enable_senpai(node) {
         return Some(String::from(
             "system.slice,workload.slice/workload-wdb.slice,hostcritical.slice,workload.slice/workload-wdb.slice/*,hostcritical.slice/*",
         ));
@@ -816,13 +813,16 @@ fn disable_senpai_dropin(node: &Node) -> bool {
     false
 }
 
+fn should_enable_senpai(node: &Node) -> bool {
+    get_host_type(node) == HostType::TwShared && on_ssd(node)
+}
+
 fn get_host_type(node: &Node) -> HostType {
-    // TODO(chengxiong): add logic to determine host types.
-    if node.hostname_prefix() == "twshared".into() {
+    if node.hostname_prefix() == TWSHARED {
         return HostType::TwShared;
     }
 
-    if node.hostname_prefix() == "od".into() {
+    if node.hostname_prefix() == OD {
         return HostType::OnDemand;
     }
 
