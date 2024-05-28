@@ -1,4 +1,4 @@
-@generated SignedSource<<2b86656315099f05b2d1754bef6c5220>>
+@generated SignedSource<<f257a21d0bc496d0529cf91334e33318>>
 @codegen-command arc cfgen update-outputs fb-oomd
 {
   "rulesets": [
@@ -32,8 +32,8 @@
             "name": "memory_above",
             "args": {
               "cgroup": "smc_proxy.service",
-              "threshold_anon": "15G",
-              "duration": "10"
+              "duration": "10",
+              "threshold_anon": "15G"
             }
           }
         ]
@@ -42,9 +42,9 @@
         {
           "name": "systemd_restart",
           "args": {
-            "service": "smc_proxy.service",
+            "dry": "false",
             "post_action_delay": "20",
-            "dry": "false"
+            "service": "smc_proxy.service"
           }
         }
       ]
@@ -70,9 +70,9 @@
             "name": "pressure_above",
             "args": {
               "cgroup": "workload.slice/workload-tw.slice",
+              "duration": "180",
               "resource": "memory",
-              "threshold": "80",
-              "duration": "180"
+              "threshold": "80"
             }
           },
           {
@@ -118,8 +118,8 @@
         {
           "name": "kill_by_swap_usage",
           "args": {
-            "cgroup": "system.slice/*,workload.slice/workload-wdb.slice/*,workload.slice/workload-tw.slice/*",
             "biased_swap_kill": "true",
+            "cgroup": "system.slice/*,workload.slice/workload-wdb.slice/*,workload.slice/workload-tw.slice/*",
             "recursive": "true"
           }
         }
@@ -129,8 +129,8 @@
       "name": "senpai drop-in ruleset",
       "silence-logs": "engine",
       "drop-in": {
-        "actions": true,
-        "disable-on-drop-in": true
+        "disable-on-drop-in": true,
+        "actions": true
       },
       "detectors": [
         [
@@ -151,9 +151,9 @@
     {
       "name": "tw_container drop-in ruleset",
       "drop-in": {
+        "disable-on-drop-in": true,
         "detectors": true,
-        "actions": true,
-        "disable-on-drop-in": true
+        "actions": true
       },
       "detectors": [
         [

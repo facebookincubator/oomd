@@ -4,12 +4,13 @@
 
 mod types;
 
+use anyhow::anyhow;
 use libcfgen::prelude::*;
 use types::*;
 
 const CONFIG_VERSION: &str = "1.0.0";
 
-fn oomd_json(node: &Node) -> json::JsonValue {
+fn oomd_json(node: &Node) -> Result<json::JsonValue, anyhow::Error> {
     let attrs = get_attributes(node);
     match attrs.host_type {
         HostType::DevServer => devserver_json_config(node, &attrs),
@@ -25,635 +26,646 @@ fn oomd_dropin(node: &Node) -> Dropin {
         .build(node)
 }
 
-fn default_json_config(attrs: &ConfigParams) -> json::JsonValue {
-    let mut rulesets = json::Array::new();
-    rulesets.push(rule_system_overview(attrs));
-    rulesets.append(&mut rules_restart_cgroup_on_mem_threshold(attrs));
-    rulesets.push(rule_protection_against_heavy_workload_thrashing(attrs));
+fn default_json_config(attrs: &ConfigParams) -> Result<json::JsonValue, anyhow::Error> {
+    let mut rulesets = Vec::new();
+    rulesets.push(ruleset_system_overview(attrs));
+    rulesets.append(&mut rulesets_restart_cgroup_on_mem_threshold(attrs));
+    rulesets.push(ruleset_protection_against_heavy_workload_thrashing(attrs));
     if attrs.fbtax2.io_latency_supported {
-        rulesets.push(rule_protection_against_wdb_io_thrashing(attrs));
+        rulesets.push(ruleset_protection_against_wdb_io_thrashing(attrs));
     }
     if !attrs.fbtax2.disable_swap_protection {
-        rulesets.push(rule_fbtax2_protection_against_low_swap(attrs));
+        rulesets.push(ruleset_fbtax2_protection_against_low_swap(attrs));
     }
     if attrs.senpai.target.is_some() {
-        rulesets.push(rule_senpai_ruleset(attrs));
+        rulesets.push(ruleset_senpai_ruleset(attrs));
     }
     rulesets.append(&mut attrs.fbtax2.oomd_extra_rulesets.clone());
-    rulesets.push(rule_senpai_drop_in_ruleset(attrs));
-    rulesets.push(rule_tw_container_drop_in_ruleset(attrs));
+    rulesets.push(ruleset_senpai_drop_in_ruleset(attrs));
+    rulesets.push(ruleset_tw_container_drop_in_ruleset(attrs));
 
-    json::object! {
-      "rulesets": rulesets,
-      "version": CONFIG_VERSION,
-    }
+    let config = OomdConfig {
+        rulesets,
+        version: CONFIG_VERSION.to_string(),
+    };
+
+    serialize_oomd_config(&config)
 }
 
-fn devserver_json_config(node: &Node, attrs: &ConfigParams) -> json::JsonValue {
-    let mut rulesets = json::Array::new();
-    rulesets.push(rule_system_overview(attrs));
-    rulesets.push(rule_user_session_protection(node, attrs));
+fn devserver_json_config(
+    node: &Node,
+    attrs: &ConfigParams,
+) -> Result<json::JsonValue, anyhow::Error> {
+    let mut rulesets = Vec::new();
+    rulesets.push(ruleset_system_overview(attrs));
+    rulesets.push(ruleset_user_session_protection(node, attrs));
     if !attrs.oomd2.disable_swap_protection {
-        rulesets.push(rule_oomd2_protection_against_low_swap(attrs));
+        rulesets.push(ruleset_oomd2_protection_against_low_swap(attrs));
     }
-    rulesets.push(rule_senpai_drop_in_ruleset(attrs));
-    rulesets.append(&mut rules_restart_cgroup_on_mem_threshold(attrs));
-    rulesets.push(rule_tw_container_drop_in_ruleset(attrs));
-    json::object! {
-      "rulesets": rulesets,
-      "version": CONFIG_VERSION,
+    rulesets.push(ruleset_senpai_drop_in_ruleset(attrs));
+    rulesets.append(&mut rulesets_restart_cgroup_on_mem_threshold(attrs));
+    rulesets.push(ruleset_tw_container_drop_in_ruleset(attrs));
+
+    let config = OomdConfig {
+        rulesets,
+        version: CONFIG_VERSION.to_string(),
+    };
+
+    serialize_oomd_config(&config)
+}
+
+fn od_json_config(attrs: &ConfigParams) -> Result<json::JsonValue, anyhow::Error> {
+    let mut rulesets = Vec::new();
+    rulesets.push(ruleset_system_overview(attrs));
+    rulesets.push(ruleset_protection_against_high_memory_pressure(attrs));
+    rulesets.append(&mut rulesets_restart_cgroup_on_mem_threshold(attrs));
+    rulesets.push(ruleset_senpai_drop_in_ruleset(attrs));
+    rulesets.push(ruleset_od_protection_against_low_swap(attrs));
+
+    let config = OomdConfig {
+        rulesets,
+        version: CONFIG_VERSION.to_string(),
+    };
+
+    serialize_oomd_config(&config)
+}
+
+fn serialize_oomd_config(config: &OomdConfig) -> Result<json::JsonValue, anyhow::Error> {
+    let json_output_result = serde_json::to_string(config);
+    let json_output = match json_output_result {
+        Ok(json_str) => json_str,
+        Err(err) => return Err(anyhow!(err)),
+    };
+    let parsed_json_result = json::parse(json_output.as_str());
+    match parsed_json_result {
+        Ok(json_value) => Ok(json_value),
+        Err(err) => Err(anyhow!(err)),
     }
 }
 
-fn od_json_config(attrs: &ConfigParams) -> json::JsonValue {
-    let mut rulesets = json::Array::new();
-    rulesets.push(rule_system_overview(attrs));
-    rulesets.push(rule_protection_against_high_memory_pressure(attrs));
-    rulesets.append(&mut rules_restart_cgroup_on_mem_threshold(attrs));
-    rulesets.push(rule_senpai_drop_in_ruleset(attrs));
-    rulesets.push(rule_od_protection_against_low_swap(attrs));
-    json::object! {
-      "rulesets": rulesets,
-      "version": CONFIG_VERSION,
-    }
-}
-
-fn rule_system_overview(attrs: &ConfigParams) -> json::JsonValue {
-    let mut rule = json::object! {
-        "name": "system overview",
-        "silence-logs": "engine",
-        "detectors": [
-            [
-                "records system stats",
-                {
-                    "name": "dump_cgroup_overview",
-                    "args": {
-                        "cgroup": attrs.oomd2.oomd_target.as_str(),
-                    }
-                }
-            ]
-        ],
-        "actions": [
-          {
-            "name": "continue",
-            "args": {},
-          }
-        ]
+fn ruleset_system_overview(attrs: &ConfigParams) -> RuleSet {
+    let mut rule = RuleSet {
+        name: "system overview".to_string(),
+        silence_logs: Some("engine".to_string()),
+        drop_in: None,
+        detectors: vec![detector!(
+            detector_name!("records system stats"),
+            detector_rule!(
+              name: "dump_cgroup_overview",
+              args: detector_rule_args!(
+                cgroup: attrs.oomd2.oomd_target.clone()
+              )
+            )
+        )],
+        actions: vec![action!(
+          name: "continue",
+          args: action_args!()
+        )],
+        prekill_hook_timeout: None,
     };
 
     if attrs.host_type == HostType::OnDemand {
-        rule["drop-in"] = json::object! {
-          "detectors": true,
-          "actions": true,
-        };
+        rule.drop_in = Some(DropIn {
+            disable_on_drop_in: None,
+            detectors: Some(true),
+            actions: Some(true),
+        });
     }
-
     rule
 }
 
-fn rules_restart_cgroup_on_mem_threshold(attrs: &ConfigParams) -> json::Array {
+fn rulesets_restart_cgroup_on_mem_threshold(attrs: &ConfigParams) -> Vec<RuleSet> {
     attrs
         .oomd2
         .oomd_restart_threshold
         .iter()
-        .map(|(cgroup, params)| {
-            json::object! {
-              "name": format!("restart {} on memory threshold", cgroup),
-              "detectors":[
-                [
-                  "memory usage above",
-                  {
-                    "name": attrs.oomd2.plugins["memory_above"].as_str(),
-                    "args": {
-                      "cgroup": cgroup.as_str(),
-                      "threshold_anon": params.threshold.as_str(),
-                      "duration": params.duration.as_str(),
-                    }
-                  }
-                ]
-              ],
-              "actions":[
-                {
-                  "name": "systemd_restart",
-                  "args": {
-                    "service": params.service_name.as_str(),
-                    "post_action_delay": params.post_action_delay.as_str(),
-                    "dry": "false",
-                  }
-                }
-              ]
-            }
+        .map(|(cgroup, params)| RuleSet {
+            name: format!("restart {} on memory threshold", cgroup),
+            silence_logs: None,
+            drop_in: None,
+            detectors: vec![detector!(
+                detector_name!("memory usage above"),
+                detector_rule!(
+                  name: attrs.oomd2.plugins["memory_above"].as_str(),
+                  args: detector_rule_args!(
+                    cgroup: cgroup.clone(),
+                    threshold_anon: params.threshold.clone(),
+                    duration: params.duration.clone()
+                  )
+                )
+            )],
+            actions: vec![action!(
+              name: "systemd_restart",
+              args: action_args!(
+                service: params.service_name.as_str(),
+                post_action_delay: params.post_action_delay.as_str(),
+                dry: "false"
+              )
+            )],
+            prekill_hook_timeout: None,
         })
-        .collect::<json::Array>()
+        .collect::<Vec<RuleSet>>()
 }
 
-fn rule_protection_against_heavy_workload_thrashing(attrs: &ConfigParams) -> json::JsonValue {
-    let mut action = json::object! {
-      "name": "kill_by_pg_scan",
-      "args": {
-        "cgroup": "workload.slice/workload-tw.slice/*",
-        "recursive": "true",
-      }
-    };
+fn ruleset_protection_against_heavy_workload_thrashing(attrs: &ConfigParams) -> RuleSet {
+    let mut action = action! (
+      name: "kill_by_pg_scan",
+      args: action_args! (
+        cgroup: "workload.slice/workload-tw.slice/*",
+        recursive: "true"
+      )
+    );
 
     if attrs.fbtax2.post_workload_kill_delay.is_some() {
-        action["args"]["post_action_delay"] =
-            json::JsonValue::String(attrs.fbtax2.post_workload_kill_delay.clone().unwrap());
+        action.args.post_action_delay = attrs.fbtax2.post_workload_kill_delay.clone();
     }
 
-    json::object! {
-      "name": "protection against heavy workload thrashing",
-      "drop-in": {
-        "disable-on-drop-in": true,
-        "detectors": true,
-        "actions": true,
-      },
-      "detectors": rule_protection_against_heavy_workload_thrashing_detectors(attrs),
-      "actions": [
-        action,
-      ]
+    RuleSet {
+        name: "protection against heavy workload thrashing".to_string(),
+        silence_logs: None,
+        drop_in: Some(DropIn {
+            disable_on_drop_in: Some(true),
+            detectors: Some(true),
+            actions: Some(true),
+        }),
+        detectors: ruleset_protection_against_heavy_workload_thrashing_detectors(attrs),
+        actions: vec![action],
+        prekill_hook_timeout: None,
     }
 }
 
-fn rule_protection_against_heavy_workload_thrashing_detectors(
+fn ruleset_protection_against_heavy_workload_thrashing_detectors(
     attrs: &ConfigParams,
-) -> json::JsonValue {
+) -> Vec<Detector> {
     if attrs.fbtax2.io_cost_supported {
-        let mut detector = json::array! {
-          "sustained high workload memory pressure",
-        };
-
-        if !attrs.fbtax2.blacklisted_jobs.is_empty() {
-            _ = detector.push(fbtax2_blacklisted_jobs_detector_rule(attrs));
-        }
-
-        _ = detector.push(json::object! {
-          "name": "pressure_above",
-          "args": {
-            "cgroup": attrs.fbtax2.workload_monitoring_slice.as_str(),
-            "resource": "memory",
-            "threshold": attrs.fbtax2.workload_high_pressure_threshold.as_str(),
-            "duration": attrs.fbtax2.workload_high_pressure_duration.as_str(),
-          }
-        });
-
-        _ = detector.push(json::object! {
-          "name": "memory_reclaim",
-          "args": {
-            "cgroup": attrs.fbtax2.workload_monitoring_slice.as_str(),
-            "duration": "10",
-          }
-        });
-
-        return json::array! {detector};
-    }
-
-    let mut fast_gorwing_mem_pressure_detector = json::array! {
-      "detects fast growing memory pressure",
-    };
-
-    if !attrs.fbtax2.blacklisted_jobs.is_empty() {
-        _ = fast_gorwing_mem_pressure_detector.push(fbtax2_blacklisted_jobs_detector_rule(attrs));
-    }
-
-    _ = fast_gorwing_mem_pressure_detector.push(json::object! {
-      "name": "pressure_above",
-      "args": {
-        "cgroup": attrs.fbtax2.workload_monitoring_slice.as_str(),
-        "resource": "memory",
-        "threshold": "80",
-        "duration": "60",
-      }
-    });
-
-    _ = fast_gorwing_mem_pressure_detector.push(json::object! {
-      "name": "memory_reclaim",
-      "args": {
-        "cgroup": attrs.fbtax2.workload_monitoring_slice.as_str(),
-        "duration": "10",
-      }
-    });
-
-    let mut slow_growing_mem_pressure_detector = json::array! {
-      "detects slow growing memory pressure"
-    };
-
-    if !attrs.fbtax2.blacklisted_jobs.is_empty() {
-        _ = slow_growing_mem_pressure_detector.push(fbtax2_blacklisted_jobs_detector_rule(attrs));
-    }
-
-    _ = slow_growing_mem_pressure_detector.push(json::object! {
-      "name": "pressure_rising_beyond",
-      "args": {
-        "cgroup": attrs.fbtax2.workload_monitoring_slice.as_str(),
-        "resource": "memory",
-        "threshold": "60",
-        "duration": "90",
-      }
-    });
-
-    _ = slow_growing_mem_pressure_detector.push(json::object! {
-      "name": "memory_reclaim",
-      "args": {
-        "cgroup": attrs.fbtax2.workload_monitoring_slice.as_str(),
-        "duration": "10",
-      }
-    });
-
-    json::array! {
-      fast_gorwing_mem_pressure_detector,
-      slow_growing_mem_pressure_detector,
-    }
-}
-
-fn fbtax2_blacklisted_jobs_detector_rule(attrs: &ConfigParams) -> json::JsonValue {
-    json::object! {
-      "name": "exists",
-      "args": {
-        "cgroup": attrs.fbtax2.blacklisted_jobs.join(","),
-        "negate": true,
-      }
-    }
-}
-
-fn rule_protection_against_wdb_io_thrashing(attrs: &ConfigParams) -> json::JsonValue {
-    json::object! {
-      "name": "protection against wdb io thrashing",
-      "detectors": [
-        [
-          "low pressure in workload and high io in wdb",
-          {
-            "name": "pressure_rising_beyond",
-            "args": {
-              "cgroup": "workload.slice",
-              "resource": "io",
-              "threshold": if attrs.fbtax2.on_ssd {"10"} else {"15"},
-              "duration": if attrs.fbtax2.on_ssd {"0"} else {"180"},
-            }
-          },
-          {
-            "name": "pressure_rising_beyond",
-            "args": {
-              "cgroup": "system.slice",
-              "resource": "io",
-              "threshold": if attrs.fbtax2.on_ssd {"60"} else {"85"},
-              "duration": if attrs.fbtax2.on_ssd {"0"} else {"180"},
-            }
-          }
+        vec![detector!(
+            detector_name!("sustained high workload memory pressure"),
+            if !attrs.fbtax2.blacklisted_jobs.is_empty() {
+                fbtax2_blacklisted_jobs_detector_rule(attrs)
+            } else {
+                skip_this_detector_rule!()
+            },
+            detector_rule!(
+                name: "pressure_above",
+                args: detector_rule_args!(
+                  cgroup: attrs.fbtax2.workload_monitoring_slice.clone(),
+                  resource: "memory".to_string(),
+                  threshold: attrs.fbtax2.workload_high_pressure_threshold.clone(),
+                  duration: attrs.fbtax2.workload_high_pressure_duration.clone()
+                )
+            ),
+            detector_rule!(
+              name: "memory_reclaim",
+              args: detector_rule_args! (
+                cgroup: attrs.fbtax2.workload_monitoring_slice.clone(),
+                duration: "10".to_string()
+              )
+            )
+        )]
+    } else {
+        vec![
+            detector!(
+                detector_name!("detects fast growing memory pressure"),
+                if !attrs.fbtax2.blacklisted_jobs.is_empty() {
+                    fbtax2_blacklisted_jobs_detector_rule(attrs)
+                } else {
+                    skip_this_detector_rule!()
+                },
+                detector_rule!(
+                    name: "pressure_above",
+                    args: detector_rule_args!(
+                      cgroup: attrs.fbtax2.workload_monitoring_slice.clone(),
+                      resource: "memory".to_string(),
+                      threshold: "80".to_string(),
+                      duration: "60".to_string()
+                    )
+                ),
+                detector_rule!(
+                  name: "memory_reclaim",
+                  args: detector_rule_args! (
+                    cgroup: attrs.fbtax2.workload_monitoring_slice.clone(),
+                    duration: "10".to_string()
+                  )
+                )
+            ),
+            detector!(
+                detector_name!("detects slow growing memory pressure"),
+                if !attrs.fbtax2.blacklisted_jobs.is_empty() {
+                    fbtax2_blacklisted_jobs_detector_rule(attrs)
+                } else {
+                    skip_this_detector_rule!()
+                },
+                detector_rule!(
+                    name: "pressure_rising_beyond",
+                    args: detector_rule_args!(
+                      cgroup: attrs.fbtax2.workload_monitoring_slice.clone(),
+                      resource: "memory".to_string(),
+                      threshold: "60".to_string(),
+                      duration: "90".to_string()
+                    )
+                ),
+                detector_rule!(
+                  name: "memory_reclaim",
+                  args: detector_rule_args! (
+                    cgroup: attrs.fbtax2.workload_monitoring_slice.clone(),
+                    duration: "10".to_string()
+                  )
+                )
+            ),
         ]
-      ],
-      "actions": [
-        {
-          "name": "kill_by_pressure",
-          "args": {
-            "cgroup": "system.slice/*",
-            "recursive": "true",
-            "resource": "io",
-          }
-        }
-      ]
     }
 }
 
-fn rule_fbtax2_protection_against_low_swap(attrs: &ConfigParams) -> json::JsonValue {
-    let mut detector = json::array! {
-          format!("free swap goes below {} percent", attrs.fbtax2.low_swap_threshold)
-    };
+fn fbtax2_blacklisted_jobs_detector_rule(attrs: &ConfigParams) -> DetectorElement {
+    detector_rule!(
+      name: "exists",
+      args: detector_rule_args! (
+        cgroup: attrs.fbtax2.blacklisted_jobs.join(","),
+        negate: true
+      )
+    )
+}
 
-    if !attrs.fbtax2.blacklisted_jobs.is_empty() {
-        _ = detector.push(fbtax2_blacklisted_jobs_detector_rule(attrs));
-    }
-
-    _ = detector.push(json::object! {
-      "name": "swap_free",
-      "args": {
-        "threshold_pct": attrs.fbtax2.low_swap_threshold.as_str(),
-      }
-    });
-
-    json::object! {
-      "name": "protection against low swap",
-      "detectors": [
-        detector
-      ],
-      "actions": [
-        {
-          "name": "kill_by_swap_usage",
-          "args": {
-            "cgroup": "system.slice/*,workload.slice/workload-wdb.slice/*,workload.slice/workload-tw.slice/*",
-            "biased_swap_kill": "true",
-            "recursive": "true",
-          }
-        }
-      ]
+fn ruleset_protection_against_wdb_io_thrashing(attrs: &ConfigParams) -> RuleSet {
+    RuleSet {
+        name: "protection against wdb io thrashing".to_string(),
+        silence_logs: None,
+        drop_in: None,
+        detectors: vec![detector!(
+            detector_name!("low pressure in workload and high io in wdb"),
+            detector_rule!(
+                name: "pressure_rising_beyond",
+                args: detector_rule_args!(
+                  cgroup: "workload.slice".to_string(),
+                  resource: "io".to_string(),
+                  threshold: if attrs.fbtax2.on_ssd {"10".to_string()} else {"15".to_string()},
+                  duration: if attrs.fbtax2.on_ssd {"0".to_string()} else {"180".to_string()}
+                )
+            ),
+            detector_rule!(
+                name: "pressure_rising_beyond",
+                args: detector_rule_args!(
+                  cgroup: "workload.slice".to_string(),
+                  resource: "io".to_string(),
+                  threshold: if attrs.fbtax2.on_ssd {"60".to_string()} else {"85".to_string()},
+                  duration: if attrs.fbtax2.on_ssd {"0".to_string()} else {"180".to_string()}
+                )
+            )
+        )],
+        actions: vec![action!(
+          name: "kill_by_pressure",
+          args: action_args!(
+            cgroup: "system.slice/*",
+            recursive: "true",
+            resource: "io"
+          )
+        )],
+        prekill_hook_timeout: None,
     }
 }
 
-fn rule_oomd2_protection_against_low_swap(attrs: &ConfigParams) -> json::JsonValue {
-    json::object! {
-      "name": "protection against low swap",
-      "detectors": [
-        [
-          format!("free swap goes below {}%", attrs.oomd2.swap_protection_detect_threshold),
-          {
-            "name": "swap_free",
-            "args": {
-              "threshold_pct": attrs.oomd2.swap_protection_detect_threshold.as_str(),
-            }
-          }
-        ]
-      ],
-      "actions": [
-        {
-          "name": "kill_by_swap_usage",
-          "args": {
-            "cgroup": attrs.oomd2.kill_target.as_str(),
-            "threshold": attrs.oomd2.swap_protection_kill_threshold.as_str(),
-            "recursive": true,
-          }
-        }
-      ]
+fn ruleset_fbtax2_protection_against_low_swap(attrs: &ConfigParams) -> RuleSet {
+    RuleSet {
+        name: "protection against low swap".to_string(),
+        silence_logs: None,
+        drop_in: None,
+        detectors: vec![detector!(
+            detector_name!(format!(
+                "free swap goes below {} percent",
+                attrs.fbtax2.low_swap_threshold
+            )),
+            if !attrs.fbtax2.blacklisted_jobs.is_empty() {
+                fbtax2_blacklisted_jobs_detector_rule(attrs)
+            } else {
+                skip_this_detector_rule!()
+            },
+            detector_rule!(
+              name: "swap_free",
+              args: detector_rule_args!(
+              threshold_pct: attrs.fbtax2.low_swap_threshold.clone()
+              )
+            )
+        )],
+        actions: vec![action!(
+          name: "kill_by_swap_usage",
+          args: action_args!(
+            cgroup: "system.slice/*,workload.slice/workload-wdb.slice/*,workload.slice/workload-tw.slice/*",
+            biased_swap_kill: "true",
+            recursive: "true"
+          )
+        )],
+        prekill_hook_timeout: None,
     }
 }
 
-fn rule_senpai_ruleset(attrs: &ConfigParams) -> json::JsonValue {
-    let mut action_args = json::object! {
-      "io_pressure_pct": attrs.senpai.io_pressure_pct.as_str(),
-      "memory_high_timeout_ms": attrs.senpai.memory_high_timeout_ms.as_str(),
-      "scuba_logger_dataset": attrs.senpai.scuba_logger_dataset.as_str(),
-    };
+fn ruleset_oomd2_protection_against_low_swap(attrs: &ConfigParams) -> RuleSet {
+    RuleSet {
+        name: "protection against low swap".to_string(),
+        silence_logs: None,
+        drop_in: None,
+        detectors: vec![detector!(
+            detector_name!(
+                format!(
+                    "free swap goes below {}%",
+                    attrs.oomd2.swap_protection_detect_threshold
+                )
+                .as_str()
+            ),
+            detector_rule!(
+              name: "swap_free",
+              args: detector_rule_args!(
+                threshold_pct: attrs.oomd2.swap_protection_detect_threshold.clone()
+              )
+            )
+        )],
+        actions: vec![action! (
+          name: "kill_by_swap_usage",
+          args: action_args!(
+            cgroup: attrs.oomd2.kill_target.as_str(),
+            threshold: attrs.oomd2.swap_protection_kill_threshold.as_str(),
+            recursive: "true"
+          )
+        )],
+        prekill_hook_timeout: None,
+    }
+}
+
+fn ruleset_senpai_ruleset(attrs: &ConfigParams) -> RuleSet {
+    let mut action_args = action_args!(
+      io_pressure_pct: attrs.senpai.io_pressure_pct.as_str(),
+      memory_high_timeout_ms: attrs.senpai.memory_high_timeout_ms.as_str(),
+      scuba_logger_dataset: attrs.senpai.scuba_logger_dataset.as_str()
+    );
 
     if attrs.senpai.limit_min_bytes.is_some() {
-        action_args["limit_min_bytes"] =
-            json::JsonValue::String(attrs.senpai.limit_min_bytes.clone().unwrap());
+        action_args.limit_min_bytes = attrs.senpai.limit_min_bytes.clone();
     }
 
     if attrs.senpai.target.is_some() {
-        action_args["cgroup"] = json::JsonValue::String(attrs.senpai.target.clone().unwrap());
+        action_args.cgroup = attrs.senpai.target.clone();
     }
 
-    json::object! {
-      "name": "senpai ruleset",
-      "silence-logs": attrs.senpai.silence_logs.as_str(),
-      "detectors": [
-        [
-          "continue detector group",
-          {
-            "name": "continue",
-            "args": {}
-          }
-        ]
-      ],
-      "actions": [
-        {
-          "name": "senpai_poking",
-          "args": action_args.clone(),
-        }
-      ]
+    RuleSet {
+        name: "senpai ruleset".to_string(),
+        silence_logs: Some(attrs.senpai.silence_logs.clone()),
+        drop_in: None,
+        detectors: vec![detector!(
+            detector_name!("continue detector group"),
+            detector_rule!(
+                name: "continue",
+                args: detector_rule_args!()
+            )
+        )],
+        actions: vec![action!(
+          name: "senpai_poking",
+          args: action_args
+        )],
+        prekill_hook_timeout: None,
     }
 }
 
-fn rule_senpai_drop_in_ruleset(attrs: &ConfigParams) -> json::JsonValue {
-    json::object! {
-      "name": "senpai drop-in ruleset",
-      "silence-logs": if attrs.host_type == HostType::OnDemand {"engine,plugins"} else {"engine"},
-      "drop-in": {
-        "actions": true,
-        "disable-on-drop-in": true,
-      },
-      "detectors": [
-        [
-          if attrs.disable_senpai_dropin {
-            "stop detector group"
-          } else {
-            "continue detector group"
-          },
-          if attrs.disable_senpai_dropin {
-            json::object! {
-              "name": "exists",
-              "args": {
-                "cgroup": "/",
-                "negate": true,
-              }
+fn ruleset_senpai_drop_in_ruleset(attrs: &ConfigParams) -> RuleSet {
+    RuleSet {
+        name: "senpai drop-in ruleset".to_string(),
+        silence_logs: Some(if attrs.host_type == HostType::OnDemand {
+            "engine,plugins".to_string()
+        } else {
+            "engine".to_string()
+        }),
+        drop_in: Some(DropIn {
+            disable_on_drop_in: Some(true),
+            actions: Some(true),
+            detectors: None,
+        }),
+        detectors: vec![detector!(
+            if attrs.disable_senpai_dropin {
+                detector_name!("stop detector group")
+            } else {
+                detector_name!("continue detector group")
+            },
+            if attrs.disable_senpai_dropin {
+                detector_rule!(
+                  name: "exists",
+                  args: detector_rule_args!(
+                    cgroup: "/".to_string(),
+                    negate: true
+                  )
+                )
+            } else {
+                detector_rule!(
+                  name: "continue",
+                  args: detector_rule_args!()
+                )
             }
-          } else {
-            json::object! {
-              "name": "continue",
-              "args": {},
-            }
-          }
-        ]
-      ],
-      "actions": [
-        {
-          "name": "continue",
-          "args": {},
-        }
-      ]
+        )],
+        actions: vec![action!(
+          name: "continue",
+          args: action_args!()
+        )],
+        prekill_hook_timeout: None,
     }
 }
 
-fn rule_tw_container_drop_in_ruleset(attrs: &ConfigParams) -> json::JsonValue {
-    let mut rule = json::object! {
-      "name": "tw_container drop-in ruleset",
-      "drop-in": {
-          "detectors": true,
-          "actions": true,
-          "disable-on-drop-in": true
-      },
-      "detectors": [
-          [
-              "continue",
-              {
-                  "name": "stop",
-                  "args": {}
-              }
-          ]
-      ],
-      "actions": [
-          {
-              "name": "continue",
-              "args": {}
-          }
-      ],
-    };
-
-    if attrs.host_type != HostType::DevServer {
-        rule["prekill_hook_timeout"] = json::JsonValue::String(String::from("45"));
-    }
-
-    rule
-}
-
-fn rule_user_session_protection(node: &Node, attrs: &ConfigParams) -> json::JsonValue {
-    let mut user_pressure_detector = json::array! {
-      format!("user pressure above {} for 300s", attrs.devserver.user_mempress),
-      {
-        "name": "pressure_above",
-        "args": {
-          "cgroup": "user.slice,workload.slice,www.slice",
-          "resource": "memory",
-          "threshold": attrs.devserver.user_mempress.as_str(),
-          "duration": "300",
-        }
-      },
-    };
-
-    let mut system_pressure_detector = json::array! {
-      format!("system pressure above {} for 300s", attrs.devserver.system_mempress),
-      {
-        "name": "pressure_above",
-        "args": {
-          "cgroup": "system.slice",
-          "resource": "memory",
-          "threshold": attrs.devserver.system_mempress.as_str(),
-          "duration": "300"
+fn ruleset_tw_container_drop_in_ruleset(attrs: &ConfigParams) -> RuleSet {
+    RuleSet {
+        name: "tw_container drop-in ruleset".to_string(),
+        silence_logs: None,
+        drop_in: Some(DropIn {
+            detectors: Some(true),
+            actions: Some(true),
+            disable_on_drop_in: Some(true),
+        }),
+        detectors: vec![detector!(
+            detector_name!("continue"),
+            detector_rule!(
+              name: "stop",
+              args: detector_rule_args!()
+            )
+        )],
+        actions: vec![action!(
+          name: "continue",
+          args: action_args!()
+        )],
+        prekill_hook_timeout: if attrs.host_type != HostType::DevServer {
+            Some("45".to_string())
+        } else {
+            None
         },
-      }
-    };
+    }
+}
 
+fn ruleset_user_session_protection(node: &Node, attrs: &ConfigParams) -> RuleSet {
+    let user_pressure_detector = detector!(
+        detector_name!(
+            format!(
+                "user pressure above {} for 300s",
+                attrs.devserver.user_mempress
+            )
+            .as_str()
+        ),
+        detector_rule!(
+          name: "pressure_above",
+          args: detector_rule_args!(
+            cgroup: "user.slice,workload.slice,www.slice".to_string(),
+            resource: "memory".to_string(),
+            threshold: attrs.devserver.user_mempress.clone(),
+            duration: "300".to_string()
+          )
+        ),
+        maybe_nr_dying_descendants_rule(node),
+        detector_rule!(
+          name: "memory_reclaim",
+          args: detector_rule_args!(
+            cgroup: "user.slice,workload.slice,www.slice".to_string(),
+            duration: "30".to_string()
+          )
+        )
+    );
+
+    let system_pressure_detector = detector!(
+        detector_name!(
+            format!(
+                "system pressure above {} for 300s",
+                attrs.devserver.system_mempress
+            )
+            .as_str()
+        ),
+        detector_rule!(
+          name: "pressure_above",
+          args: detector_rule_args!(
+            cgroup: "system.slice".to_string(),
+            resource: "memory".to_string(),
+            threshold: attrs.devserver.system_mempress.clone(),
+            duration: "300".to_string()
+          )
+        ),
+        maybe_nr_dying_descendants_rule(node),
+        detector_rule!(
+          name: "memory_reclaim",
+          args: detector_rule_args!(
+            cgroup: "system.slice".to_string(),
+            duration: "30".to_string()
+          )
+        )
+    );
+
+    RuleSet {
+        name: "user session protection".to_string(),
+        silence_logs: None,
+        drop_in: None,
+        detectors: vec![user_pressure_detector, system_pressure_detector],
+        actions: vec![action!(
+          name: "kill_by_memory_size_or_growth",
+          args: action_args!(
+            cgroup: attrs.oomd2.kill_target.as_str(),
+            recursive: "true".to_string()
+          )
+        )],
+        prekill_hook_timeout: None,
+    }
+}
+
+fn maybe_nr_dying_descendants_rule(node: &Node) -> DetectorElement {
     if node.in_dynamic_smc_tier("devbig") {
-        _ = user_pressure_detector.push(json::object! {
-        "name": "nr_dying_descendants",
-        "args": {
-            "cgroup": "/",
-            "count": "30000",
-            "lte": "true"
-        }
-        });
-
-        _ = system_pressure_detector.push(json::object! {
-          "name": "nr_dying_descendants",
-          "args": {
-              "cgroup": "/",
-              "count": "30000",
-              "lte": "true"
-          }
-        });
-    }
-
-    _ = user_pressure_detector.push(json::object! {
-        "name": "memory_reclaim",
-        "args": {
-            "cgroup": "user.slice,workload.slice,www.slice",
-            "duration": "30"
-        }
-    });
-
-    _ = system_pressure_detector.push(json::object! {
-      "name": "memory_reclaim",
-      "args": {
-          "cgroup": "system.slice",
-          "duration": "30"
-      }
-    });
-
-    json::object! {
-      "name": "user session protection",
-      "detectors": [
-        user_pressure_detector,
-        system_pressure_detector,
-      ],
-      "actions": [
-        {
-          "name": "kill_by_memory_size_or_growth",
-          "args": {
-            "cgroup": attrs.oomd2.kill_target.as_str(),
-            "recursive": true,
-          }
-        }
-      ]
+        detector_rule!(
+          name: "nr_dying_descendants",
+          args: detector_rule_args!(
+            cgroup: "/".to_string(),
+            count: "30000".to_string(),
+            lte: "true".to_string()
+          )
+        )
+    } else {
+        skip_this_detector_rule!()
     }
 }
 
-fn rule_protection_against_high_memory_pressure(attrs: &ConfigParams) -> json::JsonValue {
-    json::object! {
-      "name": "protection against high memory pressure",
-      "drop-in": {
-        "detectors": true,
-        "actions": true,
-        "disable-on-drop-in": attrs.oomd2.oomd_disable_on_drop_in,
-      },
-      "detectors": [
-        [
-          "detects fast growing memory pressure",
-          {
-            "name": attrs.oomd2.plugins["pressure_above"].as_str(),
-            "args": {
-              "cgroup": attrs.oomd2.oomd_target.as_str(),
-              "resource": "memory",
-              "threshold": attrs.oomd2.oomd_high_threshold.as_str(),
-              "duration": attrs.oomd2.oomd_high_threshold_duration.as_str(),
-            }
-          },
-          {
-            "name": attrs.oomd2.plugins["memory_reclaim"].as_str(),
-            "args": {
-              "cgroup": attrs.oomd2.oomd_target.as_str(),
-              "duration": attrs.oomd2.oomd_reclaim_duation.as_str(),
-            }
-          }
+fn ruleset_protection_against_high_memory_pressure(attrs: &ConfigParams) -> RuleSet {
+    RuleSet {
+        name: "protection against high memory pressure".to_string(),
+        silence_logs: None,
+        drop_in: Some(DropIn {
+            detectors: Some(true),
+            actions: Some(true),
+            disable_on_drop_in: Some(attrs.oomd2.oomd_disable_on_drop_in),
+        }),
+        detectors: vec![
+            detector!(
+                detector_name!("detects fast growing memory pressure"),
+                detector_rule!(
+                  name: attrs.oomd2.plugins["pressure_above"].as_str(),
+                  args: detector_rule_args!(
+                    cgroup: attrs.oomd2.oomd_target.clone(),
+                    resource: "memory".to_string(),
+                    threshold: attrs.oomd2.oomd_high_threshold.clone(),
+                    duration: attrs.oomd2.oomd_high_threshold_duration.clone()
+                  )
+                ),
+                detector_rule!(
+                  name: attrs.oomd2.plugins["memory_reclaim"].as_str(),
+                  args: detector_rule_args!(
+                    cgroup: attrs.oomd2.oomd_target.clone(),
+                    duration: attrs.oomd2.oomd_reclaim_duation.clone()
+                  )
+                )
+            ),
+            detector!(
+                detector_name!("detects slow growing memory pressure"),
+                detector_rule!(
+                  name: attrs.oomd2.plugins["pressure_rising_beyond"].as_str(),
+                  args: detector_rule_args!(
+                    cgroup: attrs.oomd2.oomd_target.clone(),
+                    resource: "memory".to_string(),
+                    threshold: attrs.oomd2.oomd_threshold.clone(),
+                    duration: attrs.oomd2.oomd_threshold_duration.clone()
+                  )
+                ),
+                detector_rule!(
+                  name: attrs.oomd2.plugins["memory_reclaim"].as_str(),
+                  args: detector_rule_args!(
+                    cgroup: attrs.oomd2.oomd_target.clone(),
+                    duration: attrs.oomd2.oomd_reclaim_duation.clone()
+                  )
+                )
+            ),
         ],
-        [
-          "detects slow growing memory pressure",
-          {
-            "name": attrs.oomd2.plugins["pressure_rising_beyond"].as_str(),
-            "args": {
-              "cgroup": attrs.oomd2.oomd_target.as_str(),
-              "resource": "memory",
-              "threshold": attrs.oomd2.oomd_threshold.as_str(),
-              "duration": attrs.oomd2.oomd_threshold_duration.as_str(),
-            }
-          },
-          {
-            "name": attrs.oomd2.plugins["memory_reclaim"].as_str(),
-            "args": {
-              "cgroup": attrs.oomd2.oomd_target.as_str(),
-              "duration": attrs.oomd2.oomd_reclaim_duation.as_str(),
-            }
-          }
-        ]
-      ],
-      "actions": [
-        {
-          "name": attrs.oomd2.plugins["kill_by_memory_size_or_growth"].as_str(),
-          "args": {
-            "cgroup": attrs.oomd2.oomd_action_target.as_str(),
-            "dry": if attrs.oomd2.oomd_dry { "true" } else {"false"},
-          }
-        }
-      ]
+        actions: vec![action!(
+          name: attrs.oomd2.plugins["kill_by_memory_size_or_growth"].as_str(),
+          args: action_args!(
+            cgroup: attrs.oomd2.oomd_action_target.as_str(),
+            dry: if attrs.oomd2.oomd_dry { "true" } else {"false"}
+          )
+        )],
+        prekill_hook_timeout: None,
     }
 }
 
-fn rule_od_protection_against_low_swap(attrs: &ConfigParams) -> json::JsonValue {
-    json::object! {
-      "name": "protection against low swap",
-      "drop-in": {
-        "detectors": true,
-        "actions": true,
-        "disable-on-drop-in": attrs.oomd2.oomd_disable_on_drop_in,
-      },
-      "detectors": [
-        [
-          "free swap goes below 5 percent",
-          {
-            "name": attrs.oomd2.plugins["swap_free"].as_str(),
-            "args": {
-              "threshold_pct": "5",
-            }
-          }
-        ]
-      ],
-      "actions": [
-        {
-          "name": attrs.oomd2.plugins["kill_by_swap_usage"].as_str(),
-          "args": {
-            "cgroup": attrs.oomd2.oomd_action_target.as_str(),
-            "dry": if attrs.oomd2.oomd_dry { "true" } else {"false"},
-          }
-        }
-      ]
+fn ruleset_od_protection_against_low_swap(attrs: &ConfigParams) -> RuleSet {
+    RuleSet {
+        name: "protection against low swap".to_string(),
+        silence_logs: None,
+        drop_in: Some(DropIn {
+            detectors: Some(true),
+            actions: Some(true),
+            disable_on_drop_in: Some(attrs.oomd2.oomd_disable_on_drop_in),
+        }),
+        detectors: vec![detector!(
+            detector_name!("free swap goes below 5 percent"),
+            detector_rule!(
+              name: attrs.oomd2.plugins["swap_free"].as_str(),
+              args: detector_rule_args!(
+                threshold_pct: "5".to_string()
+              )
+            )
+        )],
+        actions: vec![action!(
+          name: attrs.oomd2.plugins["kill_by_swap_usage"].as_str(),
+          args: action_args!(
+            cgroup: attrs.oomd2.oomd_action_target.as_str(),
+            dry: if attrs.oomd2.oomd_dry { "true" } else {"false"}
+          )
+        )],
+        prekill_hook_timeout: None,
     }
 }
 
@@ -834,7 +846,7 @@ fn get_host_type(node: &Node) -> HostType {
 
 fn main() -> anyhow::Result<()> {
     let mut b = libcfgen::Builder::new();
-    b = b.dynamic_json("oomd2.json", |node| Ok(oomd_json(node)));
+    b = b.dynamic_json("oomd2.json", oomd_json);
     b = b.dropin(|node| Ok(oomd_dropin(node)));
     b.run()
 }

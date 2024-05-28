@@ -1,10 +1,14 @@
-@generated SignedSource<<60b23c1a40e237850d38e23d98d5a1bb>>
+@generated SignedSource<<81eae96c318ecef1b5f4caf184cf4f37>>
 @codegen-command arc cfgen update-outputs fb-oomd
 {
   "rulesets": [
     {
       "name": "system overview",
       "silence-logs": "engine",
+      "drop-in": {
+        "detectors": true,
+        "actions": true
+      },
       "detectors": [
         [
           "records system stats",
@@ -21,18 +25,14 @@
           "name": "continue",
           "args": {}
         }
-      ],
-      "drop-in": {
-        "detectors": true,
-        "actions": true
-      }
+      ]
     },
     {
       "name": "protection against high memory pressure",
       "drop-in": {
+        "disable-on-drop-in": true,
         "detectors": true,
-        "actions": true,
-        "disable-on-drop-in": true
+        "actions": true
       },
       "detectors": [
         [
@@ -41,9 +41,9 @@
             "name": "pressure_above",
             "args": {
               "cgroup": "system.slice,workload.slice/workload-tw.slice/quicksand*.service",
+              "duration": "60",
               "resource": "memory",
-              "threshold": "80",
-              "duration": "60"
+              "threshold": "80"
             }
           },
           {
@@ -60,9 +60,9 @@
             "name": "pressure_rising_beyond",
             "args": {
               "cgroup": "system.slice,workload.slice/workload-tw.slice/quicksand*.service",
+              "duration": "90",
               "resource": "memory",
-              "threshold": "60",
-              "duration": "90"
+              "threshold": "60"
             }
           },
           {
@@ -93,8 +93,8 @@
             "name": "memory_above",
             "args": {
               "cgroup": "smc_proxy.service",
-              "threshold_anon": "15G",
-              "duration": "10"
+              "duration": "10",
+              "threshold_anon": "15G"
             }
           }
         ]
@@ -103,9 +103,9 @@
         {
           "name": "systemd_restart",
           "args": {
-            "service": "smc_proxy.service",
+            "dry": "false",
             "post_action_delay": "20",
-            "dry": "false"
+            "service": "smc_proxy.service"
           }
         }
       ]
@@ -114,8 +114,8 @@
       "name": "senpai drop-in ruleset",
       "silence-logs": "engine,plugins",
       "drop-in": {
-        "actions": true,
-        "disable-on-drop-in": true
+        "disable-on-drop-in": true,
+        "actions": true
       },
       "detectors": [
         [
@@ -139,9 +139,9 @@
     {
       "name": "protection against low swap",
       "drop-in": {
+        "disable-on-drop-in": true,
         "detectors": true,
-        "actions": true,
-        "disable-on-drop-in": true
+        "actions": true
       },
       "detectors": [
         [
