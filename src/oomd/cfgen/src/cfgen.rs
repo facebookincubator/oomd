@@ -26,12 +26,21 @@ fn oomd_dropin(node: &Node) -> Dropin {
         .build(node)
 }
 
+// Rules generated from this function are based on the original
+// oomd_fbtax.json.erb template: https://fburl.com/code/wq92o1k9.
 fn default_json_config(attrs: &ConfigParams) -> Result<json::JsonValue, anyhow::Error> {
     let mut rulesets = Vec::new();
     rulesets.push(ruleset_system_overview(attrs));
     rulesets.append(&mut rulesets_restart_cgroup_on_mem_threshold(attrs));
+    // Tupperware job killing.  Monitor workload-tw.slice and kill
+    // workload-tw.slice/*.  For now, we don't monitor or kill
+    // workload-wdb.slice.
     rulesets.push(ruleset_protection_against_heavy_workload_thrashing(attrs));
     if attrs.fbtax2.io_latency_supported {
+        // We can't set io.latency aggressive enough because it loses
+        // too much total work.  Let's help io.latency if system is
+        // spamming for too long.  Hopefully, we should be able to
+        // remove this with io.weight.
         rulesets.push(ruleset_protection_against_wdb_io_thrashing(attrs));
     }
     if !attrs.fbtax2.disable_swap_protection {
@@ -52,6 +61,8 @@ fn default_json_config(attrs: &ConfigParams) -> Result<json::JsonValue, anyhow::
     serialize_oomd_config(&config)
 }
 
+// Rules generated from this function are based on the original
+// oomd_devserver.json.erb template: https://fburl.com/code/3omvj54x.
 fn devserver_json_config(
     node: &Node,
     attrs: &ConfigParams,
@@ -74,6 +85,8 @@ fn devserver_json_config(
     serialize_oomd_config(&config)
 }
 
+// Rules generated from this function are based on the original
+// oomd_ondemand.json.erb template: https://fburl.com/code/9z7w4irm.
 fn od_json_config(attrs: &ConfigParams) -> Result<json::JsonValue, anyhow::Error> {
     let mut rulesets = Vec::new();
     rulesets.push(ruleset_system_overview(attrs));
@@ -223,6 +236,13 @@ fn ruleset_protection_against_heavy_workload_thrashing_detectors(
             )
         )]
     } else {
+        // Note that these conditions are a lot more liberal than
+        // they should really be.  This is because we can't
+        // protect hostcritical's IOs from workload using
+        // io.latency without risking severely impacting workload,
+        // so oomd is used as an side-channel enforcement
+        // mechanism with tighter configuration.
+        //
         vec![
             detector!(
                 detector_name!("detects fast growing memory pressure"),
@@ -425,6 +445,8 @@ fn ruleset_senpai_ruleset(attrs: &ConfigParams) -> RuleSet {
 }
 
 fn ruleset_senpai_drop_in_ruleset(attrs: &ConfigParams) -> RuleSet {
+    // This allows tw integration to run senpai on particular tasks via
+    // drop-in configs.
     RuleSet {
         name: "senpai drop-in ruleset".to_string(),
         silence_logs: Some(if attrs.host_type == HostType::OnDemand {
@@ -444,6 +466,8 @@ fn ruleset_senpai_drop_in_ruleset(attrs: &ConfigParams) -> RuleSet {
                 detector_name!("continue detector group")
             },
             if attrs.disable_senpai_dropin {
+                // Effectively a stop plugin so that drop-ins could be
+                // inserted but won't run.
                 detector_rule!(
                   name: "exists",
                   args: detector_rule_args!(
@@ -458,6 +482,7 @@ fn ruleset_senpai_drop_in_ruleset(attrs: &ConfigParams) -> RuleSet {
                 )
             }
         )],
+        // no-op for drop-in override
         actions: vec![action!(
           name: "continue",
           args: action_args!()
@@ -467,6 +492,8 @@ fn ruleset_senpai_drop_in_ruleset(attrs: &ConfigParams) -> RuleSet {
 }
 
 fn ruleset_tw_container_drop_in_ruleset(attrs: &ConfigParams) -> RuleSet {
+    // This allows tw integration to not set memory.max on particular tasks via
+    // drop-in configs.
     RuleSet {
         name: "tw_container drop-in ruleset".to_string(),
         silence_logs: None,
@@ -567,6 +594,7 @@ fn ruleset_user_session_protection(node: &Node, attrs: &ConfigParams) -> RuleSet
 
 fn maybe_nr_dying_descendants_rule(node: &Node) -> DetectorElement {
     if node.in_dynamic_smc_tier("devbig") {
+        // See https://fb.workplace.com/groups/linux.fbk/permalink/2924541514245339/
         detector_rule!(
           name: "nr_dying_descendants",
           args: detector_rule_args!(
@@ -773,7 +801,7 @@ fn fbtax2_blacklisted_jobs(node: &Node) -> Vec<&'static str> {
             "workload.slice/workload-tw.slice/sigrid_online_trainer*",
             "workload.slice/workload-tw.slice/*.reservation.slice/sigrid_online_trainer*",
             "workload.slice/workload-tw.slice/*.allotment.slice/sigrid_online_trainer*",
-            //Pensieve analyzes very large JVM heapdumps. The workflow is
+            // Pensieve analyzes very large JVM heapdumps. The workflow is
             // memory intensive (includes tmpfs operation) and tries to use as
             // much memory as available in order to increase the processing
             // throughput.
