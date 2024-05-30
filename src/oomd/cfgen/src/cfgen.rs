@@ -19,11 +19,20 @@ fn oomd_json(node: &Node) -> Result<json::JsonValue, anyhow::Error> {
     }
 }
 
-fn oomd_dropin(node: &Node) -> Dropin {
-    // TODO(chengxiong): implement this
-    libcfgen::DropinBuilder::new()
-        .with_recommended_heap_profiling("fb-oomd")
-        .build(node)
+fn oomd_dropin(_node: &Node) -> Dropin {
+    let args = [
+        "--interval 1",
+        "--config /etc/oomd2.json",
+        "--drop-in-dir /run/oomd/dropin",
+    ];
+    let environment = convert_args!(btreemap!(
+        "OOMD_ARGS" => args.join(" "),
+    ));
+
+    Dropin {
+        environment,
+        ..Default::default()
+    }
 }
 
 // Rules generated from this function are based on the original
