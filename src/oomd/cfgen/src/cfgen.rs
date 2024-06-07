@@ -602,7 +602,7 @@ fn ruleset_user_session_protection(node: &Node, attrs: &ConfigParams) -> RuleSet
 }
 
 fn maybe_nr_dying_descendants_rule(node: &Node) -> DetectorElement {
-    if node.in_dynamic_smc_tier("devbig") {
+    if node.is_devserver() && node.hostname_prefix() == DEVBIG {
         // See https://fb.workplace.com/groups/linux.fbk/permalink/2924541514245339/
         detector_rule!(
           name: "nr_dying_descendants",

@@ -29,3 +29,6 @@ samples:
   synmon:
     # this host is a sample from the "wdb config monitor" scuba table
     production_host: synmon017.rva2.facebook.com
+  devbig:
+    # this host is a sample from the "wdb config monitor" scuba table
+    production_host: devbig284.ash8.facebook.com
