@@ -1,11 +1,11 @@
-@generated SignedSource<<36a93be5decb387899c480a3e1be4ac5>>
+@generated SignedSource<<5517f779d804dc015178e6f1099d6376>>
 @codegen-command arc cfgen update-inputs fb-oomd
 {
   "fqdn": "twshared30691.02.ftw6.facebook.com",
   "region": "texas",
   "clusterType": "SERVICE_GENERIC_NON_MEMCACHE",
   "modelId": 341690,
-  "kernelRelease": "6.4.3-0_fbk10_zion_rc9_2482_g96807ccfca35",
+  "kernelRelease": "6.4.3-0_fbk11_zion_2563_g44ec95f7d7f4",
   "serverType": "TYPE_XX_GPU_TC",
   "experiments": [],
   "cpuArchitecture": "cooperlake",
@@ -55,7 +55,7 @@
     "deviceType": "SERVER",
     "datacenter": "ftw6",
     "cluster": "02",
-    "memTotal": 1621459365888,
+    "memTotal": 1621459357696,
     "osVersion": {
       "distribution_name": "CentOS Stream release",
       "version": 9,
@@ -67,73 +67,97 @@
         "vendor_id": 5555,
         "device_id": 4125,
         "class_code": 131072,
-        "board_part_number": "MCX623435AC-VDA_FB"
+        "board_part_number": "MCX623435AC-VDA_FB",
+        "current_speed_mts": 16000,
+        "current_width": 16
       },
       "0000:17:00.0": {
         "vendor_id": 5555,
         "device_id": 4125,
         "class_code": 131072,
-        "board_part_number": "MCX623435AC-VDA_FB"
+        "board_part_number": "MCX623435AC-VDA_FB",
+        "current_speed_mts": 16000,
+        "current_width": 16
       },
       "0000:30:00.0": {
         "vendor_id": 5555,
         "device_id": 4125,
         "class_code": 131072,
-        "board_part_number": "MCX623435AC-CDAB_FB"
+        "board_part_number": "MCX623435AC-CDAB_FB",
+        "current_speed_mts": 8000,
+        "current_width": 16
       },
       "0000:4d:00.0": {
         "vendor_id": 5555,
         "device_id": 4125,
         "class_code": 131072,
-        "board_part_number": "MCX623435AC-VDA_FB"
+        "board_part_number": "MCX623435AC-VDA_FB",
+        "current_speed_mts": 16000,
+        "current_width": 16
       },
       "0000:4e:00.0": {
         "vendor_id": 5555,
         "device_id": 4125,
         "class_code": 131072,
-        "board_part_number": "MCX623435AC-VDA_FB"
+        "board_part_number": "MCX623435AC-VDA_FB",
+        "current_speed_mts": 16000,
+        "current_width": 16
       },
       "0000:6d:00.0": {
         "vendor_id": 5555,
         "device_id": 4125,
         "class_code": 131072,
-        "board_part_number": "MCX623435AC-CDAB_FB"
+        "board_part_number": "MCX623435AC-CDAB_FB",
+        "current_speed_mts": 8000,
+        "current_width": 16
       },
       "0000:8d:00.0": {
         "vendor_id": 5555,
         "device_id": 4125,
         "class_code": 131072,
-        "board_part_number": "MCX623435AC-VDA_FB"
+        "board_part_number": "MCX623435AC-VDA_FB",
+        "current_speed_mts": 16000,
+        "current_width": 16
       },
       "0000:8e:00.0": {
         "vendor_id": 5555,
         "device_id": 4125,
         "class_code": 131072,
-        "board_part_number": "MCX623435AC-VDA_FB"
+        "board_part_number": "MCX623435AC-VDA_FB",
+        "current_speed_mts": 16000,
+        "current_width": 16
       },
       "0000:ad:00.0": {
         "vendor_id": 5555,
         "device_id": 4125,
         "class_code": 131072,
-        "board_part_number": "MCX623435AC-CDAB_FB"
+        "board_part_number": "MCX623435AC-CDAB_FB",
+        "current_speed_mts": 8000,
+        "current_width": 16
       },
       "0000:cd:00.0": {
         "vendor_id": 5555,
         "device_id": 4125,
         "class_code": 131072,
-        "board_part_number": "MCX623435AC-VDA_FB"
+        "board_part_number": "MCX623435AC-VDA_FB",
+        "current_speed_mts": 16000,
+        "current_width": 16
       },
       "0000:ce:00.0": {
         "vendor_id": 5555,
         "device_id": 4125,
         "class_code": 131072,
-        "board_part_number": "MCX623435AC-VDA_FB"
+        "board_part_number": "MCX623435AC-VDA_FB",
+        "current_speed_mts": 16000,
+        "current_width": 16
       },
       "0000:ed:00.0": {
         "vendor_id": 5555,
         "device_id": 4125,
         "class_code": 131072,
-        "board_part_number": "MCX623435AC-CDAB_FB"
+        "board_part_number": "MCX623435AC-CDAB_FB",
+        "current_speed_mts": 8000,
+        "current_width": 16
       }
     },
     "static_smc_tiers": [],
@@ -143,84 +167,84 @@
     "ethtoolByInterface": {
       "eth0": {
         "driver": "mlx5_core",
-        "driver_version": "6.4.3-0_fbk10_zion_rc9_2482_g96",
+        "driver_version": "6.4.3-0_fbk11_zion_2563_g44ec95",
         "firmware_version": "22.32.1206 (FB_0000000025)",
         "bus_info": "0000:30:00.0",
         "speed_mbps": 100000
       },
       "eth1": {
         "driver": "mlx5_core",
-        "driver_version": "6.4.3-0_fbk10_zion_rc9_2482_g96",
+        "driver_version": "6.4.3-0_fbk11_zion_2563_g44ec95",
         "firmware_version": "22.32.1206 (FB_0000000025)",
         "bus_info": "0000:6d:00.0",
         "speed_mbps": 100000
       },
       "eth10": {
         "driver": "mlx5_core",
-        "driver_version": "6.4.3-0_fbk10_zion_rc9_2482_g96",
+        "driver_version": "6.4.3-0_fbk11_zion_2563_g44ec95",
         "firmware_version": "22.38.1002 (FB_0000000028)",
         "bus_info": "0000:ce:00.0",
         "speed_mbps": 200000
       },
       "eth11": {
         "driver": "mlx5_core",
-        "driver_version": "6.4.3-0_fbk10_zion_rc9_2482_g96",
+        "driver_version": "6.4.3-0_fbk11_zion_2563_g44ec95",
         "firmware_version": "22.38.1002 (FB_0000000028)",
         "bus_info": "0000:4d:00.0",
         "speed_mbps": 200000
       },
       "eth2": {
         "driver": "mlx5_core",
-        "driver_version": "6.4.3-0_fbk10_zion_rc9_2482_g96",
+        "driver_version": "6.4.3-0_fbk11_zion_2563_g44ec95",
         "firmware_version": "22.32.1206 (FB_0000000025)",
         "bus_info": "0000:ad:00.0",
         "speed_mbps": 100000
       },
       "eth3": {
         "driver": "mlx5_core",
-        "driver_version": "6.4.3-0_fbk10_zion_rc9_2482_g96",
+        "driver_version": "6.4.3-0_fbk11_zion_2563_g44ec95",
         "firmware_version": "22.32.1206 (FB_0000000025)",
         "bus_info": "0000:ed:00.0",
         "speed_mbps": 100000
       },
       "eth4": {
         "driver": "mlx5_core",
-        "driver_version": "6.4.3-0_fbk10_zion_rc9_2482_g96",
+        "driver_version": "6.4.3-0_fbk11_zion_2563_g44ec95",
         "firmware_version": "22.38.1002 (FB_0000000028)",
         "bus_info": "0000:4e:00.0",
         "speed_mbps": 200000
       },
       "eth5": {
         "driver": "mlx5_core",
-        "driver_version": "6.4.3-0_fbk10_zion_rc9_2482_g96",
+        "driver_version": "6.4.3-0_fbk11_zion_2563_g44ec95",
         "firmware_version": "22.38.1002 (FB_0000000028)",
         "bus_info": "0000:17:00.0",
         "speed_mbps": 200000
       },
       "eth6": {
         "driver": "mlx5_core",
-        "driver_version": "6.4.3-0_fbk10_zion_rc9_2482_g96",
+        "driver_version": "6.4.3-0_fbk11_zion_2563_g44ec95",
         "firmware_version": "22.38.1002 (FB_0000000028)",
         "bus_info": "0000:8d:00.0",
         "speed_mbps": 200000
       },
       "eth7": {
         "driver": "mlx5_core",
-        "driver_version": "6.4.3-0_fbk10_zion_rc9_2482_g96",
+        "driver_version": "6.4.3-0_fbk11_zion_2563_g44ec95",
         "firmware_version": "22.38.1002 (FB_0000000028)",
         "bus_info": "0000:8e:00.0",
         "speed_mbps": 200000
       },
       "eth8": {
         "driver": "mlx5_core",
-        "driver_version": "6.4.3-0_fbk10_zion_rc9_2482_g96",
+        "driver_version": "6.4.3-0_fbk11_zion_2563_g44ec95",
         "firmware_version": "22.38.1002 (FB_0000000028)",
         "bus_info": "0000:16:00.0",
         "speed_mbps": 200000
       },
       "eth9": {
         "driver": "mlx5_core",
-        "driver_version": "6.4.3-0_fbk10_zion_rc9_2482_g96",
+        "driver_version": "6.4.3-0_fbk11_zion_2563_g44ec95",
         "firmware_version": "22.38.1002 (FB_0000000028)",
         "bus_info": "0000:cd:00.0",
         "speed_mbps": 200000
@@ -245,7 +269,7 @@
           "size_bytes": 1800360124416,
           "is_rotational": false,
           "model": "MZ1LB1T9HBLS-000FB",
-          "serial": "S5XANE0N800501",
+          "serial": "S5XANE0N800532",
           "physical_block_size": 4096,
           "logical_block_size": 4096,
           "is_root": false
@@ -254,25 +278,25 @@
           "size_bytes": 1800360124416,
           "is_rotational": false,
           "model": "MZ1LB1T9HBLS-000FB",
-          "serial": "S5XANE0N800535",
+          "serial": "S5XANE0N702073",
           "physical_block_size": 4096,
           "logical_block_size": 4096,
-          "is_root": false
+          "is_root": true
         },
         "nvme12n1": {
           "size_bytes": 1800360124416,
           "is_rotational": false,
           "model": "MZ1LB1T9HBLS-000FB",
-          "serial": "S5XANE0N800503",
+          "serial": "S5XANE0N702067",
           "physical_block_size": 4096,
           "logical_block_size": 4096,
-          "is_root": false
+          "is_root": true
         },
         "nvme13n1": {
           "size_bytes": 1800360124416,
           "is_rotational": false,
           "model": "MZ1LB1T9HBLS-000FB",
-          "serial": "S5XANE0N800504",
+          "serial": "S5XANE0N800123",
           "physical_block_size": 4096,
           "logical_block_size": 4096,
           "is_root": false
@@ -281,19 +305,19 @@
           "size_bytes": 1800360124416,
           "is_rotational": false,
           "model": "MZ1LB1T9HBLS-000FB",
-          "serial": "S5XANE0N702073",
+          "serial": "S5XANE0N800500",
           "physical_block_size": 4096,
           "logical_block_size": 4096,
-          "is_root": true
+          "is_root": false
         },
         "nvme15n1": {
           "size_bytes": 1800360124416,
           "is_rotational": false,
           "model": "MZ1LB1T9HBLS-000FB",
-          "serial": "S5XANE0N702067",
+          "serial": "S5XANE0N800483",
           "physical_block_size": 4096,
           "logical_block_size": 4096,
-          "is_root": true
+          "is_root": false
         },
         "nvme16n1": {
           "size_bytes": 1800360124416,
@@ -326,7 +350,7 @@
           "size_bytes": 1800360124416,
           "is_rotational": false,
           "model": "MZ1LB1T9HBLS-000FB",
-          "serial": "S5XANE0N800533",
+          "serial": "S5XANE0N800114",
           "physical_block_size": 4096,
           "logical_block_size": 4096,
           "is_root": false
@@ -335,7 +359,7 @@
           "size_bytes": 1800360124416,
           "is_rotational": false,
           "model": "MZ1LB1T9HBLS-000FB",
-          "serial": "S5XANE0N800515",
+          "serial": "S5XANE0N800501",
           "physical_block_size": 4096,
           "logical_block_size": 4096,
           "is_root": false
@@ -344,7 +368,7 @@
           "size_bytes": 1800360124416,
           "is_rotational": false,
           "model": "MZ1LB1T9HBLS-000FB",
-          "serial": "S5XANE0N800114",
+          "serial": "S5XANE0N800533",
           "physical_block_size": 4096,
           "logical_block_size": 4096,
           "is_root": false
@@ -353,7 +377,7 @@
           "size_bytes": 1800360124416,
           "is_rotational": false,
           "model": "MZ1LB1T9HBLS-000FB",
-          "serial": "S5XANE0N800123",
+          "serial": "S5XANE0N800515",
           "physical_block_size": 4096,
           "logical_block_size": 4096,
           "is_root": false
@@ -362,7 +386,7 @@
           "size_bytes": 1800360124416,
           "is_rotational": false,
           "model": "MZ1LB1T9HBLS-000FB",
-          "serial": "S5XANE0N800520",
+          "serial": "S5XANE0N800535",
           "physical_block_size": 4096,
           "logical_block_size": 4096,
           "is_root": false
@@ -371,7 +395,7 @@
           "size_bytes": 1800360124416,
           "is_rotational": false,
           "model": "MZ1LB1T9HBLS-000FB",
-          "serial": "S5XANE0N800521",
+          "serial": "S5XANE0N800503",
           "physical_block_size": 4096,
           "logical_block_size": 4096,
           "is_root": false
@@ -380,7 +404,7 @@
           "size_bytes": 1800360124416,
           "is_rotational": false,
           "model": "MZ1LB1T9HBLS-000FB",
-          "serial": "S5XANE0N800500",
+          "serial": "S5XANE0N800520",
           "physical_block_size": 4096,
           "logical_block_size": 4096,
           "is_root": false
@@ -389,7 +413,7 @@
           "size_bytes": 1800360124416,
           "is_rotational": false,
           "model": "MZ1LB1T9HBLS-000FB",
-          "serial": "S5XANE0N800483",
+          "serial": "S5XANE0N800521",
           "physical_block_size": 4096,
           "logical_block_size": 4096,
           "is_root": false
@@ -398,7 +422,7 @@
           "size_bytes": 1800360124416,
           "is_rotational": false,
           "model": "MZ1LB1T9HBLS-000FB",
-          "serial": "S5XANE0N800532",
+          "serial": "S5XANE0N800504",
           "physical_block_size": 4096,
           "logical_block_size": 4096,
           "is_root": false
@@ -423,10 +447,35 @@
       "SVC0_1",
       "SVC0_2",
       "SVC0_3"
-    ]
+    ],
+    "loaded_kernel_modules": [
+      {
+        "name": "nvidia",
+        "version": "535.154.05\n"
+      }
+    ],
+    "mounts": {
+      "mounts": [
+        {
+          "device": "/dev/md0p1",
+          "mount_point": "/",
+          "fstype": "btrfs",
+          "mount_options": [
+            "rw",
+            "relatime",
+            "compress-force=zstd:3",
+            "ssd",
+            "discard=async",
+            "space_cache=v2",
+            "subvolid=5",
+            "subvol=/"
+          ]
+        }
+      ]
+    }
   },
   "reservationConfig": {
     "active_machine_materialization_id": "61df5d85bd682",
-    "current_reservation_host_profile_id": "KERNEL:kernel_6.4.3-0_fbk10_zion_rc9_2482_g96807ccfca35_nvidia_535.154.05_base.v0|POWER:CPU_PERF_OPT|KERNEL_ARGS:kargs_crashkernel384M_multinic.v0|BOOT_CONFIG:bootloader814_initrd230_swap16G_native_arch|DRIVER_ARGS:t20_zionex_nvidia_driver_args.v1"
+    "current_reservation_host_profile_id": "KERNEL:kernel_6.4.3-0_fbk11_zion_2563_g44ec95f7d7f4_nvidia_535.154.05_base.v0|POWER:CPU_PERF_OPT|KERNEL_ARGS:kargs_crashkernel384M_multinic.v0|BOOT_CONFIG:bootloader814_initrd230_swap16G_native_arch|DRIVER_ARGS:t20_zionex_nvidia_driver_args.v1|OS:CLASSIC"
   }
 }

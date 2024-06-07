@@ -848,9 +848,9 @@ fn senpai_limit_min_bytes(node: &Node) -> Option<String> {
 fn oomd2_oomd_target(node: &Node) -> String {
     match get_host_type(node) {
         HostType::DevServer => String::from("system.slice"),
-        HostType::OnDemand => {
-            String::from("system.slice,workload.slice/workload-tw.slice/quicksand*.service")
-        }
+        HostType::OnDemand => String::from(
+            "system.slice,system.slice/system-hgcache\\x2dupdater.slice/hgcache-updater*.service",
+        ),
         _ => String::from("workload.slice"),
     }
 }
