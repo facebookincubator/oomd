@@ -32,3 +32,8 @@ samples:
   devbig:
     # this host is a sample from the "wdb config monitor" scuba table
     production_host: devbig284.ash8.facebook.com
+  twpool:
+    # this host is a sample from the "wdb config monitor" scuba table
+    production_host: tw066.02.cln2.facebook.com
+  twpool_no_senpai:
+    production_host: tw023.04.vll2.facebook.com

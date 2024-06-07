@@ -11,6 +11,7 @@ pub enum HostType {
     DevServer,
     OnDemand,
     TwShared,
+    Tw,
     Synmon,
     Dns,
 }

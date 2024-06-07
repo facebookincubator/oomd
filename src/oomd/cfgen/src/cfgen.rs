@@ -866,7 +866,7 @@ fn should_setup_iocost(node: &Node) -> bool {
 }
 
 fn fbtax2_blacklisted_jobs(node: &Node) -> Vec<&'static str> {
-    if get_host_type(node) == HostType::TwShared {
+    if [HostType::TwShared, HostType::Tw].contains(&get_host_type(node)) {
         return vec![
             // This ML model has extremely high memory usage, they need to fix
             // their stuff at some point.
@@ -897,7 +897,7 @@ fn senpai_targets(node: &Node) -> Option<String> {
     }
 
     match get_host_type(node) {
-        HostType::TwShared => Some(String::from(
+        HostType::TwShared | HostType::Tw => Some(String::from(
             "system.slice,workload.slice/workload-wdb.slice,hostcritical.slice,workload.slice/workload-wdb.slice/*,hostcritical.slice/*",
         )),
         HostType::Synmon => Some(String::from("system.slice")),
@@ -906,7 +906,7 @@ fn senpai_targets(node: &Node) -> Option<String> {
 }
 
 fn senpai_limit_min_bytes(node: &Node) -> Option<String> {
-    if [HostType::TwShared, HostType::Synmon].contains(&get_host_type(node)) {
+    if [HostType::TwShared, HostType::Tw, HostType::Synmon].contains(&get_host_type(node)) {
         let min_bytes = 100 * 1024 * 1024;
         return Some(min_bytes.to_string());
     }
@@ -933,6 +933,10 @@ fn disable_senpai_dropin(node: &Node) -> bool {
 fn get_host_type(node: &Node) -> HostType {
     if node.hostname_prefix() == TWSHARED {
         return HostType::TwShared;
+    }
+
+    if node.hostname_prefix() == TW {
+        return HostType::Tw;
     }
 
     if node.hostname_prefix() == OD {

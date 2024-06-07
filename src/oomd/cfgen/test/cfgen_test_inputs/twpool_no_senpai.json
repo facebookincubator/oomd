@@ -1,0 +1,84 @@
+@generated SignedSource<<385d00650b8b80058480fedbea087963>>
+@codegen-command arc cfgen update-inputs fb-oomd
+{
+  "fqdn": "tw023.04.vll2.facebook.com",
+  "region": "newmexico",
+  "clusterType": "HADOOP",
+  "modelId": 331202,
+  "kernelRelease": "5.19.0-0_fbk12_11583_g0bef9520ca2b",
+  "serverType": "TYPE_VI_FEED",
+  "experiments": [],
+  "cpuArchitecture": "skylake",
+  "metalosRootfs": false,
+  "provisioningConfig": {
+    "ethtoolByInterface": {
+      "eth0": {
+        "maxChannelsCombined": 63
+      }
+    },
+    "cpuCoreCount": 40,
+    "parentModelId": 333803,
+    "recoveryEnvironment": false,
+    "deviceType": "SERVER",
+    "datacenter": "vll2",
+    "cluster": "04",
+    "memTotal": 270019551232,
+    "osVersion": {
+      "distribution_name": "CentOS Stream release",
+      "version": 9,
+      "is_in_ramdisk": false,
+      "is_metalos": false
+    },
+    "pciByAddress": {
+      "0000:5e:00.0": {
+        "vendor_id": 5555,
+        "device_id": 4117,
+        "class_code": 131072,
+        "board_part_number": "MCX4411D-ACAN_FB"
+      }
+    },
+    "static_smc_tiers": [],
+    "machine": "x86_64"
+  },
+  "bootConfig": {
+    "ethtoolByInterface": {
+      "eth0": {
+        "driver": "mlx5_core",
+        "driver_version": "5.19.0-0_fbk12_11583_g0bef9520c",
+        "firmware_version": "14.27.2606 (FB_0000000005)",
+        "bus_info": "0000:5e:00.0"
+      }
+    }
+  },
+  "runtimeConfig": {
+    "hasHighPrivCert": true,
+    "regionRoutableCluster": "vll1.02",
+    "block_devices": {
+      "block_devices": {
+        "sda": {
+          "size_bytes": 2000398934016,
+          "is_rotational": true,
+          "model": "HGST HUS722T2TALA604",
+          "serial": "WMC6N0P94N1J",
+          "physical_block_size": 512,
+          "logical_block_size": 512,
+          "is_root": true
+        }
+      }
+    },
+    "dynamic_smc_tiers": [],
+    "cluster_state": "CLUSTER_IN_USE",
+    "installed_platforms": [
+      "platform010",
+      "platform010-compat"
+    ],
+    "device_nics_enum": [
+      "ETH0",
+      "SVC0"
+    ]
+  },
+  "reservationConfig": {
+    "active_machine_materialization_id": "",
+    "current_reservation_host_profile_id": "NEWLY_PROVISIONED_PROFILE"
+  }
+}
