@@ -1,0 +1,243 @@
+@generated SignedSource<<1858fcd1254653f821a63b3b99860271>>
+@codegen-command arc cfgen update-outputs fb-oomd
+{
+  "rulesets": [
+    {
+      "name": "system overview",
+      "silence-logs": "engine",
+      "detectors": [
+        [
+          "records system stats",
+          {
+            "name": "dump_cgroup_overview",
+            "args": {
+              "cgroup": "workload.slice"
+            }
+          }
+        ]
+      ],
+      "actions": [
+        {
+          "name": "continue",
+          "args": {}
+        }
+      ]
+    },
+    {
+      "name": "restart smc_proxy.service on memory threshold",
+      "detectors": [
+        [
+          "memory usage above",
+          {
+            "name": "memory_above",
+            "args": {
+              "cgroup": "smc_proxy.service",
+              "duration": "10",
+              "threshold_anon": "15G"
+            }
+          }
+        ]
+      ],
+      "actions": [
+        {
+          "name": "systemd_restart",
+          "args": {
+            "dry": "false",
+            "post_action_delay": "20",
+            "service": "smc_proxy.service"
+          }
+        }
+      ]
+    },
+    {
+      "name": "protection against heavy workload thrashing",
+      "drop-in": {
+        "disable-on-drop-in": true,
+        "detectors": true,
+        "actions": true
+      },
+      "detectors": [
+        [
+          "detects fast growing memory pressure",
+          {
+            "name": "pressure_above",
+            "args": {
+              "cgroup": "workload.slice/workload-tw.slice",
+              "duration": "60",
+              "resource": "memory",
+              "threshold": "80"
+            }
+          },
+          {
+            "name": "memory_reclaim",
+            "args": {
+              "cgroup": "workload.slice/workload-tw.slice",
+              "duration": "10"
+            }
+          }
+        ],
+        [
+          "detects slow growing memory pressure",
+          {
+            "name": "pressure_rising_beyond",
+            "args": {
+              "cgroup": "workload.slice/workload-tw.slice",
+              "duration": "90",
+              "resource": "memory",
+              "threshold": "60"
+            }
+          },
+          {
+            "name": "memory_reclaim",
+            "args": {
+              "cgroup": "workload.slice/workload-tw.slice",
+              "duration": "10"
+            }
+          }
+        ]
+      ],
+      "actions": [
+        {
+          "name": "kill_by_pg_scan",
+          "args": {
+            "cgroup": "workload.slice/workload-tw.slice/*",
+            "recursive": "true"
+          }
+        }
+      ]
+    },
+    {
+      "name": "protection against wdb io thrashing",
+      "detectors": [
+        [
+          "low pressure in workload and high io in wdb",
+          {
+            "name": "pressure_rising_beyond",
+            "args": {
+              "cgroup": "workload.slice",
+              "duration": "0",
+              "resource": "io",
+              "threshold": "10"
+            }
+          },
+          {
+            "name": "pressure_rising_beyond",
+            "args": {
+              "cgroup": "system.slice",
+              "duration": "0",
+              "resource": "io",
+              "threshold": "60"
+            }
+          }
+        ]
+      ],
+      "actions": [
+        {
+          "name": "kill_by_pressure",
+          "args": {
+            "cgroup": "system.slice/*",
+            "recursive": "true",
+            "resource": "io"
+          }
+        }
+      ]
+    },
+    {
+      "name": "protection against low swap",
+      "detectors": [
+        [
+          "free swap goes below 10 percent",
+          {
+            "name": "swap_free",
+            "args": {
+              "threshold_pct": "10"
+            }
+          }
+        ]
+      ],
+      "actions": [
+        {
+          "name": "kill_by_swap_usage",
+          "args": {
+            "biased_swap_kill": "true",
+            "cgroup": "system.slice/*,workload.slice/workload-wdb.slice/*,workload.slice/workload-tw.slice/*",
+            "recursive": "true"
+          }
+        }
+      ]
+    },
+    {
+      "name": "senpai ruleset",
+      "silence-logs": "engine",
+      "detectors": [
+        [
+          "continue detector group",
+          {
+            "name": "continue",
+            "args": {}
+          }
+        ]
+      ],
+      "actions": [
+        {
+          "name": "senpai_poking",
+          "args": {
+            "cgroup": "system.slice",
+            "io_pressure_pct": "1.0",
+            "memory_high_timeout_ms": "20",
+            "scuba_logger_dataset": "perfpipe_senpai_events",
+            "limit_min_bytes": "104857600"
+          }
+        }
+      ]
+    },
+    {
+      "name": "senpai drop-in ruleset",
+      "silence-logs": "engine",
+      "drop-in": {
+        "disable-on-drop-in": true,
+        "actions": true
+      },
+      "detectors": [
+        [
+          "continue detector group",
+          {
+            "name": "continue",
+            "args": {}
+          }
+        ]
+      ],
+      "actions": [
+        {
+          "name": "continue",
+          "args": {}
+        }
+      ]
+    },
+    {
+      "name": "tw_container drop-in ruleset",
+      "drop-in": {
+        "disable-on-drop-in": true,
+        "detectors": true,
+        "actions": true
+      },
+      "detectors": [
+        [
+          "continue",
+          {
+            "name": "stop",
+            "args": {}
+          }
+        ]
+      ],
+      "actions": [
+        {
+          "name": "continue",
+          "args": {}
+        }
+      ],
+      "prekill_hook_timeout": "45"
+    }
+  ],
+  "version": "1.0.0"
+}

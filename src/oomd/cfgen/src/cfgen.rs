@@ -334,7 +334,7 @@ fn ruleset_protection_against_wdb_io_thrashing(attrs: &ConfigParams) -> RuleSet 
             detector_rule!(
                 name: "pressure_rising_beyond",
                 args: detector_rule_args!(
-                  cgroup: "workload.slice".to_string(),
+                  cgroup: "system.slice".to_string(),
                   resource: "io".to_string(),
                   threshold: if attrs.fbtax2.on_ssd {"60".to_string()} else {"85".to_string()},
                   duration: if attrs.fbtax2.on_ssd {"0".to_string()} else {"180".to_string()}
@@ -719,7 +719,7 @@ fn get_attributes(node: &Node) -> ConfigParams {
             workload_high_pressure_duration: String::from("180"),
             workload_monitoring_slice: String::from("workload.slice/workload-tw.slice"),
             post_workload_kill_delay: None,
-            oomd_extra_rulesets: Vec::new(),
+            oomd_extra_rulesets: oomd_extra_rulesets(node),
             low_swap_threshold: String::from("10"),
         },
         oomd2: Oomd2Attributes {
@@ -768,6 +768,65 @@ fn get_attributes(node: &Node) -> ConfigParams {
     }
 }
 
+fn oomd_extra_rulesets(node: &Node) -> Vec<RuleSet> {
+    if get_host_type(node) != HostType::Dns {
+        return vec![];
+    }
+
+    vec![
+        RuleSet {
+            name: "restart workload.slice/unbound-local-wrapper.service on memory threshold"
+                .to_string(),
+            silence_logs: None,
+            drop_in: None,
+            detectors: vec![detector!(
+                detector_name!("memory usage above"),
+                detector_rule!(
+                  name: "memory_above",
+                  args: detector_rule_args!(
+                    cgroup: "workload.slice/unbound-local-wrapper.service".to_string(),
+                    threshold_anon: "20%".to_string(),
+                    duration: "60".to_string()
+                  )
+                )
+            )],
+            actions: vec![action!(
+              name: "systemd_restart",
+              args: action_args!(
+                service: "unbound-local-wrapper.service",
+                post_action_delay: "180"
+              )
+            )],
+            prekill_hook_timeout: None,
+        },
+        RuleSet {
+            name: "restart workload.slice/unbound-internet-wrapper.service on memory threshold"
+                .to_string(),
+            silence_logs: None,
+            drop_in: None,
+            detectors: vec![detector!(
+                detector_name!("memory usage above"),
+                detector_rule!(
+                  name: "memory_above",
+                  args: detector_rule_args!(
+                    cgroup: "workload.slice/unbound-internet-wrapper.service".to_string(),
+                    threshold_anon: "27%".to_string(),
+                    duration: "60".to_string()
+                  )
+                )
+            )],
+            actions: vec![action!(
+              name: "systemd_restart",
+              args: action_args!(
+                service: "unbound-internet-wrapper.service",
+                post_action_delay: "180"
+              )
+            )],
+            prekill_hook_timeout: None,
+        },
+    ]
+}
+
 fn oomd2_oomd_restart_threshold() -> BTreeMap<String, OomdRestartThreshold> {
     btreemap! {
       String::from("smc_proxy.service") => OomdRestartThreshold{
@@ -782,24 +841,28 @@ fn on_ssd(node: &Node) -> bool {
     node.storage().has_ssd_root()
 }
 
-fn io_latency_supported(_node: &Node) -> bool {
+fn io_latency_supported(node: &Node) -> bool {
     // Historically, we set this to `false` whe:
     // 1. the host has file `/sys/fs/cgroup/io.cost.qos`
     // 2. the host is not in `fbtax2_iocost_exclude` smc tier
     // The fact is that, as we have migraed and keeps migrating to newer kernel versions,
     // the file `/sys/fs/cgroup/io.cost.qos` is always present. Also, there is only one
     // host in `fbtax2_iocost_exclude` smc tier. So, we can just return true here.
-    false
+    !should_setup_iocost(node)
 }
 
-fn io_cost_supported(_node: &Node) -> bool {
+fn io_cost_supported(node: &Node) -> bool {
     // Historically, we set this to `true` whe:
     // 1. the host has file `/sys/fs/cgroup/io.cost.qos`
     // 2. the host is not in `fbtax2_iocost_exclude` smc tier
     // The fact is that, as we have migraed and keeps migrating to newer kernel versions,
     // the file `/sys/fs/cgroup/io.cost.qos` is always present. Also, there is only one
     // host in `fbtax2_iocost_exclude` smc tier. So, we can just return true here.
-    true
+    should_setup_iocost(node)
+}
+
+fn should_setup_iocost(node: &Node) -> bool {
+    ![HostType::Synmon, HostType::Dns].contains(&get_host_type(node))
 }
 
 fn fbtax2_blacklisted_jobs(node: &Node) -> Vec<&'static str> {
@@ -829,16 +892,21 @@ fn fbtax2_blacklisted_jobs(node: &Node) -> Vec<&'static str> {
 }
 
 fn senpai_targets(node: &Node) -> Option<String> {
-    if should_enable_senpai(node) {
-        return Some(String::from(
-            "system.slice,workload.slice/workload-wdb.slice,hostcritical.slice,workload.slice/workload-wdb.slice/*,hostcritical.slice/*",
-        ));
+    if !on_ssd(node) {
+        return None;
     }
-    None
+
+    match get_host_type(node) {
+        HostType::TwShared => Some(String::from(
+            "system.slice,workload.slice/workload-wdb.slice,hostcritical.slice,workload.slice/workload-wdb.slice/*,hostcritical.slice/*",
+        )),
+        HostType::Synmon => Some(String::from("system.slice")),
+        _ => None,
+    }
 }
 
 fn senpai_limit_min_bytes(node: &Node) -> Option<String> {
-    if get_host_type(node) == HostType::TwShared {
+    if [HostType::TwShared, HostType::Synmon].contains(&get_host_type(node)) {
         let min_bytes = 100 * 1024 * 1024;
         return Some(min_bytes.to_string());
     }
@@ -862,10 +930,6 @@ fn disable_senpai_dropin(node: &Node) -> bool {
     false
 }
 
-fn should_enable_senpai(node: &Node) -> bool {
-    get_host_type(node) == HostType::TwShared && on_ssd(node)
-}
-
 fn get_host_type(node: &Node) -> HostType {
     if node.hostname_prefix() == TWSHARED {
         return HostType::TwShared;
@@ -873,6 +937,14 @@ fn get_host_type(node: &Node) -> HostType {
 
     if node.hostname_prefix() == OD {
         return HostType::OnDemand;
+    }
+
+    if node.hostname_prefix() == SYNMON {
+        return HostType::Synmon;
+    }
+
+    if node.hostname_prefix() == DNS {
+        return HostType::Dns;
     }
 
     if node.is_devserver() {

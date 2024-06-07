@@ -11,6 +11,8 @@ pub enum HostType {
     DevServer,
     OnDemand,
     TwShared,
+    Synmon,
+    Dns,
 }
 
 pub struct ConfigParams {

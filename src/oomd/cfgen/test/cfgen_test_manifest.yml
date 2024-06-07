@@ -23,3 +23,9 @@ samples:
     # If the query is too slow, just do serf get --fields name,storage_capacity,components[disk].is_rootdrive,components[disk].disk_obj.is_flash --limit 100 'hostnameScheme_obj.name=twshared'
     # And then pick a record that has `components[disk].is_rootdrive=1` and `components[disk].disk_obj.is_flash=0`
     production_host: twshared44829.07.ash9
+  dns:
+    # this host is a sample from the "wdb config monitor" scuba table
+    production_host: dns05.17.prn3.facebook.com
+  synmon:
+    # this host is a sample from the "wdb config monitor" scuba table
+    production_host: synmon017.rva2.facebook.com

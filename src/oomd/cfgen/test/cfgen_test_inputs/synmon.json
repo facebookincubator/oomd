@@ -1,0 +1,88 @@
+@generated SignedSource<<69c414a12fdb4c16618be2a8b6aa311b>>
+@codegen-command arc cfgen update-inputs fb-oomd
+{
+  "fqdn": "synmon017.rva2.facebook.com",
+  "region": "virginia",
+  "clusterType": "SERVICE_GENERIC_NON_MEMCACHE",
+  "modelId": 333376,
+  "kernelRelease": "5.19.0-0_fbk21_12633_g4db063a1bcb5",
+  "serverType": "TYPE_I_WEB",
+  "experiments": [],
+  "cpuArchitecture": "skylakede",
+  "metalosRootfs": false,
+  "provisioningConfig": {
+    "ethtoolByInterface": {
+      "eth0": {
+        "maxChannelsCombined": 36
+      }
+    },
+    "cpuCoreCount": 18,
+    "parentModelId": 334303,
+    "recoveryEnvironment": false,
+    "deviceType": "SERVER",
+    "datacenter": "rva2",
+    "cluster": "05",
+    "memTotal": 66997313536,
+    "osVersion": {
+      "distribution_name": "CentOS Stream release",
+      "version": 9,
+      "is_in_ramdisk": false,
+      "is_metalos": false
+    },
+    "pciByAddress": {
+      "0000:02:00.0": {
+        "vendor_id": 5555,
+        "device_id": 4117,
+        "class_code": 131072,
+        "board_part_number": "MCX4431N-GCAN_FB",
+        "current_speed_mts": 8000,
+        "current_width": 2
+      }
+    },
+    "static_smc_tiers": [],
+    "machine": "x86_64"
+  },
+  "bootConfig": {
+    "ethtoolByInterface": {
+      "eth0": {
+        "driver": "mlx5_core",
+        "driver_version": "5.19.0-0_fbk21_12633_g4db063a1b",
+        "firmware_version": "14.32.1206 (FB_0000000006)",
+        "bus_info": "0000:02:00.0",
+        "speed_mbps": 50000
+      }
+    }
+  },
+  "runtimeConfig": {
+    "hasHighPrivCert": true,
+    "regionRoutableCluster": "rva1.05",
+    "block_devices": {
+      "block_devices": {
+        "nvme0n1": {
+          "size_bytes": 512110190592,
+          "is_rotational": false,
+          "model": "WDC CL SN720 SDAQNTW-512G-1020",
+          "serial": "20235A803944",
+          "physical_block_size": 512,
+          "logical_block_size": 512,
+          "is_root": true
+        }
+      }
+    },
+    "dynamic_smc_tiers": [],
+    "cluster_state": "CLUSTER_IN_USE",
+    "installed_platforms": [
+      "platform010",
+      "platform010-compat"
+    ],
+    "device_nics_enum": [
+      "ETH0",
+      "SVC0"
+    ],
+    "loaded_kernel_modules": []
+  },
+  "reservationConfig": {
+    "active_machine_materialization_id": "",
+    "current_reservation_host_profile_id": "NEWLY_PROVISIONED_PROFILE"
+  }
+}
