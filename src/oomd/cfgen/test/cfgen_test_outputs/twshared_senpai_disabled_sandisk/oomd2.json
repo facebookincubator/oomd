@@ -1,0 +1,177 @@
+@generated SignedSource<<f257a21d0bc496d0529cf91334e33318>>
+@codegen-command arc cfgen update-outputs fb-oomd
+{
+  "rulesets": [
+    {
+      "name": "system overview",
+      "silence-logs": "engine",
+      "detectors": [
+        [
+          "records system stats",
+          {
+            "name": "dump_cgroup_overview",
+            "args": {
+              "cgroup": "workload.slice"
+            }
+          }
+        ]
+      ],
+      "actions": [
+        {
+          "name": "continue",
+          "args": {}
+        }
+      ]
+    },
+    {
+      "name": "restart smc_proxy.service on memory threshold",
+      "detectors": [
+        [
+          "memory usage above",
+          {
+            "name": "memory_above",
+            "args": {
+              "cgroup": "smc_proxy.service",
+              "duration": "10",
+              "threshold_anon": "15G"
+            }
+          }
+        ]
+      ],
+      "actions": [
+        {
+          "name": "systemd_restart",
+          "args": {
+            "dry": "false",
+            "post_action_delay": "20",
+            "service": "smc_proxy.service"
+          }
+        }
+      ]
+    },
+    {
+      "name": "protection against heavy workload thrashing",
+      "drop-in": {
+        "disable-on-drop-in": true,
+        "detectors": true,
+        "actions": true
+      },
+      "detectors": [
+        [
+          "sustained high workload memory pressure",
+          {
+            "name": "exists",
+            "args": {
+              "cgroup": "workload.slice/workload-tw.slice/sigrid_online_trainer*,workload.slice/workload-tw.slice/*.reservation.slice/sigrid_online_trainer*,workload.slice/workload-tw.slice/*.allotment.slice/sigrid_online_trainer*,workload.slice/workload-tw.slice/analyzer*,workload.slice/workload-tw.slice/*.reservation.slice/analyzer*,workload.slice/workload-tw.slice/*.allotment.slice/analyzer*,workload.slice/workload-tw.slice/bumblebee.*,workload.slice/workload-tw.slice/*.reservation.slice/bumblebee.*,workload.slice/workload-tw.slice/*.allotment.slice/bumblebee.*",
+              "negate": true
+            }
+          },
+          {
+            "name": "pressure_above",
+            "args": {
+              "cgroup": "workload.slice/workload-tw.slice",
+              "duration": "180",
+              "resource": "memory",
+              "threshold": "80"
+            }
+          },
+          {
+            "name": "memory_reclaim",
+            "args": {
+              "cgroup": "workload.slice/workload-tw.slice",
+              "duration": "10"
+            }
+          }
+        ]
+      ],
+      "actions": [
+        {
+          "name": "kill_by_pg_scan",
+          "args": {
+            "cgroup": "workload.slice/workload-tw.slice/*",
+            "recursive": "true"
+          }
+        }
+      ]
+    },
+    {
+      "name": "protection against low swap",
+      "detectors": [
+        [
+          "free swap goes below 10 percent",
+          {
+            "name": "exists",
+            "args": {
+              "cgroup": "workload.slice/workload-tw.slice/sigrid_online_trainer*,workload.slice/workload-tw.slice/*.reservation.slice/sigrid_online_trainer*,workload.slice/workload-tw.slice/*.allotment.slice/sigrid_online_trainer*,workload.slice/workload-tw.slice/analyzer*,workload.slice/workload-tw.slice/*.reservation.slice/analyzer*,workload.slice/workload-tw.slice/*.allotment.slice/analyzer*,workload.slice/workload-tw.slice/bumblebee.*,workload.slice/workload-tw.slice/*.reservation.slice/bumblebee.*,workload.slice/workload-tw.slice/*.allotment.slice/bumblebee.*",
+              "negate": true
+            }
+          },
+          {
+            "name": "swap_free",
+            "args": {
+              "threshold_pct": "10"
+            }
+          }
+        ]
+      ],
+      "actions": [
+        {
+          "name": "kill_by_swap_usage",
+          "args": {
+            "biased_swap_kill": "true",
+            "cgroup": "system.slice/*,workload.slice/workload-wdb.slice/*,workload.slice/workload-tw.slice/*",
+            "recursive": "true"
+          }
+        }
+      ]
+    },
+    {
+      "name": "senpai drop-in ruleset",
+      "silence-logs": "engine",
+      "drop-in": {
+        "disable-on-drop-in": true,
+        "actions": true
+      },
+      "detectors": [
+        [
+          "continue detector group",
+          {
+            "name": "continue",
+            "args": {}
+          }
+        ]
+      ],
+      "actions": [
+        {
+          "name": "continue",
+          "args": {}
+        }
+      ]
+    },
+    {
+      "name": "tw_container drop-in ruleset",
+      "drop-in": {
+        "disable-on-drop-in": true,
+        "detectors": true,
+        "actions": true
+      },
+      "detectors": [
+        [
+          "continue",
+          {
+            "name": "stop",
+            "args": {}
+          }
+        ]
+      ],
+      "actions": [
+        {
+          "name": "continue",
+          "args": {}
+        }
+      ],
+      "prekill_hook_timeout": "45"
+    }
+  ],
+  "version": "1.0.0"
+}

@@ -841,6 +841,10 @@ fn on_ssd(node: &Node) -> bool {
     node.storage().has_ssd_root()
 }
 
+fn on_sandisk_sd7_sn6_s2(node: &Node) -> bool {
+    node.storage().has_disk_model("SanDisk SD7SN6S256G")
+}
+
 fn io_latency_supported(node: &Node) -> bool {
     // Historically, we set this to `false` whe:
     // 1. the host has file `/sys/fs/cgroup/io.cost.qos`
@@ -892,7 +896,8 @@ fn fbtax2_blacklisted_jobs(node: &Node) -> Vec<&'static str> {
 }
 
 fn senpai_targets(node: &Node) -> Option<String> {
-    if !on_ssd(node) {
+    // Replicating this logic : https://fburl.com/code/1o9lw85h
+    if !on_ssd(node) || on_sandisk_sd7_sn6_s2(node) {
         return None;
     }
 
