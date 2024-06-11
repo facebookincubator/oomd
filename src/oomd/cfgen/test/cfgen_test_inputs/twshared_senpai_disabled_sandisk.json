@@ -1,11 +1,11 @@
-@generated SignedSource<<abf5163c81fbfcbc1599a3f7ec339d4b>>
+@generated SignedSource<<e0eb0af2e5f530923bb2108e23e1da3e>>
 @codegen-command arc cfgen update-inputs fb-oomd
 {
-  "fqdn": "twshared16157.35.frc1.facebook.com",
+  "fqdn": "twshared15369.35.frc1.facebook.com",
   "region": "carolina",
   "clusterType": "SERVICE_GENERIC_NON_MEMCACHE",
   "modelId": 56441,
-  "kernelRelease": "6.4.3-0_fbk11_2563_g44ec95f7d7f4",
+  "kernelRelease": "6.4.3-0_fbk2_785_gacbb203ea6ff",
   "serverType": "TYPE_I_WEB",
   "experiments": [],
   "cpuArchitecture": "broadwellde",
@@ -22,7 +22,7 @@
     "deviceType": "SERVER",
     "datacenter": "frc1",
     "cluster": "35",
-    "memTotal": 33468424192,
+    "memTotal": 33468592128,
     "osVersion": {
       "distribution_name": "CentOS Stream",
       "version": 9,
@@ -45,7 +45,7 @@
     "ethtoolByInterface": {
       "eth0": {
         "driver": "mlx5_core",
-        "driver_version": "6.4.3-0_fbk11_2563_g44ec95f7d7f",
+        "driver_version": "6.4.3-0_fbk2_785_gacbb203ea6ff",
         "firmware_version": "14.27.2606 (FB_2510111032)",
         "bus_info": "0000:04:00.0"
       }
@@ -74,7 +74,7 @@
           "size_bytes": 256060514304,
           "is_rotational": false,
           "model": "SanDisk SD7SN6S256G",
-          "serial": "151933400106",
+          "serial": "162993401660",
           "physical_block_size": 512,
           "logical_block_size": 512,
           "is_root": true
@@ -94,7 +94,7 @@
     ]
   },
   "reservationConfig": {
-    "active_machine_materialization_id": "64ba98d886d6b",
-    "current_reservation_host_profile_id": "KERNEL:kernel_6.4.3-0_fbk11_2563_g44ec95f7d7f4_base.v0|KERNEL_ARGS:kargs_consoleS057600.v1|BOOT_CONFIG:bootloader659_initrd201_swap16G_native_arch"
+    "active_machine_materialization_id": "63d2bf3f97b2d",
+    "current_reservation_host_profile_id": "KERNEL:kernel_6.4.3-0_fbk2_785_gacbb203ea6ff_base.v0|KERNEL_ARGS:kargs_consoleS057600.v1|BOOT_CONFIG:bootloader692_initrd208_swap16G_native_arch"
   }
 }

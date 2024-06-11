@@ -24,20 +24,20 @@ samples:
     # And then pick a record that has `components[disk].is_rootdrive=1` and `components[disk].disk_obj.is_flash=0`
     production_host: twshared44829.07.ash9
   twshared_senpai_disabled_sandisk:
-    # this host is a sample from the "wdb config monitor" scuba table
-    production_host: twshared16157.35.frc1.facebook.com
+    # serf get --fields 'name' --limit 100 'hostnameScheme_obj.name=twshared,components[disk].disk_obj.model=SD7SN6S256G'
+    production_host: twshared15369.35.frc1.facebook.com
   dns:
-    # this host is a sample from the "wdb config monitor" scuba table
+    # serf get --fields name --limit 100 'hostnameScheme_obj.name=dns'
     production_host: dns05.17.prn3.facebook.com
   synmon:
-    # this host is a sample from the "wdb config monitor" scuba table
+    # serf get --fields name --limit 100 'hostnameScheme_obj.name=synmon'
     production_host: synmon017.rva2.facebook.com
   devbig:
-    # this host is a sample from the "wdb config monitor" scuba table
+    # serf get --fields name --limit 100 'hostnameScheme_obj.name=devbig'
     production_host: devbig284.ash8.facebook.com
   twpool:
-    # this host is a sample from the "wdb config monitor" scuba table
+    # serf get --fields name --limit 100 'hostnameScheme_obj.name=tw,components[disk].is_rootdrive=1,components[disk].disk_obj.is_flash=1'
     production_host: tw066.02.cln2.facebook.com
   twpool_no_senpai:
-    # this host is a sample from the "wdb config monitor" scuba table
-    production_host: tw023.04.vll2.facebook.com
+    # serf get --fields name --limit 100 'hostnameScheme_obj.name=tw,components[disk].is_rootdrive=1,components[disk].disk_obj.is_flash=0'
+    production_host: tw130.03.ldc2.facebook.com

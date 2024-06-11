@@ -1,4 +1,4 @@
-@generated SignedSource<<5ad6adf39ebb79c51d54ce424e240bb0>>
+@generated SignedSource<<9acea0c585c99a8d3339ae5cc6cc1725>>
 @codegen-command arc cfgen update-inputs fb-oomd
 {
   "fqdn": "twshared44829.07.ash9.facebook.com",
@@ -91,7 +91,7 @@
     ]
   },
   "reservationConfig": {
-    "active_machine_materialization_id": "6315e4a4e4c65",
-    "current_reservation_host_profile_id": "COMMON:NO_CPU_CONTROLLER|KERNEL:kernel_5.12.0-0_fbk13_clang_7455_gb24de3bdb045_base.v8|STORAGE:XFS_FULL|RUNTIME:DATASTORES_GENERIC_SYSCTLS|KERNEL_ARGS:kargs_default.v2|KERNEL_POLICY:KERNEL_POLICY_DATABASES|BOOT_CONFIG:bootloader814_initrd230_swap16G_native_arch|OS:CLASSIC"
+    "active_machine_materialization_id": "6321b443b7f1a",
+    "current_reservation_host_profile_id": "COMMON:NO_CPU_CONTROLLER|KERNEL:kernel_5.12.0-0_fbk13_clang_7455_gb24de3bdb045_base.v8|STORAGE:XFS_FULL|POWER:CPU_PERF_OPT|RUNTIME:DATASTORES_GENERIC_SYSCTLS|KERNEL_ARGS:kargs_default.v2|KERNEL_POLICY:KERNEL_POLICY_DATABASES|BOOT_CONFIG:bootloader814_initrd230_swap16G_native_arch|OS:CLASSIC"
   }
 }
