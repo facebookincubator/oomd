@@ -1,0 +1,124 @@
+@generated SignedSource<<e8dbe09a4bea0f6be69a57a2bdd4e8e2>>
+@codegen-command arc cfgen update-inputs fb-oomd
+{
+  "fqdn": "devgpu109.cln3.facebook.com",
+  "region": "ireland",
+  "clusterType": "SERVICE_GENERIC_NON_MEMCACHE",
+  "modelId": 342921,
+  "kernelRelease": "5.19.0-0_fbk9_fbaccel.phvuisqkhkrv_11421_g3b98c64ebe59",
+  "serverType": "TYPE_XVII_INFERENCE",
+  "experiments": [],
+  "cpuArchitecture": "cooperlake",
+  "metalosRootfs": false,
+  "provisioningConfig": {
+    "ethtoolByInterface": {
+      "eth0": {
+        "maxChannelsCombined": 128,
+        "maxChannelsRx": 64,
+        "maxChannelsTx": 64
+      }
+    },
+    "cpuCoreCount": 26,
+    "parentModelId": 342524,
+    "recoveryEnvironment": false,
+    "deviceType": "SERVER",
+    "datacenter": "cln3",
+    "cluster": "03",
+    "memTotal": 99638423552,
+    "osVersion": {
+      "distribution_name": "CentOS Stream release",
+      "version": 9,
+      "is_in_ramdisk": false,
+      "is_metalos": false
+    },
+    "pciByAddress": {
+      "0000:b3:00.0": {
+        "vendor_id": 5348,
+        "device_id": 5969,
+        "class_code": 131072,
+        "board_part_number": "BCM957504-N1100FXB"
+      }
+    },
+    "static_smc_tiers": [],
+    "machine": "x86_64"
+  },
+  "bootConfig": {
+    "ethtoolByInterface": {
+      "eth0": {
+        "driver": "bnxt_en",
+        "driver_version": "5.19.0-0_fbk9_fbaccel.phvuisqkh",
+        "firmware_version": "220.0.59.0/pkg 220.0.83.0",
+        "bus_info": "0000:b3:00.0"
+      }
+    }
+  },
+  "runtimeConfig": {
+    "hasHighPrivCert": true,
+    "regionRoutableCluster": "cln1.02",
+    "block_devices": {
+      "block_devices": {
+        "nvme0n1": {
+          "size_bytes": 400088457216,
+          "is_rotational": false,
+          "model": "INTEL SSDPFR1Q400GBF",
+          "serial": "PHAK2260006X400AGN",
+          "physical_block_size": 512,
+          "logical_block_size": 512,
+          "is_root": true
+        },
+        "nvme1n1": {
+          "size_bytes": 400088457216,
+          "is_rotational": false,
+          "model": "INTEL SSDPFR1Q400GBF",
+          "serial": "PHAK2256007W400AGN",
+          "physical_block_size": 512,
+          "logical_block_size": 512,
+          "is_root": true
+        },
+        "nvme2n1": {
+          "size_bytes": 400088457216,
+          "is_rotational": false,
+          "model": "INTEL SSDPFR1Q400GBF",
+          "serial": "PHAK22600049400AGN",
+          "physical_block_size": 512,
+          "logical_block_size": 512,
+          "is_root": true
+        },
+        "nvme3n1": {
+          "size_bytes": 400088457216,
+          "is_rotational": false,
+          "model": "INTEL SSDPFR1Q400GBF",
+          "serial": "PHAK226000VR400AGN",
+          "physical_block_size": 512,
+          "logical_block_size": 512,
+          "is_root": true
+        },
+        "nvme4n1": {
+          "size_bytes": 506989088768,
+          "is_rotational": false,
+          "model": "KXG6AZNV512G TOSHIBA",
+          "serial": "82AFC00JF5F5",
+          "physical_block_size": 512,
+          "logical_block_size": 512,
+          "is_root": false
+        }
+      }
+    },
+    "dynamic_smc_tiers": [],
+    "cluster_state": "CLUSTER_IN_USE",
+    "installed_platforms": [
+      "platform009",
+      "platform010",
+      "platform010-aarch64",
+      "platform010-compat"
+    ],
+    "device_nics_enum": [
+      "ETH0",
+      "SVC0"
+    ]
+  },
+  "reservationConfig": {
+    "active_machine_materialization_id": "",
+    "current_reservation_host_profile_id": "NEWLY_PROVISIONED_PROFILE"
+  }
+}

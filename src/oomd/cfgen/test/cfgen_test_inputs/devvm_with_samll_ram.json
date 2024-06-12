@@ -1,11 +1,11 @@
-@generated SignedSource<<b0daa898b01493d7ce4696b49c035f2e>>
+@generated SignedSource<<5c629f38a06ffc96c81ea393c0ff79c0>>
 @codegen-command arc cfgen update-inputs fb-oomd
 {
-  "fqdn": "devvm12299.vll0.facebook.com",
-  "region": "newmexico",
-  "clusterType": "DEV",
+  "fqdn": "devvm010.atn6.facebook.com",
+  "region": "altoona",
+  "clusterType": "SERVICE_GENERIC_NON_MEMCACHE",
   "modelId": 4077,
-  "kernelRelease": "5.12.0-0_fbk16_hardened_7661_geb00762ce6d2",
+  "kernelRelease": "5.19.0-0_fbk12_hardened_11583_g0bef9520ca2b",
   "serverType": "TYPE_VIRTUAL_MACHINE",
   "experiments": [],
   "cpuArchitecture": "",
@@ -16,13 +16,13 @@
         "maxChannelsCombined": 8
       }
     },
-    "cpuCoreCount": 36,
-    "parentModelId": 333245,
+    "cpuCoreCount": 12,
+    "parentModelId": 334305,
     "recoveryEnvironment": false,
     "deviceType": "SERVER",
-    "datacenter": "vll0",
-    "cluster": "01",
-    "memTotal": 119924961280,
+    "datacenter": "atn6",
+    "cluster": "05",
+    "memTotal": 24848252928,
     "osVersion": {
       "distribution_name": "CentOS Stream release",
       "version": 9,
@@ -45,19 +45,18 @@
         "driver": "virtio_net",
         "driver_version": "1.0.0",
         "firmware_version": "",
-        "bus_info": "0000:00:02.0",
-        "speed_mbps": 0
+        "bus_info": "0000:00:02.0"
       }
     }
   },
   "runtimeConfig": {
     "hasHighPrivCert": true,
-    "regionRoutableCluster": "vll1.02",
+    "regionRoutableCluster": "atn1.05",
     "block_devices": {
       "block_devices": {
         "vda": {
           "vendor": "0x1af4",
-          "size_bytes": 751619276800,
+          "size_bytes": 399431958528,
           "is_rotational": true,
           "physical_block_size": 512,
           "logical_block_size": 512,
@@ -75,29 +74,8 @@
     ],
     "device_nics_enum": [
       "ETH0",
-      "ETH1",
       "SVC0"
-    ],
-    "loaded_kernel_modules": [],
-    "mounts": {
-      "mounts": [
-        {
-          "device": "/dev/vda3",
-          "mount_point": "/",
-          "fstype": "btrfs",
-          "mount_options": [
-            "rw",
-            "relatime",
-            "compress-force=zstd:3",
-            "ssd",
-            "discard",
-            "space_cache=v2",
-            "subvolid=5",
-            "subvol=/"
-          ]
-        }
-      ]
-    }
+    ]
   },
   "reservationConfig": {
     "active_machine_materialization_id": "",

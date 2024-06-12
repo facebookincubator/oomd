@@ -1,28 +1,28 @@
-@generated SignedSource<<62581d313ec6741c88075132d5acc5d3>>
+@generated SignedSource<<c32f7b4e0673a93dd3bb7a308b93ba38>>
 @codegen-command arc cfgen update-inputs fb-oomd
 {
-  "fqdn": "twshared2871.09.vll2.facebook.com",
+  "fqdn": "twshared3453.02.vll5.facebook.com",
   "region": "newmexico",
   "clusterType": "SERVICE_GENERIC_NON_MEMCACHE",
-  "modelId": 333376,
+  "modelId": 340325,
   "kernelRelease": "6.4.3-0_fbk2_785_gacbb203ea6ff",
   "serverType": "TYPE_I_WEB",
   "experiments": [],
-  "cpuArchitecture": "skylakede",
+  "cpuArchitecture": "cooperlake",
   "metalosRootfs": true,
   "provisioningConfig": {
     "ethtoolByInterface": {
       "eth0": {
-        "maxChannelsCombined": 36
+        "maxChannelsCombined": 52
       }
     },
-    "cpuCoreCount": 18,
-    "parentModelId": 334303,
+    "cpuCoreCount": 26,
+    "parentModelId": 338977,
     "recoveryEnvironment": false,
     "deviceType": "SERVER",
-    "datacenter": "vll2",
-    "cluster": "09",
-    "memTotal": 66986205184,
+    "datacenter": "vll5",
+    "cluster": "02",
+    "memTotal": 66861379584,
     "osVersion": {
       "distribution_name": "CentOS Stream",
       "version": 9,
@@ -31,13 +31,13 @@
       "metalos_variant": "MclassicA"
     },
     "pciByAddress": {
-      "0000:02:00.0": {
+      "0000:67:00.0": {
         "vendor_id": 5555,
-        "device_id": 4117,
+        "device_id": 4125,
         "class_code": 131072,
-        "board_part_number": "MCX4431N-GCAN_FB",
+        "board_part_number": "MCX623435MC-CDAE_FB",
         "current_speed_mts": 8000,
-        "current_width": 2
+        "current_width": 4
       }
     },
     "static_smc_tiers": [],
@@ -48,9 +48,9 @@
       "eth0": {
         "driver": "mlx5_core",
         "driver_version": "6.4.3-0_fbk2_785_gacbb203ea6ff",
-        "firmware_version": "14.32.1206 (FB_0000000006)",
-        "bus_info": "0000:02:00.0",
-        "speed_mbps": 50000
+        "firmware_version": "22.32.1206 (FB_0000000018)",
+        "bus_info": "0000:67:00.0",
+        "speed_mbps": 100000
       }
     }
   },
@@ -76,8 +76,8 @@
         "nvme0n1": {
           "size_bytes": 256055095296,
           "is_rotational": false,
-          "model": "WDC CL SN720 SDAQNTW-512G-1020",
-          "serial": "193451801938",
+          "model": "HFS512GDE9X083N",
+          "serial": "3121CJA8N4571129075Q",
           "physical_block_size": 512,
           "logical_block_size": 512,
           "is_root": true
@@ -110,14 +110,14 @@
             "discard=async",
             "space_cache=v2",
             "subvolid=290",
-            "subvol=/volume/run/boot/0:f640968c6d6b4f329ad7c07d98e2d30b"
+            "subvol=/volume/run/boot/0:8cf6da86942d41fba03f81807e61e2b5"
           ]
         }
       ]
     }
   },
   "reservationConfig": {
-    "active_machine_materialization_id": "c090faf2-c3af-4d9a-8960-ceade9e22133",
-    "current_reservation_host_profile_id": "KERNEL:kernel_6.4.3-0_fbk2_785_gacbb203ea6ff_base.v0|KERNEL_ARGS:kargs_default.v2|BOOT_CONFIG:bootloader814_initrd230_swap16G_native_arch|OS:MCLASSICA"
+    "active_machine_materialization_id": "618ac90fa5475",
+    "current_reservation_host_profile_id": "COMMON:ZSWAP_DEFAULT|KERNEL:kernel_6.4.3-0_fbk2_785_gacbb203ea6ff_base.v0|KERNEL_ARGS:kargs_crashkernel192M.v1|BOOT_CONFIG:bootloader814_initrd230_swap16G_native_arch"
   }
 }

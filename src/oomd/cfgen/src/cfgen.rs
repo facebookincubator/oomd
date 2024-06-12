@@ -9,6 +9,8 @@ use libcfgen::prelude::*;
 use types::*;
 
 const CONFIG_VERSION: &str = "1.0.0";
+// 30GB
+const DEVVM_MEM_PRESSURE_BYTES_THRESHOLD: u64 = 30 * 1024 * 1024 * 1024;
 
 fn oomd_json(node: &Node) -> Result<json::JsonValue, anyhow::Error> {
     let attrs = get_attributes(node);
@@ -751,10 +753,8 @@ fn get_attributes(node: &Node) -> ConfigParams {
             swap_protection_kill_threshold: String::from("5"),
         },
         devserver: DevServerAttributes {
-            // TODO(chengxiong): add overriding logic for user_mempress and system_mempress.
-            // Like this: https://fburl.com/code/rjcg895c
-            user_mempress: String::from("40"),
-            system_mempress: String::from("60"),
+            user_mempress: devserver_user_mempress(node),
+            system_mempress: devserver_system_mempress(node),
         },
         senpai: SenpaiAttributes {
             silence_logs: String::from("engine"),
@@ -766,6 +766,49 @@ fn get_attributes(node: &Node) -> ConfigParams {
         },
         disable_senpai_dropin: disable_senpai_dropin(node),
     }
+}
+
+fn devserver_user_mempress(node: &Node) -> String {
+    if use_high_mem_pressure_threshold_on_dev(node) {
+        String::from("60")
+    } else {
+        String::from("40")
+    }
+}
+
+fn devserver_system_mempress(node: &Node) -> String {
+    if use_high_mem_pressure_threshold_on_dev(node) {
+        String::from("80")
+    } else {
+        String::from("60")
+    }
+}
+
+fn use_high_mem_pressure_threshold_on_dev(node: &Node) -> bool {
+    // We used to have this complicated logic to determine the dev server memory
+    // pressure threshold: https://fburl.com/code/wr6lou7i.
+    // Here, we simplified it down to only the few branches which actually set the
+    // threshold.
+    if node.hostname_prefix() == DEVGPU && node.server_type() != FbServerType::TYPE_XVII_INFERENCE {
+        return true;
+    }
+    if node.hostname_prefix() == DEVVM
+        && !is_devvm_for_ai(node)
+        && node.mem_total_bytes() < DEVVM_MEM_PRESSURE_BYTES_THRESHOLD
+    {
+        return true;
+    }
+    false
+}
+
+fn is_devvm_for_ai(node: &Node) -> bool {
+    node.hostname_prefix() == DEVVM
+        && [
+            FbServerType::TYPE_XVI_TRAINING,
+            FbServerType::TYPE_XVII_INFERENCE,
+            FbServerType::TYPE_XX_GPU_TC,
+        ]
+        .contains(&node.server_type())
 }
 
 fn oomd_extra_rulesets(node: &Node) -> Vec<RuleSet> {

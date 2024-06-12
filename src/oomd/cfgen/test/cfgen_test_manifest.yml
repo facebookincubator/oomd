@@ -41,3 +41,16 @@ samples:
   twpool_no_senpai:
     # serf get --fields name --limit 100 'hostnameScheme_obj.name=tw,components[disk].is_rootdrive=1,components[disk].disk_obj.is_flash=0'
     production_host: tw130.03.ldc2.facebook.com
+  devvm_with_samll_ram:
+    # serf get --fields 'name' --limit 100 'hostnameScheme_obj.name=devvm,ram=24'
+    production_host: devvm010.atn6.facebook.com
+  devgpu_non_T17:
+    # from the wdb config monitor scuba table
+    # filter with 'hostname_prefix=devgpu AND server_type!=TYPE_XVII_INFERENCE'
+    # or : serf get --fields 'name' --limit 100 'hostnameScheme_obj.name=devgpu,server_type=TYPE_XX_GPU_TC'
+    production_host: devgpu013.eag5.facebook.com
+  devgpu_T17:
+    # from the wdb config monitor scuba table
+    # filter with 'hostname_prefix=devgpu AND server_type=TYPE_XVII_INFERENCE'
+    # or : serf get --fields 'name' --limit 100 'hostnameScheme_obj.name=devgpu,server_type=TYPE_XVII_INFERENCE'
+    production_host: devgpu109.cln3.facebook.com
