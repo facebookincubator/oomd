@@ -172,12 +172,14 @@ SystemMaybe<Fs::DirEnts> Fs::readDirAt(const DirFd& dirfd, int flags) {
     return SYSTEM_ERROR(e);
   }
 
-  OOMD_SCOPE_EXIT {
-    // even though we dup()ed dirfd.fd(), the copied fd shares state with
-    // dirfd.fd(). For dirfd to be reusable again, we need to rewind it, which
-    // we can do through d.
-    ::rewinddir(d);
+  // even though we dup()ed dirfd.fd(), the copied fd shares state with
+  // dirfd.fd(). For dirfd to be reusable again, we need to rewind it, which
+  // we can do through d.
+  // rewinddir causes DIR to refer to the current state of the directory.
+  // Therefore call it right before readdir to ensure seeing new entries.
+  ::rewinddir(d);
 
+  OOMD_SCOPE_EXIT {
     ::closedir(d);
   };
 
