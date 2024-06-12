@@ -1,0 +1,141 @@
+@generated SignedSource<<f784c7c7cfa6ae8bd127d5ca30795f07>>
+@codegen-command arc cfgen update-inputs fb-oomd
+{
+  "fqdn": "gedge774.50.ord5.facebook.com",
+  "region": "altoona",
+  "clusterType": "GAMING_POP",
+  "modelId": 340028,
+  "kernelRelease": "5.12.0-0_fbk16_hardened_7661_geb00762ce6d2",
+  "serverType": "TYPE_VI_FEED",
+  "experiments": [],
+  "cpuArchitecture": "skylake",
+  "metalosRootfs": false,
+  "provisioningConfig": {
+    "ethtoolByInterface": {
+      "eth0": {
+        "maxChannelsRx": 80,
+        "maxChannelsTx": 32
+      },
+      "ip6tnl0": {},
+      "tunl0": {},
+      "tunlany0": {}
+    },
+    "cpuCoreCount": 40,
+    "parentModelId": 339661,
+    "recoveryEnvironment": false,
+    "deviceType": "SERVER",
+    "datacenter": "ord5",
+    "cluster": "50",
+    "memTotal": 202312957952,
+    "osVersion": {
+      "distribution_name": "EdgeOS",
+      "version": 1700056342,
+      "is_in_ramdisk": false,
+      "is_metalos": false
+    },
+    "pciByAddress": {
+      "0000:5d:00.0": {
+        "vendor_id": 5555,
+        "device_id": 4103,
+        "class_code": 163840,
+        "board_part_number": "764285-B21",
+        "current_speed_mts": 8000,
+        "current_width": 8
+      }
+    },
+    "static_smc_tiers": [],
+    "machine": "x86_64"
+  },
+  "bootConfig": {
+    "ethtoolByInterface": {
+      "eth0": {
+        "driver": "mlx4_en",
+        "driver_version": "4.0-0",
+        "firmware_version": "2.42.5700",
+        "bus_info": "0000:5d:00.0",
+        "speed_mbps": 40000
+      },
+      "ip6tnl0": {
+        "driver": "",
+        "driver_version": "",
+        "firmware_version": "",
+        "bus_info": "",
+        "speed_mbps": 0
+      },
+      "tunl0": {
+        "driver": "",
+        "driver_version": "",
+        "firmware_version": "",
+        "bus_info": "",
+        "speed_mbps": 0
+      },
+      "tunlany0": {
+        "driver": "",
+        "driver_version": "",
+        "firmware_version": "",
+        "bus_info": "",
+        "speed_mbps": 0
+      }
+    }
+  },
+  "runtimeConfig": {
+    "hasHighPrivCert": true,
+    "regionRoutableCluster": "atn1.05",
+    "block_devices": {
+      "block_devices": {
+        "sda": {
+          "size_bytes": 1920383410176,
+          "is_rotational": false,
+          "model": "VK001920GWTTC",
+          "serial": "PHYF021301PN1P9DGN",
+          "physical_block_size": 4096,
+          "logical_block_size": 512,
+          "is_root": true
+        }
+      }
+    },
+    "dynamic_smc_tiers": [
+      "edge_pool_gedge.ord5c50",
+      "edge_pool_gedge.ord5c50.spare"
+    ],
+    "cluster_state": "CLUSTER_IN_USE",
+    "installed_platforms": [
+      "platform010",
+      "platform010-compat"
+    ],
+    "device_nics_enum": [
+      "ETH0",
+      "ETH1",
+      "SVC0",
+      "SVC1"
+    ],
+    "loaded_kernel_modules": [
+      {
+        "name": "nvidia",
+        "version": "525.105.17\n"
+      }
+    ],
+    "mounts": {
+      "mounts": [
+        {
+          "device": "/dev/mapper/transient",
+          "mount_point": "/",
+          "fstype": "btrfs",
+          "mount_options": [
+            "rw",
+            "relatime",
+            "compress-force=zstd:3",
+            "ssd",
+            "space_cache=v2",
+            "subvolid=256",
+            "subvol=/volume"
+          ]
+        }
+      ]
+    }
+  },
+  "reservationConfig": {
+    "active_machine_materialization_id": "",
+    "current_reservation_host_profile_id": "EDGE:EDGE_NONE"
+  }
+}

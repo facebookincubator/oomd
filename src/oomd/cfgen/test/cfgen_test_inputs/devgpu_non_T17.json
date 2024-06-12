@@ -1,4 +1,4 @@
-@generated SignedSource<<94b019e8a8c2490e29066f90748585d9>>
+@generated SignedSource<<c2dabf2100bc0e0bf76987c73632b0b6>>
 @codegen-command arc cfgen update-inputs fb-oomd
 {
   "fqdn": "devgpu013.eag5.facebook.com",
@@ -55,7 +55,7 @@
     "deviceType": "SERVER",
     "datacenter": "eag5",
     "cluster": "04",
-    "memTotal": 2163675131904,
+    "memTotal": 2163675127808,
     "osVersion": {
       "distribution_name": "CentOS Stream release",
       "version": 9,

@@ -746,7 +746,7 @@ fn get_attributes(node: &Node) -> ConfigParams {
             oomd_high_threshold_duration: String::from("60"),
             oomd_threshold: String::from("60"),
             oomd_threshold_duration: String::from("90"),
-            oomd_restart_threshold: oomd2_oomd_restart_threshold(),
+            oomd_restart_threshold: oomd2_oomd_restart_threshold(node),
             oomd_reclaim_duation: String::from("10"),
             oomd_post_action_delay: String::from("15"),
             swap_protection_detect_threshold: String::from("5"),
@@ -870,13 +870,17 @@ fn oomd_extra_rulesets(node: &Node) -> Vec<RuleSet> {
     ]
 }
 
-fn oomd2_oomd_restart_threshold() -> BTreeMap<String, OomdRestartThreshold> {
-    btreemap! {
-      String::from("smc_proxy.service") => OomdRestartThreshold{
-        threshold: String::from("15G"),
-        duration: String::from("10"),
-        post_action_delay: String::from("20"),
-        service_name: String::from("smc_proxy.service")}
+fn oomd2_oomd_restart_threshold(node: &Node) -> BTreeMap<String, OomdRestartThreshold> {
+    if [HostType::GEdge, HostType::Fna].contains(&get_host_type(node)) {
+        btreemap! {}
+    } else {
+        btreemap! {
+          String::from("smc_proxy.service") => OomdRestartThreshold{
+            threshold: String::from("15G"),
+            duration: String::from("10"),
+            post_action_delay: String::from("20"),
+            service_name: String::from("smc_proxy.service")}
+        }
     }
 }
 
@@ -913,7 +917,15 @@ fn should_setup_iocost(node: &Node) -> bool {
 }
 
 fn fbtax2_blacklisted_jobs(node: &Node) -> Vec<&'static str> {
-    if [HostType::TwShared, HostType::Tw].contains(&get_host_type(node)) {
+    if [
+        HostType::TwShared,
+        HostType::Tw,
+        HostType::FnEdge,
+        HostType::GEdge,
+        HostType::Fna,
+    ]
+    .contains(&get_host_type(node))
+    {
         return vec![
             // This ML model has extremely high memory usage, they need to fix
             // their stuff at some point.
@@ -945,16 +957,27 @@ fn senpai_targets(node: &Node) -> Option<String> {
     }
 
     match get_host_type(node) {
-        HostType::TwShared | HostType::Tw => Some(String::from(
-            "system.slice,workload.slice/workload-wdb.slice,hostcritical.slice,workload.slice/workload-wdb.slice/*,hostcritical.slice/*",
-        )),
+        HostType::TwShared | HostType::Tw | HostType::FnEdge | HostType::GEdge | HostType::Fna => {
+            Some(String::from(
+                "system.slice,workload.slice/workload-wdb.slice,hostcritical.slice,workload.slice/workload-wdb.slice/*,hostcritical.slice/*",
+            ))
+        }
         HostType::Synmon => Some(String::from("system.slice")),
         _ => None,
     }
 }
 
 fn senpai_limit_min_bytes(node: &Node) -> Option<String> {
-    if [HostType::TwShared, HostType::Tw, HostType::Synmon].contains(&get_host_type(node)) {
+    if [
+        HostType::TwShared,
+        HostType::Tw,
+        HostType::Synmon,
+        HostType::FnEdge,
+        HostType::GEdge,
+        HostType::Fna,
+    ]
+    .contains(&get_host_type(node))
+    {
         let min_bytes = 100 * 1024 * 1024;
         return Some(min_bytes.to_string());
     }
@@ -999,9 +1022,22 @@ fn get_host_type(node: &Node) -> HostType {
         return HostType::Dns;
     }
 
+    if node.hostname_prefix() == FNEDGE {
+        return HostType::FnEdge;
+    }
+
+    if node.hostname_prefix() == GEDGE {
+        return HostType::GEdge;
+    }
+
+    if node.hostname_prefix() == FNA {
+        return HostType::Fna;
+    }
+
     if node.is_devserver() {
         return HostType::DevServer;
     }
+
     HostType::Default
 }
 

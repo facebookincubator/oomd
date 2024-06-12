@@ -14,6 +14,9 @@ pub enum HostType {
     Tw,
     Synmon,
     Dns,
+    FnEdge,
+    GEdge,
+    Fna,
 }
 
 pub struct ConfigParams {

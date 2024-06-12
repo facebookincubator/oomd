@@ -1,4 +1,4 @@
-@generated SignedSource<<deb3eb5e13320267e73139b00f6448d2>>
+@generated SignedSource<<d295c1dd5a957e80588dad6d85ec3a65>>
 @codegen-command arc cfgen update-inputs fb-oomd
 {
   "fqdn": "tw130.03.ldc2.facebook.com",
@@ -36,7 +36,9 @@
         "vendor_id": 5348,
         "device_id": 5833,
         "class_code": 131072,
-        "board_part_number": "BCM957302M3023CBK"
+        "board_part_number": "BCM957302M3023CBK",
+        "current_speed_mts": 8000,
+        "current_width": 8
       }
     },
     "static_smc_tiers": [],
@@ -48,7 +50,8 @@
         "driver": "bnxt_en",
         "driver_version": "5.19.0-0_fbk12_11583_g0bef9520c",
         "firmware_version": "20.6.167.0/pkg 20.6.4.12",
-        "bus_info": "0000:5e:00.0"
+        "bus_info": "0000:5e:00.0",
+        "speed_mbps": 25000
       }
     }
   },
@@ -77,7 +80,8 @@
     "device_nics_enum": [
       "ETH0",
       "SVC0"
-    ]
+    ],
+    "loaded_kernel_modules": []
   },
   "reservationConfig": {
     "active_machine_materialization_id": "",

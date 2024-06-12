@@ -12,6 +12,9 @@ library_samples:
   - devvm
   - twshared_vll_shard00
   - twshared_t20_zionex
+  - fnedge
+  - gedge
+  - fna_shard00
   # Add more samples from https://fburl.com/code/vjwmkoa1 if needed
 samples:
   ondemand:

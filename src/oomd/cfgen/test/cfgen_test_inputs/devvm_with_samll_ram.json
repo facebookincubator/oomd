@@ -1,4 +1,4 @@
-@generated SignedSource<<5c629f38a06ffc96c81ea393c0ff79c0>>
+@generated SignedSource<<7094d5f857ef7db387134b6aaa98ec53>>
 @codegen-command arc cfgen update-inputs fb-oomd
 {
   "fqdn": "devvm010.atn6.facebook.com",
@@ -45,7 +45,8 @@
         "driver": "virtio_net",
         "driver_version": "1.0.0",
         "firmware_version": "",
-        "bus_info": "0000:00:02.0"
+        "bus_info": "0000:00:02.0",
+        "speed_mbps": 0
       }
     }
   },
@@ -75,7 +76,8 @@
     "device_nics_enum": [
       "ETH0",
       "SVC0"
-    ]
+    ],
+    "loaded_kernel_modules": []
   },
   "reservationConfig": {
     "active_machine_materialization_id": "",

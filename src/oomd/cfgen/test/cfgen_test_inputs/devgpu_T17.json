@@ -1,4 +1,4 @@
-@generated SignedSource<<e8dbe09a4bea0f6be69a57a2bdd4e8e2>>
+@generated SignedSource<<c1fa5e796716c915704d08118fe9ae17>>
 @codegen-command arc cfgen update-inputs fb-oomd
 {
   "fqdn": "devgpu109.cln3.facebook.com",
@@ -36,7 +36,9 @@
         "vendor_id": 5348,
         "device_id": 5969,
         "class_code": 131072,
-        "board_part_number": "BCM957504-N1100FXB"
+        "board_part_number": "BCM957504-N1100FXB",
+        "current_speed_mts": 8000,
+        "current_width": 16
       }
     },
     "static_smc_tiers": [],
@@ -48,7 +50,8 @@
         "driver": "bnxt_en",
         "driver_version": "5.19.0-0_fbk9_fbaccel.phvuisqkh",
         "firmware_version": "220.0.59.0/pkg 220.0.83.0",
-        "bus_info": "0000:b3:00.0"
+        "bus_info": "0000:b3:00.0",
+        "speed_mbps": 100000
       }
     }
   },
@@ -115,7 +118,8 @@
     "device_nics_enum": [
       "ETH0",
       "SVC0"
-    ]
+    ],
+    "loaded_kernel_modules": []
   },
   "reservationConfig": {
     "active_machine_materialization_id": "",
