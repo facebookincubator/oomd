@@ -320,7 +320,7 @@ bool Senpai::resetMemhigh(const CgroupContext& cgroup_ctx) {
 bool Senpai::reclaim(const CgroupContext& cgroup_ctx, int64_t size) {
   auto has_memory_reclaim_opt = hasMemoryReclaim(cgroup_ctx);
   if (has_memory_reclaim_opt && *has_memory_reclaim_opt) {
-    return (bool)Fs::writeMemReclaimAt(cgroup_ctx.fd(), size);
+    return (bool)Fs::writeMemReclaimAt(cgroup_ctx.fd(), size, 0);
   }
 
   auto current_opt = cgroup_ctx.current_usage();

@@ -42,6 +42,7 @@ srcs = files('''
     src/oomd/plugins/BaseKillPlugin.cpp
     src/oomd/plugins/ContinuePlugin.cpp
     src/oomd/plugins/StopPlugin.cpp
+    src/oomd/plugins/OurFirstPlugin.cpp
     src/oomd/plugins/DummyPrekillHook.cpp
     src/oomd/plugins/DumpCgroupOverview.cpp
     src/oomd/plugins/DumpKillInfoNoOp.cpp
