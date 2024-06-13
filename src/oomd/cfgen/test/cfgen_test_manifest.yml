@@ -18,8 +18,7 @@ library_samples:
   # Add more samples from https://fburl.com/code/vjwmkoa1 if needed
 samples:
   ondemand:
-    # A random host with od hostname prefix from `randbox sys.od`
-    production_host: od2228.eag1.facebook.com
+    scuba: tier='od'
   twshared_senpai_disabled:
     # A host in twshared pool with hdd root
     # serf get --fields name,storage_capacity,components[disk].is_rootdrive,components[disk].disk_obj.is_flash --limit 100 'hostnameScheme_obj.name=twshared,components[disk].is_rootdrive=1,components[disk].disk_obj.is_flash=0'
@@ -30,14 +29,11 @@ samples:
     # serf get --fields 'name' --limit 100 'hostnameScheme_obj.name=twshared,components[disk].disk_obj.model=SD7SN6S256G'
     production_host: twshared15369.35.frc1.facebook.com
   dns:
-    # serf get --fields name --limit 100 'hostnameScheme_obj.name=dns'
-    production_host: dns05.17.prn3.facebook.com
+    scuba: tier='dns'
   synmon:
-    # serf get --fields name --limit 100 'hostnameScheme_obj.name=synmon'
-    production_host: synmon017.rva2.facebook.com
+    scuba: tier='synmon'
   devbig:
-    # serf get --fields name --limit 100 'hostnameScheme_obj.name=devbig'
-    production_host: devbig284.ash8.facebook.com
+    scuba: tier='devbig'
   twpool:
     # serf get --fields name --limit 100 'hostnameScheme_obj.name=tw,components[disk].is_rootdrive=1,components[disk].disk_obj.is_flash=1'
     production_host: tw066.02.cln2.facebook.com
@@ -48,12 +44,6 @@ samples:
     # serf get --fields 'name' --limit 100 'hostnameScheme_obj.name=devvm,ram=24'
     production_host: devvm010.atn6.facebook.com
   devgpu_non_T17:
-    # from the wdb config monitor scuba table
-    # filter with 'hostname_prefix=devgpu AND server_type!=TYPE_XVII_INFERENCE'
-    # or : serf get --fields 'name' --limit 100 'hostnameScheme_obj.name=devgpu,server_type=TYPE_XX_GPU_TC'
-    production_host: devgpu013.eag5.facebook.com
+    scuba: tier='devgpu' AND server_type!='TYPE_XVII_INFERENCE'
   devgpu_T17:
-    # from the wdb config monitor scuba table
-    # filter with 'hostname_prefix=devgpu AND server_type=TYPE_XVII_INFERENCE'
-    # or : serf get --fields 'name' --limit 100 'hostnameScheme_obj.name=devgpu,server_type=TYPE_XVII_INFERENCE'
-    production_host: devgpu109.cln3.facebook.com
+    scuba: tier='devgpu' AND server_type='TYPE_XVII_INFERENCE'

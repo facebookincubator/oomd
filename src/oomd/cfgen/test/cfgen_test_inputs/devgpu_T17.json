@@ -1,30 +1,37 @@
-@generated SignedSource<<c1fa5e796716c915704d08118fe9ae17>>
+@generated SignedSource<<e6cdcb8327d1e51500f7fc47e816cb6f>>
 @codegen-command arc cfgen update-inputs fb-oomd
 {
-  "fqdn": "devgpu109.cln3.facebook.com",
-  "region": "ireland",
+  "fqdn": "devgpu119.cco2.facebook.com",
+  "region": "crookcounty",
   "clusterType": "SERVICE_GENERIC_NON_MEMCACHE",
-  "modelId": 342921,
-  "kernelRelease": "5.19.0-0_fbk9_fbaccel.phvuisqkhkrv_11421_g3b98c64ebe59",
+  "modelId": 347673,
+  "kernelRelease": "5.19.0-0_fbk21_12633_g4db063a1bcb5",
   "serverType": "TYPE_XVII_INFERENCE",
   "experiments": [],
-  "cpuArchitecture": "cooperlake",
+  "cpuArchitecture": "genoa",
   "metalosRootfs": false,
   "provisioningConfig": {
     "ethtoolByInterface": {
       "eth0": {
-        "maxChannelsCombined": 128,
-        "maxChannelsRx": 64,
-        "maxChannelsTx": 64
+        "maxChannelsCombined": 63
+      },
+      "eth1": {
+        "maxChannelsCombined": 63
+      },
+      "eth2": {
+        "maxChannelsCombined": 63
+      },
+      "eth3": {
+        "maxChannelsCombined": 63
       }
     },
-    "cpuCoreCount": 26,
-    "parentModelId": 342524,
+    "cpuCoreCount": 192,
+    "parentModelId": 344274,
     "recoveryEnvironment": false,
     "deviceType": "SERVER",
-    "datacenter": "cln3",
+    "datacenter": "cco2",
     "cluster": "03",
-    "memTotal": 99638423552,
+    "memTotal": 2434647334912,
     "osVersion": {
       "distribution_name": "CentOS Stream release",
       "version": 9,
@@ -32,12 +39,36 @@
       "is_metalos": false
     },
     "pciByAddress": {
-      "0000:b3:00.0": {
-        "vendor_id": 5348,
-        "device_id": 5969,
+      "0000:2d:00.0": {
+        "vendor_id": 5555,
+        "device_id": 4129,
         "class_code": 131072,
-        "board_part_number": "BCM957504-N1100FXB",
-        "current_speed_mts": 8000,
+        "board_part_number": "CX71343DAC-WEBF_FB",
+        "current_speed_mts": 32000,
+        "current_width": 16
+      },
+      "0000:2d:00.1": {
+        "vendor_id": 5555,
+        "device_id": 4129,
+        "class_code": 131072,
+        "board_part_number": "CX71343DAC-WEBF_FB",
+        "current_speed_mts": 32000,
+        "current_width": 16
+      },
+      "0000:cd:00.0": {
+        "vendor_id": 5555,
+        "device_id": 4129,
+        "class_code": 131072,
+        "board_part_number": "CX71343DAC-WEBF_FB",
+        "current_speed_mts": 32000,
+        "current_width": 16
+      },
+      "0000:cd:00.1": {
+        "vendor_id": 5555,
+        "device_id": 4129,
+        "class_code": 131072,
+        "board_part_number": "CX71343DAC-WEBF_FB",
+        "current_speed_mts": 32000,
         "current_width": 16
       }
     },
@@ -47,62 +78,83 @@
   "bootConfig": {
     "ethtoolByInterface": {
       "eth0": {
-        "driver": "bnxt_en",
-        "driver_version": "5.19.0-0_fbk9_fbaccel.phvuisqkh",
-        "firmware_version": "220.0.59.0/pkg 220.0.83.0",
-        "bus_info": "0000:b3:00.0",
-        "speed_mbps": 100000
+        "driver": "mlx5_core",
+        "driver_version": "5.19.0-0_fbk21_12633_g4db063a1b",
+        "firmware_version": "28.39.1002 (FB_0000000038)",
+        "bus_info": "0000:2d:00.0",
+        "speed_mbps": 200000
+      },
+      "eth1": {
+        "driver": "mlx5_core",
+        "driver_version": "5.19.0-0_fbk21_12633_g4db063a1b",
+        "firmware_version": "28.39.1002 (FB_0000000038)",
+        "bus_info": "0000:2d:00.1",
+        "speed_mbps": 200000
+      },
+      "eth2": {
+        "driver": "mlx5_core",
+        "driver_version": "5.19.0-0_fbk21_12633_g4db063a1b",
+        "firmware_version": "28.39.1002 (FB_0000000038)",
+        "bus_info": "0000:cd:00.0",
+        "speed_mbps": 200000
+      },
+      "eth3": {
+        "driver": "mlx5_core",
+        "driver_version": "5.19.0-0_fbk21_12633_g4db063a1b",
+        "firmware_version": "28.39.1002 (FB_0000000038)",
+        "bus_info": "0000:cd:00.1",
+        "speed_mbps": 200000
       }
     }
   },
   "runtimeConfig": {
     "hasHighPrivCert": true,
-    "regionRoutableCluster": "cln1.02",
+    "regionRoutableCluster": "cco1.02",
     "block_devices": {
       "block_devices": {
         "nvme0n1": {
-          "size_bytes": 400088457216,
+          "size_bytes": 3760740458496,
           "is_rotational": false,
-          "model": "INTEL SSDPFR1Q400GBF",
-          "serial": "PHAK2260006X400AGN",
-          "physical_block_size": 512,
-          "logical_block_size": 512,
-          "is_root": true
+          "model": "MZOL63T8HDLT-00AFB",
+          "serial": "S77UNG0W800873",
+          "physical_block_size": 4096,
+          "logical_block_size": 4096,
+          "is_root": false
         },
         "nvme1n1": {
-          "size_bytes": 400088457216,
+          "size_bytes": 3760740458496,
           "is_rotational": false,
-          "model": "INTEL SSDPFR1Q400GBF",
-          "serial": "PHAK2256007W400AGN",
-          "physical_block_size": 512,
-          "logical_block_size": 512,
+          "model": "MZOL63T8HDLT-00AFB",
+          "serial": "S77UNG0W801214",
+          "physical_block_size": 4096,
+          "logical_block_size": 4096,
           "is_root": true
         },
         "nvme2n1": {
-          "size_bytes": 400088457216,
+          "size_bytes": 3760740458496,
           "is_rotational": false,
-          "model": "INTEL SSDPFR1Q400GBF",
-          "serial": "PHAK22600049400AGN",
-          "physical_block_size": 512,
-          "logical_block_size": 512,
-          "is_root": true
+          "model": "MZOL63T8HDLT-00AFB",
+          "serial": "S77UNG0W800880",
+          "physical_block_size": 4096,
+          "logical_block_size": 4096,
+          "is_root": false
         },
         "nvme3n1": {
-          "size_bytes": 400088457216,
+          "size_bytes": 3760740458496,
           "is_rotational": false,
-          "model": "INTEL SSDPFR1Q400GBF",
-          "serial": "PHAK226000VR400AGN",
-          "physical_block_size": 512,
-          "logical_block_size": 512,
-          "is_root": true
+          "model": "MZOL63T8HDLT-00AFB",
+          "serial": "S77UNG0W800871",
+          "physical_block_size": 4096,
+          "logical_block_size": 4096,
+          "is_root": false
         },
         "nvme4n1": {
-          "size_bytes": 506989088768,
+          "size_bytes": 3760740458496,
           "is_rotational": false,
-          "model": "KXG6AZNV512G TOSHIBA",
-          "serial": "82AFC00JF5F5",
-          "physical_block_size": 512,
-          "logical_block_size": 512,
+          "model": "MZOL63T8HDLT-00AFB",
+          "serial": "S77UNG0W800872",
+          "physical_block_size": 4096,
+          "logical_block_size": 4096,
           "is_root": false
         }
       }
@@ -117,7 +169,13 @@
     ],
     "device_nics_enum": [
       "ETH0",
-      "SVC0"
+      "ETH1",
+      "ETH2",
+      "ETH3",
+      "SVC0",
+      "SVC0_1",
+      "SVC0_2",
+      "SVC0_3"
     ],
     "loaded_kernel_modules": []
   },

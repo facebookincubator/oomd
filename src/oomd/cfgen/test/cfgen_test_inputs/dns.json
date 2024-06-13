@@ -1,30 +1,28 @@
-@generated SignedSource<<e72ebb92ee7c427ba5793d54e25e75d1>>
+@generated SignedSource<<2aa0add5b5055cf204c9eb09ae869424>>
 @codegen-command arc cfgen update-inputs fb-oomd
 {
-  "fqdn": "dns05.17.prn3.facebook.com",
-  "region": "oregon",
+  "fqdn": "dns09.10.vll1.facebook.com",
+  "region": "newmexico",
   "clusterType": "SERVICE_GENERIC_NON_MEMCACHE",
-  "modelId": 340325,
-  "kernelRelease": "5.19.0-0_fbk21_12633_g4db063a1bcb5",
+  "modelId": 333376,
+  "kernelRelease": "5.19.0-0_fbk12_11583_g0bef9520ca2b",
   "serverType": "TYPE_I_WEB",
   "experiments": [],
-  "cpuArchitecture": "cooperlake",
+  "cpuArchitecture": "skylakede",
   "metalosRootfs": false,
   "provisioningConfig": {
     "ethtoolByInterface": {
       "eth0": {
-        "maxChannelsCombined": 128,
-        "maxChannelsRx": 64,
-        "maxChannelsTx": 64
+        "maxChannelsCombined": 36
       }
     },
-    "cpuCoreCount": 26,
-    "parentModelId": 338977,
+    "cpuCoreCount": 18,
+    "parentModelId": 334303,
     "recoveryEnvironment": false,
     "deviceType": "SERVER",
-    "datacenter": "prn3",
-    "cluster": "17",
-    "memTotal": 66868621312,
+    "datacenter": "vll1",
+    "cluster": "10",
+    "memTotal": 66865057792,
     "osVersion": {
       "distribution_name": "CentOS Stream release",
       "version": 9,
@@ -32,13 +30,13 @@
       "is_metalos": false
     },
     "pciByAddress": {
-      "0000:67:00.0": {
-        "vendor_id": 5348,
-        "device_id": 5969,
+      "0000:02:00.0": {
+        "vendor_id": 5555,
+        "device_id": 4117,
         "class_code": 131072,
-        "board_part_number": "BCM957504-N1100FYB",
+        "board_part_number": "MCX4431N-GCAN_FB",
         "current_speed_mts": 8000,
-        "current_width": 4
+        "current_width": 2
       }
     },
     "static_smc_tiers": [],
@@ -47,24 +45,24 @@
   "bootConfig": {
     "ethtoolByInterface": {
       "eth0": {
-        "driver": "bnxt_en",
-        "driver_version": "5.19.0-0_fbk21_12633_g4db063a1b",
-        "firmware_version": "225.0.157.0/pkg 225.1.109.0",
-        "bus_info": "0000:67:00.0",
-        "speed_mbps": 100000
+        "driver": "mlx5_core",
+        "driver_version": "5.19.0-0_fbk12_11583_g0bef9520c",
+        "firmware_version": "14.32.1206 (FB_0000000006)",
+        "bus_info": "0000:02:00.0",
+        "speed_mbps": 50000
       }
     }
   },
   "runtimeConfig": {
     "hasHighPrivCert": true,
-    "regionRoutableCluster": "prn3.06",
+    "regionRoutableCluster": "vll1.02",
     "block_devices": {
       "block_devices": {
         "nvme0n1": {
-          "size_bytes": 256055095296,
+          "size_bytes": 256060514304,
           "is_rotational": false,
-          "model": "MTFDHBA512TCK",
-          "serial": "21212F345B8E",
+          "model": "HFS256GD9TNG-62A0A",
+          "serial": "MS8BN17121120BR5I",
           "physical_block_size": 512,
           "logical_block_size": 512,
           "is_root": true

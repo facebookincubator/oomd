@@ -1,162 +1,82 @@
-@generated SignedSource<<c2dabf2100bc0e0bf76987c73632b0b6>>
+@generated SignedSource<<486052c4f88e685d95686103a221f720>>
 @codegen-command arc cfgen update-inputs fb-oomd
 {
-  "fqdn": "devgpu013.eag5.facebook.com",
-  "region": "utah",
+  "fqdn": "devgpu030.cln3.facebook.com",
+  "region": "ireland",
   "clusterType": "SERVICE_GENERIC_NON_MEMCACHE",
-  "modelId": 346565,
-  "kernelRelease": "5.19.0-0_fbk21_zion_12633_g4db063a1bcb5",
-  "serverType": "TYPE_XX_GPU_TC",
+  "modelId": 342698,
+  "kernelRelease": "5.12.0-0_fbk16_zion_7661_geb00762ce6d2",
+  "serverType": "TYPE_XVI_TRAINING",
   "experiments": [],
-  "cpuArchitecture": "sapphirerapids",
+  "cpuArchitecture": "cooperlake",
   "metalosRootfs": false,
   "provisioningConfig": {
     "ethtoolByInterface": {
-      "beth0": {
-        "maxChannelsCombined": 63
-      },
-      "beth1": {
-        "maxChannelsCombined": 63
-      },
-      "beth2": {
-        "maxChannelsCombined": 63
-      },
-      "beth3": {
-        "maxChannelsCombined": 63
-      },
-      "beth4": {
-        "maxChannelsCombined": 63
-      },
-      "beth5": {
-        "maxChannelsCombined": 63
-      },
-      "beth6": {
-        "maxChannelsCombined": 63
-      },
-      "beth7": {
-        "maxChannelsCombined": 63
-      },
       "eth0": {
-        "maxChannelsCombined": 63
+        "maxChannelsCombined": 128,
+        "maxChannelsRx": 64,
+        "maxChannelsTx": 64
       },
       "eth1": {
-        "maxChannelsCombined": 63
+        "maxChannelsCombined": 128,
+        "maxChannelsRx": 64,
+        "maxChannelsTx": 64
       },
       "eth2": {
-        "maxChannelsCombined": 63
+        "maxChannelsCombined": 128,
+        "maxChannelsRx": 64,
+        "maxChannelsTx": 64
       },
       "eth3": {
-        "maxChannelsCombined": 63
+        "maxChannelsCombined": 128,
+        "maxChannelsRx": 64,
+        "maxChannelsTx": 64
       }
     },
-    "cpuCoreCount": 112,
-    "parentModelId": 346566,
+    "cpuCoreCount": 96,
+    "parentModelId": 342332,
     "recoveryEnvironment": false,
     "deviceType": "SERVER",
-    "datacenter": "eag5",
-    "cluster": "04",
-    "memTotal": 2163675127808,
+    "datacenter": "cln3",
+    "cluster": "03",
+    "memTotal": 1621535821824,
     "osVersion": {
       "distribution_name": "CentOS Stream release",
-      "version": 9,
+      "version": 8,
       "is_in_ramdisk": false,
       "is_metalos": false
     },
     "pciByAddress": {
-      "0000:18:00.0": {
-        "vendor_id": 5555,
-        "device_id": 4129,
+      "0000:30:00.0": {
+        "vendor_id": 5348,
+        "device_id": 5969,
         "class_code": 131072,
-        "board_part_number": "CX71343DAC-WEAF_FB",
-        "current_speed_mts": 32000,
+        "board_part_number": "BCM957504-N1100FZB",
+        "current_speed_mts": 8000,
         "current_width": 16
       },
-      "0000:27:00.0": {
-        "vendor_id": 5555,
-        "device_id": 4129,
+      "0000:6d:00.0": {
+        "vendor_id": 5348,
+        "device_id": 5969,
         "class_code": 131072,
-        "board_part_number": "CX71343DAC-WEBF_FB",
-        "current_speed_mts": 32000,
+        "board_part_number": "BCM957504-N1100FZB",
+        "current_speed_mts": 8000,
         "current_width": 16
       },
-      "0000:27:00.1": {
-        "vendor_id": 5555,
-        "device_id": 4129,
+      "0000:ad:00.0": {
+        "vendor_id": 5348,
+        "device_id": 5969,
         "class_code": 131072,
-        "board_part_number": "CX71343DAC-WEBF_FB",
-        "current_speed_mts": 32000,
+        "board_part_number": "BCM957504-N1100FZB",
+        "current_speed_mts": 8000,
         "current_width": 16
       },
-      "0000:3a:00.0": {
-        "vendor_id": 5555,
-        "device_id": 4129,
+      "0000:ed:00.0": {
+        "vendor_id": 5348,
+        "device_id": 5969,
         "class_code": 131072,
-        "board_part_number": "CX71343DAC-WEAF_FB",
-        "current_speed_mts": 32000,
-        "current_width": 16
-      },
-      "0000:4b:00.0": {
-        "vendor_id": 5555,
-        "device_id": 4129,
-        "class_code": 131072,
-        "board_part_number": "CX71343DAC-WEAF_FB",
-        "current_speed_mts": 32000,
-        "current_width": 16
-      },
-      "0000:5c:00.0": {
-        "vendor_id": 5555,
-        "device_id": 4129,
-        "class_code": 131072,
-        "board_part_number": "CX71343DAC-WEAF_FB",
-        "current_speed_mts": 32000,
-        "current_width": 16
-      },
-      "0000:9a:00.0": {
-        "vendor_id": 5555,
-        "device_id": 4129,
-        "class_code": 131072,
-        "board_part_number": "CX71343DAC-WEAF_FB",
-        "current_speed_mts": 32000,
-        "current_width": 16
-      },
-      "0000:a8:00.0": {
-        "vendor_id": 5555,
-        "device_id": 4129,
-        "class_code": 131072,
-        "board_part_number": "CX71343DAC-WEBF_FB",
-        "current_speed_mts": 32000,
-        "current_width": 16
-      },
-      "0000:a8:00.1": {
-        "vendor_id": 5555,
-        "device_id": 4129,
-        "class_code": 131072,
-        "board_part_number": "CX71343DAC-WEBF_FB",
-        "current_speed_mts": 32000,
-        "current_width": 16
-      },
-      "0000:ba:00.0": {
-        "vendor_id": 5555,
-        "device_id": 4129,
-        "class_code": 131072,
-        "board_part_number": "CX71343DAC-WEAF_FB",
-        "current_speed_mts": 32000,
-        "current_width": 16
-      },
-      "0000:ca:00.0": {
-        "vendor_id": 5555,
-        "device_id": 4129,
-        "class_code": 131072,
-        "board_part_number": "CX71343DAC-WEAF_FB",
-        "current_speed_mts": 32000,
-        "current_width": 16
-      },
-      "0000:da:00.0": {
-        "vendor_id": 5555,
-        "device_id": 4129,
-        "class_code": 131072,
-        "board_part_number": "CX71343DAC-WEAF_FB",
-        "current_speed_mts": 32000,
+        "board_part_number": "BCM957504-N1100FZB",
+        "current_speed_mts": 8000,
         "current_width": 16
       }
     },
@@ -165,174 +85,82 @@
   },
   "bootConfig": {
     "ethtoolByInterface": {
-      "beth0": {
-        "driver": "mlx5_core",
-        "driver_version": "5.19.0-0_fbk21_zion_12633_g4db0",
-        "firmware_version": "28.38.1002 (FB_0000000029)",
-        "bus_info": "0000:4b:00.0",
-        "speed_mbps": 400000
-      },
-      "beth1": {
-        "driver": "mlx5_core",
-        "driver_version": "5.19.0-0_fbk21_zion_12633_g4db0",
-        "firmware_version": "28.38.1002 (FB_0000000029)",
-        "bus_info": "0000:5c:00.0",
-        "speed_mbps": 400000
-      },
-      "beth2": {
-        "driver": "mlx5_core",
-        "driver_version": "5.19.0-0_fbk21_zion_12633_g4db0",
-        "firmware_version": "28.38.1002 (FB_0000000029)",
-        "bus_info": "0000:9a:00.0",
-        "speed_mbps": 400000
-      },
-      "beth3": {
-        "driver": "mlx5_core",
-        "driver_version": "5.19.0-0_fbk21_zion_12633_g4db0",
-        "firmware_version": "28.38.1002 (FB_0000000029)",
-        "bus_info": "0000:18:00.0",
-        "speed_mbps": 400000
-      },
-      "beth4": {
-        "driver": "mlx5_core",
-        "driver_version": "5.19.0-0_fbk21_zion_12633_g4db0",
-        "firmware_version": "28.38.1002 (FB_0000000029)",
-        "bus_info": "0000:3a:00.0",
-        "speed_mbps": 400000
-      },
-      "beth5": {
-        "driver": "mlx5_core",
-        "driver_version": "5.19.0-0_fbk21_zion_12633_g4db0",
-        "firmware_version": "28.38.1002 (FB_0000000029)",
-        "bus_info": "0000:ba:00.0",
-        "speed_mbps": 400000
-      },
-      "beth6": {
-        "driver": "mlx5_core",
-        "driver_version": "5.19.0-0_fbk21_zion_12633_g4db0",
-        "firmware_version": "28.38.1002 (FB_0000000029)",
-        "bus_info": "0000:ca:00.0",
-        "speed_mbps": 400000
-      },
-      "beth7": {
-        "driver": "mlx5_core",
-        "driver_version": "5.19.0-0_fbk21_zion_12633_g4db0",
-        "firmware_version": "28.38.1002 (FB_0000000029)",
-        "bus_info": "0000:da:00.0",
-        "speed_mbps": 400000
-      },
       "eth0": {
-        "driver": "mlx5_core",
-        "driver_version": "5.19.0-0_fbk21_zion_12633_g4db0",
-        "firmware_version": "28.36.1010 (FB_0000000038)",
-        "bus_info": "0000:27:00.0",
-        "speed_mbps": 200000
+        "driver": "bnxt_en",
+        "driver_version": "5.12.0-0_fbk16_zion_7661_geb007",
+        "firmware_version": "216.2.252.0/pkg 216.2.317.0",
+        "bus_info": "0000:30:00.0",
+        "speed_mbps": 100000
       },
       "eth1": {
-        "driver": "mlx5_core",
-        "driver_version": "5.19.0-0_fbk21_zion_12633_g4db0",
-        "firmware_version": "28.36.1010 (FB_0000000038)",
-        "bus_info": "0000:27:00.1",
-        "speed_mbps": 200000
+        "driver": "bnxt_en",
+        "driver_version": "5.12.0-0_fbk16_zion_7661_geb007",
+        "firmware_version": "216.2.252.0/pkg 216.2.317.0",
+        "bus_info": "0000:6d:00.0",
+        "speed_mbps": 100000
       },
       "eth2": {
-        "driver": "mlx5_core",
-        "driver_version": "5.19.0-0_fbk21_zion_12633_g4db0",
-        "firmware_version": "28.36.1010 (FB_0000000038)",
-        "bus_info": "0000:a8:00.0",
-        "speed_mbps": 200000
+        "driver": "bnxt_en",
+        "driver_version": "5.12.0-0_fbk16_zion_7661_geb007",
+        "firmware_version": "216.2.252.0/pkg 216.2.317.0",
+        "bus_info": "0000:ad:00.0",
+        "speed_mbps": 100000
       },
       "eth3": {
-        "driver": "mlx5_core",
-        "driver_version": "5.19.0-0_fbk21_zion_12633_g4db0",
-        "firmware_version": "28.36.1010 (FB_0000000038)",
-        "bus_info": "0000:a8:00.1",
-        "speed_mbps": 200000
+        "driver": "bnxt_en",
+        "driver_version": "5.12.0-0_fbk16_zion_7661_geb007",
+        "firmware_version": "216.2.252.0/pkg 216.2.317.0",
+        "bus_info": "0000:ed:00.0",
+        "speed_mbps": 100000
       }
     }
   },
   "runtimeConfig": {
     "hasHighPrivCert": true,
-    "regionRoutableCluster": "eag1.02",
+    "regionRoutableCluster": "cln1.02",
     "block_devices": {
       "block_devices": {
         "nvme0n1": {
-          "size_bytes": 3840774504448,
+          "size_bytes": 512110190592,
           "is_rotational": false,
-          "model": "HFS3T8GDEZX106N",
-          "serial": "2423FDC6N4720I490J1W",
-          "physical_block_size": 4096,
-          "logical_block_size": 4096,
+          "model": "KXG6AZNV512G TOSHIBA",
+          "serial": "62EFC2K1F5F5",
+          "physical_block_size": 512,
+          "logical_block_size": 512,
           "is_root": true
         },
         "nvme1n1": {
-          "size_bytes": 3600709410816,
+          "size_bytes": 1920383410176,
           "is_rotational": false,
-          "model": "HFS3T8GDEZX106N",
-          "serial": "2323FNC6N4259I100B0C",
+          "model": "KXD51LN11T92 TOSHIBA",
+          "serial": "X1AS10HKTX4M",
           "physical_block_size": 4096,
           "logical_block_size": 4096,
           "is_root": false
         },
         "nvme2n1": {
-          "size_bytes": 3600709410816,
+          "size_bytes": 1920383410176,
           "is_rotational": false,
-          "model": "HFS3T8GDEZX106N",
-          "serial": "2323FNC6N4259I100B0J",
+          "model": "KXD51LN11T92 TOSHIBA",
+          "serial": "X1AS10HFTX4M",
           "physical_block_size": 4096,
           "logical_block_size": 4096,
           "is_root": false
         },
         "nvme3n1": {
-          "size_bytes": 3600709410816,
+          "size_bytes": 1920383410176,
           "is_rotational": false,
-          "model": "HFS3T8GDEZX106N",
-          "serial": "2323FNC6N4259I100B0K",
+          "model": "KXD51LN11T92 TOSHIBA",
+          "serial": "X1HS105BTX4M",
           "physical_block_size": 4096,
           "logical_block_size": 4096,
           "is_root": false
         },
         "nvme4n1": {
-          "size_bytes": 3600709410816,
+          "size_bytes": 1920383410176,
           "is_rotational": false,
-          "model": "HFS3T8GDEZX106N",
-          "serial": "2323FNC6N4259I100B0B",
-          "physical_block_size": 4096,
-          "logical_block_size": 4096,
-          "is_root": false
-        },
-        "nvme5n1": {
-          "size_bytes": 3600709410816,
-          "is_rotational": false,
-          "model": "HFS3T8GDEZX106N",
-          "serial": "2323FDC5N5138I050B2Y",
-          "physical_block_size": 4096,
-          "logical_block_size": 4096,
-          "is_root": false
-        },
-        "nvme6n1": {
-          "size_bytes": 3600709410816,
-          "is_rotational": false,
-          "model": "HFS3T8GDEZX106N",
-          "serial": "2323FNC6N4259I100B01",
-          "physical_block_size": 4096,
-          "logical_block_size": 4096,
-          "is_root": false
-        },
-        "nvme7n1": {
-          "size_bytes": 3600709410816,
-          "is_rotational": false,
-          "model": "HFS3T8GDEZX106N",
-          "serial": "2323FDC5N5138I050B32",
-          "physical_block_size": 4096,
-          "logical_block_size": 4096,
-          "is_root": false
-        },
-        "nvme8n1": {
-          "size_bytes": 3600709410816,
-          "is_rotational": false,
-          "model": "HFS3T8GDEZX106N",
-          "serial": "2323FDC5N5138I050B2Z",
+          "model": "KXD51LN11T92 TOSHIBA",
+          "serial": "X1HS10V2TX4M",
           "physical_block_size": 4096,
           "logical_block_size": 4096,
           "is_root": false
@@ -342,6 +170,10 @@
     "dynamic_smc_tiers": [],
     "cluster_state": "CLUSTER_IN_USE",
     "installed_platforms": [
+      "gcc-4.9-glibc-2.20",
+      "gcc-4.9-glibc-2.20-fb",
+      "gcc-5-glibc-2.23",
+      "platform007",
       "platform009",
       "platform010",
       "platform010-aarch64",
@@ -352,14 +184,6 @@
       "ETH1",
       "ETH2",
       "ETH3",
-      "BETH0",
-      "BETH1",
-      "BETH2",
-      "BETH3",
-      "BETH4",
-      "BETH5",
-      "BETH6",
-      "BETH7",
       "SVC0",
       "SVC0_1",
       "SVC0_2",

@@ -1,11 +1,11 @@
-@generated SignedSource<<69c414a12fdb4c16618be2a8b6aa311b>>
+@generated SignedSource<<568fcfec1e7dea508ee35fb5bd03c455>>
 @codegen-command arc cfgen update-inputs fb-oomd
 {
-  "fqdn": "synmon017.rva2.facebook.com",
-  "region": "virginia",
+  "fqdn": "synmon063.ftw5.facebook.com",
+  "region": "texas",
   "clusterType": "SERVICE_GENERIC_NON_MEMCACHE",
   "modelId": 333376,
-  "kernelRelease": "5.19.0-0_fbk21_12633_g4db063a1bcb5",
+  "kernelRelease": "5.19.0-0_fbk12_11583_g0bef9520ca2b",
   "serverType": "TYPE_I_WEB",
   "experiments": [],
   "cpuArchitecture": "skylakede",
@@ -13,16 +13,18 @@
   "provisioningConfig": {
     "ethtoolByInterface": {
       "eth0": {
-        "maxChannelsCombined": 36
+        "maxChannelsCombined": 16,
+        "maxChannelsRx": 16,
+        "maxChannelsTx": 16
       }
     },
     "cpuCoreCount": 18,
     "parentModelId": 334303,
     "recoveryEnvironment": false,
     "deviceType": "SERVER",
-    "datacenter": "rva2",
-    "cluster": "05",
-    "memTotal": 66997313536,
+    "datacenter": "ftw5",
+    "cluster": "07",
+    "memTotal": 66999590912,
     "osVersion": {
       "distribution_name": "CentOS Stream release",
       "version": 9,
@@ -31,10 +33,10 @@
     },
     "pciByAddress": {
       "0000:02:00.0": {
-        "vendor_id": 5555,
-        "device_id": 4117,
+        "vendor_id": 5348,
+        "device_id": 5873,
         "class_code": 131072,
-        "board_part_number": "MCX4431N-GCAN_FB",
+        "board_part_number": "BCM957452M4520C",
         "current_speed_mts": 8000,
         "current_width": 2
       }
@@ -45,9 +47,9 @@
   "bootConfig": {
     "ethtoolByInterface": {
       "eth0": {
-        "driver": "mlx5_core",
-        "driver_version": "5.19.0-0_fbk21_12633_g4db063a1b",
-        "firmware_version": "14.32.1206 (FB_0000000006)",
+        "driver": "bnxt_en",
+        "driver_version": "5.19.0-0_fbk12_11583_g0bef9520c",
+        "firmware_version": "20.8.200.0/pkg 20.8.3.11",
         "bus_info": "0000:02:00.0",
         "speed_mbps": 50000
       }
@@ -55,14 +57,14 @@
   },
   "runtimeConfig": {
     "hasHighPrivCert": true,
-    "regionRoutableCluster": "rva1.05",
+    "regionRoutableCluster": "ftw1.02",
     "block_devices": {
       "block_devices": {
         "nvme0n1": {
           "size_bytes": 512110190592,
           "is_rotational": false,
           "model": "WDC CL SN720 SDAQNTW-512G-1020",
-          "serial": "20235A803944",
+          "serial": "200454808928",
           "physical_block_size": 512,
           "logical_block_size": 512,
           "is_root": true

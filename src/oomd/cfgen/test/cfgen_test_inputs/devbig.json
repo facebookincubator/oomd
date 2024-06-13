@@ -1,11 +1,11 @@
-@generated SignedSource<<896ff729516b5e965bc9b110160cf100>>
+@generated SignedSource<<c54e3fdf5805d4074185132a0ce23636>>
 @codegen-command arc cfgen update-inputs fb-oomd
 {
-  "fqdn": "devbig284.ash8.facebook.com",
+  "fqdn": "devbig470.ash8.facebook.com",
   "region": "east",
   "clusterType": "SERVICE_GENERIC_NON_MEMCACHE",
   "modelId": 336209,
-  "kernelRelease": "5.19.0-0_fbk21_hardened_12633_g4db063a1bcb5",
+  "kernelRelease": "5.19.0-0_fbk12_hardened_11583_g0bef9520ca2b",
   "serverType": "TYPE_VI_FEED",
   "experiments": [],
   "cpuArchitecture": "skylake",
@@ -13,7 +13,9 @@
   "provisioningConfig": {
     "ethtoolByInterface": {
       "eth0": {
-        "maxChannelsCombined": 63
+        "maxChannelsCombined": 128,
+        "maxChannelsRx": 64,
+        "maxChannelsTx": 64
       }
     },
     "cpuCoreCount": 40,
@@ -22,7 +24,7 @@
     "deviceType": "SERVER",
     "datacenter": "ash8",
     "cluster": "08",
-    "memTotal": 270017355776,
+    "memTotal": 269614637056,
     "osVersion": {
       "distribution_name": "CentOS Stream release",
       "version": 9,
@@ -31,10 +33,10 @@
     },
     "pciByAddress": {
       "0000:5e:00.0": {
-        "vendor_id": 5555,
-        "device_id": 4117,
+        "vendor_id": 5348,
+        "device_id": 5833,
         "class_code": 131072,
-        "board_part_number": "MCX4411D-ACAN_FB",
+        "board_part_number": "BCM957302M3023CBK",
         "current_speed_mts": 8000,
         "current_width": 8
       }
@@ -45,9 +47,9 @@
   "bootConfig": {
     "ethtoolByInterface": {
       "eth0": {
-        "driver": "mlx5_core",
-        "driver_version": "5.19.0-0_fbk21_hardened_12633_g",
-        "firmware_version": "14.27.2606 (FB_0000000005)",
+        "driver": "bnxt_en",
+        "driver_version": "5.19.0-0_fbk12_hardened_11583_g",
+        "firmware_version": "20.6.167.0/pkg 20.6.4.12",
         "bus_info": "0000:5e:00.0",
         "speed_mbps": 25000
       }
@@ -62,7 +64,7 @@
           "size_bytes": 1920383410176,
           "is_rotational": false,
           "model": "KXD51LN11T92 TOSHIBA",
-          "serial": "798S10S0T7RQ",
+          "serial": "798S10ART7RQ",
           "physical_block_size": 4096,
           "logical_block_size": 4096,
           "is_root": false
@@ -71,7 +73,7 @@
           "size_bytes": 2000398934016,
           "is_rotational": true,
           "model": "TOSHIBA MG04ACA200A",
-          "serial": "79REKGBZFKGA",
+          "serial": "89CVK6BJFKGA",
           "physical_block_size": 4096,
           "logical_block_size": 4096,
           "is_root": true

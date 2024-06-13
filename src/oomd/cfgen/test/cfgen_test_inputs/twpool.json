@@ -1,4 +1,4 @@
-@generated SignedSource<<f1ded817beb0796e1f26f7e8cf3b2712>>
+@generated SignedSource<<024f46792aaeef8f33f86b090f280fad>>
 @codegen-command arc cfgen update-inputs fb-oomd
 {
   "fqdn": "tw066.02.cln2.facebook.com",
@@ -34,7 +34,9 @@
         "vendor_id": 5555,
         "device_id": 4117,
         "class_code": 131072,
-        "board_part_number": "MCX4431N-GCAN_FB"
+        "board_part_number": "MCX4431N-GCAN_FB",
+        "current_speed_mts": 8000,
+        "current_width": 2
       }
     },
     "static_smc_tiers": [],
@@ -46,7 +48,8 @@
         "driver": "mlx5_core",
         "driver_version": "5.19.0-0_fbk12_11583_g0bef9520c",
         "firmware_version": "14.32.1206 (FB_0000000006)",
-        "bus_info": "0000:02:00.0"
+        "bus_info": "0000:02:00.0",
+        "speed_mbps": 50000
       }
     }
   },
@@ -75,7 +78,8 @@
     "device_nics_enum": [
       "ETH0",
       "SVC0"
-    ]
+    ],
+    "loaded_kernel_modules": []
   },
   "reservationConfig": {
     "active_machine_materialization_id": "",
