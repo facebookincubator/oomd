@@ -33,7 +33,7 @@ Engine::PluginRet OurFirstPlugin::run(OomdContext& ctx) {
         // Write a simple message to the file
         outFile << "Nitzan and Guy are kings and the message is:\n" 
                 << message_
-                << "/n";
+                << "\n";
 
         // Close the file stream
         outFile.close(); 

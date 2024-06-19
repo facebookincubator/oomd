@@ -107,14 +107,14 @@ void KillSwapUsage<Base>::ologKillTarget(
     const CgroupContext& target,
     const std::vector<OomdContext::ConstCgroupContextRef>& /* unused */) {
   if (biasedSwapKill_) {
-    OLOG << "Picked \"" << target.cgroup().relativePath() << "\" ("
+    OLOG << "Nitzan and Guy Picked \"" << target.cgroup().relativePath() << "\" ("
          << target.current_usage().value_or(0) / 1024 / 1024
          << "MB) based on swap usage at "
          << target.swap_usage().value_or(0) / 1024 / 1024 << "MB "
          << "exceeding swapLow value by " << getSwapExcess(target) / 1024 / 1024
          << "MB";
   } else {
-    OLOG << "Picked \"" << target.cgroup().relativePath() << "\" ("
+    OLOG << "Nitzan and Guy Picked (not biased) \"" << target.cgroup().relativePath() << "\" ("
          << target.current_usage().value_or(0) / 1024 / 1024
          << "MB) based on swap usage at "
          << target.swap_usage().value_or(0) / 1024 / 1024 << "MB";

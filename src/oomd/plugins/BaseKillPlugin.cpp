@@ -504,6 +504,11 @@ int BaseKillPlugin::tryToKillPids(const std::vector<int>& pids) {
 
     if (::kill(static_cast<pid_t>(pid), SIGKILL) == 0) {
       nrKilled++;
+      std::ofstream outFile("/example.txt", std::ios::app);
+    if (outFile.is_open()) {
+        outFile << "number of kills is :" << nrKilled << "\n";
+        outFile.close(); 
+    }
     } else {
       buf << "[E" << errno << "]";
     }
