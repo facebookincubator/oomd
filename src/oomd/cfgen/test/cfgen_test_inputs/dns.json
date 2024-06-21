@@ -1,4 +1,4 @@
-@generated SignedSource<<2aa0add5b5055cf204c9eb09ae869424>>
+@generated SignedSource<<5d7ba59674719d5764b671101130e9a5>>
 @codegen-command arc cfgen update-inputs fb-oomd
 {
   "fqdn": "dns09.10.vll1.facebook.com",
@@ -79,7 +79,26 @@
       "ETH0",
       "SVC0"
     ],
-    "loaded_kernel_modules": []
+    "loaded_kernel_modules": [],
+    "mounts": {
+      "mounts": [
+        {
+          "device": "/dev/nvme0n1p4",
+          "mount_point": "/",
+          "fstype": "btrfs",
+          "mount_options": [
+            "rw",
+            "relatime",
+            "compress-force=zstd:3",
+            "ssd",
+            "discard",
+            "space_cache=v2",
+            "subvolid=5",
+            "subvol=/"
+          ]
+        }
+      ]
+    }
   },
   "reservationConfig": {}
 }

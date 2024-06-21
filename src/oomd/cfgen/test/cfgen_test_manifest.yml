@@ -47,3 +47,6 @@ samples:
     scuba: tier='devgpu' AND server_type!='TYPE_XVII_INFERENCE'
   devgpu_T17:
     scuba: tier='devgpu' AND server_type='TYPE_XVII_INFERENCE'
+  dev_T10:
+    # serf get --fields 'name' --limit 100 'hostnameScheme_obj.name=dev,server_type=TYPE_X_SEARCH'
+    production_host: dev0050.snc8.facebook.com

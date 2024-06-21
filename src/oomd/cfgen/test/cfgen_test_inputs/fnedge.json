@@ -1,8 +1,8 @@
-@generated SignedSource<<bdf1172a0027b0ceeabbb7f795cb0ae0>>
+@generated SignedSource<<74a652dfe9f8d0cea1580b0ab87e5afe>>
 @codegen-command arc cfgen update-inputs fb-oomd
 {
-  "fqdn": "fnedge624.03.sin6.facebook.com",
-  "region": "oregon",
+  "fqdn": "fnedge337.01.ord5.facebook.com",
+  "region": "altoona",
   "clusterType": "POP",
   "modelId": 342539,
   "kernelRelease": "5.19.0-0_fbk21_hardened_rc9_12630_gab30f3f5259a",
@@ -21,11 +21,11 @@
       "tunlany0": {}
     },
     "cpuCoreCount": 40,
-    "parentModelId": 334413,
+    "parentModelId": 334411,
     "recoveryEnvironment": false,
     "deviceType": "SERVER",
-    "datacenter": "sin6",
-    "cluster": "03",
+    "datacenter": "ord5",
+    "cluster": "01",
     "memTotal": 269953482752,
     "osVersion": {
       "distribution_name": "EdgeOS",
@@ -80,14 +80,14 @@
   },
   "runtimeConfig": {
     "hasHighPrivCert": true,
-    "regionRoutableCluster": "prn3.06",
+    "regionRoutableCluster": "atn1.05",
     "block_devices": {
       "block_devices": {
         "nvme0n1": {
           "size_bytes": 3840755982336,
           "is_rotational": false,
           "model": "SAMSUNG MZQLB3T8HALS-00007",
-          "serial": "S438NC0R840659",
+          "serial": "S438NC0R901648",
           "physical_block_size": 4096,
           "logical_block_size": 4096,
           "is_root": false
@@ -96,7 +96,7 @@
           "size_bytes": 3840755982336,
           "is_rotational": false,
           "model": "SAMSUNG MZQLB3T8HALS-00007",
-          "serial": "S438NA0N755299",
+          "serial": "S438NA0N704959",
           "physical_block_size": 4096,
           "logical_block_size": 4096,
           "is_root": false
@@ -105,7 +105,7 @@
           "size_bytes": 480103981056,
           "is_rotational": false,
           "model": "VK000480GWSRR",
-          "serial": "S4NANA0N724609",
+          "serial": "S4NANA0N631380",
           "physical_block_size": 4096,
           "logical_block_size": 512,
           "is_root": true
@@ -120,6 +120,7 @@
     ],
     "device_nics_enum": [
       "ETH0",
+      "ETH1",
       "SVC0"
     ],
     "loaded_kernel_modules": [],

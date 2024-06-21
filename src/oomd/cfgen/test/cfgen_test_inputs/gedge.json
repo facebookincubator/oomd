@@ -1,46 +1,45 @@
-@generated SignedSource<<f784c7c7cfa6ae8bd127d5ca30795f07>>
+@generated SignedSource<<c2e0cee628eefcc257ce047e29a0cedc>>
 @codegen-command arc cfgen update-inputs fb-oomd
 {
-  "fqdn": "gedge774.50.ord5.facebook.com",
-  "region": "altoona",
+  "fqdn": "gedge566.50.ams6.facebook.com",
+  "region": "denmark",
   "clusterType": "GAMING_POP",
-  "modelId": 340028,
+  "modelId": 342616,
   "kernelRelease": "5.12.0-0_fbk16_hardened_7661_geb00762ce6d2",
   "serverType": "TYPE_VI_FEED",
   "experiments": [],
-  "cpuArchitecture": "skylake",
+  "cpuArchitecture": "icelake",
   "metalosRootfs": false,
   "provisioningConfig": {
     "ethtoolByInterface": {
       "eth0": {
-        "maxChannelsRx": 80,
-        "maxChannelsTx": 32
+        "maxChannelsCombined": 63
       },
       "ip6tnl0": {},
       "tunl0": {},
       "tunlany0": {}
     },
-    "cpuCoreCount": 40,
-    "parentModelId": 339661,
+    "cpuCoreCount": 48,
+    "parentModelId": 343431,
     "recoveryEnvironment": false,
     "deviceType": "SERVER",
-    "datacenter": "ord5",
+    "datacenter": "ams6",
     "cluster": "50",
-    "memTotal": 202312957952,
+    "memTotal": 265756499968,
     "osVersion": {
       "distribution_name": "EdgeOS",
-      "version": 1700056342,
+      "version": 1708953544,
       "is_in_ramdisk": false,
       "is_metalos": false
     },
     "pciByAddress": {
-      "0000:5d:00.0": {
+      "0000:47:00.0": {
         "vendor_id": 5555,
-        "device_id": 4103,
-        "class_code": 163840,
-        "board_part_number": "764285-B21",
-        "current_speed_mts": 8000,
-        "current_width": 8
+        "device_id": 4125,
+        "class_code": 131072,
+        "board_part_number": "MCX623435AC-CDAI",
+        "current_speed_mts": 16000,
+        "current_width": 16
       }
     },
     "static_smc_tiers": [],
@@ -49,11 +48,11 @@
   "bootConfig": {
     "ethtoolByInterface": {
       "eth0": {
-        "driver": "mlx4_en",
-        "driver_version": "4.0-0",
-        "firmware_version": "2.42.5700",
-        "bus_info": "0000:5d:00.0",
-        "speed_mbps": 40000
+        "driver": "mlx5_core",
+        "driver_version": "5.12.0-0_fbk16_hardened_7661_ge",
+        "firmware_version": "22.34.4000 (MT_0000000695)",
+        "bus_info": "0000:47:00.0",
+        "speed_mbps": 100000
       },
       "ip6tnl0": {
         "driver": "",
@@ -80,23 +79,34 @@
   },
   "runtimeConfig": {
     "hasHighPrivCert": true,
-    "regionRoutableCluster": "atn1.05",
+    "regionRoutableCluster": "odn2.02",
     "block_devices": {
       "block_devices": {
-        "sda": {
-          "size_bytes": 1920383410176,
+        "nvme0n1": {
+          "size_bytes": 960197124096,
           "is_rotational": false,
-          "model": "VK001920GWTTC",
-          "serial": "PHYF021301PN1P9DGN",
+          "model": "SAMSUNG MZQL2960HCJR-00A07",
+          "serial": "S64FNE0RC04186",
           "physical_block_size": 4096,
           "logical_block_size": 512,
           "is_root": true
+        },
+        "nvme1n1": {
+          "size_bytes": 3840755982336,
+          "is_rotational": false,
+          "model": "SAMSUNG MZQL23T8HCLS-00A07",
+          "serial": "S64HNS0T800572",
+          "physical_block_size": 4096,
+          "logical_block_size": 4096,
+          "is_root": false
         }
       }
     },
     "dynamic_smc_tiers": [
-      "edge_pool_gedge.ord5c50",
-      "edge_pool_gedge.ord5c50.spare"
+      "edge_pool_gedge.ams6c50",
+      "edge_pool_gedge.ams6c50.cathode_windows",
+      "edge_pool_gedge.ams6c50.cathode_windows.prod",
+      "edge_pool_gedge.ams6c50.cathode_windows.prod.gen10plus_a10m"
     ],
     "cluster_state": "CLUSTER_IN_USE",
     "installed_platforms": [
@@ -105,16 +115,10 @@
     ],
     "device_nics_enum": [
       "ETH0",
-      "ETH1",
       "SVC0",
       "SVC1"
     ],
-    "loaded_kernel_modules": [
-      {
-        "name": "nvidia",
-        "version": "525.105.17\n"
-      }
-    ],
+    "loaded_kernel_modules": [],
     "mounts": {
       "mounts": [
         {

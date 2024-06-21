@@ -798,6 +798,9 @@ fn use_high_mem_pressure_threshold_on_dev(node: &Node) -> bool {
     {
         return true;
     }
+    if node.hostname_prefix() == DEV && node.server_type() == FbServerType::TYPE_X_SEARCH {
+        return true;
+    }
     false
 }
 

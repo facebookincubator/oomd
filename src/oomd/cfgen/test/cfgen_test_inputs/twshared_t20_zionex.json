@@ -1,27 +1,45 @@
-@generated SignedSource<<19c84af36c5cd5cc5a073d8ce89fe6c6>>
+@generated SignedSource<<098946a436107fba1cd2232c3f885f4d>>
 @codegen-command arc cfgen update-inputs fb-oomd
 {
-  "fqdn": "twshared29250.02.pnb5.facebook.com",
-  "region": "nebraska",
+  "fqdn": "twshared40687.05.nha1.facebook.com",
+  "region": "alabama",
   "clusterType": "SERVICE_GENERIC_NON_MEMCACHE",
   "modelId": 341690,
-  "kernelRelease": "6.4.3-0_fbk10_zion_rc9_2482_g96807ccfca35",
+  "kernelRelease": "6.4.3-0_fbk11_zion_2563_g44ec95f7d7f4",
   "serverType": "TYPE_XX_GPU_TC",
   "experiments": [],
   "cpuArchitecture": "cooperlake",
   "metalosRootfs": false,
   "provisioningConfig": {
     "ethtoolByInterface": {
+      "beth0": {
+        "maxChannelsCombined": 63
+      },
+      "beth1": {
+        "maxChannelsCombined": 63
+      },
+      "beth2": {
+        "maxChannelsCombined": 63
+      },
+      "beth3": {
+        "maxChannelsCombined": 63
+      },
+      "beth4": {
+        "maxChannelsCombined": 63
+      },
+      "beth5": {
+        "maxChannelsCombined": 63
+      },
+      "beth6": {
+        "maxChannelsCombined": 63
+      },
+      "beth7": {
+        "maxChannelsCombined": 63
+      },
       "eth0": {
         "maxChannelsCombined": 63
       },
       "eth1": {
-        "maxChannelsCombined": 63
-      },
-      "eth10": {
-        "maxChannelsCombined": 63
-      },
-      "eth11": {
         "maxChannelsCombined": 63
       },
       "eth2": {
@@ -29,33 +47,15 @@
       },
       "eth3": {
         "maxChannelsCombined": 63
-      },
-      "eth4": {
-        "maxChannelsCombined": 63
-      },
-      "eth5": {
-        "maxChannelsCombined": 63
-      },
-      "eth6": {
-        "maxChannelsCombined": 63
-      },
-      "eth7": {
-        "maxChannelsCombined": 63
-      },
-      "eth8": {
-        "maxChannelsCombined": 63
-      },
-      "eth9": {
-        "maxChannelsCombined": 63
       }
     },
     "cpuCoreCount": 96,
     "parentModelId": 341983,
     "recoveryEnvironment": false,
     "deviceType": "SERVER",
-    "datacenter": "pnb5",
-    "cluster": "02",
-    "memTotal": 1621459365888,
+    "datacenter": "nha1",
+    "cluster": "05",
+    "memTotal": 1621459357696,
     "osVersion": {
       "distribution_name": "CentOS Stream release",
       "version": 9,
@@ -165,102 +165,102 @@
   },
   "bootConfig": {
     "ethtoolByInterface": {
+      "beth0": {
+        "driver": "mlx5_core",
+        "driver_version": "6.4.3-0_fbk11_zion_2563_g44ec95",
+        "firmware_version": "22.38.1002 (FB_0000000028)",
+        "bus_info": "0000:4e:00.0",
+        "speed_mbps": 200000
+      },
+      "beth1": {
+        "driver": "mlx5_core",
+        "driver_version": "6.4.3-0_fbk11_zion_2563_g44ec95",
+        "firmware_version": "22.38.1002 (FB_0000000028)",
+        "bus_info": "0000:17:00.0",
+        "speed_mbps": 200000
+      },
+      "beth2": {
+        "driver": "mlx5_core",
+        "driver_version": "6.4.3-0_fbk11_zion_2563_g44ec95",
+        "firmware_version": "22.38.1002 (FB_0000000028)",
+        "bus_info": "0000:8d:00.0",
+        "speed_mbps": 200000
+      },
+      "beth3": {
+        "driver": "mlx5_core",
+        "driver_version": "6.4.3-0_fbk11_zion_2563_g44ec95",
+        "firmware_version": "22.38.1002 (FB_0000000028)",
+        "bus_info": "0000:8e:00.0",
+        "speed_mbps": 200000
+      },
+      "beth4": {
+        "driver": "mlx5_core",
+        "driver_version": "6.4.3-0_fbk11_zion_2563_g44ec95",
+        "firmware_version": "22.38.1002 (FB_0000000028)",
+        "bus_info": "0000:16:00.0",
+        "speed_mbps": 200000
+      },
+      "beth5": {
+        "driver": "mlx5_core",
+        "driver_version": "6.4.3-0_fbk11_zion_2563_g44ec95",
+        "firmware_version": "22.38.1002 (FB_0000000028)",
+        "bus_info": "0000:cd:00.0",
+        "speed_mbps": 200000
+      },
+      "beth6": {
+        "driver": "mlx5_core",
+        "driver_version": "6.4.3-0_fbk11_zion_2563_g44ec95",
+        "firmware_version": "22.38.1002 (FB_0000000028)",
+        "bus_info": "0000:ce:00.0",
+        "speed_mbps": 200000
+      },
+      "beth7": {
+        "driver": "mlx5_core",
+        "driver_version": "6.4.3-0_fbk11_zion_2563_g44ec95",
+        "firmware_version": "22.38.1002 (FB_0000000028)",
+        "bus_info": "0000:4d:00.0",
+        "speed_mbps": 200000
+      },
       "eth0": {
         "driver": "mlx5_core",
-        "driver_version": "6.4.3-0_fbk10_zion_rc9_2482_g96",
+        "driver_version": "6.4.3-0_fbk11_zion_2563_g44ec95",
         "firmware_version": "22.32.1206 (FB_0000000025)",
         "bus_info": "0000:30:00.0",
         "speed_mbps": 100000
       },
       "eth1": {
         "driver": "mlx5_core",
-        "driver_version": "6.4.3-0_fbk10_zion_rc9_2482_g96",
+        "driver_version": "6.4.3-0_fbk11_zion_2563_g44ec95",
         "firmware_version": "22.32.1206 (FB_0000000025)",
         "bus_info": "0000:6d:00.0",
         "speed_mbps": 100000
       },
-      "eth10": {
-        "driver": "mlx5_core",
-        "driver_version": "6.4.3-0_fbk10_zion_rc9_2482_g96",
-        "firmware_version": "22.38.1002 (FB_0000000028)",
-        "bus_info": "0000:ce:00.0",
-        "speed_mbps": 200000
-      },
-      "eth11": {
-        "driver": "mlx5_core",
-        "driver_version": "6.4.3-0_fbk10_zion_rc9_2482_g96",
-        "firmware_version": "22.38.1002 (FB_0000000028)",
-        "bus_info": "0000:4d:00.0",
-        "speed_mbps": 200000
-      },
       "eth2": {
         "driver": "mlx5_core",
-        "driver_version": "6.4.3-0_fbk10_zion_rc9_2482_g96",
+        "driver_version": "6.4.3-0_fbk11_zion_2563_g44ec95",
         "firmware_version": "22.32.1206 (FB_0000000025)",
         "bus_info": "0000:ad:00.0",
         "speed_mbps": 100000
       },
       "eth3": {
         "driver": "mlx5_core",
-        "driver_version": "6.4.3-0_fbk10_zion_rc9_2482_g96",
+        "driver_version": "6.4.3-0_fbk11_zion_2563_g44ec95",
         "firmware_version": "22.32.1206 (FB_0000000025)",
         "bus_info": "0000:ed:00.0",
         "speed_mbps": 100000
-      },
-      "eth4": {
-        "driver": "mlx5_core",
-        "driver_version": "6.4.3-0_fbk10_zion_rc9_2482_g96",
-        "firmware_version": "22.38.1002 (FB_0000000028)",
-        "bus_info": "0000:4e:00.0",
-        "speed_mbps": 200000
-      },
-      "eth5": {
-        "driver": "mlx5_core",
-        "driver_version": "6.4.3-0_fbk10_zion_rc9_2482_g96",
-        "firmware_version": "22.38.1002 (FB_0000000028)",
-        "bus_info": "0000:17:00.0",
-        "speed_mbps": 200000
-      },
-      "eth6": {
-        "driver": "mlx5_core",
-        "driver_version": "6.4.3-0_fbk10_zion_rc9_2482_g96",
-        "firmware_version": "22.38.1002 (FB_0000000028)",
-        "bus_info": "0000:8d:00.0",
-        "speed_mbps": 200000
-      },
-      "eth7": {
-        "driver": "mlx5_core",
-        "driver_version": "6.4.3-0_fbk10_zion_rc9_2482_g96",
-        "firmware_version": "22.38.1002 (FB_0000000028)",
-        "bus_info": "0000:8e:00.0",
-        "speed_mbps": 200000
-      },
-      "eth8": {
-        "driver": "mlx5_core",
-        "driver_version": "6.4.3-0_fbk10_zion_rc9_2482_g96",
-        "firmware_version": "22.38.1002 (FB_0000000028)",
-        "bus_info": "0000:16:00.0",
-        "speed_mbps": 200000
-      },
-      "eth9": {
-        "driver": "mlx5_core",
-        "driver_version": "6.4.3-0_fbk10_zion_rc9_2482_g96",
-        "firmware_version": "22.38.1002 (FB_0000000028)",
-        "bus_info": "0000:cd:00.0",
-        "speed_mbps": 200000
       }
     }
   },
   "runtimeConfig": {
     "hasHighPrivCert": true,
-    "regionRoutableCluster": "pnb1.02",
+    "regionRoutableCluster": "nha1.02",
     "block_devices": {
       "block_devices": {
         "nvme0n1": {
           "size_bytes": 256055095296,
           "is_rotational": false,
-          "model": "MTFDHBA512TCK",
-          "serial": "21303085AF4D",
+          "model": "KXG6AZNV512G TOSHIBA",
+          "serial": "31QF77MPFJM3",
           "physical_block_size": 512,
           "logical_block_size": 512,
           "is_root": false
@@ -269,7 +269,7 @@
           "size_bytes": 1920383410176,
           "is_rotational": false,
           "model": "KXD51LN11T92 TOSHIBA",
-          "serial": "71CS10B1TX4M",
+          "serial": "11RS10JBTX3M",
           "physical_block_size": 4096,
           "logical_block_size": 4096,
           "is_root": false
@@ -278,7 +278,7 @@
           "size_bytes": 1920383410176,
           "is_rotational": false,
           "model": "KXD51LN11T92 TOSHIBA",
-          "serial": "71CS102RTX4M",
+          "serial": "11RS104NTX3M",
           "physical_block_size": 4096,
           "logical_block_size": 4096,
           "is_root": false
@@ -287,7 +287,7 @@
           "size_bytes": 1920383410176,
           "is_rotational": false,
           "model": "KXD51LN11T92 TOSHIBA",
-          "serial": "71CS10JKTX4M",
+          "serial": "11RS10IZTX3M",
           "physical_block_size": 4096,
           "logical_block_size": 4096,
           "is_root": false
@@ -296,7 +296,7 @@
           "size_bytes": 1920383410176,
           "is_rotational": false,
           "model": "KXD51LN11T92 TOSHIBA",
-          "serial": "71CS10JYTX4M",
+          "serial": "11RS105STX3M",
           "physical_block_size": 4096,
           "logical_block_size": 4096,
           "is_root": false
@@ -305,7 +305,7 @@
           "size_bytes": 1920383410176,
           "is_rotational": false,
           "model": "KXD51LN11T92 TOSHIBA",
-          "serial": "71CS10J7TX4M",
+          "serial": "11RS1068TX3M",
           "physical_block_size": 4096,
           "logical_block_size": 4096,
           "is_root": false
@@ -314,7 +314,7 @@
           "size_bytes": 1920383410176,
           "is_rotational": false,
           "model": "KXD51LN11T92 TOSHIBA",
-          "serial": "213S11H7TX3M",
+          "serial": "11US11E9TX3M",
           "physical_block_size": 4096,
           "logical_block_size": 4096,
           "is_root": true
@@ -323,25 +323,25 @@
           "size_bytes": 1920383410176,
           "is_rotational": false,
           "model": "KXD51LN11T92 TOSHIBA",
-          "serial": "71HS10DETX4M",
+          "serial": "11US11CBTX3M",
           "physical_block_size": 4096,
           "logical_block_size": 4096,
-          "is_root": false
+          "is_root": true
         },
         "nvme17n1": {
           "size_bytes": 1920383410176,
           "is_rotational": false,
           "model": "KXD51LN11T92 TOSHIBA",
-          "serial": "213S11OWTX3M",
+          "serial": "11RS10D4TX3M",
           "physical_block_size": 4096,
           "logical_block_size": 4096,
-          "is_root": true
+          "is_root": false
         },
         "nvme18n1": {
           "size_bytes": 1920383410176,
           "is_rotational": false,
           "model": "KXD51LN11T92 TOSHIBA",
-          "serial": "71HS10EJTX4M",
+          "serial": "11RS10CWTX3M",
           "physical_block_size": 4096,
           "logical_block_size": 4096,
           "is_root": false
@@ -350,7 +350,7 @@
           "size_bytes": 1920383410176,
           "is_rotational": false,
           "model": "KXD51LN11T92 TOSHIBA",
-          "serial": "71HS105RTX4M",
+          "serial": "11RS106YTX3M",
           "physical_block_size": 4096,
           "logical_block_size": 4096,
           "is_root": false
@@ -359,7 +359,7 @@
           "size_bytes": 1920383410176,
           "is_rotational": false,
           "model": "KXD51LN11T92 TOSHIBA",
-          "serial": "71CS1092TX4M",
+          "serial": "11RS105VTX3M",
           "physical_block_size": 4096,
           "logical_block_size": 4096,
           "is_root": false
@@ -368,7 +368,7 @@
           "size_bytes": 1920383410176,
           "is_rotational": false,
           "model": "KXD51LN11T92 TOSHIBA",
-          "serial": "71CS109ATX4M",
+          "serial": "11RS1040TX3M",
           "physical_block_size": 4096,
           "logical_block_size": 4096,
           "is_root": false
@@ -377,7 +377,7 @@
           "size_bytes": 1920383410176,
           "is_rotational": false,
           "model": "KXD51LN11T92 TOSHIBA",
-          "serial": "71CS10IBTX4M",
+          "serial": "11RS1065TX3M",
           "physical_block_size": 4096,
           "logical_block_size": 4096,
           "is_root": false
@@ -386,7 +386,7 @@
           "size_bytes": 1920383410176,
           "is_rotational": false,
           "model": "KXD51LN11T92 TOSHIBA",
-          "serial": "71CS1093TX4M",
+          "serial": "11RS107JTX3M",
           "physical_block_size": 4096,
           "logical_block_size": 4096,
           "is_root": false
@@ -395,7 +395,7 @@
           "size_bytes": 1920383410176,
           "is_rotational": false,
           "model": "KXD51LN11T92 TOSHIBA",
-          "serial": "71CS108HTX4M",
+          "serial": "11RS10K6TX3M",
           "physical_block_size": 4096,
           "logical_block_size": 4096,
           "is_root": false
@@ -404,7 +404,7 @@
           "size_bytes": 1920383410176,
           "is_rotational": false,
           "model": "KXD51LN11T92 TOSHIBA",
-          "serial": "71CS1075TX4M",
+          "serial": "11RS1053TX3M",
           "physical_block_size": 4096,
           "logical_block_size": 4096,
           "is_root": false
@@ -413,7 +413,7 @@
           "size_bytes": 1920383410176,
           "is_rotational": false,
           "model": "KXD51LN11T92 TOSHIBA",
-          "serial": "71CS104DTX4M",
+          "serial": "11RS10IITX3M",
           "physical_block_size": 4096,
           "logical_block_size": 4096,
           "is_root": false
@@ -422,7 +422,7 @@
           "size_bytes": 1920383410176,
           "is_rotational": false,
           "model": "KXD51LN11T92 TOSHIBA",
-          "serial": "71CS10E6TX4M",
+          "serial": "11RS104VTX3M",
           "physical_block_size": 4096,
           "logical_block_size": 4096,
           "is_root": false
@@ -441,6 +441,14 @@
       "ETH1",
       "ETH2",
       "ETH3",
+      "BETH0",
+      "BETH1",
+      "BETH2",
+      "BETH3",
+      "BETH4",
+      "BETH5",
+      "BETH6",
+      "BETH7",
       "SVC0",
       "SVC0_1",
       "SVC0_2",
@@ -473,7 +481,7 @@
     }
   },
   "reservationConfig": {
-    "active_machine_materialization_id": "619582331fe99",
-    "current_reservation_host_profile_id": "KERNEL:kernel_6.4.3-0_fbk10_zion_rc9_2482_g96807ccfca35_nvidia_535.154.05_base.v0|POWER:CPU_PERF_OPT|KERNEL_ARGS:kargs_crashkernel384M_multinic.v0|BOOT_CONFIG:bootloader814_initrd230_swap16G_native_arch|DRIVER_ARGS:t20_zionex_nvidia_driver_args.v1"
+    "active_machine_materialization_id": "61707f96ea04c",
+    "current_reservation_host_profile_id": "KERNEL:kernel_6.4.3-0_fbk11_zion_2563_g44ec95f7d7f4_nvidia_535.154.05_base.v0|POWER:CPU_PERF_OPT|KERNEL_ARGS:kargs_crashkernel384M_multinic.v0|BOOT_CONFIG:bootloader814_initrd230_swap16G_native_arch|DRIVER_ARGS:t20_zionex_nvidia_driver_args.v1|OS:CLASSIC"
   }
 }

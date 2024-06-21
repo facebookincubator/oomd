@@ -1,28 +1,30 @@
-@generated SignedSource<<9137f5f4108f4dc3bf9d1468f1a71500>>
+@generated SignedSource<<0e3f14b2398b8a574059b35ad967b33f>>
 @codegen-command arc cfgen update-inputs fb-oomd
 {
-  "fqdn": "od0533.atn6.facebook.com",
-  "region": "altoona",
+  "fqdn": "od4427.prn1.facebook.com",
+  "region": "oregon",
   "clusterType": "SERVICE_GENERIC_NON_MEMCACHE",
-  "modelId": 333245,
+  "modelId": 334305,
   "kernelRelease": "5.19.0-0_fbk12_11583_g0bef9520ca2b",
-  "serverType": "TYPE_VI_FEED",
+  "serverType": "TYPE_X_SEARCH",
   "experiments": [],
-  "cpuArchitecture": "skylake",
+  "cpuArchitecture": "skylakede",
   "metalosRootfs": false,
   "provisioningConfig": {
     "ethtoolByInterface": {
       "eth0": {
-        "maxChannelsCombined": 63
+        "maxChannelsCombined": 16,
+        "maxChannelsRx": 16,
+        "maxChannelsTx": 16
       }
     },
-    "cpuCoreCount": 40,
-    "parentModelId": 335261,
+    "cpuCoreCount": 18,
+    "parentModelId": 334304,
     "recoveryEnvironment": false,
     "deviceType": "SERVER",
-    "datacenter": "atn6",
-    "cluster": "10",
-    "memTotal": 270019448832,
+    "datacenter": "prn1",
+    "cluster": "48",
+    "memTotal": 66999205888,
     "osVersion": {
       "distribution_name": "CentOS Stream release",
       "version": 9,
@@ -30,13 +32,13 @@
       "is_metalos": false
     },
     "pciByAddress": {
-      "0000:5e:00.0": {
-        "vendor_id": 5555,
-        "device_id": 4117,
+      "0000:02:00.0": {
+        "vendor_id": 5348,
+        "device_id": 5873,
         "class_code": 131072,
-        "board_part_number": "MCX4411D-ACAN_FB",
+        "board_part_number": "BCM957452M4520C",
         "current_speed_mts": 8000,
-        "current_width": 8
+        "current_width": 2
       }
     },
     "static_smc_tiers": [],
@@ -45,36 +47,45 @@
   "bootConfig": {
     "ethtoolByInterface": {
       "eth0": {
-        "driver": "mlx5_core",
+        "driver": "bnxt_en",
         "driver_version": "5.19.0-0_fbk12_11583_g0bef9520c",
-        "firmware_version": "14.27.2606 (FB_0000000005)",
-        "bus_info": "0000:5e:00.0",
-        "speed_mbps": 25000
+        "firmware_version": "20.8.200.0/pkg 20.8.3.11",
+        "bus_info": "0000:02:00.0",
+        "speed_mbps": 50000
       }
     }
   },
   "runtimeConfig": {
     "hasHighPrivCert": true,
-    "regionRoutableCluster": "atn1.05",
+    "regionRoutableCluster": "prn3.06",
     "block_devices": {
       "block_devices": {
         "nvme0n1": {
-          "size_bytes": 1600321314816,
+          "size_bytes": 512110190592,
           "is_rotational": false,
-          "model": "SAMSUNG MZ1LB1T9HALS-000FB",
-          "serial": "S4JTNA0N402027",
+          "model": "HFS512GD9TNG-62A0A",
+          "serial": "MJ04N606113904D3S",
+          "physical_block_size": 512,
+          "logical_block_size": 512,
+          "is_root": true
+        },
+        "nvme1n1": {
+          "size_bytes": 500107862016,
+          "is_rotational": false,
+          "model": "SAMSUNG MZ1LB960HAJQ-000FB",
+          "serial": "S4S2NA0N660582",
           "physical_block_size": 4096,
           "logical_block_size": 4096,
           "is_root": false
         },
-        "sda": {
-          "size_bytes": 2000398934016,
-          "is_rotational": true,
-          "model": "ST2000NM0008-2F3100",
-          "serial": "ZDS1BR40",
-          "physical_block_size": 512,
-          "logical_block_size": 512,
-          "is_root": true
+        "nvme2n1": {
+          "size_bytes": 500107862016,
+          "is_rotational": false,
+          "model": "SAMSUNG MZ1LB960HAJQ-000FB",
+          "serial": "S4S2NA0N660565",
+          "physical_block_size": 4096,
+          "logical_block_size": 4096,
+          "is_root": false
         }
       }
     },
@@ -88,7 +99,26 @@
       "ETH0",
       "SVC0"
     ],
-    "loaded_kernel_modules": []
+    "loaded_kernel_modules": [],
+    "mounts": {
+      "mounts": [
+        {
+          "device": "/dev/nvme0n1p4",
+          "mount_point": "/",
+          "fstype": "btrfs",
+          "mount_options": [
+            "rw",
+            "relatime",
+            "compress-force=zstd:3",
+            "ssd",
+            "discard",
+            "space_cache=v2",
+            "subvolid=5",
+            "subvol=/"
+          ]
+        }
+      ]
+    }
   },
   "reservationConfig": {
     "active_machine_materialization_id": "",

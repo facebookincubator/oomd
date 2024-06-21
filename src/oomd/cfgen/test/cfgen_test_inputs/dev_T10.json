@@ -1,15 +1,15 @@
-@generated SignedSource<<9f273028f0f3c33f65be5bf3e16fdf96>>
+@generated SignedSource<<1b04e482d078b9270d62aea7afad6ab2>>
 @codegen-command arc cfgen update-inputs fb-oomd
 {
-  "fqdn": "twshared50059.05.vll6.facebook.com",
-  "region": "newmexico",
+  "fqdn": "dev0050.snc8.facebook.com",
+  "region": "west",
   "clusterType": "SERVICE_GENERIC_NON_MEMCACHE",
-  "modelId": 343171,
-  "kernelRelease": "6.4.3-0_fbk12_2624_g7d95a0297d81",
+  "modelId": 341072,
+  "kernelRelease": "5.19.0-0_fbk12_hardened_11583_g0bef9520ca2b",
   "serverType": "TYPE_X_SEARCH",
   "experiments": [],
   "cpuArchitecture": "cooperlake",
-  "metalosRootfs": true,
+  "metalosRootfs": false,
   "provisioningConfig": {
     "ethtoolByInterface": {
       "eth0": {
@@ -20,15 +20,14 @@
     "parentModelId": 338998,
     "recoveryEnvironment": false,
     "deviceType": "SERVER",
-    "datacenter": "vll6",
-    "cluster": "05",
-    "memTotal": 66860978176,
+    "datacenter": "snc8",
+    "cluster": "02",
+    "memTotal": 66872942592,
     "osVersion": {
-      "distribution_name": "CentOS Stream",
+      "distribution_name": "CentOS Stream release",
       "version": 9,
       "is_in_ramdisk": false,
-      "is_edgeos": false,
-      "metalos_variant": "MclassicA"
+      "is_metalos": false
     },
     "pciByAddress": {
       "0000:65:00.0": {
@@ -47,7 +46,7 @@
     "ethtoolByInterface": {
       "eth0": {
         "driver": "mlx5_core",
-        "driver_version": "6.4.3-0_fbk12_2624_g7d95a0297d8",
+        "driver_version": "5.19.0-0_fbk12_hardened_11583_g",
         "firmware_version": "22.32.1206 (FB_0000000018)",
         "bus_info": "0000:65:00.0",
         "speed_mbps": 100000
@@ -56,37 +55,23 @@
   },
   "runtimeConfig": {
     "hasHighPrivCert": true,
-    "regionRoutableCluster": "vll1.02",
-    "metalos_apis": {
-      "EFI_MOUNT": 1,
-      "GENERATORS": 1,
-      "KDUMP_SUBVOL": 1,
-      "NETCONSOLE": 1,
-      "NETWORKD_ROUTES_IGNORE": 1,
-      "NETWORK_MAX_BUFFER_SIZE": 1,
-      "SERVICE_IMAGE_GC": 1,
-      "SERVICE_IMAGE_HELPER": 1,
-      "SYSTEMD_KEXEC_LOAD": 1,
-      "TMP_SUBVOL": 2,
-      "TW_RESCTRL_MOUNT": 1,
-      "TW_SUBVOL": 1
-    },
+    "regionRoutableCluster": "prn3.06",
     "block_devices": {
       "block_devices": {
         "nvme0n1": {
           "size_bytes": 256055095296,
           "is_rotational": false,
-          "model": "HFS512GDE9X083N",
-          "serial": "3922CJBAN4118106031S",
+          "model": "WDC CL SN720 SDAQNTW-512G-1020",
+          "serial": "21090A806417",
           "physical_block_size": 512,
           "logical_block_size": 512,
           "is_root": true
         },
         "nvme1n1": {
-          "size_bytes": 1920924123136,
+          "size_bytes": 1800360124416,
           "is_rotational": false,
-          "model": "HFS1T9GDEZX106N",
-          "serial": "3922CDBAN4116I470M1E",
+          "model": "MZOL21T9HCJR-000FB",
+          "serial": "S5X8NG0R817377",
           "physical_block_size": 4096,
           "logical_block_size": 4096,
           "is_root": false
@@ -98,6 +83,7 @@
     "installed_platforms": [
       "platform009",
       "platform010",
+      "platform010-aarch64",
       "platform010-compat"
     ],
     "device_nics_enum": [
@@ -108,7 +94,7 @@
     "mounts": {
       "mounts": [
         {
-          "device": "/dev/nvme0n1p2",
+          "device": "/dev/nvme0n1p4",
           "mount_point": "/",
           "fstype": "btrfs",
           "mount_options": [
@@ -116,17 +102,14 @@
             "relatime",
             "compress-force=zstd:3",
             "ssd",
-            "discard=async",
+            "discard",
             "space_cache=v2",
-            "subvolid=475",
-            "subvol=/volume/run/boot/0:f5f869cbf2e94dcdbd98e2be3d8dd537"
+            "subvolid=5",
+            "subvol=/"
           ]
         }
       ]
     }
   },
-  "reservationConfig": {
-    "active_machine_materialization_id": "5ef2669df1e8f",
-    "current_reservation_host_profile_id": "COMMON:NO_CPU_CONTROLLER|KERNEL:kernel_6.4.3-0_fbk12_2624_g7d95a0297d81_base.v0|STORAGE:RAW_HIGH_PERFORMANCE_V1|POWER:CPU_PERF_OPT|RUNTIME:TAO_NETWORK|KERNEL_ARGS:kargs_crashkernel192M.v1|BOOT_CONFIG:bootloader957_initrd253_swap32G_native_arch|OS:MCLASSICA"
-  }
+  "reservationConfig": {}
 }

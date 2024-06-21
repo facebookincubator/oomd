@@ -1,4 +1,4 @@
-@generated SignedSource<<d295c1dd5a957e80588dad6d85ec3a65>>
+@generated SignedSource<<4fa4e93433d44539a18aa6ebc14b8acb>>
 @codegen-command arc cfgen update-inputs fb-oomd
 {
   "fqdn": "tw130.03.ldc2.facebook.com",
@@ -81,7 +81,25 @@
       "ETH0",
       "SVC0"
     ],
-    "loaded_kernel_modules": []
+    "loaded_kernel_modules": [],
+    "mounts": {
+      "mounts": [
+        {
+          "device": "/dev/sda4",
+          "mount_point": "/",
+          "fstype": "btrfs",
+          "mount_options": [
+            "rw",
+            "relatime",
+            "compress-force=zstd:3",
+            "discard",
+            "space_cache=v2",
+            "subvolid=5",
+            "subvol=/"
+          ]
+        }
+      ]
+    }
   },
   "reservationConfig": {
     "active_machine_materialization_id": "",

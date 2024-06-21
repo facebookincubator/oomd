@@ -1,4 +1,4 @@
-@generated SignedSource<<eeded91289db47bf14f033faa85bdd3d>>
+@generated SignedSource<<056a97c966ec5254dca1f4a92ae0d37c>>
 @codegen-command arc cfgen update-inputs fb-oomd
 {
   "fqdn": "twshared15369.35.frc1.facebook.com",
@@ -95,10 +95,29 @@
       "ETH0",
       "SVC0"
     ],
-    "loaded_kernel_modules": []
+    "loaded_kernel_modules": [],
+    "mounts": {
+      "mounts": [
+        {
+          "device": "/dev/sda2",
+          "mount_point": "/",
+          "fstype": "btrfs",
+          "mount_options": [
+            "rw",
+            "relatime",
+            "compress-force=zstd:3",
+            "ssd",
+            "discard=async",
+            "space_cache=v2",
+            "subvolid=289",
+            "subvol=/volume/run/boot/0:7ad4f0ac546b408cbfa438e60ca967f7"
+          ]
+        }
+      ]
+    }
   },
   "reservationConfig": {
-    "active_machine_materialization_id": "63d2bf3f97b2d",
-    "current_reservation_host_profile_id": "KERNEL:kernel_6.4.3-0_fbk2_785_gacbb203ea6ff_base.v0|KERNEL_ARGS:kargs_consoleS057600.v1|BOOT_CONFIG:bootloader692_initrd208_swap16G_native_arch"
+    "active_machine_materialization_id": "61231fc2a5767",
+    "current_reservation_host_profile_id": "KERNEL:kernel_6.4.3-0_fbk2_785_gacbb203ea6ff_base.v0|POWER:CPU_PERF_OPT|KERNEL_ARGS:kargs_consoleS057600.v1|BOOT_CONFIG:bootloader692_initrd208_swap16G_native_arch"
   }
 }

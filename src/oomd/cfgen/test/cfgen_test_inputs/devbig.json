@@ -1,7 +1,7 @@
-@generated SignedSource<<c54e3fdf5805d4074185132a0ce23636>>
+@generated SignedSource<<7d0d8bd34d42990af455d354ddcf98ad>>
 @codegen-command arc cfgen update-inputs fb-oomd
 {
-  "fqdn": "devbig470.ash8.facebook.com",
+  "fqdn": "devbig414.ash8.facebook.com",
   "region": "east",
   "clusterType": "SERVICE_GENERIC_NON_MEMCACHE",
   "modelId": 336209,
@@ -64,7 +64,7 @@
           "size_bytes": 1920383410176,
           "is_rotational": false,
           "model": "KXD51LN11T92 TOSHIBA",
-          "serial": "798S10ART7RQ",
+          "serial": "798S1078T7RQ",
           "physical_block_size": 4096,
           "logical_block_size": 4096,
           "is_root": false
@@ -73,7 +73,7 @@
           "size_bytes": 2000398934016,
           "is_rotational": true,
           "model": "TOSHIBA MG04ACA200A",
-          "serial": "89CVK6BJFKGA",
+          "serial": "79P4K06WFKGA",
           "physical_block_size": 4096,
           "logical_block_size": 4096,
           "is_root": true
@@ -92,7 +92,25 @@
       "ETH0",
       "SVC0"
     ],
-    "loaded_kernel_modules": []
+    "loaded_kernel_modules": [],
+    "mounts": {
+      "mounts": [
+        {
+          "device": "/dev/sda3",
+          "mount_point": "/",
+          "fstype": "btrfs",
+          "mount_options": [
+            "rw",
+            "relatime",
+            "compress-force=zstd:3",
+            "discard",
+            "space_cache=v2",
+            "subvolid=5",
+            "subvol=/"
+          ]
+        }
+      ]
+    }
   },
   "reservationConfig": {
     "active_machine_materialization_id": "",
