@@ -1,102 +1,25 @@
 {
     "rulesets": [
       {
-            "name": "system overview",
-            "silence-logs": "engine",
+            "name": "test freezer",
             "detectors": [
                 [
-                    "records system stats",
+                    "memory above 20% for 1 second",
                     {
-                        "name": "dump_cgroup_overview",
+                        "name": "memory_above",
                         "args": {
-                            "cgroup": "system.slice"
-                        }
-                    },
-                    {
-                        "name": "our_first_plugin",
-                        "args": {
-                            "message": "hello from config"
+                            "cgroup": "test",
+                            "threshold": "20%",
+                            "duration": "1"
                         }
                     }
                 ]
             ],
             "actions": [
                 {
-                    "name": "continue",
+                    "name": "freeze",
                     "args": {
-                    }
-                }
-            ]
-        },
-        {
-            "name": "user session protection",
-            "detectors": [
-                [
-                    "user pressure above 60 for 30s",
-                    {
-                        "name": "pressure_above",
-                        "args": {
-                            "cgroup": "user.slice",
-                            "resource": "memory",
-                            "threshold": "60",
-                            "duration": "30"
-                        }
-                    },
-                    {
-                        "name": "memory_reclaim",
-                        "args": {
-                            "cgroup": "user.slice",
-                            "duration": "10"
-                        }
-                    }
-                ],
-		[
-                    "system pressure above 80 for 60s",
-                    {
-                        "name": "pressure_above",
-                        "args": {
-                            "cgroup": "system.slice",
-                            "resource": "memory",
-                            "threshold": "80",
-                            "duration": "60"
-                        }
-                    },
-                    {
-                        "name": "memory_reclaim",
-                        "args": {
-                            "cgroup": "system.slice",
-                            "duration": "10"
-                        }
-                    }
-                ]
-            ],
-            "actions": [
-                {
-                    "name": "kill_by_memory_size_or_growth",
-                    "args": {
-                        "cgroup": "user.slice/user-*.slice/session-*.scope,user.slice/user-*.slice/user@*.service/*,system.slice/*"
-                    }
-                }
-            ]
-        },
-        {
-            "name": "protection against low swap",
-            "detectors": [
-                [
-                    "free swap goes below 10 percent",
-                    {
-                        "name": "swap_free",
-                        "args": {
-                            "threshold_pct": "10"
-                        }
-                    }
-                ]
-            ],
-            "actions": [
-                {
-                    "name": "kill_by_swap_usage",
-                    "args": {
-                        "cgroup": "user.slice/user-*.slice/session-*.scope,user.slice/user-*.slice/user@*.service/*,system.slice/*"
+                        "cgroup": "test"
                     }
                 }
             ]

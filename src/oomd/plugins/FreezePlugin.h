@@ -8,12 +8,6 @@
 
 using std::string;
 
-void write_to_file(const std::string& path, const std::string& value);
-void handle_process(int pid);
-bool create_freeze_cgroup();
-void freeze_process(int pid);
-bool page_out_memory(int pid);
-
 namespace Oomd {
 
 class FreezePlugin : public Engine::BasePlugin {
