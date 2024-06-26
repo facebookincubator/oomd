@@ -1046,7 +1046,16 @@ fn get_host_type(node: &Node) -> HostType {
 
 fn main() -> anyhow::Result<()> {
     let mut b = libcfgen::Builder::new();
-    b = b.dynamic_json("oomd2.json", oomd_json);
+    b = b.dynamic_json(
+        if libcfgen::context()?
+            .is_some_and(|c| c.consumer() == libcfgen::ConfigConsumer::METALOS_WDS)
+        {
+            "etc/oomd2.json"
+        } else {
+            "oomd2.json"
+        },
+        oomd_json,
+    );
     b = b.dropin(|node| Ok(oomd_dropin(node)));
     b.run()
 }
