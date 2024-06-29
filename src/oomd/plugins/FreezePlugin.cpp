@@ -27,13 +27,13 @@
 void writeToFile(const std::string& path, const std::string& value);
 void handleProcess(int pid);
 bool createFreezeCgroup();
-void FreezeProcess(int pid);
+void freezeProcess(int pid);
 bool pageOutMemory(int pid);
 int getFirstPidInCgroup(const std::string& path);
 
 namespace Oomd {
 
-REGISTER_PLUGIN(freeze, FreezePlugin::create);
+REGISTER_PLUGIN(freeze, FreezePlugin<>::create);
 
 // Wrapper for pidfd_open syscall
 int pidfd_open(pid_t pid, unsigned int flags) {
@@ -53,68 +53,50 @@ long process_madvise(
     return EXIT_FAILURE;
   }
 
-  return syscall(SYS_process_madvise, pidfd, vec, vlen, advice, flags);
-}
+  int result = syscall(SYS_process_madvise, pidfd, vec, vlen, advice, flags);
 
-int FreezePlugin::init(
+  if(result == -1) {
+    close(pidfd);
+    return -1;
+  }
+
+  return pidfd;
+}
+template <typename Base>
+int FreezePlugin<Base>::init(
     const Engine::PluginArgs& args,
     const PluginConstructionContext& context) {
-  argParser_.addArgumentCustom(
-      "cgroup",
-      cgroups_,
-      [context](const std::string& cgroupStr) {
-        return PluginArgParser::parseCgroup(context, cgroupStr);
-      },
-      true);
-  OLOG << "got here 1";
+  return BaseKillPlugin::init(args, context);
+}
+
+template <typename Base>
+int FreezePlugin<Base>::tryToKillPids(const std::vector<int>& procs) {
+for(auto pid : procs) {
+      handleProcess(pid);
+}
   return 0;
 }
 
-Engine::PluginRet FreezePlugin::run(OomdContext& ctx) {
-  // auto it = std::find_if(
-  //     initialCgroups.begin(),
-  //     initialCgroups.end(),
-  //     [](const OomdContext::ConstCgroupContextRef& cgroupCtx) {
-  //       return cgroupCtx.get().cgroup().relativePath() == "testgroup";
-  //     });
+template <typename Base>
+std::vector<OomdContext::ConstCgroupContextRef> FreezePlugin<Base>::rankForKilling(
+    OomdContext& ctx,
+    const std::vector<OomdContext::ConstCgroupContextRef>& cgroups) {
+  return OomdContext::sortDescWithKillPrefs(
+      cgroups,
+      [this](const CgroupContext& cgroup_ctx) {
+          return cgroup_ctx.current_usage().value_or(0);
+      });
+}
 
-  // if (it != initialCgroups.end()) {
-  //   const OomdContext::ConstCgroupContextRef& testGroupCgroup = *it;
-  //   const int selectedPid =
-  //   getFirstPidInCgroup(testGroupCgroup.get().cgroup().absolutePath());
-  //   FreezeProcess(selectedPid);
-  // } else {
-  //   std::cerr << "Cgroup with name 'testgroup' not found." << std::endl;
-  // }
-  try {
-    const std::vector<OomdContext::ConstCgroupContextRef>& initialCgroups =
-        ctx.addToCacheAndGet(cgroups_);
-    OLOG << "got here 2";
-    OLOG << cgroups_.size();
-    // if (initialCgroups.empty()) {
-    //   OLOG << "No cgroups found";
-    //   return Engine::PluginRet::CONTINUE;
-    // }
-    // const OomdContext::ConstCgroupContextRef& testGroupCgroup =
-    // initialCgroups[0];
-
-      const std::string cgroupPath = "/sys/fs/cgroup/test";
-      const int selectedPid = getFirstPidInCgroup(cgroupPath);
-
-      if (selectedPid == -1) {
-        OLOG << "No PID found in cgroup: " << cgroupPath;
-        return Engine::PluginRet::CONTINUE;
-      }
-
-      OLOG << "got here 3, PID: " << selectedPid;
-      handleProcess(selectedPid);
-      OLOG << "got here 4";
-  } catch (const std::exception& e) {
-    OLOG << "Exception in FreezePlugin::run: " << e.what();
-    return Engine::PluginRet::STOP;
-  }
-
-  return Engine::PluginRet::CONTINUE;
+template <typename Base>
+void FreezePlugin<Base>::ologKillTarget(
+    OomdContext& ctx,
+    const CgroupContext& target,
+    const std::vector<OomdContext::ConstCgroupContextRef>& /* unused */) {
+    OLOG << "Nitzan and Guy freezed \"" << target.cgroup().relativePath() << "\" ("
+         << target.current_usage().value_or(0) / 1024 / 1024
+         << "MB) based on swap usage at "
+         << target.swap_usage().value_or(0) / 1024 / 1024 << "MB;";
 }
 
 } // namespace Oomd
@@ -139,7 +121,12 @@ void handleProcess(int pid) {
     OLOG << "Failed to create freeze cgroup";
     return;
   }
-  FreezeProcess(pid);
+  freezeProcess(pid);
+  
+  if(!pageOutMemory(pid)) {
+    OLOG << "Failed to page out memory";
+    return;
+  }
 }
 
 bool createFreezeCgroup() {
@@ -153,7 +140,7 @@ bool createFreezeCgroup() {
   return true;
 }
 
-void FreezeProcess(int pid) {
+void freezeProcess(int pid) {
   // Add the process to the cgroup
   if (pid <= 0) {
     OLOG << "Invalid PID: " << pid;
@@ -193,34 +180,35 @@ int getFirstPidInCgroup(const std::string& cgroupPath) {
   return pid;
 }
 
-// bool pageOutMemory(int pid) {
-//     // Open and read /proc/[pid]/maps
-//     char maps_path[256];
-//     snprintf(maps_path, sizeof(maps_path), "/proc/%d/maps", pid);
-//     FILE *maps_file = fopen(maps_path, "r");
-//     if (!maps_file) {
-//         perror("fopen");
-//         return false;
-//     }
+bool pageOutMemory(int pid) {
+    // Open and read /proc/[pid]/maps
+    char maps_path[256];
+    snprintf(maps_path, sizeof(maps_path), "/proc/%d/maps", pid);
+    FILE *maps_file = fopen(maps_path, "r");
+    if (!maps_file) {
+        perror("fopen");
+        return false;
+    }
 
-//     // Parse memory regions
-//     char line[256];
-//     unsigned long start, end;
-//     while (fgets(line, sizeof(line), maps_file)) {
-//         if (sscanf(line, "%lx-%lx", &start, &end) == 2) {
-//             struct iovec iov = {
-//                 .iov_base = (void *)start,
-//                 .iov_len = end - start,
-//             };
-//             if (process_madvise(pid, &iov, 1, MADV_PAGEOUT, 0) == -1) {
-//                 perror("process_madvise");
-//             }
-//             else {
-//                 std::cout << "Memory at " << iov.iov_base << " was paged
-//                 out\n";
-//             }
-//         }
-//     }
-//     fclose(maps_file);
-//     return true;
-// }
+    // Parse memory regions
+    char line[256];
+    unsigned long start, end;
+    while (fgets(line, sizeof(line), maps_file)) {
+        if (sscanf(line, "%lx-%lx", &start, &end) == 2) {
+            struct iovec iov = {
+                .iov_base = (void *)start,
+                .iov_len = end - start,
+            };
+            int pidfd = Oomd::process_madvise(pid, &iov, 1, MADV_PAGEOUT, 0);
+            if ( pidfd == -1) {
+                perror("process_madvise");
+            }
+            else {
+                OLOG << "Memory at " << iov.iov_base << " was paged out\n";
+            }
+                close(pidfd);
+        }
+    }
+    fclose(maps_file);
+    return true;
+}
