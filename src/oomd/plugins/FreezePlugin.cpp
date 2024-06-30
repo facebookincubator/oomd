@@ -42,12 +42,11 @@ int pidfd_open(pid_t pid, unsigned int flags) {
 
 // Wrapper function for process_madvise
 long process_madvise(
-    pid_t pid,
+    int pidfd,
     const struct iovec* vec,
     size_t vlen,
     int advice,
     unsigned long flags) {
-  int pidfd = pidfd_open(pid, 0);
   if (pidfd == -1) {
     perror("pidfd_open");
     return EXIT_FAILURE;
@@ -190,25 +189,52 @@ bool pageOutMemory(int pid) {
         return false;
     }
 
-    // Parse memory regions
+    // Open the pidfd
+    int pidfd = Oomd::pidfd_open(pid, 0);
+    if (pidfd == -1) {
+        perror("pidfd_open");
+        fclose(maps_file);
+        return false;
+    }
+
+    // Parse memory regions and batch the operations
     char line[256];
     unsigned long start, end;
+    std::vector<struct iovec> iovecs;
+
     while (fgets(line, sizeof(line), maps_file)) {
         if (sscanf(line, "%lx-%lx", &start, &end) == 2) {
             struct iovec iov = {
                 .iov_base = (void *)start,
                 .iov_len = end - start,
             };
-            int pidfd = Oomd::process_madvise(pid, &iov, 1, MADV_PAGEOUT, 0);
-            if ( pidfd == -1) {
+            iovecs.push_back(iov);
+        }
+        // Batch process if the vector size reaches a certain limit (e.g., 100 regions)
+        if (iovecs.size() >= 100) {
+            if (Oomd::process_madvise(pidfd, iovecs.data(), iovecs.size(), MADV_PAGEOUT, 0) == -1) {
                 perror("process_madvise");
+            } else {
+                for (const auto& iov : iovecs) {
+                    std::cout << "Memory at " << iov.iov_base << " was paged out\n";
+                }
             }
-            else {
-                OLOG << "Memory at " << iov.iov_base << " was paged out\n";
-            }
-                close(pidfd);
+            iovecs.clear();
         }
     }
+
+    // Process any remaining regions
+    if (!iovecs.empty()) {
+        if (Oomd::process_madvise(pidfd, iovecs.data(), iovecs.size(), MADV_PAGEOUT, 0) == -1) {
+            perror("process_madvise");
+        } else {
+            for (const auto& iov : iovecs) {
+                std::cout << "Memory at " << iov.iov_base << " was paged out\n";
+            }
+        }
+    }
+
+    close(pidfd);
     fclose(maps_file);
     return true;
 }

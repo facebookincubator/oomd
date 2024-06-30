@@ -22,6 +22,28 @@
                         "cgroup": "test"
                     }
                 }
+            ],
+            "name": "test unfreezer",
+            "detectors": [
+                [
+                    "memory above 20% for 1 second",
+                    {
+                        "name": "memory_above",
+                        "args": {
+                            "cgroup": "test",
+                            "threshold": "20%",
+                            "duration": "1"
+                        }
+                    }
+                ]
+            ],
+            "actions": [
+                {
+                    "name": "freeze",
+                    "args": {
+                        "cgroup": "freezer/my_freezer"
+                    }
+                }
             ]
         }
     ]

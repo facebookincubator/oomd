@@ -11,21 +11,19 @@
 namespace Oomd {
 
 template <typename Base = BaseKillPlugin>
-class FreezePlugin : public Base {
+class UnfreezePlugin : public Base {
  public:
   int init(
       const Engine::PluginArgs& args,
       const PluginConstructionContext& context) override;
 
-  static FreezePlugin* create() {
-    return new FreezePlugin();
+  static UnfreezePlugin* create() {
+    return new UnfreezePlugin();
   }
-
-  // Engine::PluginRet run(OomdContext& ctx) override;
 
   int tryToKillPids(const std::vector<int>& procs) override;
 
-  ~FreezePlugin() = default;
+  ~UnfreezePlugin() = default;
 
  protected:
   std::vector<OomdContext::ConstCgroupContextRef> rankForKilling(
