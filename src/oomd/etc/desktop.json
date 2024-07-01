@@ -9,7 +9,7 @@
                         "name": "memory_above",
                         "args": {
                             "cgroup": "test",
-                            "threshold": "20%",
+                            "threshold": "10%",
                             "duration": "1"
                         }
                     }
@@ -22,16 +22,18 @@
                         "cgroup": "test"
                     }
                 }
-            ],
+            ]
+        },
+        {
             "name": "test unfreezer",
             "detectors": [
                 [
-                    "memory above 20% for 1 second",
+                    "memory above 30% for 1 second",
                     {
                         "name": "memory_above",
                         "args": {
                             "cgroup": "test",
-                            "threshold": "20%",
+                            "threshold": "30%",
                             "duration": "1"
                         }
                     }
@@ -39,7 +41,7 @@
             ],
             "actions": [
                 {
-                    "name": "freeze",
+                    "name": "unfreeze",
                     "args": {
                         "cgroup": "freezer/my_freezer"
                     }

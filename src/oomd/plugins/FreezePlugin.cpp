@@ -2,29 +2,27 @@
 #include "oomd/Log.h"
 #include "oomd/PluginRegistry.h"
 #include "oomd/include/Types.h"
+#include "oomd/util/FreezeUtills.h"
 #include "oomd/util/Util.h"
-
-#include <sys/mman.h>
-#include <sys/stat.h>
-#include <sys/syscall.h>
-#include <sys/types.h>
-#include <unistd.h>
-#include <cstring>
-#include <fstream>
-#include <iostream>
-#include <stdexcept>
 
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/mman.h>
+#include <sys/stat.h>
+#include <sys/syscall.h>
+#include <sys/types.h>
 #include <unistd.h>
 #include <cerrno>
+#include <cstring>
+#include <fstream>
+#include <iostream>
+#include <stdexcept>
 #include "../../../usr/include/x86_64-linux-gnu/sys/stat.h"
 
 #define CGROUP_PATH "/sys/fs/cgroup/freezer/my_freezer"
 
-void writeToFile(const std::string& path, const std::string& value);
 void handleProcess(int pid);
 bool createFreezeCgroup();
 void freezeProcess(int pid);
@@ -54,7 +52,7 @@ long process_madvise(
 
   int result = syscall(SYS_process_madvise, pidfd, vec, vlen, advice, flags);
 
-  if(result == -1) {
+  if (result == -1) {
     close(pidfd);
     return -1;
   }
@@ -70,20 +68,20 @@ int FreezePlugin<Base>::init(
 
 template <typename Base>
 int FreezePlugin<Base>::tryToKillPids(const std::vector<int>& procs) {
-for(auto pid : procs) {
-      handleProcess(pid);
-}
+  for (auto pid : procs) {
+    handleProcess(pid);
+  }
   return 0;
 }
 
 template <typename Base>
-std::vector<OomdContext::ConstCgroupContextRef> FreezePlugin<Base>::rankForKilling(
+std::vector<OomdContext::ConstCgroupContextRef>
+FreezePlugin<Base>::rankForKilling(
     OomdContext& ctx,
     const std::vector<OomdContext::ConstCgroupContextRef>& cgroups) {
   return OomdContext::sortDescWithKillPrefs(
-      cgroups,
-      [this](const CgroupContext& cgroup_ctx) {
-          return cgroup_ctx.current_usage().value_or(0);
+      cgroups, [this](const CgroupContext& cgroup_ctx) {
+        return cgroup_ctx.current_usage().value_or(0);
       });
 }
 
@@ -92,28 +90,13 @@ void FreezePlugin<Base>::ologKillTarget(
     OomdContext& ctx,
     const CgroupContext& target,
     const std::vector<OomdContext::ConstCgroupContextRef>& /* unused */) {
-    OLOG << "Nitzan and Guy freezed \"" << target.cgroup().relativePath() << "\" ("
-         << target.current_usage().value_or(0) / 1024 / 1024
-         << "MB) based on swap usage at "
-         << target.swap_usage().value_or(0) / 1024 / 1024 << "MB;";
+  OLOG << "Nitzan and Guy freezed \"" << target.cgroup().relativePath()
+       << "\" (" << target.current_usage().value_or(0) / 1024 / 1024
+       << "MB) based on swap usage at "
+       << target.swap_usage().value_or(0) / 1024 / 1024 << "MB;";
 }
 
 } // namespace Oomd
-
-void writeToFile(const std::string& path, const std::string& value) {
-  std::ofstream file(path);
-  if (!file.is_open()) {
-    OLOG << "Error opening file: " << path << " - " << strerror(errno);
-    throw std::runtime_error("Failed to open file: " + path);
-  }
-  file << value;
-  if (file.fail()) {
-    OLOG << "Error writing to file: " << path << " - " << strerror(errno);
-    throw std::runtime_error("Failed to write to file: " + path);
-  }
-  file.close();
-  OLOG << "Successfully wrote to file: " << path;
-}
 
 void handleProcess(int pid) {
   if (!createFreezeCgroup()) {
@@ -121,8 +104,8 @@ void handleProcess(int pid) {
     return;
   }
   freezeProcess(pid);
-  
-  if(!pageOutMemory(pid)) {
+
+  if (!pageOutMemory(pid)) {
     OLOG << "Failed to page out memory";
     return;
   }
@@ -179,62 +162,93 @@ int getFirstPidInCgroup(const std::string& cgroupPath) {
   return pid;
 }
 
+bool swapHasFreeMB(int megabyte) {
+  FILE* meminfo_file = fopen("/proc/meminfo", "r");
+  if (!meminfo_file) {
+    perror("fopen");
+    return false;
+  }
+
+  char line[256];
+  unsigned long swapFree = 0;
+
+  while (fgets(line, sizeof(line), meminfo_file)) {
+    if (sscanf(line, "SwapFree: %lu kB", &swapFree) == 1) {
+      break;
+    }
+  }
+
+  fclose(meminfo_file);
+
+  if (swapFree < megabyte * 1024) {
+    std::cerr << "Not enough free swap space: " << swapFree << " kB\n";
+    return false;
+  }
+
+  return true;
+}
+
 bool pageOutMemory(int pid) {
-    // Open and read /proc/[pid]/maps
-    char maps_path[256];
-    snprintf(maps_path, sizeof(maps_path), "/proc/%d/maps", pid);
-    FILE *maps_file = fopen(maps_path, "r");
-    if (!maps_file) {
-        perror("fopen");
-        return false;
-    }
+  // Open and read /proc/[pid]/maps
+  char maps_path[256];
+  snprintf(maps_path, sizeof(maps_path), "/proc/%d/maps", pid);
+  FILE* maps_file = fopen(maps_path, "r");
+  if (!maps_file) {
+    perror("fopen");
+    return false;
+  }
 
-    // Open the pidfd
-    int pidfd = Oomd::pidfd_open(pid, 0);
-    if (pidfd == -1) {
-        perror("pidfd_open");
-        fclose(maps_file);
-        return false;
-    }
-
-    // Parse memory regions and batch the operations
-    char line[256];
-    unsigned long start, end;
-    std::vector<struct iovec> iovecs;
-
-    while (fgets(line, sizeof(line), maps_file)) {
-        if (sscanf(line, "%lx-%lx", &start, &end) == 2) {
-            struct iovec iov = {
-                .iov_base = (void *)start,
-                .iov_len = end - start,
-            };
-            iovecs.push_back(iov);
-        }
-        // Batch process if the vector size reaches a certain limit (e.g., 100 regions)
-        if (iovecs.size() >= 100) {
-            if (Oomd::process_madvise(pidfd, iovecs.data(), iovecs.size(), MADV_PAGEOUT, 0) == -1) {
-                perror("process_madvise");
-            } else {
-                for (const auto& iov : iovecs) {
-                    std::cout << "Memory at " << iov.iov_base << " was paged out\n";
-                }
-            }
-            iovecs.clear();
-        }
-    }
-
-    // Process any remaining regions
-    if (!iovecs.empty()) {
-        if (Oomd::process_madvise(pidfd, iovecs.data(), iovecs.size(), MADV_PAGEOUT, 0) == -1) {
-            perror("process_madvise");
-        } else {
-            for (const auto& iov : iovecs) {
-                std::cout << "Memory at " << iov.iov_base << " was paged out\n";
-            }
-        }
-    }
-
-    close(pidfd);
+  // Open the pidfd
+  int pidfd = Oomd::pidfd_open(pid, 0);
+  if (pidfd == -1) {
+    perror("pidfd_open");
     fclose(maps_file);
-    return true;
+    return false;
+  }
+
+  // Parse memory regions and batch the operations
+  char line[256];
+  unsigned long start, end;
+  std::vector<struct iovec> iovecs;
+  bool isSwapFree = swapHasFreeMB(1000);
+  while (fgets(line, sizeof(line), maps_file) && isSwapFree) {
+    if (sscanf(line, "%lx-%lx", &start, &end) == 2) {
+      struct iovec iov = {
+          .iov_base = (void*)start,
+          .iov_len = end - start,
+      };
+      iovecs.push_back(iov);
+    }
+    // Batch process if the vector size reaches a certain limit (e.g., 100
+    // regions)
+    if (iovecs.size() >= 100) {
+      if (Oomd::process_madvise(
+              pidfd, iovecs.data(), iovecs.size(), MADV_PAGEOUT, 0) == -1) {
+        perror("process_madvise");
+      } else {
+        for (const auto& iov : iovecs) {
+          std::cout << "Memory at " << iov.iov_base << " was paged out\n";
+        }
+      }
+      iovecs.clear();
+    }
+  }
+
+  // Process any remaining regions
+  if (isSwapFree) {
+    if (!iovecs.empty()) {
+      if (Oomd::process_madvise(
+              pidfd, iovecs.data(), iovecs.size(), MADV_PAGEOUT, 0) == -1) {
+        perror("process_madvise");
+      } else {
+        for (const auto& iov : iovecs) {
+          std::cout << "Memory at " << iov.iov_base << " was paged out\n";
+        }
+      }
+    }
+  }
+
+  close(pidfd);
+  fclose(maps_file);
+  return true;
 }

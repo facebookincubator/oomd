@@ -21,6 +21,8 @@ class UnfreezePlugin : public Base {
     return new UnfreezePlugin();
   }
 
+  Engine::PluginRet run(OomdContext& ctx) override;
+
   int tryToKillPids(const std::vector<int>& procs) override;
 
   ~UnfreezePlugin() = default;
