@@ -10,8 +10,8 @@
 
 namespace Oomd {
 
-template <typename Base = BaseKillPlugin>
-class FreezePlugin : public Base {
+
+class FreezePlugin : public BaseKillPlugin {
  public:
   int init(
       const Engine::PluginArgs& args,
@@ -20,8 +20,6 @@ class FreezePlugin : public Base {
   static FreezePlugin* create() {
     return new FreezePlugin();
   }
-
-  // Engine::PluginRet run(OomdContext& ctx) override;
 
   int tryToKillPids(const std::vector<int>& procs) override;
 
@@ -36,6 +34,14 @@ class FreezePlugin : public Base {
       OomdContext& ctx,
       const CgroupContext& target,
       const std::vector<OomdContext::ConstCgroupContextRef>& peers) override;
+
+ private:
+  void handleProcess(int pid);
+  bool createFreezeCgroup(void);
+  void freezeProcess(int pid);
+  bool pageOutMemory(int pid);
+  void createFreezer(void);
+  bool swapHasFreeMB(int megabyte);
 };
 
 } // namespace Oomd

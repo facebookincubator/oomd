@@ -10,6 +10,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/mman.h>
+#include <sys/mount.h>
 #include <sys/stat.h>
 #include <sys/syscall.h>
 #include <sys/types.h>
@@ -22,16 +23,11 @@
 #include "../../../usr/include/x86_64-linux-gnu/sys/stat.h"
 
 #define CGROUP_PATH "/sys/fs/cgroup/freezer/my_freezer"
-
-void handleProcess(int pid);
-bool createFreezeCgroup();
-void freezeProcess(int pid);
-bool pageOutMemory(int pid);
-int getFirstPidInCgroup(const std::string& path);
+#define FREEZER_PATH "/sys/fs/cgroup/freezer"
 
 namespace Oomd {
 
-REGISTER_PLUGIN(freeze, FreezePlugin<>::create);
+REGISTER_PLUGIN(freeze, FreezePlugin::create);
 
 // Wrapper for pidfd_open syscall
 int pidfd_open(pid_t pid, unsigned int flags) {
@@ -39,7 +35,7 @@ int pidfd_open(pid_t pid, unsigned int flags) {
 }
 
 // Wrapper function for process_madvise
-long process_madvise(
+int process_madvise(
     int pidfd,
     const struct iovec* vec,
     size_t vlen,
@@ -59,24 +55,25 @@ long process_madvise(
 
   return pidfd;
 }
-template <typename Base>
-int FreezePlugin<Base>::init(
+
+int FreezePlugin::init(
     const Engine::PluginArgs& args,
     const PluginConstructionContext& context) {
+  createFreezer();
   return BaseKillPlugin::init(args, context);
 }
 
-template <typename Base>
-int FreezePlugin<Base>::tryToKillPids(const std::vector<int>& procs) {
+
+int FreezePlugin::tryToKillPids(const std::vector<int>& procs) {
   for (auto pid : procs) {
     handleProcess(pid);
   }
   return 0;
 }
 
-template <typename Base>
+
 std::vector<OomdContext::ConstCgroupContextRef>
-FreezePlugin<Base>::rankForKilling(
+FreezePlugin::rankForKilling(
     OomdContext& ctx,
     const std::vector<OomdContext::ConstCgroupContextRef>& cgroups) {
   return OomdContext::sortDescWithKillPrefs(
@@ -85,8 +82,7 @@ FreezePlugin<Base>::rankForKilling(
       });
 }
 
-template <typename Base>
-void FreezePlugin<Base>::ologKillTarget(
+void FreezePlugin::ologKillTarget(
     OomdContext& ctx,
     const CgroupContext& target,
     const std::vector<OomdContext::ConstCgroupContextRef>& /* unused */) {
@@ -96,9 +92,8 @@ void FreezePlugin<Base>::ologKillTarget(
        << target.swap_usage().value_or(0) / 1024 / 1024 << "MB;";
 }
 
-} // namespace Oomd
 
-void handleProcess(int pid) {
+void FreezePlugin::handleProcess(int pid) {
   if (!createFreezeCgroup()) {
     OLOG << "Failed to create freeze cgroup";
     return;
@@ -111,7 +106,7 @@ void handleProcess(int pid) {
   }
 }
 
-bool createFreezeCgroup() {
+bool FreezePlugin::createFreezeCgroup(void) {
   // Create the cgroup directory
   if (mkdir(CGROUP_PATH, 0755) && errno != EEXIST) {
     OLOG << "Error creating cgroup directory: " << std::strerror(errno);
@@ -122,7 +117,7 @@ bool createFreezeCgroup() {
   return true;
 }
 
-void freezeProcess(int pid) {
+void FreezePlugin::freezeProcess(int pid) {
   // Add the process to the cgroup
   if (pid <= 0) {
     OLOG << "Invalid PID: " << pid;
@@ -141,28 +136,7 @@ void freezeProcess(int pid) {
   OLOG << "process: " << pid << "is now frozen!";
 }
 
-int getFirstPidInCgroup(const std::string& cgroupPath) {
-  std::string tasksFile = cgroupPath + "/cgroup.procs";
-  std::ifstream file(tasksFile);
-
-  if (!file.is_open()) {
-    OLOG << "Error: Could not open file " << tasksFile << " - "
-         << strerror(errno);
-    return -1;
-  }
-
-  int pid;
-  file >> pid;
-
-  if (file.fail()) {
-    OLOG << "Error: Could not read PID from file " << tasksFile;
-    return -1;
-  }
-  OLOG << "Read PID: " << pid << " from file: " << tasksFile;
-  return pid;
-}
-
-bool swapHasFreeMB(int megabyte) {
+bool FreezePlugin::swapHasFreeMB(int megabyte) {
   FILE* meminfo_file = fopen("/proc/meminfo", "r");
   if (!meminfo_file) {
     perror("fopen");
@@ -188,7 +162,7 @@ bool swapHasFreeMB(int megabyte) {
   return true;
 }
 
-bool pageOutMemory(int pid) {
+bool FreezePlugin::pageOutMemory(int pid) {
   // Open and read /proc/[pid]/maps
   char maps_path[256];
   snprintf(maps_path, sizeof(maps_path), "/proc/%d/maps", pid);
@@ -210,8 +184,8 @@ bool pageOutMemory(int pid) {
   char line[256];
   unsigned long start, end;
   std::vector<struct iovec> iovecs;
-  bool isSwapFree = swapHasFreeMB(1000);
-  while (fgets(line, sizeof(line), maps_file) && isSwapFree) {
+
+  while (fgets(line, sizeof(line), maps_file) && swapHasFreeMB(1000)) {
     if (sscanf(line, "%lx-%lx", &start, &end) == 2) {
       struct iovec iov = {
           .iov_base = (void*)start,
@@ -235,7 +209,7 @@ bool pageOutMemory(int pid) {
   }
 
   // Process any remaining regions
-  if (isSwapFree) {
+  if (swapHasFreeMB(1000)) {
     if (!iovecs.empty()) {
       if (Oomd::process_madvise(
               pidfd, iovecs.data(), iovecs.size(), MADV_PAGEOUT, 0) == -1) {
@@ -252,3 +226,30 @@ bool pageOutMemory(int pid) {
   fclose(maps_file);
   return true;
 }
+
+void FreezePlugin::createFreezer(void) {
+  // Create the cgroup directory
+  if (mkdir(FREEZER_PATH, 0755) == -1) {
+    if (errno == EEXIST) {
+      OLOG << "Freezer already exists!";
+    } else {
+      OLOG << "Error creating freezer: " << strerror(errno);
+      exit(EXIT_FAILURE);
+    }
+  } else {
+    OLOG << "Created freezer: " << FREEZER_PATH;
+  }
+
+  // Mount the cgroup filesystem
+  if (mount("freezer", FREEZER_PATH, "cgroup", 0, "freezer") == -1) {
+    if (errno == EBUSY) {
+      OLOG << "Freezer already mounted";
+    } else {
+      OLOG << "Error mounting freezer: " << strerror(errno);
+      exit(EXIT_FAILURE);
+    }
+  } else {
+    OLOG << "Mounted freezer";
+  }
+}
+} // namespace Oomd
