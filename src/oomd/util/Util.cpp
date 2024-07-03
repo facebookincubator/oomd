@@ -16,6 +16,7 @@
  */
 
 #include "oomd/util/Util.h"
+#include "oomd/Log.h"
 
 #include <unistd.h>
 
@@ -242,6 +243,10 @@ std::string Util::strerror_r() {
 
   errno = savedErrno;
   return ret;
+}
+
+void Util::logError(std::string message) {
+  OLOG << "Failed to " << message << ":" << strerror(errno);
 }
 
 } // namespace Oomd

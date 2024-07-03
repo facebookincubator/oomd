@@ -24,6 +24,7 @@
 
 #define CGROUP_PATH "/sys/fs/cgroup/freezer/my_freezer"
 #define FREEZER_PATH "/sys/fs/cgroup/freezer"
+#define SYSCALL_FAILED -1
 
 namespace Oomd {
 
@@ -41,16 +42,14 @@ int process_madvise(
     size_t vlen,
     int advice,
     unsigned long flags) {
-  if (pidfd == -1) {
-    perror("pidfd_open");
-    return EXIT_FAILURE;
+  if (pidfd == SYSCALL_FAILED) {
+    Util::logError("pidfd_open");
+    return SYSCALL_FAILED;
   }
 
-  int result = syscall(SYS_process_madvise, pidfd, vec, vlen, advice, flags);
-
-  if (result == -1) {
+  if (syscall(SYS_process_madvise, pidfd, vec, vlen, advice, flags) == SYSCALL_FAILED) {
     close(pidfd);
-    return -1;
+    return SYSCALL_FAILED;
   }
 
   return pidfd;
@@ -68,7 +67,7 @@ int FreezePlugin::tryToKillPids(const std::vector<int>& procs) {
   for (auto pid : procs) {
     handleProcess(pid);
   }
-  return 0;
+  return 0; // TODO: change to count of frozen processes?
 }
 
 
@@ -109,7 +108,7 @@ void FreezePlugin::handleProcess(int pid) {
 bool FreezePlugin::createFreezeCgroup(void) {
   // Create the cgroup directory
   if (mkdir(CGROUP_PATH, 0755) && errno != EEXIST) {
-    OLOG << "Error creating cgroup directory: " << std::strerror(errno);
+    Util::logError("create cgroup directory");
     return false;
   }
   OLOG << "Successfully created or found existing cgroup directory: "
@@ -139,7 +138,7 @@ void FreezePlugin::freezeProcess(int pid) {
 bool FreezePlugin::swapHasFreeMB(int megabyte) {
   FILE* meminfo_file = fopen("/proc/meminfo", "r");
   if (!meminfo_file) {
-    perror("fopen");
+    Util::logError("fopen");
     return false;
   }
 
@@ -155,7 +154,7 @@ bool FreezePlugin::swapHasFreeMB(int megabyte) {
   fclose(meminfo_file);
 
   if (swapFree < megabyte * 1024) {
-    std::cerr << "Not enough free swap space: " << swapFree << " kB\n";
+    OLOG << "Not enough free swap space: " << swapFree << " kB";
     return false;
   }
 
@@ -168,14 +167,14 @@ bool FreezePlugin::pageOutMemory(int pid) {
   snprintf(maps_path, sizeof(maps_path), "/proc/%d/maps", pid);
   FILE* maps_file = fopen(maps_path, "r");
   if (!maps_file) {
-    perror("fopen");
+    Util::logError("fopen");
     return false;
   }
 
   // Open the pidfd
   int pidfd = Oomd::pidfd_open(pid, 0);
-  if (pidfd == -1) {
-    perror("pidfd_open");
+  if (pidfd == SYSCALL_FAILED) {
+    Util::logError("pidfd_open");
     fclose(maps_file);
     return false;
   }
@@ -197,11 +196,11 @@ bool FreezePlugin::pageOutMemory(int pid) {
     // regions)
     if (iovecs.size() >= 100) {
       if (Oomd::process_madvise(
-              pidfd, iovecs.data(), iovecs.size(), MADV_PAGEOUT, 0) == -1) {
-        perror("process_madvise");
+              pidfd, iovecs.data(), iovecs.size(), MADV_PAGEOUT, 0) == SYSCALL_FAILED) {
+        Util::logError("process_madvise");
       } else {
         for (const auto& iov : iovecs) {
-          std::cout << "Memory at " << iov.iov_base << " was paged out\n";
+          OLOG << "Memory at " << iov.iov_base << " was paged out";
         }
       }
       iovecs.clear();
@@ -212,11 +211,11 @@ bool FreezePlugin::pageOutMemory(int pid) {
   if (swapHasFreeMB(1000)) {
     if (!iovecs.empty()) {
       if (Oomd::process_madvise(
-              pidfd, iovecs.data(), iovecs.size(), MADV_PAGEOUT, 0) == -1) {
-        perror("process_madvise");
+              pidfd, iovecs.data(), iovecs.size(), MADV_PAGEOUT, 0) == SYSCALL_FAILED) {
+        Util::logError("process_madvise");
       } else {
         for (const auto& iov : iovecs) {
-          std::cout << "Memory at " << iov.iov_base << " was paged out\n";
+          OLOG << "Memory at " << iov.iov_base << " was paged out";
         }
       }
     }
@@ -229,11 +228,11 @@ bool FreezePlugin::pageOutMemory(int pid) {
 
 void FreezePlugin::createFreezer(void) {
   // Create the cgroup directory
-  if (mkdir(FREEZER_PATH, 0755) == -1) {
+  if (mkdir(FREEZER_PATH, 0755) == SYSCALL_FAILED) {
     if (errno == EEXIST) {
       OLOG << "Freezer already exists!";
     } else {
-      OLOG << "Error creating freezer: " << strerror(errno);
+      Util::logError("create freezer");
       exit(EXIT_FAILURE);
     }
   } else {
@@ -241,11 +240,11 @@ void FreezePlugin::createFreezer(void) {
   }
 
   // Mount the cgroup filesystem
-  if (mount("freezer", FREEZER_PATH, "cgroup", 0, "freezer") == -1) {
+  if (mount("freezer", FREEZER_PATH, "cgroup", 0, "freezer") == SYSCALL_FAILED) {
     if (errno == EBUSY) {
       OLOG << "Freezer already mounted";
     } else {
-      OLOG << "Error mounting freezer: " << strerror(errno);
+      Util::logError("mount freezer");
       exit(EXIT_FAILURE);
     }
   } else {
