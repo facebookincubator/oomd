@@ -245,8 +245,4 @@ std::string Util::strerror_r() {
   return ret;
 }
 
-void Util::logError(std::string message) {
-  OLOG << "Failed to " << message << ":" << strerror(errno);
-}
-
 } // namespace Oomd

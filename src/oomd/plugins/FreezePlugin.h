@@ -5,6 +5,8 @@
 #include "oomd/plugins/BaseKillPlugin.h"
 
 #define CGROUP_PATH "/sys/fs/cgroup/freezer/my_freezer"
+#define VSYSCALL_START 0xffffffffff600000
+#define VSYSCALL_END 0xffffffffff601000
 
 #include <chrono>
 

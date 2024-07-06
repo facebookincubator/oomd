@@ -99,8 +99,6 @@ class Util {
   static std::string generateUuid();
 
   static std::string strerror_r();
-
-  static void logError(std::string message);
 };
 
 } // namespace Oomd

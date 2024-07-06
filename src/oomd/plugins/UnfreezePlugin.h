@@ -1,17 +1,18 @@
-#pragma once
-
 #include <string>
 #include <vector>
 #include "oomd/plugins/BaseKillPlugin.h"
-
-#define CGROUP_PATH "/sys/fs/cgroup/freezer/my_freezer"
 
 #include <chrono>
 
 namespace Oomd {
 
-template <typename Base = BaseKillPlugin>
-class UnfreezePlugin : public Base {
+struct MemoryRegion {
+  unsigned long start;
+  unsigned long end;
+  size_t swapSize;
+};
+
+class UnfreezePlugin : public BaseKillPlugin {
  public:
   int init(
       const Engine::PluginArgs& args,
@@ -36,6 +37,12 @@ class UnfreezePlugin : public Base {
       OomdContext& ctx,
       const CgroupContext& target,
       const std::vector<OomdContext::ConstCgroupContextRef>& peers) override;
+
+  std::vector<MemoryRegion> getSwappedRegions(pid_t pid);
+
+  void unfreezeProcess(int pid);
+
+  void pageInMemory(int pid);
 };
 
 } // namespace Oomd

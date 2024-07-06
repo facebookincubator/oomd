@@ -1,15 +1,15 @@
 {
     "rulesets": [
-      {
+        {
             "name": "test freezer",
             "detectors": [
                 [
-                    "memory above 20% for 1 second",
+                    "memory above 40% for 1 second",
                     {
                         "name": "memory_above",
                         "args": {
                             "cgroup": "test",
-                            "threshold": "10%",
+                            "threshold": "40%",
                             "duration": "1"
                         }
                     }
@@ -21,25 +21,7 @@
                     "args": {
                         "cgroup": "test"
                     }
-                }
-            ]
-        },
-        {
-            "name": "test unfreezer",
-            "detectors": [
-                [
-                    "memory above 30% for 1 second",
-                    {
-                        "name": "memory_above",
-                        "args": {
-                            "cgroup": "test",
-                            "threshold": "30%",
-                            "duration": "1"
-                        }
-                    }
-                ]
-            ],
-            "actions": [
+                },
                 {
                     "name": "unfreeze",
                     "args": {

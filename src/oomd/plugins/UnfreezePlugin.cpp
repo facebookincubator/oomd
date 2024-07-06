@@ -2,11 +2,13 @@
 #include "oomd/Log.h"
 #include "oomd/PluginRegistry.h"
 #include "oomd/include/Types.h"
+#include "oomd/util/FreezeUtills.h"
 #include "oomd/util/Util.h"
 
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <sys/syscall.h>
+#include <sys/sysinfo.h>
 #include <sys/types.h>
 #include <unistd.h>
 #include <cstring>
@@ -23,51 +25,54 @@
 #include "../../../usr/include/x86_64-linux-gnu/sys/stat.h"
 #include "oomd/util/FreezeUtills.h"
 
-#define CGROUP_PATH "/sys/fs/cgroup/freezer/my_freezer"
-
-struct MemoryRegion {
-  unsigned long start;
-  unsigned long end;
-  size_t swapSize;
-};
-
-std::vector<MemoryRegion> getSwappedRegions(pid_t pid);
-void unfreezeProcess(int pid);
-void pageInMemory(pid_t pid);
-
 namespace Oomd {
 
-REGISTER_PLUGIN(unfreeze, UnfreezePlugin<>::create);
+REGISTER_PLUGIN(unfreeze, UnfreezePlugin::create);
 
-template <typename Base>
-int UnfreezePlugin<Base>::init(
+int UnfreezePlugin::init(
     const Engine::PluginArgs& args,
     const PluginConstructionContext& context) {
   return BaseKillPlugin::init(args, context);
 }
 
-template <typename Base>
-Engine::PluginRet UnfreezePlugin<Base>::run(OomdContext& ctx) {
-    std::string tasksPath = std::string(CGROUP_PATH) + "/tasks";
-        std::ifstream tasksFile(tasksPath);
-        if (!tasksFile.is_open()) {
-            OLOG << "Error opening tasks file: " << tasksPath;
-            return Engine::PluginRet::STOP;
-        }
+Engine::PluginRet UnfreezePlugin::run(OomdContext& ctx) {
+  // std::string tasksPath = std::string(CGROUP_PATH) + "/tasks";
+  // std::ifstream tasksFile(tasksPath);
+  // if (!tasksFile.is_open()) {
+  //   OLOG << "Error opening tasks file: " << tasksPath;
+  //   return Engine::PluginRet::STOP;
+  // }
 
-        std::string pid;
-        std::getline(tasksFile, pid);
-            if (pid.empty()) {
-                OLOG << "Found no processes to unfreeze ";
-                tasksFile.close();
-                return Engine::PluginRet::ASYNC_PAUSED;
-            }
-        tasksFile.close();
+  // std::string pid;
+  // std::getline(tasksFile, pid);
+  // if (pid.empty()) {
+  //   OLOG << "Found no processes to unfreeze ";
+  //   tasksFile.close();
+  //   return Engine::PluginRet::ASYNC_PAUSED;
+  // }
+  // tasksFile.close();
+
+  // Check the system's free memory
+  struct sysinfo memInfo;
+  sysinfo(&memInfo);
+
+  long long totalMemory = memInfo.totalram;
+  totalMemory *= memInfo.mem_unit;
+
+  long long freeMemory = memInfo.freeram;
+  freeMemory *= memInfo.mem_unit;
+
+  double freeMemoryPercentage = (double)freeMemory / totalMemory * 100.0;
+
+  // If free memory is above 80%, return ASYNC_PAUSED
+  if (freeMemoryPercentage < 30.0) {
+    OLOG << "Free memory is above 30% (" << freeMemoryPercentage << "%), pausing...";
+    return Engine::PluginRet::ASYNC_PAUSED;
+  }
   return BaseKillPlugin::run(ctx);
 };
 
-template <typename Base>
-int UnfreezePlugin<Base>::tryToKillPids(const std::vector<int>& procs) {
+int UnfreezePlugin::tryToKillPids(const std::vector<int>& procs) {
   for (auto pid : procs) {
     pageInMemory(pid);
     unfreezeProcess(pid);
@@ -76,9 +81,7 @@ int UnfreezePlugin<Base>::tryToKillPids(const std::vector<int>& procs) {
   return 0;
 }
 
-template <typename Base>
-std::vector<OomdContext::ConstCgroupContextRef>
-UnfreezePlugin<Base>::rankForKilling(
+std::vector<OomdContext::ConstCgroupContextRef> UnfreezePlugin::rankForKilling(
     OomdContext& ctx,
     const std::vector<OomdContext::ConstCgroupContextRef>& cgroups) {
   return OomdContext::sortDescWithKillPrefs(
@@ -87,21 +90,15 @@ UnfreezePlugin<Base>::rankForKilling(
       });
 }
 
-template <typename Base>
-void UnfreezePlugin<Base>::ologKillTarget(
+void UnfreezePlugin::ologKillTarget(
     OomdContext& ctx,
     const CgroupContext& target,
     const std::vector<OomdContext::ConstCgroupContextRef>& /* unused */) {
-  OLOG << "Nitzan and Guy prefeteched memory and unfreezed \""
-       << target.cgroup().relativePath() << "\" ("
-       << target.current_usage().value_or(0) / 1024 / 1024
-       << "MB) based on memory usage usage at "
-       << target.swap_usage().value_or(0) / 1024 / 1024 << "MB;";
+  OLOG << "Prefeteched memory and unfreezed \""
+       << target.cgroup().relativePath();
 }
 
-} // namespace Oomd
-
-std::vector<MemoryRegion> getSwappedRegions(pid_t pid) {
+std::vector<MemoryRegion> UnfreezePlugin::getSwappedRegions(pid_t pid) {
   std::vector<MemoryRegion> regions;
   std::unordered_set<unsigned long> seenAddresses;
 
@@ -147,7 +144,7 @@ std::vector<MemoryRegion> getSwappedRegions(pid_t pid) {
   return regions;
 }
 
-void pageInMemory(pid_t pid) {
+void UnfreezePlugin::pageInMemory(int pid) {
   // Get the swapped memory regions
   std::vector<MemoryRegion> regions = getSwappedRegions(pid);
 
@@ -163,7 +160,9 @@ void pageInMemory(pid_t pid) {
   for (const auto& region : regions) {
     std::string memFilePath = "/proc/" + std::to_string(pid) + "/mem";
     int memFile = open(memFilePath.c_str(), O_RDONLY);
-    if (memFile == -1) {
+    // int memFile = open(memFilePath.c_str(), O_RDONLY);
+
+    if (memFile == SYSCALL_FAILED) {
       std::cerr << "Failed to open " << memFilePath << ": " << strerror(errno)
                 << std::endl;
       return;
@@ -172,7 +171,7 @@ void pageInMemory(pid_t pid) {
     size_t length = region.end - region.start;
     std::vector<char> buffer(length);
 
-    if (pread(memFile, buffer.data(), length, region.start) == -1) {
+    if (pread(memFile, buffer.data(), length, region.start) == SYSCALL_FAILED) {
       std::cerr << "Failed to read memory region " << std::hex << region.start
                 << "-" << region.end << ": " << strerror(errno) << std::endl;
     } else {
@@ -185,7 +184,7 @@ void pageInMemory(pid_t pid) {
   }
 }
 
-void unfreezeProcess(int pid) {
+void UnfreezePlugin::unfreezeProcess(int pid) {
   // Add the process to the cgroup
   if (pid <= 0) {
     OLOG << "Invalid PID: " << pid;
@@ -204,3 +203,5 @@ void unfreezeProcess(int pid) {
   writeToFile(state_path, "THAWED");
   OLOG << "process: " << pid << "is now thawed!";
 }
+
+} // namespace Oomd

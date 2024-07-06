@@ -1,18 +1,19 @@
 #include "oomd/plugins/FreezePlugin.h"
 #include "oomd/Log.h"
 #include "oomd/PluginRegistry.h"
-#include "oomd/include/Types.h"
+// #include "oomd/include/Types.h"
 #include "oomd/util/FreezeUtills.h"
 #include "oomd/util/Util.h"
 
 #include <fcntl.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+// #include <stdio.h>
+// #include <stdlib.h>
+// #include <string.h>
 #include <sys/mman.h>
 #include <sys/mount.h>
 #include <sys/stat.h>
 #include <sys/syscall.h>
+#include <sys/sysinfo.h>
 #include <sys/types.h>
 #include <unistd.h>
 #include <cerrno>
@@ -20,11 +21,6 @@
 #include <fstream>
 #include <iostream>
 #include <stdexcept>
-#include "../../../usr/include/x86_64-linux-gnu/sys/stat.h"
-
-#define CGROUP_PATH "/sys/fs/cgroup/freezer/my_freezer"
-#define FREEZER_PATH "/sys/fs/cgroup/freezer"
-#define SYSCALL_FAILED -1
 
 namespace Oomd {
 
@@ -43,11 +39,12 @@ int process_madvise(
     int advice,
     unsigned long flags) {
   if (pidfd == SYSCALL_FAILED) {
-    Util::logError("pidfd_open");
+    logError("pidfd_open");
     return SYSCALL_FAILED;
   }
 
-  if (syscall(SYS_process_madvise, pidfd, vec, vlen, advice, flags) == SYSCALL_FAILED) {
+  if (syscall(SYS_process_madvise, pidfd, vec, vlen, advice, flags) ==
+      SYSCALL_FAILED) {
     close(pidfd);
     return SYSCALL_FAILED;
   }
@@ -62,7 +59,6 @@ int FreezePlugin::init(
   return BaseKillPlugin::init(args, context);
 }
 
-
 int FreezePlugin::tryToKillPids(const std::vector<int>& procs) {
   for (auto pid : procs) {
     handleProcess(pid);
@@ -70,9 +66,7 @@ int FreezePlugin::tryToKillPids(const std::vector<int>& procs) {
   return 0; // TODO: change to count of frozen processes?
 }
 
-
-std::vector<OomdContext::ConstCgroupContextRef>
-FreezePlugin::rankForKilling(
+std::vector<OomdContext::ConstCgroupContextRef> FreezePlugin::rankForKilling(
     OomdContext& ctx,
     const std::vector<OomdContext::ConstCgroupContextRef>& cgroups) {
   return OomdContext::sortDescWithKillPrefs(
@@ -85,12 +79,11 @@ void FreezePlugin::ologKillTarget(
     OomdContext& ctx,
     const CgroupContext& target,
     const std::vector<OomdContext::ConstCgroupContextRef>& /* unused */) {
-  OLOG << "Nitzan and Guy freezed \"" << target.cgroup().relativePath()
-       << "\" (" << target.current_usage().value_or(0) / 1024 / 1024
+  OLOG << "Freezed \"" << target.cgroup().relativePath() << "\" ("
+       << target.current_usage().value_or(0) / 1024 / 1024
        << "MB) based on swap usage at "
        << target.swap_usage().value_or(0) / 1024 / 1024 << "MB;";
 }
-
 
 void FreezePlugin::handleProcess(int pid) {
   if (!createFreezeCgroup()) {
@@ -108,7 +101,7 @@ void FreezePlugin::handleProcess(int pid) {
 bool FreezePlugin::createFreezeCgroup(void) {
   // Create the cgroup directory
   if (mkdir(CGROUP_PATH, 0755) && errno != EEXIST) {
-    Util::logError("create cgroup directory");
+    logError("create cgroup directory");
     return false;
   }
   OLOG << "Successfully created or found existing cgroup directory: "
@@ -135,94 +128,93 @@ void FreezePlugin::freezeProcess(int pid) {
   OLOG << "process: " << pid << "is now frozen!";
 }
 
-bool FreezePlugin::swapHasFreeMB(int megabyte) {
-  FILE* meminfo_file = fopen("/proc/meminfo", "r");
-  if (!meminfo_file) {
-    Util::logError("fopen");
-    return false;
-  }
+bool FreezePlugin::pageOutMemory(int pid) {
+  try {
+    std::ostringstream maps_path;
+    maps_path << "/proc/" << pid << "/maps";
 
-  char line[256];
-  unsigned long swapFree = 0;
+    std::ifstream maps_file(maps_path.str());
 
-  while (fgets(line, sizeof(line), meminfo_file)) {
-    if (sscanf(line, "SwapFree: %lu kB", &swapFree) == 1) {
-      break;
+    if (!maps_file.is_open()) {
+      logError("Failed to open file: " + maps_path.str());
+      return false;
     }
-  }
 
-  fclose(meminfo_file);
+    int pidfd = pidfd_open(pid, 0);
+    if (pidfd == SYSCALL_FAILED) {
+      logError("pidfd_open");
+      return false;
+    }
 
-  if (swapFree < megabyte * 1024) {
-    OLOG << "Not enough free swap space: " << swapFree << " kB";
+    std::vector<struct iovec> iovecs;
+    std::string line;
+    unsigned long start, end;
+
+    while (std::getline(maps_file, line) && swapHasFreeMB(10000)) {
+      if (std::sscanf(line.c_str(), "%lx-%lx", &start, &end) == 2) {
+        if (start >= VSYSCALL_START && end <= VSYSCALL_END) {
+          continue;
+        }
+        struct iovec iov = {
+            .iov_base = reinterpret_cast<void*>(start),
+            .iov_len = end - start,
+        };
+        iovecs.push_back(iov);
+      }
+
+      if (iovecs.size() >= 100) {
+        if (Oomd::process_madvise(
+                pidfd, iovecs.data(), iovecs.size(), MADV_PAGEOUT, 0) ==
+            SYSCALL_FAILED) {
+          logError("process_madvise");
+        } else {
+          for (const auto& iov : iovecs) {
+            // OLOG << "Memory at " << iov.iov_base << " was paged out";
+          }
+          iovecs.clear();
+        }
+      }
+    }
+
+    if (swapHasFreeMB(10000) && !iovecs.empty()) {
+      if (Oomd::process_madvise(
+              pidfd, iovecs.data(), iovecs.size(), MADV_PAGEOUT, 0) ==
+          SYSCALL_FAILED) {
+        logError("process_madvise");
+      } else {
+        for (const auto& iov : iovecs) {
+          // OLOG << "Memory at " << iov.iov_base << " was paged out";
+        }
+      }
+    }
+
+    close(pidfd);
+    return true;
+
+  } catch (const std::system_error& e) {
+    logError(e.what());
     return false;
   }
-
-  return true;
 }
 
-bool FreezePlugin::pageOutMemory(int pid) {
-  // Open and read /proc/[pid]/maps
-  char maps_path[256];
-  snprintf(maps_path, sizeof(maps_path), "/proc/%d/maps", pid);
-  FILE* maps_file = fopen(maps_path, "r");
-  if (!maps_file) {
-    Util::logError("fopen");
+bool FreezePlugin::swapHasFreeMB(int megabyte) {
+  struct sysinfo info;
+
+  // Get system information
+  if (sysinfo(&info) != 0) {
+    logError("sysinfo");
     return false;
   }
 
-  // Open the pidfd
-  int pidfd = Oomd::pidfd_open(pid, 0);
-  if (pidfd == SYSCALL_FAILED) {
-    Util::logError("pidfd_open");
-    fclose(maps_file);
+  // Calculate free swap in kilobytes
+  unsigned long swapFreeByte = (info.freeswap * info.mem_unit);
+
+  // Check if the free swap space is less than the required amount
+  if (swapFreeByte < static_cast<unsigned long>(megabyte) * 1024 * 1024) {
+    logError("Not enough free swap space");
     return false;
   }
 
-  // Parse memory regions and batch the operations
-  char line[256];
-  unsigned long start, end;
-  std::vector<struct iovec> iovecs;
-
-  while (fgets(line, sizeof(line), maps_file) && swapHasFreeMB(1000)) {
-    if (sscanf(line, "%lx-%lx", &start, &end) == 2) {
-      struct iovec iov = {
-          .iov_base = (void*)start,
-          .iov_len = end - start,
-      };
-      iovecs.push_back(iov);
-    }
-    // Batch process if the vector size reaches a certain limit (e.g., 100
-    // regions)
-    if (iovecs.size() >= 100) {
-      if (Oomd::process_madvise(
-              pidfd, iovecs.data(), iovecs.size(), MADV_PAGEOUT, 0) == SYSCALL_FAILED) {
-        Util::logError("process_madvise");
-      } else {
-        for (const auto& iov : iovecs) {
-          OLOG << "Memory at " << iov.iov_base << " was paged out";
-        }
-      }
-      iovecs.clear();
-    }
-  }
-
-  // Process any remaining regions
-  if (swapHasFreeMB(1000)) {
-    if (!iovecs.empty()) {
-      if (Oomd::process_madvise(
-              pidfd, iovecs.data(), iovecs.size(), MADV_PAGEOUT, 0) == SYSCALL_FAILED) {
-        Util::logError("process_madvise");
-      } else {
-        for (const auto& iov : iovecs) {
-          OLOG << "Memory at " << iov.iov_base << " was paged out";
-        }
-      }
-    }
-  }
-
-  close(pidfd);
-  fclose(maps_file);
   return true;
 }
 
@@ -232,7 +224,7 @@ void FreezePlugin::createFreezer(void) {
     if (errno == EEXIST) {
       OLOG << "Freezer already exists!";
     } else {
-      Util::logError("create freezer");
+      logError("create freezer");
       exit(EXIT_FAILURE);
     }
   } else {
@@ -240,11 +232,12 @@ void FreezePlugin::createFreezer(void) {
   }
 
   // Mount the cgroup filesystem
-  if (mount("freezer", FREEZER_PATH, "cgroup", 0, "freezer") == SYSCALL_FAILED) {
+  if (mount("freezer", FREEZER_PATH, "cgroup", 0, "freezer") ==
+      SYSCALL_FAILED) {
     if (errno == EBUSY) {
       OLOG << "Freezer already mounted";
     } else {
-      Util::logError("mount freezer");
+      logError("mount freezer");
       exit(EXIT_FAILURE);
     }
   } else {
