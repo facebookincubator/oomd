@@ -43,6 +43,7 @@ pub struct FBTax2Attributes {
 }
 
 pub struct Oomd2Attributes {
+    #[allow(dead_code)]
     pub blacklisted_jobs: Vec<&'static str>,
     pub disable_swap_protection: bool,
     pub kill_target: String,
@@ -57,6 +58,7 @@ pub struct Oomd2Attributes {
     pub oomd_threshold_duration: String,
     pub oomd_restart_threshold: BTreeMap<String, OomdRestartThreshold>,
     pub oomd_reclaim_duation: String,
+    #[allow(dead_code)]
     pub oomd_post_action_delay: String,
     pub swap_protection_detect_threshold: String,
     pub swap_protection_kill_threshold: String,
