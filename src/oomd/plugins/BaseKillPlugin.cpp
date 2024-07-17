@@ -554,10 +554,10 @@ void BaseKillPlugin::reportKillInitiationToXattr(
     const int prevXattr = std::stoi(prevXattrStr != "" ? prevXattrStr : "0");
     std::string newXattrStr = std::to_string(prevXattr + 1);
 
-    if (setxattr(cgroupPath, xattr, newXattrStr)) {
-      OLOG << "Set xattr " << xattr << "=" << newXattrStr << " on "
-           << cgroupPath;
-    }
+    // if (setxattr(cgroupPath, xattr, newXattrStr)) {
+    //   OLOG << "Set xattr " << xattr << "=" << newXattrStr << " on "
+    //        << cgroupPath;
+    // }
   };
   reportKillHelperFunc(kOomdKillInitiationTrustedXattr);
   reportKillHelperFunc(kOomdKillInitiationUserXattr);
@@ -573,10 +573,10 @@ void BaseKillPlugin::reportKillCompletionToXattr(
     const int prevXattr = std::stoi(prevXattrStr != "" ? prevXattrStr : "0");
     std::string newXattrStr = std::to_string(prevXattr + numProcsKilled);
 
-    if (setxattr(cgroupPath, xattr, newXattrStr)) {
-      OLOG << "Set xattr " << xattr << "=" << newXattrStr << " on "
-           << cgroupPath;
-    }
+    // if (setxattr(cgroupPath, xattr, newXattrStr)) {
+    //   OLOG << "Set xattr " << xattr << "=" << newXattrStr << " on "
+    //        << cgroupPath;
+    // }
   };
 
   reportKillHelperFunc(kOomdKillCompletionTrustedXattr);
@@ -589,9 +589,9 @@ void BaseKillPlugin::reportKillUuidToXattr(
   // Helper function that reports kill uuid to an extended attribute
   const auto reportKillHelperFunc = [this, &cgroupPath, &killUuid](
                                         const std::string& xattr) {
-    if (setxattr(cgroupPath, xattr, killUuid)) {
-      OLOG << "Set xattr " << xattr << "=" << killUuid << " on " << cgroupPath;
-    }
+    // if (setxattr(cgroupPath, xattr, killUuid)) {
+    //   OLOG << "Set xattr " << xattr << "=" << killUuid << " on " << cgroupPath;
+    // }
   };
 
   reportKillHelperFunc(kOomdKillUuidTrustedXattr);

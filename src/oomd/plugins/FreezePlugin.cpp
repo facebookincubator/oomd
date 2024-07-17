@@ -1,14 +1,10 @@
 #include "oomd/plugins/FreezePlugin.h"
 #include "oomd/Log.h"
 #include "oomd/PluginRegistry.h"
-// #include "oomd/include/Types.h"
 #include "oomd/util/FreezeUtills.h"
 #include "oomd/util/Util.h"
 
 #include <fcntl.h>
-// #include <stdio.h>
-// #include <stdlib.h>
-// #include <string.h>
 #include <sys/mman.h>
 #include <sys/mount.h>
 #include <sys/stat.h>
@@ -63,6 +59,7 @@ int FreezePlugin::tryToKillPids(const std::vector<int>& procs) {
   for (auto pid : procs) {
     handleProcess(pid);
   }
+  freezeCgroup();
   return 0; // TODO: change to count of frozen processes?
 }
 
@@ -92,10 +89,10 @@ void FreezePlugin::handleProcess(int pid) {
   }
   freezeProcess(pid);
 
-  if (!pageOutMemory(pid)) {
-    OLOG << "Failed to page out memory";
-    return;
-  }
+  // if (!pageOutMemory(pid)) {
+  //   OLOG << "Failed to page out memory";
+  //   return;
+  // }
 }
 
 bool FreezePlugin::createFreezeCgroup(void) {
@@ -107,6 +104,11 @@ bool FreezePlugin::createFreezeCgroup(void) {
   OLOG << "Successfully created or found existing cgroup directory: "
        << CGROUP_PATH;
   return true;
+}
+
+void FreezePlugin::freezeCgroup() {
+
+  writeToFile(CGROUP_PATH + std::string("/memory.reclaim"), RECLAIM);
 }
 
 void FreezePlugin::freezeProcess(int pid) {
