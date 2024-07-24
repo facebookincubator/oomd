@@ -8,7 +8,7 @@ using std::string;
 
 namespace Oomd {
 
-class OurFirstPlugin : public Engine::BasePlugin {
+class ChangeMadviseToFree : public Engine::BasePlugin {
  public:
   int init(
       const Engine::PluginArgs& args,
@@ -16,11 +16,11 @@ class OurFirstPlugin : public Engine::BasePlugin {
 
   Engine::PluginRet run(OomdContext& /* unused */) override;
 
-  static OurFirstPlugin* create() {
-    return new OurFirstPlugin();
+  static ChangeMadviseToFree* create() {
+    return new ChangeMadviseToFree();
   }
 
-  ~OurFirstPlugin() = default;
+  ~ChangeMadviseToFree() = default;
 
  private:
   string message_;

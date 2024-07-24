@@ -29,6 +29,29 @@
                     }
                 }
             ]
+        }, 
+        {
+            "name": "test madvise",
+            "detectors": [
+                [
+                    "memory above 70% for 1 second",
+                    {
+                        "name": "memory_above",
+                        "args": {
+                            "cgroup": "test1",
+                            "threshold": "70%",
+                            "duration": "1"
+                        }
+                    }
+                ]
+            ],
+            "actions": [
+                {
+                    "name": "change_madvise_to_dont_need"
+                }
+            , {
+                "name": "change_madvise_to_free"
+            }]
         }
     ]
 }

@@ -36,23 +36,6 @@ int UnfreezePlugin::init(
 }
 
 Engine::PluginRet UnfreezePlugin::run(OomdContext& ctx) {
-  // std::string tasksPath = std::string(CGROUP_PATH) + "/tasks";
-  // std::ifstream tasksFile(tasksPath);
-  // if (!tasksFile.is_open()) {
-  //   OLOG << "Error opening tasks file: " << tasksPath;
-  //   return Engine::PluginRet::STOP;
-  // }
-
-  // std::string pid;
-  // std::getline(tasksFile, pid);
-  // if (pid.empty()) {
-  //   OLOG << "Found no processes to unfreeze ";
-  //   tasksFile.close();
-  //   return Engine::PluginRet::ASYNC_PAUSED;
-  // }
-  // tasksFile.close();
-
-  // Check the system's free memory
   struct sysinfo memInfo;
   sysinfo(&memInfo);
 
@@ -64,7 +47,7 @@ Engine::PluginRet UnfreezePlugin::run(OomdContext& ctx) {
 
   double freeMemoryPercentage = (double)freeMemory / totalMemory * 100.0;
 
-  // If free memory is above 80%, return ASYNC_PAUSED
+  // If free memory is above 70%, return ASYNC_PAUSED
   if (freeMemoryPercentage < 30.0) {
     OLOG << "Free memory is above 30% (" << freeMemoryPercentage << "%), pausing...";
     return Engine::PluginRet::ASYNC_PAUSED;
@@ -192,14 +175,14 @@ void UnfreezePlugin::unfreezeProcess(int pid) {
   }
 
   char tasks_path[256];
-  snprintf(tasks_path, sizeof(tasks_path), "%s/tasks", CGROUP_PATH);
+  snprintf(tasks_path, sizeof(tasks_path), "%s/tasks", MY_FREEZER_PATH);
   char pid_str[16];
   snprintf(pid_str, sizeof(pid_str), "%d", pid);
   writeToFile(tasks_path, pid_str);
 
   // Freeze the process
   char state_path[256];
-  snprintf(state_path, sizeof(state_path), "%s/freezer.state", CGROUP_PATH);
+  snprintf(state_path, sizeof(state_path), "%s/freezer.state", MY_FREEZER_PATH);
   writeToFile(state_path, "THAWED");
   OLOG << "process: " << pid << "is now thawed!";
 }

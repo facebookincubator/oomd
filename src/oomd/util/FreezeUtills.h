@@ -1,7 +1,7 @@
 #ifndef FREEZE_UTILL_H
 #define FREEZE_UTILL_H
 
-#define CGROUP_PATH "/sys/fs/cgroup/freezer/my_freezer"
+#define MY_FREEZER_PATH "/sys/fs/cgroup/freezer/my_freezer"
 #define FREEZER_PATH "/sys/fs/cgroup/freezer"
 #define SYSCALL_FAILED -1
 

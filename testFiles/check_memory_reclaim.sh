@@ -1,5 +1,5 @@
 #!/bin/bash
-# clearing swap space
+
 CGROUP_TEST_NAME="test"
 TEST_CGROUP_PATH="/sys/fs/cgroup/test"
 
@@ -9,6 +9,7 @@ if [ ! -d "$TEST_CGROUP_PATH" ]; then
 	mkdir -p "$TEST_CGROUP_PATH"
 fi
 
+# clearing swap space
 sudo swapoff -a
 sudo swapon -a
 sudo ./unfreeze_and_kill.sh
@@ -27,7 +28,7 @@ if [ -z "$PID" ]; then
     exit 1
 fi
 
-sleep 10
+sleep 15
 
 # Add the process to the freezer cgroup
 echo "$PID" | sudo tee /sys/fs/cgroup/freezer/my_freezer/cgroup.procs

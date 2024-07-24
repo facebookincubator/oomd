@@ -59,7 +59,8 @@ int FreezePlugin::tryToKillPids(const std::vector<int>& procs) {
   for (auto pid : procs) {
     handleProcess(pid);
   }
-  freezeCgroup();
+  // std::string pathToCgroup = "/sys/fs/cgroup/test";
+  // memoryReclaimCgroup(pathToCgroup);
   return 0; // TODO: change to count of frozen processes?
 }
 
@@ -89,26 +90,25 @@ void FreezePlugin::handleProcess(int pid) {
   }
   freezeProcess(pid);
 
-  // if (!pageOutMemory(pid)) {
-  //   OLOG << "Failed to page out memory";
-  //   return;
-  // }
+  if (!pageOutMemory(pid)) {
+    OLOG << "Failed to page out memory";
+    return;
+  }
 }
 
 bool FreezePlugin::createFreezeCgroup(void) {
   // Create the cgroup directory
-  if (mkdir(CGROUP_PATH, 0755) && errno != EEXIST) {
+  if (mkdir(MY_FREEZER_PATH, 0755) && errno != EEXIST) {
     logError("create cgroup directory");
     return false;
   }
   OLOG << "Successfully created or found existing cgroup directory: "
-       << CGROUP_PATH;
+       << MY_FREEZER_PATH;
   return true;
 }
 
-void FreezePlugin::freezeCgroup() {
-
-  writeToFile(CGROUP_PATH + std::string("/memory.reclaim"), RECLAIM);
+void FreezePlugin::memoryReclaimCgroup(std::string& pathToCgroup) {
+  writeToFile(pathToCgroup + "/memory.reclaim", RECLAIM);
 }
 
 void FreezePlugin::freezeProcess(int pid) {
@@ -118,14 +118,14 @@ void FreezePlugin::freezeProcess(int pid) {
     return;
   }
   char tasks_path[256];
-  snprintf(tasks_path, sizeof(tasks_path), "%s/tasks", CGROUP_PATH);
+  snprintf(tasks_path, sizeof(tasks_path), "%s/tasks", MY_FREEZER_PATH);
   char pid_str[16];
   snprintf(pid_str, sizeof(pid_str), "%d", pid);
   writeToFile(tasks_path, pid_str);
 
   // Freeze the process
   char state_path[256];
-  snprintf(state_path, sizeof(state_path), "%s/freezer.state", CGROUP_PATH);
+  snprintf(state_path, sizeof(state_path), "%s/freezer.state", MY_FREEZER_PATH);
   writeToFile(state_path, "FROZEN");
   OLOG << "process: " << pid << "is now frozen!";
 }

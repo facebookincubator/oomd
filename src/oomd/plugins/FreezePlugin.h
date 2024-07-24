@@ -44,7 +44,7 @@ class FreezePlugin : public BaseKillPlugin {
   bool pageOutMemory(int pid);
   void createFreezer(void);
   bool swapHasFreeMB(int megabyte);
-  void freezeCgroup();
+  void memoryReclaimCgroup(std::string& pathToCgroup);
 };
 
 } // namespace Oomd

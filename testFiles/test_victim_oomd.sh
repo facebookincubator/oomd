@@ -17,8 +17,9 @@ sudo ./unfreeze_and_kill.sh
 g++ victim.cpp -o victim.out
 sudo ./victim.out 5120 60 &
 
-# run batch job
-sudo cgexec -g memory:/$CGROUP_TEST_NAME stress-ng --vm 1 --vm-bytes 70% --timeout 5m
+# # run batch job
+# sudo cgexec -g memory:/$CGROUP_TEST_NAME stress-ng --vm 1 --vm-bytes 70% --timeout 5m
+sudo cgexec -g memory:/$CGROUP_TEST_NAME stress-ng --brk 1 --task 1 --timeout 5m
 
 
 PID=$!
