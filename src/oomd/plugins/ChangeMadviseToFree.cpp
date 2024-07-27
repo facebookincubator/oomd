@@ -64,8 +64,9 @@ Engine::PluginRet ChangeMadviseToFree::run(OomdContext& ctx) {
   OLOG << "Successfully changed the indicator to 0.";
 
   if (msync(indicator, SHM_SIZE, MS_SYNC) == -1) {
-    munmap(indicator, SHM_SIZE) logError("Error syncing shared memory");
-    close(shm_fd)
+    munmap(indicator, SHM_SIZE);
+    logError("Error syncing shared memory");
+    close(shm_fd);
   }
   // Unmap and close the shared memory object
   munmap(indicator, SHM_SIZE);

@@ -52,6 +52,30 @@
             , {
                 "name": "change_madvise_to_free"
             }]
+        },
+        {
+            "name": "test throttle",
+            "detectors": [
+                [
+                    "memory above 40% for 1 second",
+                    {
+                        "name": "memory_above",
+                        "args": {
+                            "cgroup": "throttle",
+                            "threshold": "40%",
+                            "duration": "1"
+                        }
+                    }
+                ]
+            ],
+            "actions": [
+                {
+                    "name": "throttle",
+                    "args": {
+                        "cgroup": "throttle"
+                    }
+                }
+            ]
         }
     ]
 }

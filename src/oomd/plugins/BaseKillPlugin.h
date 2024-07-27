@@ -97,6 +97,7 @@ class BaseKillPlugin : public Engine::BasePlugin {
    * "recursive" is set, the children of the highest-ranked cgroup from the last
    * iteration.
    */
+  std::unordered_set<CgroupPath> cgroups_;
   virtual std::vector<OomdContext::ConstCgroupContextRef> rankForKilling(
       OomdContext& ctx,
       const std::vector<OomdContext::ConstCgroupContextRef>& cgroups) = 0;
@@ -242,7 +243,7 @@ class BaseKillPlugin : public Engine::BasePlugin {
   };
   KillResult resumeFromPrekillHook(OomdContext& ctx);
 
-  std::unordered_set<CgroupPath> cgroups_;
+  
   bool recursive_{false};
   std::optional<int> postActionDelay_{std::nullopt};
   bool dry_{false};
