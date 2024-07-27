@@ -9,62 +9,46 @@
 #include <cstring> // for strerror
 #include <fstream> // for std::ifstream and std::ofstream
 #include <iostream> // for std::cerr and std::cout
+#include <syslog.h>
 
 typedef int (*orig_madvise_t)(void* addr, size_t length, int advice);
 
 extern "C" int madvise(void* addr, size_t length, int advice) {
   static orig_madvise_t orig_madvise = nullptr;
+    openlog("madviseLog", LOG_PID | LOG_CONS, LOG_USER);
 
   // Ensure thread-safe initialization of orig_madvise
   if (orig_madvise == nullptr) {
     orig_madvise = (orig_madvise_t)dlsym(RTLD_NEXT, "madvise");
-    if (!orig_madvise) {
-      std::cerr << "Error locating original madvise: " << dlerror()
-                << std::endl;
-      return -1;
-    }
+    // if (!orig_madvise) {
+    //   if (logFile) logFile << "Error locating original madvise: " <<
+    //   dlerror() << std::endl; return -1;
+    // }
   }
 
-  const char* indicatorFilePath = "/home/guyy/oomd/testFiles/indicator";
-  int fd = open(indicatorFilePath, O_RDONLY);
-  if (fd == -1) {
-    std::cerr
-        << "Could not open indicator file, falling back to original madvise"
-        << ": " << strerror(errno) << std::endl;
+  int shm_fd = shm_open("/indicator_shm", O_RDONLY, 0666);
+  if (shm_fd == -1) {
     return orig_madvise(addr, length, advice);
   }
 
-  // Busy wait until the lock can be acquired
-  while (flock(fd, LOCK_SH) == -1) {
-    usleep(1000); // Sleep for 1ms before trying again
+  volatile int* indicator =
+      static_cast<int*>(mmap(0, sizeof(int), PROT_READ, MAP_SHARED, shm_fd, 0));
+  if (indicator == MAP_FAILED) {
+    close(shm_fd);
+    return orig_madvise(addr, length, advice);
   }
 
-  // Use std::ifstream to read the file's contents
-  std::ifstream file(indicatorFilePath);
-  int indicator;
-  file >> indicator;
-  file.close();
-
-  // Release the lock
-  while (flock(fd, LOCK_UN) == -1) {
-    std::cerr << "Could not unlock indicator file, retrying..." << std::endl;
-    usleep(1000);
+  if (msync((void*)indicator, sizeof(int), MS_SYNC) == -1) {
+    syslog(LOG_INFO, "msync error");
+  }
+  if (*indicator == 1 && advice == MADV_FREE) {
+      syslog(LOG_INFO, "changed advice %d", *indicator);
+      advice = MADV_DONTNEED;
   }
 
-  close(fd);
-
-  if (indicator == 1 && advice == MADV_FREE) {
-    const char* filePath = "/home/guyy/oomd/testFiles/output_madvise.txt";
-    std::ofstream outputFile(filePath, std::ios::out | std::ios::app);
-    if (outputFile) {
-      outputFile << "Changing madvise advice from MADV_FREE to MADV_DONTNEED"
-                 << std::endl;
-      outputFile.close();
-    } else {
-      std::cerr << "Could not open log file for writing" << std::endl;
-    }
-    advice = MADV_DONTNEED;
-  }
+  munmap((void*)indicator, sizeof(int));
+  close(shm_fd);
+  closelog();
 
   return orig_madvise(addr, length, advice);
 }

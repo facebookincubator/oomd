@@ -1,0 +1,1 @@
+od -An -td4 /dev/shm/indicator_shm
