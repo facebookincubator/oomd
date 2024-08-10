@@ -1,0 +1,85 @@
+#!/bin/csh
+
+#PBS -j oe
+#PBS -l select=5:ncpus=28:model=bro
+#PBS -l walltime=2:00:00
+
+if ( $?PBS_O_WORKDIR ) cd $PBS_O_WORKDIR
+
+module purge
+module load my/local
+module load comp-intel/2018.3.222
+module load mpi-hpe/mpt.2.17r13
+
+if ( "$1" == "" ) then
+   set m=bro
+else
+   set m=$1
+endif
+set logfile=npb-run.log
+touch $logfile
+set tmpf=npb.tmp.$$
+
+echo "Date: `date`" >> $logfile
+echo "Host: `hostname`" >> $logfile
+module list >>& $logfile
+echo "" >> $logfile
+
+set cnt=0
+set cntf=0
+set cntp=0
+set cntw=0
+
+setenv NPB_TIMER_FLAG 1
+
+foreach cf (icc_mpt)
+
+set bindir=bin_$cf
+set outdir=${m}_outs_$cf
+if ( ! -e $outdir ) mkdir -p $outdir
+
+foreach c (C)
+foreach np (32 64 128)
+foreach ap (bt cg ep ft is lu mg sp)
+   set pgm=${ap}.${c}.x
+   set pgmx=$bindir/$pgm
+   set case="run $cf/$pgm np=$np"
+   @ cnt++
+   if ( -e $pgmx ) then
+      set outf=$outdir/${ap}.${c}.out.$np
+      touch $outf
+      mpiexec -np $np mbind.x $pgmx >&! $tmpf
+      grep -i ' successful' $tmpf >& /dev/null
+      if ( $status == 0 ) then
+         grep -i warning $tmpf >& /dev/null
+         if ( $status == 0 ) then
+            echo ">*> $case - successful+warning" | tee -a $logfile
+            @ cntw++
+         else
+            echo ">>> $case - successful" | tee -a $logfile
+         endif
+      else
+         echo "*** $case - FAILED" | tee -a $logfile
+         @ cntf++
+      endif
+      cat $tmpf >> $outf
+      \rm $tmpf
+   else
+      echo "... $case - not present" | tee -a $logfile
+      @ cntp++
+   endif
+end
+end
+end
+
+end
+
+echo "" >> $logfile
+echo "Date: `date`" >> $logfile
+echo "Total number of cases: $cnt" | tee -a $logfile
+echo "Total number of warned cases: $cntw" | tee -a $logfile
+echo "Total number of FAILED cases: $cntf" | tee -a $logfile
+echo "Total number of not present cases: $cntp" | tee -a $logfile
+echo "" >> $logfile
+
+

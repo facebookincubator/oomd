@@ -1,0 +1,13 @@
+This directory contains two versions of the BT implementation:
+
+- the standard version that has better cache utilization
+- the "blocking" version that contains codes for better vectorization
+
+For most platforms, the standard version gives reasonable performance. 
+To access the blocking version, use the VERSION=BLK make flag, such as,
+   make CLASS=A VERSION=BLK
+
+Since there is no standard way of performing vectorization, the mileage
+you get from the vector version depends very much on compilers.  Often
+additional compiler directives (or flags) may be necessary for optimal
+results.  The current version is intended to only serve as a baseline.

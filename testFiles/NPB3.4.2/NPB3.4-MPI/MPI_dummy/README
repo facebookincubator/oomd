@@ -1,0 +1,52 @@
+###########################################
+# NAS Parallel Benchmarks 2&3             #
+# MPI/Fortran/C                           #
+# Revision 3.4                            #
+# NASA Ames Research Center               #
+# npb@nas.nasa.gov                        #
+# http://www.nas.nasa.gov/Software/NPB/   #
+###########################################
+
+MPI Dummy Library
+
+
+The MPI dummy library is supplied as a convenience for people who do
+not have an MPI library but would like to try running on one processor
+anyway. The NPB 2.x/3.x benchmarks are designed so that they do not
+actually try to do any message passing when run on one node. The MPI
+dummy library is just that - a set of dummy MPI routines which don't
+do anything, but allow you to link the benchmarks. Actually they do a
+few things, but nothing important. Note that the dummy library is 
+sufficient only for the NPB 2.x/3.x benchmarks. It probably won't be
+useful for anything else because it implements only a handful of
+functions. 
+
+Because the dummy library is just an extra goody, and since we don't
+have an infinite amount of time, it may be a bit trickier to configure
+than the rest of the benchmarks. You need to:
+
+1. Find out how C and Fortran interact on your machine. On most machines, 
+the fortran functon foo(x) is declared in C as foo_(xp) where xp is 
+a pointer, not a value. On IBMs, it's just foo(xp). On Cray C90s, its
+FOO(xp). You can define CRAY or IBM to get these, or you need to
+edit wtime.c if you've got something else. 
+
+2. Edit the Makefile to compile mpi_dummy.f and wtime.c correctly
+for your machine (including -DCRAY or -DIBM if necessary). 
+
+3. The substitute MPI timer gives wall clock time, not CPU time. 
+If you're running on a timeshared machine, you may want to 
+use a CPU timer. Edit the function mpi_wtime() in mpi_dummy.f
+to change this timer. (NOTE: for official benchmark results, 
+ONLY wall clock times are valid. Using a CPU timer is ok 
+if you want to get things running, but don't report any results
+measured with a CPU timer. )
+
+TROUBLESHOOTING
+
+o Compiling or linking of the benchmark aborts because the dummy MPI
+  header file or the dummy MPI library cannot be found.
+  - the file make.dummy in subdirectory config relies on the use
+    of the -I"path" and -L"path" -l"library" constructs to pass
+    information to the compilers and linkers. Edit this file to conform
+    to your system.

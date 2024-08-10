@@ -1,0 +1,55 @@
+#!/bin/csh
+
+#PBS -j oe
+#PBS -l select=1:ncpus=28:model=bro
+#PBS -l walltime=0:30:00
+
+if ( $?PBS_O_WORKDIR ) cd $PBS_O_WORKDIR
+
+module purge
+module load comp-intel/2018.3.222
+module load mpi-hpe/mpt.2.17r13
+
+set logfile=npb-make.log
+touch $logfile
+set outf=npb-make.out
+touch $outf
+
+echo "Date: `date`" >> $logfile
+echo "Host: `hostname`" >> $logfile
+module list >>& $logfile
+echo "" >> $logfile
+
+set cnt=0
+set cntf=0
+
+foreach cf (itc_mpt)
+
+set bindir=bin/bin_$cf
+if ( ! -d $bindir) mkdir -p $bindir
+\cp -f config/NAS.samples/make.def.$cf config/make.def
+make clean >>& $outf
+
+foreach c (C)
+foreach ap (bt cg ep ft is lu mg sp)
+   make $ap CLASS=$c >>& $outf
+   set pgm=${ap}.${c}.x
+   set pgmx=bin/$pgm
+   @ cnt++
+   if ( -e $pgmx ) then
+      \mv $pgmx $bindir
+      echo ">>> make $cf/$pgm - successful" | tee -a $logfile
+   else
+      echo "*** make $cf/$pgm - FAILED" | tee -a $logfile
+      @ cntf++
+   endif
+end
+end
+
+end
+
+echo "" >> $logfile
+echo "Date: `date`" >> $logfile
+echo "Total number of cases: $cnt" | tee -a $logfile
+echo "Total number of FAILED cases: $cntf" | tee -a $logfile
+echo "" >> $logfile

@@ -20,10 +20,11 @@ class ChangeMadviseToDontNeed : public Engine::BasePlugin {
     return new ChangeMadviseToDontNeed();
   }
 
-  ~ChangeMadviseToDontNeed() = default;
+  ~ChangeMadviseToDontNeed();
 
  private:
-  string message_;
+  volatile int* indicator_;
+  int shm_fd_;
 };
 
 } // namespace Oomd

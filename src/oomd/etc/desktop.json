@@ -4,12 +4,12 @@
             "name": "test freezer",
             "detectors": [
                 [
-                    "memory above 40% for 1 second",
+                    "memory above 1% for 1 second",
                     {
                         "name": "memory_above",
                         "args": {
-                            "cgroup": "test",
-                            "threshold": "40%",
+                            "cgroup": "/",
+                            "threshold": "1%",
                             "duration": "1"
                         }
                     }
@@ -17,62 +17,9 @@
             ],
             "actions": [
                 {
-                    "name": "freeze",
+                    "name": "new_freeze",
                     "args": {
-                        "cgroup": "test"
-                    }
-                },
-                {
-                    "name": "unfreeze",
-                    "args": {
-                        "cgroup": "freezer/my_freezer"
-                    }
-                }
-            ]
-        }, 
-        {
-            "name": "test madvise",
-            "detectors": [
-                [
-                    "memory above 70% for 1 second",
-                    {
-                        "name": "memory_above",
-                        "args": {
-                            "cgroup": "test1",
-                            "threshold": "70%",
-                            "duration": "1"
-                        }
-                    }
-                ]
-            ],
-            "actions": [
-                {
-                    "name": "change_madvise_to_dont_need"
-                }
-            , {
-                "name": "change_madvise_to_free"
-            }]
-        },
-        {
-            "name": "test throttle",
-            "detectors": [
-                [
-                    "memory above 40% for 1 second",
-                    {
-                        "name": "memory_above",
-                        "args": {
-                            "cgroup": "throttle",
-                            "threshold": "40%",
-                            "duration": "1"
-                        }
-                    }
-                ]
-            ],
-            "actions": [
-                {
-                    "name": "throttle",
-                    "args": {
-                        "cgroup": "throttle"
+                        "cgroup": "test.slice"
                     }
                 }
             ]

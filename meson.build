@@ -45,6 +45,7 @@ srcs = files('''
     src/oomd/plugins/ThrottleCgroup.cpp
     src/oomd/plugins/ChangeMadviseToDontNeed.cpp
     src/oomd/plugins/ChangeMadviseToFree.cpp
+    src/oomd/plugins/NewFreezePlugin.cpp
     src/oomd/plugins/FreezePlugin.cpp
     src/oomd/plugins/UnfreezePlugin.cpp
     src/oomd/plugins/DummyPrekillHook.cpp

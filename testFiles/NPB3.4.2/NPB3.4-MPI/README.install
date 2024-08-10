@@ -1,0 +1,201 @@
+Some explanations on the MPI implementation of NPB 3.4.2 (NPB3.4-MPI)
+----------------------------------------------------------------------
+
+NPB-MPI is a sample MPI implementation based on NPB2.4 and NPB3.0-SER.
+This implementation contains all eight original benchmarks:
+Seven in Fortran: BT, SP, LU, FT, CG, MG, and EP; one in C: IS,
+as well as the DT benchmark, written in C, introduced in NPB3.2-MPI.
+
+For changes from different versions, see the Changes.log file
+included in the upper directory of this distribution.
+
+This version has been tested, among others, on an SGI Origin3000 and
+an SGI Altix.  For problem reports and suggestions on the implementation, 
+please contact
+
+   NAS Parallel Benchmark Team
+   npb@nas.nasa.gov
+
+
+CAUTION *********************************
+When running the I/O benchmark, one or more data files will be written
+in the directory from which the executable is invoked. They are not
+deleted at the end of the program. A new run will overwrite the old
+file(s). If not enough space is available in the user partition, the
+program will fail. For classes C and D the disk space required is
+3 GB and 135 GB, respectively.
+*****************************************
+
+
+1. Compilation
+
+   NPB3-MPI uses the same directory tree as NPB3-SER (and NPB2.x) does.
+   Before compilation, one needs to check the configuration file
+   'make.def' in the config directory and modify the file if necessary.  
+   If it does not (yet) exist, copy 'make.def.template' or one of the
+   sample files in the NAS.samples subdirectory to 'make.def' and
+   edit the content for site- and machine-specific data.  Some of the
+   flags to be specified in make.def are:
+
+      MPIFC  - MPI Fortran compiler
+      FFLAGS - Fortran compilation flags
+      FLINK  - Fortran linker, usually the same as MPIFC
+      MPICC  - MPI C compiler
+      CFLAGS - C compilation flags
+      CLINK  - C linker, usually the same as MPICC
+
+   Then
+
+       make <benchmark-name> CLASS=<class> [SUBTYPE=<type>] [VERSION=VEC]
+
+   where <benchmark-name>  is "bt", "cg", "dt", "ep", "ft", "is", 
+                              "lu", "mg", or "sp"
+         <class>           is "S", "W", "A", "B", "C", "D", "E", or "F"
+
+   Class F is not defined for IS.
+   Class E or F is not defined for DT.
+
+   The "VERSION=VEC" option is used for selecting the vectorized 
+   versions of BT and LU.
+
+   Only when making the I/O benchmark:
+         <benchmark-name>  is "bt"
+         <class>           as above
+         <type>            is "full", "simple", "fortran", or "epio"
+
+   Three parameters not used in the original BT benchmark are present in
+   the I/O benchmark. Two are set by default in the file BT/bt.f90. 
+   Changing them is optional.
+   One is set in make.def. It must be specified.
+
+   bt.f90: collbuf_nodes: number of processes used to buffer data before
+                        writing to file in the collective buffering mode
+                        (<type> is "full").
+         collbuf_size:  size of buffer (in bytes) per process used in
+                        collective buffering
+
+   make.def: -DFORTRAN_REC_SIZE: Fortran I/O record length in bytes. This
+                        is a system-specific value. It is part of the
+                        definition string of variable CONVERTFLAG. Syntax:
+                        "CONVERTFLAG = -DFORTRAN_REC_SIZE=n", where n is
+                        the record length unit.
+         In 3.4.2, setting FORTRAN_REC_SIZE is no longer needed (<n>=0 as
+         the default signifies auto setting).  However, this variable can 
+         still be used to override the auto setting.
+
+   When <type> is "full" or "simple", the code must be linked with an
+   MPI library that contains the subset of IO routines defined in MPI 2.
+
+
+   Class D or E for IS (Integer Sort) requires a compiler/system that 
+   supports the "long" type in C to be 64-bit.  As examples, the SGI 
+   MIPS compiler for the SGI Origin using the "-64" compilation flag and
+   the Intel compiler for IA64 are known to work.
+
+
+   The above procedure allows you to build one benchmark
+   at a time. To build a whole suite, you can type "make suite"
+   Make will look in file "config/suite.def" for a list of 
+   executables to build. The file contains one line per specification, 
+   with comments preceded by "#". Each line contains the name
+   of a benchmark, the class, and the number of processors, separated
+   by spaces or tabs. config/suite.def.template contains an example
+   of such a file.
+
+
+   The benchmarks have been designed so that they can be run
+   on a single processor without an MPI library. A few "dummy" 
+   MPI routines are still required for linking. For convenience
+   such a library is supplied in the "MPI_dummy" subdirectory of
+   the distribution. It contains an mpif.h and mpi.f include files
+   which must be used as well. The dummy library is built and
+   linked automatically and paths to the include files are defined
+   by inserting the line "include ../config/make.dummy" into the
+   make.def file (see example in make.def.template). Make sure to 
+   read the warnings in the README file in "MPI_dummy".The use of
+   the library is fragile and can produce unexpected errors.
+
+
+   ================================
+   
+   The "RAND" variable in make.def
+   --------------------------------
+   
+   Most of the NPBs use a random number generator. In two of the NPBs (FT
+   and EP) the computation of random numbers is included in the timed
+   part of the calculation, and it is important that the random number
+   generator be efficient.  The default random number generator package
+   provided is called "randi8" and should be used where possible. It has 
+   the following requirements:
+   
+   randi8:
+     1. Uses integer(8) arithmetic. Compiler must support integer(8)
+     2. Uses the Fortran 90 IAND intrinsic. Compiler must support IAND.
+     3. Assumes overflow bits are discarded by the hardware. In particular, 
+        that the lowest 46 bits of a*b are always correct, even if the 
+        result a*b is larger than 2^64. 
+   
+   Since randi8 may not work on all machines, we supply the following
+   alternatives:
+   
+   randi8_safe
+     1. Uses integer(8) arithmetic
+     2. Uses the Fortran 90 IBITS intrinsic. 
+     3. Does not make any assumptions about overflow. Should always
+        work correctly if compiler supports integer(8) and IBITS. 
+   
+   randdp
+     1. Uses double precision arithmetic (to simulate integer(8) operations). 
+        Should work with any system with support for 64-bit floating
+        point arithmetic.      
+   
+   randdpvec
+     1. Similar to randdp but written to be easier to vectorize. 
+   
+   
+2. Execution
+
+   The executable is named <benchmark-name>.<class>.x[.<suffix>],
+   where <suffix> is "fortran_io", "mpi_io_simple",  "ep_io", or 
+                     "mpi_io_full"
+   The executable is placed in the bin subdirectory (or in the directory 
+   BINDIR specified in make.def, if you've defined it). The method for 
+   running the MPI program depends on your local system. As an example of
+   running the BT benchmark Class C, the command might be:
+
+      % mpiexec -np 16 bin/bt.C.x
+
+   Different benchmark has different requirement for process count,
+   as listed below:
+
+      BT, SP         - a square number of processes (1, 4, 9, ...)
+      LU             - 2D (n1 * n2) process grid where n1/2 <= n2 <= n1
+      CG, FT, IS, MG - a power-of-two number of processes (1, 2, 4, ...)
+      EP, DT         - no special requirement
+
+   The required process count is checked at runtime. By default, a run
+   will abort if the process count requirement is not met.  However,
+   if the environment variable NPB_NPROCS_STRICT is set to one of:
+
+      0, off, no, false
+
+   the run will continue using the largest possible process count that
+   does not exceed the requested process count.  Any excessed ranks
+   will be marked as inactive with a warning message.
+
+   For IS and DT, there is a minimal process count for a given class
+   of problem size.
+
+   When any of the I/O benchmarks is run (non-empty subtype), one or 
+   more output files are created, and placed in the directory from which
+   the program was started. These are not removed automatically, and 
+   will be overwritten the next time an IO benchmark is run.
+
+   To enable additional timers in several benchmarks at runtime, set
+   the environment variable NPB_TIMER_FLAG to one of:
+
+      1, on, yes, true
+
+   before executing a benchmark.  The previous method of creating a dummy 
+   file "timer.flag" in the working directory to enable timers is still 
+   supported, but not recommended.

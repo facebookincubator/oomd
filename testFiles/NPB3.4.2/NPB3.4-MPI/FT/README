@@ -1,0 +1,5 @@
+This code implements the time integration of a three-dimensional
+partial differential equation using the Fast Fourier Transform.
+Some of the dimension statements are not F77 conforming and will
+not work using the g77 compiler. All dimension statements,
+however, are legal F90.

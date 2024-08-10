@@ -1,0 +1,5 @@
+echo '   ========================================='
+echo '   =      NAS Parallel Benchmarks 3.4      ='
+echo '   =      MPI/Fortran/C                    ='
+echo '   ========================================='
+echo ''

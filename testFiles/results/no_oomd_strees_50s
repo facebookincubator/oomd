@@ -1,0 +1,246 @@
+
+
+ NAS Parallel Benchmarks 3.4 -- IS Benchmark
+
+ Size:  134217728  (class C)
+ Iterations:   100
+ Total number of processes:  4
+
+   iteration
+        1
+        2
+        3
+        4
+        5
+        6
+        7
+        8
+        9
+        10
+        11
+        12
+        13
+        14
+        15
+        16
+        17
+        18
+        19
+        20
+        21
+        22
+        23
+        24
+        25
+        26
+        27
+        28
+        29
+        30
+        31
+        32
+        33
+        34
+        35
+        36
+        37
+        38
+        39
+        40
+        41
+        42
+        43
+        44
+        45
+        46
+        47
+        48
+        49
+Failed partial verification: iteration 49, processor 0, test key 1, key rank 883036
+Failed partial verification: iteration 49, processor 0, test key 2, key rank 266338
+        50
+Failed partial verification: iteration 50, processor 0, test key 1, key rank 883037
+Failed partial verification: iteration 50, processor 0, test key 2, key rank 266339
+        51
+Failed partial verification: iteration 51, processor 0, test key 1, key rank 883038
+Failed partial verification: iteration 51, processor 0, test key 2, key rank 266340
+        52
+Failed partial verification: iteration 52, processor 0, test key 1, key rank 883039
+Failed partial verification: iteration 52, processor 0, test key 2, key rank 266341
+        53
+Failed partial verification: iteration 53, processor 0, test key 1, key rank 883040
+Failed partial verification: iteration 53, processor 0, test key 2, key rank 266342
+        54
+Failed partial verification: iteration 54, processor 0, test key 1, key rank 883041
+Failed partial verification: iteration 54, processor 0, test key 2, key rank 266343
+        55
+Failed partial verification: iteration 55, processor 0, test key 1, key rank 883042
+Failed partial verification: iteration 55, processor 0, test key 2, key rank 266344
+        56
+Failed partial verification: iteration 56, processor 0, test key 1, key rank 883043
+Failed partial verification: iteration 56, processor 0, test key 2, key rank 266345
+        57
+Failed partial verification: iteration 57, processor 0, test key 1, key rank 883044
+Failed partial verification: iteration 57, processor 0, test key 2, key rank 266346
+        58
+Failed partial verification: iteration 58, processor 0, test key 1, key rank 883045
+Failed partial verification: iteration 58, processor 0, test key 2, key rank 266347
+        59
+Failed partial verification: iteration 59, processor 0, test key 1, key rank 883046
+Failed partial verification: iteration 59, processor 0, test key 2, key rank 266348
+        60
+Failed partial verification: iteration 60, processor 0, test key 1, key rank 883047
+Failed partial verification: iteration 60, processor 0, test key 2, key rank 266349
+        61
+Failed partial verification: iteration 61, processor 0, test key 1, key rank 883048
+Failed partial verification: iteration 61, processor 0, test key 2, key rank 266350
+        62
+Failed partial verification: iteration 62, processor 0, test key 1, key rank 883049
+Failed partial verification: iteration 62, processor 0, test key 2, key rank 266351
+        63
+Failed partial verification: iteration 63, processor 0, test key 1, key rank 883050
+Failed partial verification: iteration 63, processor 0, test key 2, key rank 266352
+        64
+Failed partial verification: iteration 64, processor 0, test key 1, key rank 883051
+Failed partial verification: iteration 64, processor 0, test key 2, key rank 266353
+        65
+Failed partial verification: iteration 65, processor 0, test key 1, key rank 883052
+Failed partial verification: iteration 65, processor 0, test key 2, key rank 266354
+        66
+Failed partial verification: iteration 66, processor 0, test key 1, key rank 883053
+Failed partial verification: iteration 66, processor 0, test key 2, key rank 266355
+        67
+Failed partial verification: iteration 67, processor 0, test key 1, key rank 883054
+Failed partial verification: iteration 67, processor 0, test key 2, key rank 266356
+        68
+Failed partial verification: iteration 68, processor 0, test key 1, key rank 883055
+Failed partial verification: iteration 68, processor 0, test key 2, key rank 266357
+        69
+Failed partial verification: iteration 69, processor 0, test key 1, key rank 883056
+Failed partial verification: iteration 69, processor 0, test key 2, key rank 266358
+        70
+Failed partial verification: iteration 70, processor 0, test key 1, key rank 883057
+Failed partial verification: iteration 70, processor 0, test key 2, key rank 266359
+        71
+Failed partial verification: iteration 71, processor 0, test key 1, key rank 883058
+Failed partial verification: iteration 71, processor 0, test key 2, key rank 266360
+        72
+Failed partial verification: iteration 72, processor 0, test key 1, key rank 883059
+Failed partial verification: iteration 72, processor 0, test key 2, key rank 266361
+        73
+Failed partial verification: iteration 73, processor 0, test key 1, key rank 883060
+Failed partial verification: iteration 73, processor 0, test key 2, key rank 266362
+        74
+Failed partial verification: iteration 74, processor 0, test key 1, key rank 883061
+Failed partial verification: iteration 74, processor 0, test key 2, key rank 266363
+        75
+Failed partial verification: iteration 75, processor 0, test key 1, key rank 883062
+Failed partial verification: iteration 75, processor 0, test key 2, key rank 266364
+        76
+Failed partial verification: iteration 76, processor 0, test key 1, key rank 883063
+Failed partial verification: iteration 76, processor 0, test key 2, key rank 266365
+        77
+Failed partial verification: iteration 77, processor 0, test key 1, key rank 883064
+Failed partial verification: iteration 77, processor 0, test key 2, key rank 266366
+        78
+Failed partial verification: iteration 78, processor 0, test key 1, key rank 883065
+Failed partial verification: iteration 78, processor 0, test key 2, key rank 266367
+        79
+Failed partial verification: iteration 79, processor 0, test key 1, key rank 883066
+Failed partial verification: iteration 79, processor 0, test key 2, key rank 266368
+        80
+Failed partial verification: iteration 80, processor 0, test key 1, key rank 883067
+Failed partial verification: iteration 80, processor 0, test key 2, key rank 266369
+        81
+Failed partial verification: iteration 81, processor 0, test key 1, key rank 883068
+Failed partial verification: iteration 81, processor 0, test key 2, key rank 266370
+        82
+Failed partial verification: iteration 82, processor 0, test key 1, key rank 883069
+Failed partial verification: iteration 82, processor 0, test key 2, key rank 266371
+        83
+Failed partial verification: iteration 83, processor 0, test key 1, key rank 883070
+Failed partial verification: iteration 83, processor 0, test key 2, key rank 266372
+        84
+Failed partial verification: iteration 84, processor 0, test key 1, key rank 883071
+Failed partial verification: iteration 84, processor 0, test key 2, key rank 266373
+        85
+Failed partial verification: iteration 85, processor 0, test key 1, key rank 883072
+Failed partial verification: iteration 85, processor 0, test key 2, key rank 266374
+        86
+Failed partial verification: iteration 86, processor 0, test key 1, key rank 883073
+Failed partial verification: iteration 86, processor 0, test key 2, key rank 266375
+        87
+Failed partial verification: iteration 87, processor 0, test key 1, key rank 883074
+Failed partial verification: iteration 87, processor 0, test key 2, key rank 266376
+        88
+Failed partial verification: iteration 88, processor 0, test key 1, key rank 883075
+Failed partial verification: iteration 88, processor 0, test key 2, key rank 266377
+        89
+Failed partial verification: iteration 89, processor 0, test key 1, key rank 883076
+Failed partial verification: iteration 89, processor 0, test key 2, key rank 266378
+        90
+Failed partial verification: iteration 90, processor 0, test key 1, key rank 883077
+Failed partial verification: iteration 90, processor 0, test key 2, key rank 266379
+        91
+Failed partial verification: iteration 91, processor 0, test key 1, key rank 883078
+Failed partial verification: iteration 91, processor 0, test key 2, key rank 266380
+        92
+Failed partial verification: iteration 92, processor 0, test key 1, key rank 883079
+Failed partial verification: iteration 92, processor 0, test key 2, key rank 266381
+        93
+Failed partial verification: iteration 93, processor 0, test key 1, key rank 883080
+Failed partial verification: iteration 93, processor 0, test key 2, key rank 266382
+        94
+Failed partial verification: iteration 94, processor 0, test key 1, key rank 883081
+Failed partial verification: iteration 94, processor 0, test key 2, key rank 266383
+        95
+Failed partial verification: iteration 95, processor 0, test key 1, key rank 883082
+Failed partial verification: iteration 95, processor 0, test key 2, key rank 266384
+        96
+Failed partial verification: iteration 96, processor 0, test key 1, key rank 883083
+Failed partial verification: iteration 96, processor 0, test key 2, key rank 266385
+        97
+Failed partial verification: iteration 97, processor 0, test key 1, key rank 883084
+Failed partial verification: iteration 97, processor 0, test key 2, key rank 266386
+        98
+Failed partial verification: iteration 98, processor 0, test key 1, key rank 883085
+Failed partial verification: iteration 98, processor 0, test key 2, key rank 266387
+        99
+Failed partial verification: iteration 99, processor 0, test key 1, key rank 883086
+Failed partial verification: iteration 99, processor 0, test key 2, key rank 266388
+        100
+Failed partial verification: iteration 100, processor 0, test key 1, key rank 883087
+Failed partial verification: iteration 100, processor 0, test key 2, key rank 266389
+Failed partial verification: iteration 100, processor 3, test key 3, key rank 133997496
+Failed partial verification: iteration 100, processor 3, test key 4, key rank 133525796
+
+
+ IS Benchmark Completed
+ Class           =                        C
+ Size            =                134217728
+ Iterations      =                      100
+ Time in seconds =                    65.76
+ Total processes =                        4
+ Active processes=                        4
+ Mop/s total     =                   204.11
+ Mop/s/process   =                    51.03
+ Operation type  =              keys ranked
+ Verification    =             UNSUCCESSFUL
+ Version         =                    3.4.2
+ Compile date    =              27 Jul 2024
+
+ Compile options:
+    MPICC        = mpicc
+    CLINK        = $(MPICC)
+    CMPI_LIB     = (none)
+    CMPI_INC     = (none)
+    CFLAGS       = -O3
+    CLINKFLAGS   = $(CFLAGS)
+
+
+ Please send feedbacks and/or the results of this run to:
+
+ NPB Development Team
+ npb@nas.nasa.gov
+
+

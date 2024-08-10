@@ -1,0 +1,4 @@
+ 8 = top level
+ 256 256 256 = nx ny nz
+ 20 = nit
+ 0 0 0 0 0 0 0 0 = debug_vec

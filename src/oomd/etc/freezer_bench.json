@@ -1,0 +1,34 @@
+{
+    "rulesets": [
+        {
+            "name": "test freezer",
+            "detectors": [
+                [
+                    "memory above 25% for 1 second",
+                    {
+                        "name": "memory_above",
+                        "args": {
+                            "cgroup": "/bench",
+                            "threshold": "25%",
+                            "duration": "1"
+                        }
+                    }
+                ]
+            ],
+            "actions": [
+                {
+                    "name": "freeze",
+                    "args": {
+                        "cgroup": "/bench/nas"
+                    }
+                },
+                {
+                    "name": "unfreeze",
+                    "args": {
+                        "cgroup": "freezer/my_freezer"
+                    }
+                }
+            ]
+        }
+    ]
+}

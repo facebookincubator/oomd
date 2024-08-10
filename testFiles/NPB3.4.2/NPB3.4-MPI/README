@@ -1,0 +1,72 @@
+The MPI implementation of NPB 3.4.2 (NPB3.4-MPI)
+--------------------------------------------------
+
+For problem reports and suggestions on the implementation, 
+please contact:
+
+   NAS Parallel Benchmark Team
+   npb@nas.nasa.gov
+
+   http://www.nas.nasa.gov/Software/NPB
+
+
+This directory contains the MPI implementation of the NAS
+Parallel Benchmarks, Version 3.4.2 (NPB3.4-MPI).  A brief
+summary of the new features introduced in this version is
+given below.
+
+For changes from different versions, see the Changes.log file
+included in the upper directory of this distribution.
+
+For explanation of compilation and running of the benchmarks,
+please refer to README.install.  For a special note on DT, please
+see the README file in the DT subdirectory.
+
+
+New features in NPB3.4-MPI of NPB 3.4.2:
+  * New verification scheme for EP
+
+  * Add back the VEC versions of BT and LU, accessible by "VERSION=VEC"
+
+  * Fixed a bug in the BT-IO benchmark that can cause integer overflow
+    in CLASS=D or larger problems.  Setting FORTRAN_REC_SIZE in make.def
+    is no longer required.
+
+
+New features in NPB3.4-MPI of NPB 3.4.1:
+  * Changed Fortran sources from fixed form to free form
+
+  * Fix inconsistency in enforcing process count requirements.
+    The enforcement of process count can be turned off by setting 
+    the environment variable NPB_NPROCS_STRICT to (0, off, no, false).
+
+  * Changed the reference of "INTEGER*8" to "INTEGER(8)" in randi8.f
+
+
+New features in NPB3.4-MPI:
+  * NPB3.4-MPI added the class E problem size for IS, and the class F
+    problem size for BT, LU, SP, CG, EP, FT, and MG.
+
+  * Version 3.4 uses the dynamic memory allocation feature in
+    Fortran 90 so that separate compilations for different process
+    counts are no longer necessary.  The number of processes is solely
+    determined and checked at runtime.
+
+  * The version uses Fortran modules to define global data (to replace 
+    common blocks) and Fortran 2003 IEEE arithmetic function to catch
+    the NaN condition during verification.
+
+    The version requires a compiler that supports features available
+    in Fortran 90 and 2003. Because of these changes, the MPIF77 flag 
+    in make.def is renamed to MPIFC.
+
+  * The environment variable NPB_TIMER_FLAG is now used to enable 
+    additional timers.
+
+  * The vector codes for the BT and LU benchmarks have been removed
+    due to the fact that these implementations were not portable and
+    successful vectorization highly depends on the compiler used.
+
+  * Potential performance improvement of the LU benchmark as a result of 
+    reduced memory usage for working arrays in the solver.
+

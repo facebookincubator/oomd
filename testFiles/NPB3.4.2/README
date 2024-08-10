@@ -1,0 +1,173 @@
+NAS Parallel Benchmarks Version 3.4.2 (NPB3.4.2)
+--------------------------------------------------
+
+  NAS Parallel Benchmarks Team
+  NASA Ames Research Center
+  Moffett Field, CA   94035-1000
+
+  E-mail:  npb@nas.nasa.gov                                      
+  Fax:     (650) 604-3957                                        
+  http://www.nas.nasa.gov/Software/NPB/
+
+
+================================================
+INSTALLATION
+
+  For documentation on installing and running the NAS Parallel
+  Benchmarks, refer to subdirectory README files.
+
+
+================================================
+BACKGROUND
+
+  Information on NPB 3.4.2, including the technical reports, the          
+  original specifications, source code, results and information        
+  on how to submit new results, is available at:                       
+
+     http://www.nas.nasa.gov/Software/NPB/                              
+
+
+================================================
+Summary of New Features and Improvements
+ (Details are given in Changes.log.)
+
+
+ in NPB3.4.2 from NPB3.4.1:
+
+  - new verification scheme for EP
+
+  - MPI version
+    * add back the VEC versions of BT and LU
+
+    * fixed a bug in the BT-IO benchmark that can cause integer overflow
+      in CLASS=D or larger problems.  Setting FORTRAN_REC_SIZE in make.def
+      is no longer required.
+
+
+ in NPB3.4.1 from NPB3.4:
+
+  - changed Fortran sources from fixed form to free form
+
+  - MPI version
+    * fixed an inconsistency in enforcing process count requirement
+
+  - OMP version
+    * fixed the report of Fortran compiler flag
+
+    * The blocking factor for FT can now be set via make option
+
+
+ in NPB3.4 from NPB3.3.1:
+
+  - General changes applied to both MPI and OMP versions
+      * Added the class E problem size for IS, and the class F problem 
+        size for BT, LU, SP, CG, EP, FT, and MG.
+
+      * Use Fortran modules and allocatable arrays to define and
+        manage global data (to replace common blocks) and Fortran 2003 
+        IEEE arithmetic function to catch the NaN condition during 
+        verification.
+
+      * The environment variable NPB_TIMER_FLAG is now used to enable 
+        additional timers.
+
+      * Make flag change: from MPIF77 or F77 to MPIFC or FC.
+
+  - MPI version improvement
+      * MPI codes use Fortran 90 dynamic memory allocation for space 
+        allocation to simplify compilation process.  The number of 
+        processes is solely determined and checked at runtime.
+
+      * Performance improvement of the LU benchmark.
+
+  - OMP version improvement
+      * Improved loop-level parallelism with the use of the COLLAPSE
+        clause
+
+      * Included the "blocking" version for the BT and SP benchmarks
+
+      * Included the "doacross" version for the LU benchmark
+
+  - Removed the serial version - use the OpenMP version instead
+
+
+ in NPB3.3.1 from NPB3.3:
+
+  - Bug fixes for:
+      MPI/FT - non-portable way of broadcasting input parameters
+      {OMP,SER}/DC - access to out-of-bound array elements
+      {OMP,SER}/UA - use of uninitialized array
+
+  - Code clean up in MPI/LU: avoid using MPI_ANY_SOURCE and delete
+      unused codes
+
+  - Additional timers are included in the MPI version
+
+  - Executables produced for OMP and SER now use ".x" as an extension
+
+
+ in NPB3.3 from NPB3.2.1:
+
+  - Introduction of the Class E problem in seven of the benchmarks
+    (BT, SP, LU, CG, MG, FT, and EP) to stress larger size parallel 
+    computers.
+
+  - Class D added to the IS benchmark in all three implementations.
+
+  - Enable the Bucket sort option for OMP/IS.
+
+  - Introduction of the "twiddle" array in the OpenMP FT benchmark
+    to improve performance
+
+  - Array padding in MPI/SP was adjusted to improve performance
+
+  - Merge the vector codes for the BT and LU benchmarks into this
+    release.
+
+  - The hyperplane version of LU (LU-HP) is no longer included 
+    in the distribution.  Download NPB3.2.1 if needed.
+
+
+ in NPB3.2.1 from NPB3.2:
+
+  - A number of bug fixes for the MPI versions of {FT, LU, MG, BT} and 
+    the OpenMP version of LU
+
+  - Improvements on the OpenMP versions of {EP, IS, UA}
+    (see *OMP/UA/README for a special note on UA)
+
+
+ in NPB3.2 from NPB3.1:
+
+  - Serial DC was converted to C from C++ (only classes S, W, A and B
+    are available)
+
+  - OpenMP version of DC was added (only classes S, W, A and B
+    are available)
+
+  - Inclusion of the new DT benchmark (MPI)
+
+
+ in NPB3.1 from NPB3.0 & NPB2.4:
+
+  - MPI, OpenMP, and Serial versions are now merged into one package
+
+  - Inclusion of the Class D problem in both serial and OpenMP versions
+
+  - Inclusion of the new UA benchmark (Serial & OpenMP)
+
+  - Inclusion of "LU-HP" in the OpenMP version
+
+  - Inclusion of the new DC benchmark (Serial)
+
+  - Use of relative errors for verification in both CG and MG
+
+  - Change in problem parameters for MG Class W
+
+
+The NPB IO benchmark is part of NPB3.3-MPI.  Check the README file
+in that subdirectory for additional information.
+
+The Java and HPF implementations are not included in this distribution.
+Please use the NPB3.0 distribution.
+

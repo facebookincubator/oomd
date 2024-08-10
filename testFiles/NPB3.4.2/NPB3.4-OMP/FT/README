@@ -1,0 +1,5 @@
+This code implements the time integration of a three-dimensional
+partial differential equation using the Fast Fourier Transform.
+
+The code uses Fortran 90 module to specify data fields. So, a compiler
+supports Fortran 90 is required.

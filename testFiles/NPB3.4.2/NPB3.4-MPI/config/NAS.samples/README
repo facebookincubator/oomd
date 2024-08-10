@@ -1,0 +1,7 @@
+This directory contains examples of make.def files that were used 
+by the NPB team in testing the benchmarks on different platforms. 
+They can be used as starting points for make.def files for your 
+own platform, but you may need to taylor them for best performance 
+on your installation. A clean template can be found in directory 
+`config'.
+Some examples of suite.def files are also provided.

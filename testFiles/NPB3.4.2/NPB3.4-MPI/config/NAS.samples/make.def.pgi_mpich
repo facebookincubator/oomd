@@ -1,0 +1,162 @@
+#---------------------------------------------------------------------------
+#
+#                SITE- AND/OR PLATFORM-SPECIFIC DEFINITIONS. 
+#
+#---------------------------------------------------------------------------
+
+#---------------------------------------------------------------------------
+# Items in this file will need to be changed for each platform.
+#---------------------------------------------------------------------------
+
+#---------------------------------------------------------------------------
+# Parallel Fortran:
+#
+# For CG, EP, FT, MG, LU, SP and BT, which are in Fortran, the following must 
+# be defined:
+#
+# MPIFC      - Fortran compiler
+# FFLAGS     - Fortran compilation arguments
+# FMPI_INC   - any -I arguments required for compiling MPI/Fortran 
+# FLINK      - Fortran linker
+# FLINKFLAGS - Fortran linker arguments
+# FMPI_LIB   - any -L and -l arguments required for linking MPI/Fortran 
+# 
+# compilations are done with $(MPIFC) $(FMPI_INC) $(FFLAGS) or
+#                            $(MPIFC) $(FFLAGS)
+# linking is done with       $(FLINK) $(FMPI_LIB) $(FLINKFLAGS)
+#---------------------------------------------------------------------------
+
+#---------------------------------------------------------------------------
+# This is the fortran compiler used for MPI programs
+#---------------------------------------------------------------------------
+MPIFC = mpif90
+# This links MPI fortran programs; usually the same as ${MPIFC}
+FLINK	= $(MPIFC)
+
+#---------------------------------------------------------------------------
+# These macros are passed to the linker to help link with MPI correctly
+#---------------------------------------------------------------------------
+FMPI_LIB  = 
+
+#---------------------------------------------------------------------------
+# These macros are passed to the compiler to help find 'mpif.h'
+#---------------------------------------------------------------------------
+FMPI_INC = 
+
+#---------------------------------------------------------------------------
+# Global *compile time* flags for Fortran programs
+#---------------------------------------------------------------------------
+FFLAGS	= -fastsse
+
+#---------------------------------------------------------------------------
+# Global *link time* flags. Flags for increasing maximum executable 
+# size usually go here. 
+#---------------------------------------------------------------------------
+FLINKFLAGS = $(FFLAGS)
+
+
+#---------------------------------------------------------------------------
+# Parallel C:
+#
+# For IS, which is in C, the following must be defined:
+#
+# MPICC      - C compiler 
+# CFLAGS     - C compilation arguments
+# CMPI_INC   - any -I arguments required for compiling MPI/C 
+# CLINK      - C linker
+# CLINKFLAGS - C linker flags
+# CMPI_LIB   - any -L and -l arguments required for linking MPI/C 
+#
+# compilations are done with $(MPICC) $(CMPI_INC) $(CFLAGS) or
+#                            $(MPICC) $(CFLAGS)
+# linking is done with       $(CLINK) $(CMPI_LIB) $(CLINKFLAGS)
+#---------------------------------------------------------------------------
+
+#---------------------------------------------------------------------------
+# This is the C compiler used for MPI programs
+#---------------------------------------------------------------------------
+MPICC = mpicc
+# This links MPI C programs; usually the same as ${MPICC}
+CLINK	= $(MPICC)
+
+#---------------------------------------------------------------------------
+# These macros are passed to the linker to help link with MPI correctly
+#---------------------------------------------------------------------------
+CMPI_LIB  = 
+
+#---------------------------------------------------------------------------
+# These macros are passed to the compiler to help find 'mpi.h'
+#---------------------------------------------------------------------------
+CMPI_INC = 
+
+#---------------------------------------------------------------------------
+# Global *compile time* flags for C programs
+#---------------------------------------------------------------------------
+CFLAGS	= -fastsse
+
+#---------------------------------------------------------------------------
+# Global *link time* flags. Flags for increasing maximum executable 
+# size usually go here. 
+#---------------------------------------------------------------------------
+CLINKFLAGS = $(CFLAGS)
+
+
+#---------------------------------------------------------------------------
+# MPI dummy library:
+#
+# Uncomment if you want to use the MPI dummy library supplied by NAS instead 
+# of the true message-passing library. The include file redefines several of
+# the above macros. It also invokes make in subdirectory MPI_dummy. Make 
+# sure that no spaces or tabs precede include.
+#---------------------------------------------------------------------------
+# include ../config/make.dummy
+
+
+#---------------------------------------------------------------------------
+# Utilities C:
+#
+# This is the C compiler used to compile C utilities.  Flags required by 
+# this compiler go here also; typically there are few flags required; hence 
+# there are no separate macros provided for such flags.
+#---------------------------------------------------------------------------
+CC	= pgcc -g
+
+
+#---------------------------------------------------------------------------
+# Destination of executables, relative to subdirs of the main directory. . 
+#---------------------------------------------------------------------------
+BINDIR	= ../bin
+
+
+#---------------------------------------------------------------------------
+# Some machines (e.g. Crays) have 128-bit DOUBLE PRECISION numbers, which
+# is twice the precision required for the NPB suite. A compiler flag 
+# (e.g. -dp) can usually be used to change DOUBLE PRECISION variables to
+# 64 bits, but the MPI library may continue to send 128 bits. Short of
+# recompiling MPI, the solution is to use MPI_REAL to send these 64-bit
+# numbers, and MPI_COMPLEX to send their complex counterparts. Uncomment
+# the following line to enable this substitution. 
+# 
+# NOTE: IF THE I/O BENCHMARK IS BEING BUILT, WE USE CONVERTFLAG TO
+#       SPECIFIY THE FORTRAN RECORD LENGTH UNIT. IT IS A SYSTEM-SPECIFIC
+#       VALUE (USUALLY 1 OR 4). UNCOMMENT THE SECOND LINE AND SUBSTITUTE
+#       THE CORRECT VALUE FOR "length".
+#       IF BOTH 128-BIT DOUBLE PRECISION NUMBERS AND I/O ARE TO BE ENABLED,
+#       UNCOMMENT THE THIRD LINE AND SUBSTITUTE THE CORRECT VALUE FOR
+#       "length"
+#---------------------------------------------------------------------------
+# CONVERTFLAG	= -DCONVERTDOUBLE
+CONVERTFLAG	= -DFORTRAN_REC_SIZE=1
+# CONVERTFLAG	= -DCONVERTDOUBLE -DFORTRAN_REC_SIZE=length
+
+
+#---------------------------------------------------------------------------
+# The variable RAND controls which random number generator 
+# is used. It is described in detail in README.install. 
+# Use "randi8" unless there is a reason to use another one. 
+# Other allowed values are "randi8_safe", "randdp" and "randdpvec"
+#---------------------------------------------------------------------------
+RAND   = randi8
+# The following is highly reliable but may be slow:
+# RAND   = randdp
+

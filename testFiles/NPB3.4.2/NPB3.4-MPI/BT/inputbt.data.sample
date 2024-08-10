@@ -1,0 +1,5 @@
+200       number of time steps
+0.0008d0  dt for class A = 0.0008d0. class B = 0.0003d0  class C = 0.0001d0
+64 64 64
+5 0        write interval (optional read interval) for BTIO
+0 1000000  number of nodes in collective buffering and buffer size for BTIO

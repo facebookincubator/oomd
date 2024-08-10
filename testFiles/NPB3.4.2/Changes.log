@@ -1,0 +1,564 @@
+###########################################
+# Modification History of NPB3.x          #
+# ------------------------------          #
+#   NPB development team                  #
+#   NASA Ames Research Center             #
+#   npb@nas.nasa.gov                      #
+#   http://www.nas.nasa.gov/Software/NPB/ #
+###########################################
+
+
+------------------------------------------------------
+Changes in NPB3.4.2
+      ( NPB3.4-MPI, NPB3.4-OMP )
+------------------------------------------------------
+[20-Jul-20]
+
+This is a bug-fix release with following changes.
+
+  o Verification change for the EP benchmark (NPB-MPI and NPB-OMP)
+    - No. of Gaussian pairs is now part of the verification to broaden
+      the coverage
+
+    - Due to numeric sensitivity in subtracting two close numbers,
+      the verification of (SX,SY) could fail for the Class F problem
+      for the given threthold (1.d-8).  A new scheme has been implemented
+      to use the absolute values of (X,Y) in calculating (SX,SY) to mitigate
+      the sensitivity.  There is no change in the number of operations, but
+      the verification values have been regenerated.
+
+  o Change in NPB-MPI
+    - add back the VEC versions of BT and LU and make them available via
+      make option "VERSION=vec"
+
+    - minor format fix in common/print_results.f90
+
+    - fixed a bug in the BT-IO benchmark that can cause integer overflow
+      in CLASS=D or larger problems.  Setting FORTRAN_REC_SIZE in make.def
+      is no longer required.
+
+
+------------------------------------------------------
+Changes in NPB3.4.1
+      ( NPB3.4-MPI, NPB3.4-OMP )
+------------------------------------------------------
+[15-Feb-20]
+
+This is a minor release with following changes.
+
+  o Changed Fortran sources from fixed form to free form
+
+  o Change in the NPB-MPI version
+     - Fixed an inconsistency in enforcing process count requirement in
+       different benchmarks.  The environment variable NPB_NPROCS_STRICT
+       can be used to turn off the enforcement.
+
+  o Change in the NPB-OMP version
+     - Fixed the report of Fortran compiler flag (F77 -> FC).
+
+     - The blocking factor for FT can now be set via make option
+       "VERSION=blk<n>"
+
+
+------------------------------------------------------
+Changes in NPB3.4
+      ( NPB3.4-MPI, NPB3.4-OMP )
+------------------------------------------------------
+[13-May-18]
+
+1. General
+
+ - The serial version of NPBs (NPB-SER) is no longer included in
+   the distribution.  The same functionality can be achieved by
+   the OpenMP version compiled with OpenMP disabled.
+
+ - Version 3.4 uses Fortran modules and allocatable arrays to define 
+   and manage global data (to replace common blocks), and Fortran 2003 
+   IEEE arithmetic function to catch the NaN condition during verification. .
+
+   So, the version requires a compiler that supports these features.
+   Examples of a few compilers that are known to work:
+      Intel compiler v12+, GCC v5+, PGI v10+.
+
+ - The environment variable NPB_TIMER_FLAG is now used to enable 
+   additional timers.  This method supersedes the use of the file
+   "timer.flag" in the working directory.
+
+ - The MPIF77 or F77 flag in make.def is renamed to MPIFC or FC to match
+   with the fact that a Fortran 90 or newer compiler is required.
+
+2. MPI version
+
+ - NPB3.4-MPI added the class E problem size for IS, and the class F
+   problem size for BT, LU, SP, CG, EP, FT, and MG.
+
+ - Version 3.4 uses the dynamic memory allocation feature
+   in Fortran 90 so that separate compilations for different
+   process counts are no longer necessary.  The number of processes
+   is solely determined and checked at runtime.
+
+ - The LU benchmark improvement:
+      * Reduced memory usage for working arrays (a,b,c,d) in the solver.
+        This could improve performance in some cases.
+
+      * Relaxed the number of processes allowed.  For example, the square
+        number of processes (3x3=9) is now allowed.
+
+ - The vector codes for the BT and LU benchmarks have been removed
+   due to the fact that these implementations were not portable and
+   successful vectorization highly depends on the compiler used.
+
+3. OMP version
+
+ - Added the class E problem size for IS, and the class F problem 
+   size for BT, LU, SP, CG, EP, FT, and MG.
+
+ - Improved loop-level parallelism with the use of the OpenMP
+   COLLAPSE clause available since OpenMP 3.0.  This version 
+   requires an OpenMP compiler that supports this feature.
+
+ - Changes specific to LU:
+      * The thread synchronization in the pipelined version of LU was
+        changed to use ATOMIC read/write available from OpenMP 3.0.
+
+      * Re-introduced the hyperplane implementation of LU in the 
+        distribution, which is accessible via the VERSION=HP make
+        option during compilation.
+
+      * Included a third version of LU that uses the DOACROSS feature 
+        of OpenMP 4.0.  This version requires an OpenMP compiler that 
+        supports this feature.
+
+ - Changes specific to BT and SP:
+      * Data access in RHS has been improved for better performance.
+
+      * Included a version with blocking factor in the solver to
+        improve cache performance. This version can be selected via 
+        the VERSION=BLK make option during compilation and supersedes 
+        the "vector" version that was introduced in version 3.3.
+
+ - Changes specific to UA:
+      * Included a version that uses array reduction for atomic updates.
+        This version is selectable via the VERSION=rd make option 
+        during compilation.
+
+
+------------------------------------------------------
+Changes in NPB3.3.1
+      (NPB3.3-SER, NPB3.3-OMP, NPB3.3-MPI )
+------------------------------------------------------
+[17-Feb-09]
+
+This is a bug fixing release of NPB3.3.
+
+1. All versions
+
+ - sys/setparams.c: fixed a problem in dealing with quoted (") flags
+   from make.def when producing npbparams.h for C.
+
+ - CG: ensure 'implicit none' used in all subroutines.
+
+2. MPI version
+
+ - Additional timers can be used for profiling purpose, similar
+   to those already included in the OMP and SER versions.
+
+ - LU:
+   * code clean up (suggested by Rob Van der Wijngaart)
+      > avoid using MPI_ANY_SOURCE in exchange_*.f, which might 
+        alter performance in some cases.
+      > delete references to sethyper and 'icomm*', which are 
+        no longer used since NPB2.2.
+   * change the low-bound limit on the sub-domain size in subdomain.f
+     from 4 to 3 in order to increase allowable process counts.
+   * allow number of processes other than power of two.
+
+ - FT: fix a non-portable way of broadcasting input parameters
+      (pointed out by Art Lazanoff)
+
+ - BT: include 'btio_cleanup' as part of the I/O timing
+
+3. OMP and SER versions
+
+ - DC: fix access to out-of-bound array elements in adc.c
+      Reported by Per Larsen of Denmark <pl@imm.dtu.dk>
+
+ - UA: fix the use of uninitialized array 'sje' in mortar_vertex() by
+      adding "call nr_init[_omp](sje,4*6*nelt,0)" in the main program.
+
+ - MG, UA: include additional timers for profiling purpose.
+
+ - Executables now use ".x" as a name extension
+
+
+------------------------------------------------------
+Changes in NPB3.3
+      (NPB3.3-SER, NPB3.3-OMP, NPB3.3-MPI )
+------------------------------------------------------
+[02-Aug-07]
+
+1. New and improvements
+
+ - The Class E problem has been introduced in seven of the benchmarks
+   (BT, SP, LU, CG, MG, FT, and EP) in all three implementations.
+
+ - The Class D problem has been added to the IS benchmark in all 
+   three implementations.  It requires the compiler support of 
+   64-bit "long" type in C.  The MPI version of IS now allows runs 
+   up to 1024 processes.
+
+ - The Bucket Sort option (USE_BUCKETS) has been added to
+   the OpenMP version of IS and made as the default.
+
+ - Introduced the "twiddle" array in the OpenMP FT benchmark,
+   which has been used in the MPI and SER versions and seems 
+   to improve performance for larger problem sizes.
+
+ - Merged vector codes for the BT and LU benchmarks into
+   the release.
+
+ - Updates to BTIO (MPI/BT with IO subtypes):
+    * added I/O stats (I/O timing, data size written, I/O data rate)
+    * added an option for interleaving reads between writes through
+      the inputbt.data file.  Although the data file size would be
+      smaller as a result, the total amount of data written is still
+      the same.
+
+ - Made documents more consistent throughout different versions
+   (README and README.install).
+
+2. Bug fixes
+
+ - MPI/FT: fixed a verification failure for cases where NX/=NY 
+   and the 2D decomposition are used.  The bug occurred at least
+   for (Class D, NPROCS=2048) and (Class B, NPROCS=512).
+
+   fixed an output printing format problem occurred when 
+   the number of processes >= 1000.
+
+ - MPI/SP: fixed a performance regression due to improper
+   padding of array dimensions.
+
+ - MPI/IS: minor fix to support large processor counts (>=512).
+
+ - OMP/UA: fixed a race condition in mason.f, avoided the use 
+   of the LASTPRIVATE directive.
+
+ - OMP/LU: minor fix in data flushing for pipelining.
+
+ - DC: There are a number of fixes -
+   * fixed segmentation fault in both OMP and SER versions
+     caused by accessing zero-length array elements.
+     Reported by Jeff Odom <jodom@cs.umd.edu>.
+
+   * fixed a race in reporting benchmark timing in the OMP version
+
+   * fixed the use of timer in the OMP version, which limited
+     the number of threads to 64.  The number of threads is now
+     lifted to a maximum of MAX_NUMBER_OF_TASKS (=256).
+
+   * made the benchmark output consistent with other NPBs.
+
+ - fixed a use of uninitialized variable in MPI/sys/setparams.c.
+   setparams in all three versions was updated to deal with 
+   make.def that contains carriage-return character ('\r').
+
+ - SER/FT: added 'implicit none' to all missing places.
+
+ - SER/IS: fixed missing variable declarations for the Bucket 
+   Sort option (when USE_BUCKETS is defined).
+
+3. Others
+
+ - The default value for collbuf_nodes in the BT I/O benchmark
+   is now set to 0, indicating no file hints will be used.
+   The setting can be changed by using the "inputbt.data" file.
+
+ - The hyperplane version of LU (LU-HP) is no longer included 
+   in the distribution.
+
+
+------------------------------------------------------
+Changes in NPB3.2.1
+      (NPB3.2-SER, NPB3.2-OMP, NPB3.2-MPI )
+------------------------------------------------------
+[27-Jul-05]
+
+This is a bug fixing release of NPB3.2.
+
+1. MPI version
+  - sys/setparams.c: removed a duplicated statement for writing
+      FT parameters and made invalid SUBTYPE as an error condition.
+      The 'duplicated statement' problem was fixed in NPB3.2 (See 
+      the note below).  However, during the final updating process, 
+      the fix was left out, even though the log file was updated.
+
+  - BT: included SUBTYPE=EPIO in the I/O verification.
+
+  - LU: bcast_inputs.f: fixed wrong data type (dp_type) used for 
+      communicating integers (nx0,ny0,nz0) with the correct type 
+      MPI_INTEGER.
+
+  - MG: fixed a mis-calculation of parameter "nr" in globals.h 
+      that caused run-time failure for NPROCS >= 512 
+      (reported by Donald Ferry of Cray).  Expanded to limit to 
+      131072 processes and added an error checking code.
+
+      The use of MPI_ANY_SOURCE for MPI_Irecv inside subroutine
+      ready() could cause MPI_Wait return a message meant for
+      the wrong k.  The problem is fixed with nbr(axis,-dir,k)
+      in place of MPI_ANY_SOURCE in the call to MPI_Irecv
+      (reported and suggested by Hideo Saito).
+
+2. OpenMP version
+  - EP: use THREADPRIVATE for working array storage. It should not
+      change performance but made some compiler happier.
+
+  - LU: add variable "v" to FLUSH to ensure solution data properly 
+      flushed for pipeline.  This change is needed according to
+      the OpenMP 2.5 standard.
+
+  - IS: reorganized working buffers so that the count for key 
+      population could be more naturally performed.  This version
+      uses much less stack space.
+
+  - UA: implemented atomic updates with locks in order to achieve
+      better scaling on those systems that have an inefficient
+      (or even buggy) ATOMIC implementation.
+
+
+------------------------------------------------------
+Changes in NPB3.2
+      (NPB3.2-SER, NPB3.2-OMP, NPB3.2-MPI )
+------------------------------------------------------
+[07-Jan-05]
+
+1. DC version in NPB3.2-SER was converted to C from C++
+   (CLASSES S, W, A, B). 
+   sys/setparams.c file was changed appropriately.
+   
+2. OpenMP version of DC was added to NPB3.2-OMP.
+
+3. Data Traffic benchmark DT was added to NPB3.2-MPI.
+
+[24-May-04]
+
+All versions:
+   - use assumed shape "(*)" declaration in CG
+   - fixed the use of an uninitialized variable in EP
+   - avoid using integer array for assumed shape dimensions in FT
+   - fix in UA:
+      * fix the reference to file "inputua.data"
+      * avoid overindexing
+      * avoid reference to out-of-bound array elements
+      * change declaration "real*8" to "double precision"
+
+OMP version:
+   - explicitly added "SCHEDULE(STATIC)" to the OMP version
+   - use the "omp_get_wtime()" function for timer if available
+   - removed the call to "getenv" for portability
+   - change in UA:
+      * implemented an alternative approach for atomic update
+
+MPI version:
+   - removed a duplicated declaration in FT (from setparams.c)
+   - removed a duplicated declaration in BT/full_mpiio.f
+   - fixed a missing "NPROCS=" in sys/suite.awk
+
+
+------------------------------------------------------
+Changes in NPB3.1
+      (NPB3.1-MPI, NPB3.1-SER, NPB3.1-OMP)
+------------------------------------------------------
+[22-Apr-04] NPB3.1-MPI
+
+Merged the NPB2.4-MPI branch into NPB3.1 with the following changes.
+
+  - Optimized the BT memory usage.  The new version is about 1/3 of
+    the memory used in NPB2.x.
+  - Fixed a bug in CG for running on a large number of processes
+  - Redefined the Class W size in MG so that the verification value
+    will not be too small. (see below for SER & OMP versions)
+  - Use the relative errors for verification in both CG and MG
+  - Fixed a race in 'make suite'
+
+[08-Apr-04] NPB3.1-SER and NPB3.1-OMP
+
+The following changes are made in both NPB3.1-SER and NPB3.1-OMP.
+
+1. Added the Class D problem
+   - verification values taken from NPB2.4-MPI
+   - modified variables to fit in large problem
+
+2. Improvements for LU and LU-HP:
+   - reduced the memory usage for the 'tv' variable in LU and LU-HP
+   - a more efficient memory access for variables "a,b,c,d" in LU-HP
+   - a dummy iteration added before the time step loop for consistency
+     with other benchmarks
+
+3. Improvement and fix in MG:
+   - verification in MG now uses the relative error
+     (instead of the absolute error).  This will avoid incorrect
+     verification for small reference values.
+   - redefined the class size for Class W so that the verification
+     value will not be too small.
+     In version 3.0 and earlier: 64x64x64,    40 iters
+     New size in version 3.1   : 128x128x128, 4 iters
+   - fixed incorrect verification values for Classes A and C.
+
+4. CG:
+   - use relative error for verification
+   - clean up codes for matrix initialization (makea).
+     The new code uses about 1/2 memory of the previous version.
+
+5. Fixed makefile related issues
+   - fixed dependence on make.def for files in common.
+   - fixed a race in 'make suite'
+   - added 'LU-HP' as a valid benchmark option in makefiles
+
+The following changes are made in NPB3.1-OMP.
+
+1. Included a hyper-plane version of the LU benchmark: LU-HP
+   - based on the serial version
+
+2. The dummy 'omp_lib_dum' library is no longer used for compilation 
+   without an OpenMP compiler. Conditional compilation is now used.
+
+3. Parallelization of the initialization part of MG.
+   It improves the turn-around time quite a bit for the larger
+   classes, such as class D.
+
+4. Parallelize codes for matrix initialization (makea) in CG.
+   The new code uses about 2/3 memory of the version in NPB3.0-OMP.
+
+5. Code clean up in SP so that the structure is more consistent
+   with the serial version.
+
+
+
+------------------------------------------------------
+Changes in NPB2.x MPI version
+------------------------------------------------------
+
+Changes in 2.4.1
+- fixed error in BT/Makefile (replaced "==" with "=")
+- added stub function accumulate_norms in BT/btio.f
+- changed type of Class B verification constants in BT/verify.f from 
+  single to double precision
+                                                       
+Changes in 2.4
+- Added I/O benchmark (subtype of BT).
+- Added Class D for all benchmarks except IS.
+- Reduced size of tabulated exponentials in FT.
+- Made minor changes to FT to prevent integer overflow for class D on 
+  systems with 32-bit integers. FT class D will not run on small 
+  numbers of processors anymore.
+
+
+------------------------------------------------------
+Changes in non-MPI versions of NPB (previously PBN3.0)
+      (NPB3.0-SER, NPB3.0-HPF, NPB3.0-OMP, NPB3.0-JAV)
+------------------------------------------------------
+
+[01-Mar-99] Initial Beta Release.
+
+[06-Apr-99] Based on report from Charles Grassl and Ramesh Menon (SGI).
+
+   1. NPB-SER, FT: file auxfnct.f -
+      lines 74 and 75 were interchanged:
+
+      double complex u0(d1+1,d2,d3), tmp(maxdim)
+      integer d1,d2,d3
+
+   2. NPB-OMP: The OpenMP standards requires reduction variable be scalars,
+      thus, changes made to remove the use of array variable for reduction.
+      Relevant modifications in EP, CG, LU, SP, and BT
+
+   3. NPB-OMP: Remove compiler warnings of "Referenced scalar variables 
+      use defaults" by declaring explicitly as shared.
+      Relevant modifications in FT, LU, and BT
+
+   4. NPB-OMP, README.openmp: Explicitly spell out the requirement of
+      the static scheduling (setenv OMP_SCHEDULE "static").
+
+
+[05-Oct-99] NPB3.0-non-MPI Beta Release (02)
+
+General change to all (NPB-SER, NPB-HPF, NPB-OMP) -
+   1. Update header information for all benchmarks.
+
+   2. Allow continuation lines in 'make.def' (modification done
+      in sys/setparams.c).
+
+Change made in NPB-OMP -
+   1. 'print_results' now prints Number-Of-Threads and Mflops/s/thread.
+      The printed number is the activated threads during the run, which
+      may not be the same as what's requested.
+
+   2. A initial data touch loop for array A is added in CG.
+
+   3. 'CRITICAL' section is used for reduction with array.
+      Relevant changes in EP, CG, LU, SP, and BT.
+
+   4. Reconfigure 'make.def' such that 'omp_lib_dum' can be activated
+      from the file for no directive compilation.
+
+   5. The "!$OMP END DO" seems needed before "!$OMP MASTER" in rhs.f
+      for both BT and SP for some f90 compilers.
+
+   6. "SCHEDULE(STATIC)" are used for the pipeline in LU to ensure
+      compliance with the OMP standard.
+
+Change made in NPB-HPF -
+   1. 'print_results' now prints Number-Of-Processes and Mflops/s/process.
+
+   2. Use more consistent output format (via print_results).
+
+   3. More consistent makefiles (via config/make.def).
+
+
+[04-Apr-00] NPB3.0-non-MPI Beta Release (03)
+
+Change made in NPB-OMP -
+   1. The OpenMP-C version of IS has been added, including more timers.
+
+   2. 'cprint_results' includes Number-Of-Threads and Mflops/s/thread.
+
+Change made in NPB-SER -
+   1. More timers included in IS.
+
+NPB-JAV has been included in NPB3.0-non-MPI.
+
+
+[31-May-01] NPB3.0-non-MPI Beta Release (04)
+
+Change made in NPB-OMP -
+   1. NPB-OMP/LU: Failure in verification for number of threads greater 
+      than the problem size is now fixed.
+
+   2. If OMP_NUM_THREADS is unset, the printout will report as "unset"
+      instead of "1"
+
+   3. NPB-OMP/IS: Allocating work_buff on the stack seems to cause problem
+      for large problem size (CLASS C).  "work_buff" is now allocated
+      by "malloc" on the heap for CLASS C.
+
+   4. NPB-OMP/IS: Reported by <RaeLyn.Crowell@compaq.com> - potential
+      synchronization problem could arise due to the use of "static"
+      variables inside "randlc()".  Declaration of these static variables
+      are moved out of randlc() and put in the threadprivate directive.
+
+General change to all (NPB-SER, NPB-HPF, NPB-OMP) -
+   1. Cleanup in makefiles
+
+
+[28-Aug-02] The Official NPB3.0 Release
+
+Change made in all -
+   1. Fixed a bogus verification for "NaN".
+
+   2. Name change from "PBN3.0" to "NPB3.0". Updated all the banners.
+
+   3. NPB-SER/FT: use a derived version from NPB2.3-serial.
+
+   4. NPB-HPF/FT: use a consistent printing format.

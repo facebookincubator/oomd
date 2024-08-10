@@ -1,0 +1,58 @@
+PROGRAM  = $(BINDIR)/$(BENCHMARK).$(CLASS).x
+FCOMPILE = $(MPIFC) -c $(FMPI_INC) $(FFLAGS)
+CCOMPILE = $(MPICC) -c $(CMPI_INC) $(CFLAGS)
+
+# Class "U" is used internally by the setparams program to mean
+# "unknown". This means that if you don't specify CLASS=
+# on the command line, you'll get an error. It would be nice
+# to be able to avoid this, but we'd have to get information
+# from the setparams back to the make program, which isn't easy. 
+CLASS=U
+
+default:: ${PROGRAM}
+
+# This makes sure the configuration utility setparams 
+# is up to date. 
+# Note that this must be run every time, which is why the
+# target does not exist and is not created. 
+# If you create a file called "config" you will break things. 
+config:
+	@cd ../sys; ${MAKE} all
+	../sys/setparams ${BENCHMARK} ${CLASS} ${SUBTYPE}
+
+COMMON=../common
+${COMMON}/${RAND}.o: ${COMMON}/${RAND}.f90
+	cd ${COMMON}; ${FCOMPILE} ${RAND}.f90
+${COMMON}/c_randdp.o: ${COMMON}/randdp.c
+	cd ${COMMON}; ${CCOMPILE} -o c_randdp.o randdp.c
+
+${COMMON}/get_active_nprocs.o: ${COMMON}/get_active_nprocs.f90
+	cd ${COMMON}; ${FCOMPILE} get_active_nprocs.f90
+
+${COMMON}/print_results.o: ${COMMON}/print_results.f90
+	cd ${COMMON}; ${FCOMPILE} print_results.f90
+
+${COMMON}/c_print_results.o: ${COMMON}/c_print_results.c
+	cd ${COMMON}; ${CCOMPILE} c_print_results.c
+
+${COMMON}/timers.o: ${COMMON}/timers.f90
+	cd ${COMMON}; ${FCOMPILE} timers.f90
+
+${COMMON}/c_timers.o: ${COMMON}/c_timers.c
+	cd ${COMMON}; ${CCOMPILE} c_timers.c
+
+# Normally setparams updates npbparams.h only if the settings (CLASS)
+# have changed. However, we also want to update if the compile options
+# may have changed (set in ../config/make.def). 
+npbparams.h: ../config/make.def
+	@ echo make.def modified. Rebuilding npbparams.h just in case
+	rm -f npbparams.h
+	../sys/setparams ${BENCHMARK} ${CLASS} ${SUBTYPE}
+
+# So that "make benchmark-name" works
+${BENCHMARK}:  default
+${BENCHMARKU}: default
+
+.SUFFIXES:
+.SUFFIXES: .c .h .f90 .f .o
+

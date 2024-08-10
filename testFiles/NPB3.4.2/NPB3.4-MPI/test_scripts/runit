@@ -1,0 +1,75 @@
+#!/bin/csh
+
+module purge
+module load local
+module load comp/intel-12.0.4
+#module load comp/gcc-5.3
+module load comp/gcc-8.2
+module load mpi-gcc/mpich-3.1
+
+set logfile=npb-run.log
+touch $logfile
+set tmpf=npb.tmp.$$
+
+echo "Date: `date`" >> $logfile
+echo "Host: `hostname`" >> $logfile
+module list >>& $logfile
+echo "" >> $logfile
+
+set cnt=0
+set cntf=0
+set cntp=0
+set cntw=0
+
+setenv NPB_TIMER_FLAG 1
+
+foreach cf (gcc_mpich)
+
+set bindir=bin_$cf
+set outdir=outs_$cf
+if ( ! -e $outdir ) mkdir -p $outdir
+
+foreach np (4 2)
+foreach c (A)
+foreach ap (bt lu ft mg ep cg is sp)
+   set pgm=${ap}.${c}.x
+   set pgmx=$bindir/$pgm
+   set case="run $cf/$pgm np=$np"
+   @ cnt++
+   if ( -e $pgmx ) then
+      set outf=$outdir/${ap}.${c}.out.$np
+      touch $outf
+      mpiexec -np $np mbind.x $pgmx >&! $tmpf
+      grep -i ' successful' $tmpf >& /dev/null
+      if ( $status == 0 ) then
+         grep -i warning $tmpf >& /dev/null
+         if ( $status == 0 ) then
+            echo ">*> $case - successful+warning" | tee -a $logfile
+            @ cntw++
+         else
+            echo ">>> $case - successful" | tee -a $logfile
+         endif
+      else
+         echo "*** $case - FAILED" | tee -a $logfile
+         @ cntf++
+      endif
+      cat $tmpf >> $outf
+      \rm $tmpf
+   else
+      echo "... $case - not present" | tee -a $logfile
+      @ cntp++
+   endif
+end
+end
+end
+
+end
+
+echo "" >> $logfile
+echo "Date: `date`" >> $logfile
+echo "Total number of cases: $cnt" | tee -a $logfile
+echo "Total number of warned cases: $cntw" | tee -a $logfile
+echo "Total number of FAILED cases: $cntf" | tee -a $logfile
+echo "Total number of not present cases: $cntp" | tee -a $logfile
+echo "" >> $logfile
+

@@ -1,0 +1,24 @@
+c
+c***controls printing of the progress of iterations: ipr    inorm
+                                                      1      250
+c
+c***the maximum no. of pseudo-time steps to be performed: nitmax
+                                                             250
+c
+c***magnitude of the time step: dt 
+                               2.0e+00
+c
+c***relaxation factor for SSOR iterations: omega
+                                            1.2
+c
+c***tolerance levels for steady-state residuals: tolnwt(m),m=1,5
+                             1.0e-08   1.0e-08   1.0e-08  1.0e-08  1.0e-08 
+c
+c***number of grid points in xi and eta and zeta directions: nx   ny   nz
+                                                            64  64  64
+c
+
+
+
+
+

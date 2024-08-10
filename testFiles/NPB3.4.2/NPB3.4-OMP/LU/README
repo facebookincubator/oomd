@@ -1,0 +1,20 @@
+This directory contains the OpenMP version of the LU benchmark.
+The benchmark solves a lower-upper tridiagonal system of equations using 
+the SSOR scheme. The directory includes three approaches in parallelizing
+the SSOR scheme, selectable via the make option VERSION:
+
+   VERSION=          the pipelined version (the default)
+   VERSION=hp        the hyperplane version
+   VERSION=doac      the hyperplane version using OpenMP DOACROSS
+
+Special note on feature requirements:
+   the pipelined version - ATOMIC read/write from OpenMP 3.0
+   the "doac" version - DOACROSS feature from OpenMP 4.0.
+
+To select different approaches, use the option VERSION for make:
+
+   % make CLASS=<class>               # build the pipelined version
+   % make CLASS=<class> VERSION=hp    # build the hyperplane version
+   % make CLASS=<class> VERSION=doac  # build the doacross version
+
+where <class> is one of [S,W,A,B,C,D,E,F].

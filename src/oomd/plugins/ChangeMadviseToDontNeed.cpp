@@ -24,67 +24,47 @@ int ChangeMadviseToDontNeed::init(
     const Engine::PluginArgs& args,
     const PluginConstructionContext& context) {
   // Create shared memory object
-  int shm_fd = shm_open(SHM_NAME, O_CREAT | O_RDWR, 0666);
-  if (shm_fd == -1) {
+  shm_fd_ = shm_open(SHM_NAME, O_CREAT | O_RDWR, 0666);
+  if (shm_fd_ == -1) {
     logError("Error creating shared memory");
     return 1;
   }
 
   // Configure the size of the shared memory object
-  if (ftruncate(shm_fd, SHM_SIZE) == -1) {
+  if (ftruncate(shm_fd_, SHM_SIZE) == -1) {
     logError("Error configuring the size of shared memory");
     return 1;
   }
 
   // Map the shared memory object in memory
-  int* indicator = static_cast<int*>(
-      mmap(0, SHM_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd, 0));
-  if (indicator == MAP_FAILED) {
+  indicator_ = static_cast<int*>(
+      mmap(0, SHM_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd_, 0));
+  if (indicator_ == MAP_FAILED) {
     logError("Error mapping shared memory");
     return 1;
   }
 
   // Initialize the indicator value
-  *indicator = 0;
-
-  // Unmap and close the shared memory object
-  munmap(indicator, SHM_SIZE);
-  close(shm_fd);
+  *indicator_ = 0;
 
   // Success
   return 0;
 }
 
 Engine::PluginRet ChangeMadviseToDontNeed::run(OomdContext& ctx) {
-  // Open the shared memory object
-  int shm_fd = shm_open(SHM_NAME, O_RDWR, 0666);
-  if (shm_fd == -1) {
-    logError("Error opening shared memory");
-    return Engine::PluginRet::STOP;
-  }
-
-  // Map the shared memory object in memory
-  int* indicator = static_cast<int*>(
-      mmap(0, SHM_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd, 0));
-  if (indicator == MAP_FAILED) {
-    logError("Error mapping shared memory");
-    close(shm_fd);
-    return Engine::PluginRet::STOP;
-  }
-
   // Write the indicator value
-  *indicator = 1;
+  *indicator_ = 1;
   OLOG << "Successfully changed the indicator to 1.";
-  
-  if (msync(indicator, SHM_SIZE, MS_SYNC) == -1) {
-    munmap(indicator, SHM_SIZE);
-    logError("Error syncing shared memory");
-    close(shm_fd);
-  }
-  // Unmap and close the shared memory object
-  munmap(indicator, SHM_SIZE);
-  close(shm_fd);
-
   return Engine::PluginRet::CONTINUE;
+}
+
+ChangeMadviseToDontNeed::~ChangeMadviseToDontNeed() {
+  // Unmap and close the shared memory object
+  if (indicator_ != MAP_FAILED) {
+    munmap((void*)indicator_, SHM_SIZE);
+  }
+  if (shm_fd_ != -1) {
+    close(shm_fd_);
+  }
 }
 } // namespace Oomd

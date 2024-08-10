@@ -1,0 +1,83 @@
+1. Compilation
+   DC benchmark uses the same directory tree as NPB3.0 (and NPB2.x) does.
+   Before compilation, one needs to check the configuration file
+   'make.def' in the config directory and modify the file if necessary
+   (an example of make.def provided in DC directory). 
+   Then
+      make dc CLASS=S
+
+   If a compiler complains about type 'int64' already defined, add
+   "-DHAS_INT64" to the CFLAGS list in make.def.
+
+2. OpenMP environment needs to be set before program can be executed.
+   First set the number of the threads:
+   setenv OMP_NUM_THREADS 4
+   Then to fix OpenMP implemantations on some machines:
+   limit stacksize unlimit
+   If running on Altix 
+   setenv KMP_MONITOR_STACKSIZE 50m
+
+3. Run
+   A text file ADC.par is used to set DC parameters when the class 
+   is undefined (U). 
+   The file has 5 lines. The lines with 'key' words attrNum, measuresNum, 
+   and tuplesNum define the number of dimensions, measures,
+   and input tuples respectively. There a special parameter INVERSE_ENDIAN
+   allows us to create data in non-native endian format (INVERSE_ENDIAN=1). 
+   The last parameter(fileName) specifies a DC file set name, including
+   (optionally) a full path to a directory which will contain all
+   DC related files.
+
+   An example of the DC parameter file is as follows:
+
+   attrNum=9
+   measuresNum=1
+   tuplesNum=125000
+   class=U
+   INVERSE_ENDIAN=0
+   fileName=ADC
+   
+   After parameter are set run benchmark
+   bin/dc.S 100000000 DC/ADC.par 
+   where 100000000 is the memory size allowed to be allocated for 
+   the in-core data.
+   
+4. DC processing modes
+   The DC benchmark can be run in two modes (in-core and out-of-core).
+   A desirable mode should be set before compilation in the file adc.h.
+   If a flag IN_CORE is on, the benchmark will calculate all views in main
+   memory. In this case we can use an additional flag VIEW_FILE_OUTPUT to
+   allow writing all views into disk files.
+                
+   If the flag IN_CORE is off, the DC benchmark will run in a regular mode
+   using disks to store interim and result data which may not fit in main
+   memory.
+
+   _FILE_OFFSET_BITS=64 _LARGEFILE64_SOURCE -are standard compiler flags
+   which allow DC to work with files larger than 2GB. 
+
+   OPTIMIZATION turns on some nonstandard DC optimizations such as obtaining
+   a view by scanning existing views. These optimizations do not always 
+   guarantee reduction in the computing time.
+
+5. Tested architectures:
+   SUN Ultrasparc 60
+   SUNFire 880
+   Origin 2000, 3000, 3800
+   MAC G4 
+   Xeon + Mandrake Linux
+   SGI Altix
+
+6. setparams utility is used for generation of the npbparams.h file only 
+   for compatibility with the existing make facility of NPB. By the same
+   reason CLASS is appended to the DC executable name. It does not limit 
+   the sizes the executable can perform. The class is an input value
+   specified in ADC.par file. Providing ADC.par overrides compiled 
+   defaults in npbparams.h file.
+
+7. Known issues
+   If the benchmark runs out of disk space, a message like
+   "Write error from WriteToFile()" may not be printed. Instead,
+   the benchmark returns with UNSUCCESSFUL verification. In this case 
+   users are advised to check whether the file system is full before 
+   reporting a problem with the benchmark.

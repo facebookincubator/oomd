@@ -1,0 +1,20 @@
+# config/suite.def
+# This file is used to build several benchmarks with a single command. 
+# Typing "make suite" in the main directory will build all the benchmarks
+# specified in this file. 
+# Each line of this file contains a benchmark name and the class.
+# The name is one of "cg", "is", "ep", mg", "ft", "sp",
+#  "bt", "lu", and "ua". 
+# The class is one of "S", "W", "A" through "E" 
+# (except that no class E for IS and UA).
+# No blank lines. 
+# The following example builds sample sizes of all benchmarks. 
+ft	S
+mg	S
+sp	S
+lu	S
+bt	S
+is	S
+ep	S
+cg	S
+ua	S

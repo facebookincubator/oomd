@@ -1,0 +1,87 @@
+The OpenMP implementation of NPB 3.4.2 (NPB3.4-OMP)
+----------------------------------------------------
+
+For problem reports and suggestions on the implementation, 
+please contact:
+
+   NAS Parallel Benchmark Team
+   npb@nas.nasa.gov
+
+
+This directory contains the OpenMP implementation of the NAS
+Parallel Benchmarks, Version 3.4.2 (NPB3.4-OMP).  A brief
+summary of the new features introduced in this version is
+given below.
+
+For changes from different versions, see the Changes.log file
+included in the upper directory of this distribution.
+
+For explanation of compilation and running of the benchmarks,
+please refer to README.install.
+
+
+New features in NPB3.4-OMP of NPB 3.4.2:
+  * New verification scheme for EP
+
+
+New features in NPB3.4-OMP of NPB 3.4.1:
+  * Changed Fortran sources from fixed form to free form
+
+  * The blocking factor for FT can now be set via make option
+    "VERSION=blk<n>"
+
+  * Minor bug fix in reporting Fortran compiler used (F77->FC)
+
+  * Changed the reference of "INTEGER*8" to "INTEGER(8)" in randi8.f
+
+  * The proper data type for CG is set via setparams based problem size
+    so that the [-i8] flag for building Class E or F is no longer required.
+
+
+New features in NPB3.4-OMP:
+  * Added the class E problem size for IS, and the class F problem 
+    size for BT, LU, SP, CG, EP, FT, and MG.
+
+  * Improves loop-level parallelism with the use of the OpenMP
+    COLLAPSE clause available since OpenMP 3.0.  This version 
+    requires an OpenMP compiler that supports this feature.
+
+  * Re-introduced the hyperplane implementation of LU in the 
+    distribution, which is accessible via the VERSION=HP make
+    option during compilation. Included a third version of LU
+    that uses the DOACROSS feature in OpenMP 4.0.  This version
+    requires an OpenMP compiler that supports this feature.
+
+  * Included versions of BT and SP with blocking factor to improve 
+    cache performance, and selectable via the VERSION=BLK make
+    option during compilation. These versions supersede the "vector"
+    version introduced in version 3.3.
+
+  * Included a version of UA that uses array reduction for atomic
+    updates.  This version is selectable via the VERSION=rd make
+    option during compilation.
+
+  * The version uses Fortran modules and allocatable arrays to define 
+    and manage global data (to replace common blocks) and Fortran 2003 
+    IEEE arithmetic function to catch the NaN condition during verification.
+
+    The version requires a compiler that supports features available
+    in Fortran 90 and 2003. Because of these changes, the F77 flag 
+    in make.def is renamed to FC.
+
+  * The environment variable NPB_TIMER_FLAG is now used to enable 
+    additional timers.
+
+
+New features in NPB3.3-OMP:
+   * NPB3.3-OMP introduces a new problem size (class E) to seven of 
+     the benchmarks (BT, SP, LU, CG, MG, FT, and EP). The version 
+     also includes a new problem size (class D) for the IS benchmark, 
+     which was not present in the previous releases.
+
+   * The release is merged with the vector codes for the BT and LU 
+     benchmarks, which can be selected with the VERSION=VEC option 
+     during compilation.  However, successful vectorization highly 
+     depends on the compiler used.  Some changes to compiler directives 
+     for vectorization in the current codes (see *_vec.f files)
+     may be required.

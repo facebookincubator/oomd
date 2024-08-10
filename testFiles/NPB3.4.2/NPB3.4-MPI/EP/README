@@ -1,0 +1,6 @@
+This code implements the random-number generator described in the
+NAS Parallel Benchmark document RNR Technical Report RNR-94-007.
+The code is "embarrassingly" parallel in that no communication is
+required for the generation of the random numbers itself. There is
+no special requirement on the number of processors used for running
+the benchmark.

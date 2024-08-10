@@ -1,0 +1,51 @@
+#!/bin/csh
+
+module purge
+module load comp/intel-12.0.4
+#module load comp/gcc-5.3
+module load comp/gcc-8.2
+module load mpi-gcc/mpich-3.1
+
+set logfile=npb-make.log
+touch $logfile
+set outf=npb-make.out
+touch $outf
+
+echo "Date: `date`" >> $logfile
+echo "Host: `hostname`" >> $logfile
+module list >>& $logfile
+echo "" >> $logfile
+
+set cnt=0
+set cntf=0
+
+foreach cf (gcc_mpich)
+
+set bindir=bin/bin_$cf
+if ( ! -d $bindir) mkdir -p $bindir
+\cp -f config/NAS.samples/make.def.$cf config/make.def
+make clean >>& $outf
+
+foreach c (A)
+foreach ap (bt cg ep ft is lu mg sp)
+   make $ap CLASS=$c >>& $outf
+   set pgm=${ap}.${c}.x
+   set pgmx=bin/$pgm
+   @ cnt++
+   if ( -e $pgmx ) then
+      \mv $pgmx $bindir
+      echo ">>> make $cf/$pgm - successful" | tee -a $logfile
+   else
+      echo "*** make $cf/$pgm - FAILED" | tee -a $logfile
+      @ cntf++
+   endif
+end
+end
+
+end
+
+echo "" >> $logfile
+echo "Date: `date`" >> $logfile
+echo "Total number of cases: $cnt" | tee -a $logfile
+echo "Total number of FAILED cases: $cntf" | tee -a $logfile
+echo "" >> $logfile

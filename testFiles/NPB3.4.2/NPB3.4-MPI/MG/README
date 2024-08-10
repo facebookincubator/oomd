@@ -1,0 +1,138 @@
+Some info about the MG benchmark
+================================
+    
+'mg_demo' demonstrates the capabilities of a very simple multigrid
+solver in computing a three dimensional potential field.  This is
+a simplified multigrid solver in two important respects:
+
+  (1) it solves only a constant coefficient equation,
+  and that only on a uniform cubical grid,
+    
+  (2) it solves only a single equation, representing
+  a scalar field rather than a vector field.
+
+We chose it for its portability and simplicity, and expect that a
+supercomputer which can run it effectively will also be able to
+run more complex multigrid programs at least as well.
+     
+     Eric Barszcz                         Paul Frederickson
+     RIACS
+     NASA Ames Research Center            NASA Ames Research Center
+
+========================================================================
+Running the program:  (Note: also see parameter lm information in the
+                       two sections immediately below this section)
+
+The program may be run with or without an input deck (called "mg.input"). 
+The following describes a few things about the input deck if you want to 
+use one. 
+
+The four lines below are the "mg.input" file required to run a
+problem of total size 256x256x256, for 4 iterations (Class "A"),
+and presumes the use of 8 processors:
+
+   8 = top level
+   256 256 256 = nx ny nz
+   4 = nit
+   0 0 0 0 0 0 0 0 = debug_vec
+
+The first line of input indicates how many levels of multi-grid
+cycle will be applied to a particular subpartition.  Presuming that
+8 processors are solving this problem (recall that the number of 
+processors is specified to MPI as a run parameter, and MPI subsequently
+determines this for the code via an MPI subroutine call), a 2x2x2 
+processor grid is  formed, and thus each partition on a processor is 
+of size 128x128x128.  Therefore, a maximum of 8 multi-grid levels may 
+be used.  These are of size 128,64,32,16,8,4,2,1, with the coarsest 
+level being a single point on a given processor.
+
+
+Next, consider the same size problem but running on 1 processor.  The
+following "mg.input" file is appropriate:
+
+    9 = top level
+    256 256 256 = nx ny nz
+    4 = nit
+    0 0 0 0 0 0 0 0 = debug_vec
+
+Since this processor must solve the full 256x256x256 problem, this
+permits 9 multi-grid levels (256,128,64,32,16,8,4,2,1), resulting in 
+a coarsest multi-grid level of a single point on the processor
+
+
+Next, consider the same size problem but running on 2 processors.  The
+following "mg.input" file is required:
+
+    8 = top level
+    256 256 256 = nx ny nz
+    4 = nit
+    0 0 0 0 0 0 0 0 = debug_vec
+
+The algorithm for partitioning the full grid onto some power of 2 number 
+of processors is to start by splitting the last dimension of the grid
+(z dimension) in 2: the problem is now partitioned onto 2 processors.
+Next the middle dimension (y dimension) is split in 2: the problem is now
+partitioned onto 4 processors.  Next, first dimension (x dimension) is
+split in 2: the problem is now partitioned onto 8 processors.  Next, the
+last dimension (z dimension) is split again in 2: the problem is now
+partitioned onto 16 processors.  This partitioning is repeated until all 
+of the power of 2 processors have been allocated.
+
+Thus to run the above problem on 2 processors, the grid partitioning 
+algorithm will allocate the two processors across the last dimension, 
+creating two partitions each of size 256x256x128. The coarsest level of 
+multi-grid must be a single point surrounded by a cubic number of grid 
+points.  Therefore, each of the two processor partitions will contain 4 
+coarsest multi-grid level points, each surrounded by a cube of grid points 
+of size 128x128x128, indicated by a top level of 8.
+
+
+Next, consider the same size problem but running on 4 processors.  The
+following "mg.input" file is required:
+
+    8 = top level
+    256 256 256 = nx ny nz
+    4 = nit
+    0 0 0 0 0 0 0 0 = debug_vec
+
+The partitioning algorithm will create 4 partitions, each of size
+256x128x128.  Each partition will contain 2 coarsest multi-grid level
+points each surrounded by a cube of grid points of size 128x128x128, 
+indicated by a top level of 8.
+
+
+Next, consider the same size problem but running on 16 processors.  The
+following "mg.input" file is required:
+
+    7 = top level
+    256 256 256 = nx ny nz
+    4 = nit
+    0 0 0 0 0 0 0 0 = debug_vec
+
+On each node a partition of size 128x128x64 will be created.  A maximum
+of 7 multi-grid levels (64,32,16,8,4,2,1) may be used, resulting in each 
+partions containing 4 coarsest multi-grid level points, each surrounded 
+by a cube of grid points of size 64x64x64, indicated by a top level of 7.
+
+
+
+
+Note that non-cubic problem sizes may also be considered:
+
+The four lines below are the "mg.input" file appropriate for running a
+problem of total size 256x512x512, for 20 iterations and presumes the 
+use of 32 processors (note: this is NOT a class C problem):
+
+    8 = top level
+    256 512 512 = nx ny nz
+    20 = nit
+    0 0 0 0 0 0 0 0 = debug_vec
+
+The first line of input indicates how many levels of multi-grid
+cycle will be applied to a particular subpartition.  Presuming that
+32 processors are solving this problem, a 2x4x4 processor grid is
+formed, and thus each partition on a processor is of size 128x128x128.
+Therefore, a maximum of 8 multi-grid levels may be used.  These are of
+size 128,64,32,16,8,4,2,1, with the coarsest level being a single 
+point on a given processor.
+

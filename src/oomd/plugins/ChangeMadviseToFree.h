@@ -20,10 +20,11 @@ class ChangeMadviseToFree : public Engine::BasePlugin {
     return new ChangeMadviseToFree();
   }
 
-  ~ChangeMadviseToFree() = default;
+  ~ChangeMadviseToFree();
 
  private:
-  string message_;
+  int* indicator_;
+  int shm_fd_;
 };
 
 } // namespace Oomd

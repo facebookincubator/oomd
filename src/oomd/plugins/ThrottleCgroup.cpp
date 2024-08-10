@@ -112,6 +112,7 @@ Engine::PluginRet ThrottleCgroup::run(OomdContext& ctx) {
     }
     return Engine::PluginRet::ASYNC_PAUSED;
   }
+  return Engine::PluginRet::CONTINUE;
 };
 
 int ThrottleCgroup::tryToKillPids(const std::vector<int>& procs) {

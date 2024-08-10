@@ -5,6 +5,7 @@
 #include "oomd/util/FreezeUtills.h"
 #include "oomd/util/Util.h"
 
+#include <linux/mman.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <sys/syscall.h>
@@ -22,8 +23,8 @@
 #include <string.h>
 #include <unistd.h>
 #include <cerrno>
-#include "../../../usr/include/x86_64-linux-gnu/sys/stat.h"
-#include "oomd/util/FreezeUtills.h"
+#include <unordered_set>
+#include <vector>
 
 namespace Oomd {
 
@@ -49,11 +50,12 @@ Engine::PluginRet UnfreezePlugin::run(OomdContext& ctx) {
 
   // If free memory is above 70%, return ASYNC_PAUSED
   if (freeMemoryPercentage < 30.0) {
-    OLOG << "Free memory is above 30% (" << freeMemoryPercentage << "%), pausing...";
+    OLOG << "Free memory is above 30% (" << freeMemoryPercentage
+         << "%), pausing...";
     return Engine::PluginRet::ASYNC_PAUSED;
   }
   return BaseKillPlugin::run(ctx);
-};
+}
 
 int UnfreezePlugin::tryToKillPids(const std::vector<int>& procs) {
   for (auto pid : procs) {
@@ -77,7 +79,7 @@ void UnfreezePlugin::ologKillTarget(
     OomdContext& ctx,
     const CgroupContext& target,
     const std::vector<OomdContext::ConstCgroupContextRef>& /* unused */) {
-  OLOG << "Prefeteched memory and unfreezed \""
+  OLOG << "Prefetched memory and unfreezed \""
        << target.cgroup().relativePath();
 }
 
@@ -88,7 +90,7 @@ std::vector<MemoryRegion> UnfreezePlugin::getSwappedRegions(pid_t pid) {
   std::string smapsPath = "/proc/" + std::to_string(pid) + "/smaps";
   std::ifstream smapsFile(smapsPath);
   if (!smapsFile.is_open()) {
-    std::cerr << "Failed to open " << smapsPath << std::endl;
+    logError("Failed to open " + smapsPath);
     return regions;
   }
 
@@ -97,7 +99,6 @@ std::vector<MemoryRegion> UnfreezePlugin::getSwappedRegions(pid_t pid) {
   while (std::getline(smapsFile, line)) {
     try {
       if (line.find("Swap:") != std::string::npos) {
-        // Extract the last token which should be the swap size
         std::istringstream iss(line);
         std::string key, swapSizeStr;
         iss >> key >> swapSizeStr; // "Swap:" and the swap size
@@ -117,9 +118,9 @@ std::vector<MemoryRegion> UnfreezePlugin::getSwappedRegions(pid_t pid) {
         currentRegion.swapSize = 0;
       }
     } catch (const std::invalid_argument& e) {
-      std::cerr << "Invalid argument in line: " << line << std::endl;
+      logError("Invalid argument in line: " + line);
     } catch (const std::out_of_range& e) {
-      std::cerr << "Out of range error in line: " << line << std::endl;
+      logError("Out of range error in line: " + line);
     }
   }
 
@@ -128,10 +129,8 @@ std::vector<MemoryRegion> UnfreezePlugin::getSwappedRegions(pid_t pid) {
 }
 
 void UnfreezePlugin::pageInMemory(int pid) {
-  // Get the swapped memory regions
   std::vector<MemoryRegion> regions = getSwappedRegions(pid);
 
-  // Sort the regions by swap size in descending order
   std::sort(
       regions.begin(),
       regions.end(),
@@ -139,38 +138,36 @@ void UnfreezePlugin::pageInMemory(int pid) {
         return a.swapSize > b.swapSize;
       });
 
-  // Page in the memory regions
   for (const auto& region : regions) {
-    std::string memFilePath = "/proc/" + std::to_string(pid) + "/mem";
-    int memFile = open(memFilePath.c_str(), O_RDONLY);
-    // int memFile = open(memFilePath.c_str(), O_RDONLY);
-
-    if (memFile == SYSCALL_FAILED) {
-      std::cerr << "Failed to open " << memFilePath << ": " << strerror(errno)
-                << std::endl;
+    int pidfd = syscall(SYS_pidfd_open, pid, 0);
+    if (pidfd == -1) {
+      std::ostringstream oss;
+      oss << "Failed to open pidfd for PID " << pid << strerror(errno);
+      logError(oss.str());
       return;
     }
 
     size_t length = region.end - region.start;
-    std::vector<char> buffer(length);
+    struct iovec iov;
+    iov.iov_base = reinterpret_cast<void*>(region.start);
+    iov.iov_len = length;
 
-    if (pread(memFile, buffer.data(), length, region.start) == SYSCALL_FAILED) {
-      std::cerr << "Failed to read memory region " << std::hex << region.start
-                << "-" << region.end << ": " << strerror(errno) << std::endl;
+    int ret = syscall(SYS_process_madvise, pidfd, &iov, 1, MADV_WILLNEED, 0);
+    if (ret == -1) {
+      std::ostringstream oss;
+      oss << "process_madvise failed for region " << std::hex << region.start << "-" << region.end << ": " << strerror(errno);
+      logError(oss.str());
     } else {
-      std::cout << "Memory region " << std::hex << region.start << "-"
-                << region.end << " read successfully." << std::endl;
-      // Process the memory content as needed
+      OLOG << "Memory region " << std::hex << region.start << "-"
+                << region.end << " advised successfully.";
     }
-
-    close(memFile);
+    close(pidfd);
   }
 }
 
 void UnfreezePlugin::unfreezeProcess(int pid) {
-  // Add the process to the cgroup
   if (pid <= 0) {
-    OLOG << "Invalid PID: " << pid;
+    logError("Invalid PID: " + std::to_string(pid));
     return;
   }
 
@@ -180,11 +177,9 @@ void UnfreezePlugin::unfreezeProcess(int pid) {
   snprintf(pid_str, sizeof(pid_str), "%d", pid);
   writeToFile(tasks_path, pid_str);
 
-  // Freeze the process
   char state_path[256];
   snprintf(state_path, sizeof(state_path), "%s/freezer.state", MY_FREEZER_PATH);
   writeToFile(state_path, "THAWED");
-  OLOG << "process: " << pid << "is now thawed!";
 }
 
 } // namespace Oomd

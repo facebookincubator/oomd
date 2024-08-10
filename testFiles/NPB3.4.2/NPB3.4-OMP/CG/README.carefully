@@ -1,0 +1,16 @@
+Note: please observe that in the routine conj_grad three 
+implementations of the sparse matrix-vector multiply have
+been supplied.  The default matrix-vector multiply is not
+loop unrolled.  The alternate implementations are unrolled
+to a depth of 2 and unrolled to a depth of 8.  Please
+experiment with these to find the fastest for your particular
+architecture.  If reporting timing results, any of these three may
+be used without penalty.
+
+Performance examples:
+The non-unrolled version of the multiply is actually (slightly: 
+maybe %5) faster on the sp2-66MHz-WN on 16 nodes than is the 
+unrolled-by-2 version below.   On the Cray t3d, the reverse is true, 
+i.e., the unrolled-by-two version is some 10% faster.  
+The unrolled-by-8 version below is significantly faster
+on the Cray t3d - overall speed of code is 1.5 times faster.

@@ -23,6 +23,31 @@ static const size_t SHM_SIZE = sizeof(int);
 int ChangeMadviseToFree::init(
     const Engine::PluginArgs& args,
     const PluginConstructionContext& context) {
+  // Create and open the shared memory object
+  shm_fd_ = shm_open(SHM_NAME, O_CREAT | O_RDWR, 0666);
+  if (shm_fd_ == -1) {
+    logError("Error creating shared memory");
+    return 1;
+  }
+
+  // Configure the size of the shared memory object
+  if (ftruncate(shm_fd_, SHM_SIZE) == -1) {
+    logError("Error configuring the size of shared memory");
+    return 1;
+  }
+
+  // Map the shared memory object in memory
+  indicator_ = static_cast<int*>(
+      mmap(0, SHM_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd_, 0));
+  if (indicator_ == MAP_FAILED) {
+    logError("Error mapping shared memory");
+    return 1;
+  }
+
+  // Initialize the indicator value
+  *indicator_ = 0;
+
+  // Success
   return 0;
 }
 
@@ -43,35 +68,20 @@ Engine::PluginRet ChangeMadviseToFree::run(OomdContext& ctx) {
     return Engine::PluginRet::ASYNC_PAUSED;
   }
 
-  // Open the shared memory object
-  int shm_fd = shm_open(SHM_NAME, O_RDWR, 0666);
-  if (shm_fd == -1) {
-    logError("Error opening shared memory");
-    return Engine::PluginRet::STOP;
-  }
-
-  // Map the shared memory object in memory
-  int* indicator = static_cast<int*>(
-      mmap(0, SHM_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd, 0));
-  if (indicator == MAP_FAILED) {
-    logError("Error mapping shared memory");
-    close(shm_fd);
-    return Engine::PluginRet::STOP;
-  }
-
   // Write the indicator value
-  *indicator = 0;
+  *indicator_ = 0;
   OLOG << "Successfully changed the indicator to 0.";
 
-  if (msync(indicator, SHM_SIZE, MS_SYNC) == -1) {
-    munmap(indicator, SHM_SIZE);
-    logError("Error syncing shared memory");
-    close(shm_fd);
-  }
-  // Unmap and close the shared memory object
-  munmap(indicator, SHM_SIZE);
-  close(shm_fd);
-
   return Engine::PluginRet::CONTINUE;
+}
+
+ChangeMadviseToFree::~ChangeMadviseToFree() {
+  // Unmap and close the shared memory object
+  if (indicator_ != MAP_FAILED) {
+    munmap(indicator_, SHM_SIZE);
+  }
+  if (shm_fd_ != -1) {
+    close(shm_fd_);
+  }
 }
 } // namespace Oomd

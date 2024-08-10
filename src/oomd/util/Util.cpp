@@ -170,7 +170,7 @@ std::vector<std::string> Util::split(const std::string& line, char delim) {
   std::vector<std::string> ret;
 
   auto emplaceNonEmptySubstr = [&ret, &line](size_t beg, size_t end) {
-    if (size_t len = end - beg) {
+    if (end - beg) {
       ret.emplace_back(line.begin() + beg, line.begin() + end);
     }
   };

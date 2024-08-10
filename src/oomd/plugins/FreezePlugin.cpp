@@ -52,6 +52,7 @@ int FreezePlugin::init(
     const Engine::PluginArgs& args,
     const PluginConstructionContext& context) {
   createFreezer();
+  createFreezeCgroup();
   return BaseKillPlugin::init(args, context);
 }
 
@@ -59,9 +60,10 @@ int FreezePlugin::tryToKillPids(const std::vector<int>& procs) {
   for (auto pid : procs) {
     handleProcess(pid);
   }
-  // std::string pathToCgroup = "/sys/fs/cgroup/test";
-  // memoryReclaimCgroup(pathToCgroup);
-  return 0; // TODO: change to count of frozen processes?
+  std::string pathToCgroup = "/sys/fs/cgroup/test";
+  
+  memoryReclaimCgroup(pathToCgroup);
+  return 0;
 }
 
 std::vector<OomdContext::ConstCgroupContextRef> FreezePlugin::rankForKilling(
@@ -84,16 +86,12 @@ void FreezePlugin::ologKillTarget(
 }
 
 void FreezePlugin::handleProcess(int pid) {
-  if (!createFreezeCgroup()) {
-    OLOG << "Failed to create freeze cgroup";
-    return;
-  }
   freezeProcess(pid);
 
-  if (!pageOutMemory(pid)) {
-    OLOG << "Failed to page out memory";
-    return;
-  }
+  // if (!pageOutMemory(pid)) {
+  //   OLOG << "Failed to page out memory";
+  //   return;
+  // }
 }
 
 bool FreezePlugin::createFreezeCgroup(void) {
@@ -108,7 +106,19 @@ bool FreezePlugin::createFreezeCgroup(void) {
 }
 
 void FreezePlugin::memoryReclaimCgroup(std::string& pathToCgroup) {
-  writeToFile(pathToCgroup + "/memory.reclaim", RECLAIM);
+  // writeToFile(pathToCgroup + "/memory.reclaim", RECLAIM);
+  auto cgroupDirFd = Fs::DirFd::open(pathToCgroup);
+  if(!cgroupDirFd) {
+    logError("open " + pathToCgroup);
+  }
+
+  auto toReclaim = Fs::readMemcurrentAt(cgroupDirFd.value());
+
+  if(!cgroupDirFd) {
+    logError("read " + pathToCgroup + "/memory.current");
+  }
+
+  Fs::writeMemReclaimAt(cgroupDirFd.value() ,toReclaim.value(), std::nullopt);
 }
 
 void FreezePlugin::freezeProcess(int pid) {
@@ -170,9 +180,9 @@ bool FreezePlugin::pageOutMemory(int pid) {
             SYSCALL_FAILED) {
           logError("process_madvise");
         } else {
-          for (const auto& iov : iovecs) {
-            // OLOG << "Memory at " << iov.iov_base << " was paged out";
-          }
+          // for (const auto& iov : iovecs) {
+          //    OLOG << "Memory at " << iov.iov_base << " was paged out";
+          // }
           iovecs.clear();
         }
       }
@@ -183,11 +193,12 @@ bool FreezePlugin::pageOutMemory(int pid) {
               pidfd, iovecs.data(), iovecs.size(), MADV_PAGEOUT, 0) ==
           SYSCALL_FAILED) {
         logError("process_madvise");
-      } else {
-        for (const auto& iov : iovecs) {
-          // OLOG << "Memory at " << iov.iov_base << " was paged out";
-        }
-      }
+      } 
+      // else {
+      //   for (const auto& iov : iovecs) {
+      //     OLOG << "Memory at " << iov.iov_base << " was paged out";
+      //   }
+      // }
     }
 
     close(pidfd);

@@ -1,0 +1,13 @@
+#!/bin/csh
+
+set sdir=$0:h
+set wdir=$sdir/..
+
+cd $wdir
+echo "Testing ... $sdir/comp"
+$sdir/comp
+
+cd bin
+echo "Testing ... $sdir/runit"
+../$sdir/runit
+

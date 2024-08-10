@@ -1,0 +1,49 @@
+Please note:  The IS code in this directory known as is.c is derived
+from the serial version of the NPB2.3 parallel IS.  Although for
+the serial version it is completely unnecessary to have any notion 
+of buckets at all in order to correctly solve the specified NPB1 IS 
+benchmark problem, the buckets seem to be very beneficial in
+parallel versions, including the OpenMP version.
+
+Default setting is
+
+    #define USE_BUCKETS
+
+i.e., buckets turned on!  To switch it off, simply comment out
+the line.
+
+The OpenMP version uses the "dynamic" schedule to improve load
+balance during key sorting.  Sometime, the use of the "static,1"
+(or cyclic) schedule may yield better performance.  Both options
+are acceptable.  The default setting is "dynamic".  To choose
+the cyclic option, define the line:
+
+    #define SCHED_CYCLIC
+
+
+Here some notes inherited from NPB2.3-serial:
+Nevertheless, it is possible to turn on bucketing via #ifdef'ed code.
+Then, the sort first rearranges the keys into buckets by range (the
+bucket's ranges evenly subdivide the total key range), and then
+ranks the contents of each bucket.  This results in key transfers
+first into contiguous elements of buckets.  This is relatively
+cache efficient, since there are a relatively small number of buckets.
+Then the key counting that occurs accesses contiguous array elements.
+Once again, accesses reuse cache lines efficiently.  Finally, the 
+accumulation of key multiplicities (the key count) which gives the key
+ranks also reuses cache line efficiently.
+
+But using the buckets more than doubles the amount of computational
+work that must be performed.  On machines with very large caches, the 
+aforementioned benefits may not exist, and the extra processing looks
+expensive. These examples apply to both CLASS A and B problems:
+
+    SP2-66MhzWN:  50% speedup with buckets                          
+    SGI Indy5000: 50% slowdown with buckets             
+    SGI O2000:   400% slowdown with buckets (Wow!)                
+
+It is a conjecture that cache access is the underlying mechanism 
+causing these variations.
+
+Note: If reporting timing results, either of these modes may be used 
+      without penalty.

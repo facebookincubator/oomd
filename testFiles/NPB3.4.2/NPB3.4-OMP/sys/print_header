@@ -1,0 +1,6 @@
+echo '   ============================================'
+echo '   =      NAS PARALLEL BENCHMARKS 3.4         ='
+echo '   =      OpenMP Versions                     ='
+echo '   =      Fortran/C                           ='
+echo '   ============================================'
+echo ''

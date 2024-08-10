@@ -7,6 +7,9 @@ if [ ! -d "$TEST_CGROUP_PATH" ]; then
     sudo mkdir -p "$TEST_CGROUP_PATH"
 fi
 
+#Compile the dynamic library
+g++ -shared -fPIC -o override_madvise.so override_madvise.cpp -ldl -lstdc++
+
 # Set appropriate permissions for the cgroup directory
 sudo chown $(whoami):$(whoami) "$TEST_CGROUP_PATH"
 sudo chmod 755 "$TEST_CGROUP_PATH"

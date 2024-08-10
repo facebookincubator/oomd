@@ -1,0 +1,17 @@
+
+This code implements a 3D Multi-partition algorithm for the solution 
+of the uncoupled systems of linear equations resulting from 
+Beam-Warming approximate factorization.  Consequently, the program 
+must be run on a square number of processors.  The included file 
+"npbparams.h" contains a parameter statement which sets "maxcells" 
+and "problem_size".  The parameter maxcells must be set to the 
+square root of the number of processors.  For example, if running 
+on 25 processors, then set max_cells=5.  The standard problem sizes 
+are problem_size=64 for class A, 102 for class B, and 162 for class C.
+
+The number of time steps and the time step size dt are set in the 
+npbparams.h but may be overridden in the input deck "inputsp.data".  
+The number of time steps is 400 for all three 
+standard problems, and the appropriate time step sizes "dt" are 
+0.0015d0 for class A, 0.001d0 for class B, and 0.00067 for class C.  
+

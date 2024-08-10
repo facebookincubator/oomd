@@ -1,0 +1,190 @@
+Some explanations on the OpenMP implementation of NPB 3.4.2 (NPB3.4-OMP)
+------------------------------------------------------------------------
+
+NPB-OMP is a sample OpenMP implementation based on NPB3-SER,
+the sequential implementation of the NAS Parallel Benchmarks.
+This implementation (NPB3.4-OMP) contains all ten benchmarks:
+eight in Fortran: BT, SP, LU, FT, CG, MG, EP, and UA; 
+two in C: IS and DC.
+
+For changes from different versions, see the Changes.log file
+included in the upper directory of this distribution.
+
+This version has been tested, among others, on SGI Origin3000 and
+SGI Altix.  For problem reports and suggestions on the implementation, 
+please contact
+
+   NAS Parallel Benchmark Team
+   npb@nas.nasa.gov
+
+
+1. Compilation
+
+   NPB3.x-OMP uses the same directory tree as NPB3.x-SER (and NPB2.x) does.
+   Before compilation, one needs to check the configuration file
+   'make.def' in the config directory and modify the file if necessary. 
+   If it does not yet exist, copy 'make.def.template' or one of the
+   sample files in the NAS.samples subdirectory to 'make.def' and
+   edit the content for site- and machine-specific data.  Some of the
+   flags to be specified in make.def are:
+
+      FC     - Fortran compiler
+      FFLAGS - Fortran compilation flags
+      FLINK  - Fortran linker, usually the same as FC
+      CC     - C compiler
+      CFLAGS - C compilation flags
+      CLINK  - C linker, usually the same as CC
+
+   Then
+
+      make <benchmark> CLASS=<class> [VERSION=<opt>]
+
+   <benchmark> is one of (BT, SP, LU, FT, CG, MG, EP, UA, IS, DC) 
+   and <class> is one of (S, W, A, B, C, D, E, F), except for the following:
+      class F not defined for IS,
+      classes E and F not defined for UA,
+      classes C, D, E, and F not defined for DC.
+
+   The "VERSION=blk" option is used to set the blocking factor for
+   the blocking version of BT, SP and FT.  Without this option
+   the non-blocking version of BT and SP is selected.  The default
+   blocking factor is 8 for BT and SP, and 32 for FT.  Use option 
+   "VERSION=blk<n>" to select a different blocking factor <n>.
+
+   The "VERSION=hp" or "VERSION=doac" option is for selecting alternative
+   versions of LU. See LU/README for details of different options.
+
+   The "VERSION=au" or "VERSION=rd" option is for selecting different
+   methods of performing atomic updates in UA.  See UA/README for more
+   details.
+
+   Class D or E for IS (Integer Sort) requires a compiler/system that 
+   supports the "long" type in C to be 64-bit.  As examples, the SGI 
+   MIPS compiler for the SGI Origin using the "-64" compilation flag and
+   the Intel compiler for IA64 are known to work.
+
+   To build a suite of benchmarks, one can create the file 
+   "config/suite.def", which contains a list of executables to build.
+   Each line in the file contains the name of a benchmark and the class,
+   separated by spaces or tabs (see suite.def.template for an example).
+   Then
+
+      make suite
+
+
+   ================================
+   
+   The "RAND" variable in make.def
+   --------------------------------
+   
+   Most of the NPBs use a random number generator. In two of the NPBs (FT
+   and EP) the computation of random numbers is included in the timed
+   part of the calculation, and it is important that the random number
+   generator be efficient.  The default random number generator package
+   provided is called "randi8" and should be used where possible. It has 
+   the following requirements:
+   
+   randi8:
+     1. Uses integer(8) arithmetic. Compiler must support integer(8)
+     2. Uses the Fortran 90 IAND intrinsic. Compiler must support IAND.
+     3. Assumes overflow bits are discarded by the hardware. In particular, 
+        that the lowest 46 bits of a*b are always correct, even if the 
+        result a*b is larger than 2^64. 
+   
+   Since randi8 may not work on all machines, we supply the following
+   alternatives:
+   
+   randi8_safe
+     1. Uses integer(8) arithmetic
+     2. Uses the Fortran 90 IBITS intrinsic. 
+     3. Does not make any assumptions about overflow. Should always
+        work correctly if compiler supports integer(8) and IBITS. 
+   
+   randdp
+     1. Uses double precision arithmetic (to simulate integer(8) operations). 
+        Should work with any system with support for 64-bit floating
+        point arithmetic.      
+   
+   randdpvec
+     1. Similar to randdp but written to be easier to vectorize. 
+   
+
+2. Execution
+
+   The executable is named <benchmark-name>.<class>.x and is placed
+   in the bin subdirectory (or in the directory BINDIR specified in
+   make.def, if you've defined it).  Folllowing is an example of running 
+   a benchmark in csh:
+
+      setenv OMP_NUM_THREADS 4
+      bin/bt.A.x > BT.A_out.4
+
+   It runs BT Class A problem on 4 threads and the output is stored
+   in BT.A_out.4.
+
+   Each benchmark includes a set of additional timers for profiling purpose
+   (reporting timing for selected code blocks).  By default, these timers
+   are disabled.  To enable the timers, set the environment variable
+   NPB_TIMER_FLAG to one of:
+
+      1, on, yes, true
+
+   before running a benchmark.  The previous method of creating a dummy 
+   file 'timer.flag' in the current working directory is still supported,
+   but not recommended.
+
+   The printed number of threads is the activated threads during the run,
+   which may not be the same as what is requested.
+
+3. Known issues
+
+   Many of the 3.4 versions of the benchmarks use the OpenMP "COLLAPSE" 
+   clause for better parallelism.  This feature is available since
+   OpenMP 3.0.  Thus, the 3.4 version requires a compiler that supports
+   OpenMP 3.0.
+
+   NPB-OMP assumes 'deterministic' static scheduling at run-time to 
+   ensure the correctness of the results.  Verification in some
+   benchmarks might fail if this condition is not met. 
+
+   For larger problem sizes, the default stack size for slave threads
+   may need to be increased on certain platforms.  For OpenMP 3.0-compliant
+   compilers, use the runtime environment variable:
+      setenv OMP_STACKSIZE 50m  (for 50MB)
+
+   In order to build the class E version of CG, the integer type
+   needs to be promoted to 64-bit, which is usually done through 
+   compilation flag (such as "-i8" for FFLAGS in config/make.def).
+
+4. Notes on the implementation
+
+   - Based on NPB3.0-SER, except that FT was kept closer to
+     the original version in NPB2.3-serial.
+
+   - OpenMP directives were added to the outer-most parallel loops. 
+     No nested parallelism was considered.  The 3.4 version includes
+     the use of COLLAPSE clause for two loop nests.
+
+   - Extra loops were added in the beginning of most of the benchmarks
+     to touch data pages.  This is to set up a data layout based on the
+     'first touch' policy.
+
+   - Since there is no standard way of performing vectorization, the 
+     mileage you get from the vector version depends very much on 
+     the compiler used.  Often additional compiler directives (or flags) 
+     may be necessary for optimal results.  The "blocking" versions 
+     of BT and SP have shown better performance on some systems.
+     The proper blocking factor is system-dependent.
+
+   - For LU, the pipelined algorithm outperforms the hyperplane algorithm
+     consistently on many cache-based platforms.  So, the pipelined
+     implementation is compiled as the default.  See LU/README for
+     additional information.
+
+   - The IS OpenMP benchmark enables bucket sort by default.  To disable
+     bucket sort, comment out the line in IS/is.c:
+     #define USE_BUCKETS
+     See IS/README.carefully for additional information.
+
+   - For Unstructured Adaptive (UA) and DC benchmarks, please see 
+     UA/README or DC/README for additional instruction.

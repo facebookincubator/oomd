@@ -1,0 +1,22 @@
+#!/bin/csh
+
+#PBS -j oe
+#PBS -l select=5:ncpus=28:model=bro
+#PBS -l walltime=2:00:00
+
+set m=bro
+set sdir=test_scripts
+if ( $?PBS_O_WORKDIR ) then
+   set wdir=$PBS_O_WORKDIR
+else
+   set wdir=.
+endif
+
+cd $wdir
+echo "Testing ... $sdir/comp"
+env PBS_O_WORKDIR=$wdir $sdir/comp_pld
+
+cd bin
+echo "Testing ... $sdir/runit"
+env PBS_O_WORKDIR=$wdir/bin ../$sdir/runit_pld $m
+
