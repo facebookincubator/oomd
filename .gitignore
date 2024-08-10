@@ -5,6 +5,9 @@
 
 node_modules
 
+testFiles/*.out
+testFiles/*.so
+
 lib/core/metadata.js
 lib/core/MetadataBlog.js
 
