@@ -60,7 +60,7 @@ int FreezePlugin::tryToKillPids(const std::vector<int>& procs) {
   for (auto pid : procs) {
     handleProcess(pid);
   }
-  std::string pathToCgroup = "/sys/fs/cgroup/test";
+  std::string pathToCgroup = "/sys/fs/cgroup/bench.slice/bench-nas.slice"; //TODO: change to parsed argument
   
   memoryReclaimCgroup(pathToCgroup);
   return 0;

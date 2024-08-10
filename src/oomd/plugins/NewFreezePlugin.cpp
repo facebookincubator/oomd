@@ -48,7 +48,7 @@ void NewFreezePlugin::freezeCgroup(const std::string& cgroupPath) {
     return;
   }
 
-  freezeFile << "1";
+  freezeFile << FREEZE;
   freezeFile.close();
 
   OLOG << "Frozen cgroup: " << cgroupPath;

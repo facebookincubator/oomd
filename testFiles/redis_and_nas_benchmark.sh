@@ -1,8 +1,9 @@
 EXECUTABLE_PATH="./bin/is.C.x"
-REDIS_CGROUP_NAME="redis"
-NAS_CGROUP_NAME="nas"
-MEMTIER_RUNTIME=10
+REDIS_CGROUP_RELATIVE_PATH=bench-redis # relative to cgroup mount point
+NAS_CGROUP_RELATIVE_PATH=bench-nas # relative to cgroup mount point
+MEMTIER_RUNTIME=20
 WAIT_BETWEEN_TIME=10
+RESULTS_ABS_PATH=/home/guyy/oomd/testFiles/results
 # make sure cgroups exist
 sudo ./init_cgroups.sh
 
@@ -43,13 +44,18 @@ echo "Running benchmark"
 if pgrep -x oomd > /dev/null
 then
     echo "oomd is running"
-    sudo cgexec -g memory:$NAS_CGROUP_NAME mpirun -np 4 ./bin/is.C.x > ../../results/nas_yes_oomd.out &
+    # sudo systemd-run --unit=nas-job --slice=$NAS_CGROUP_RELATIVE_PATH mpirun -np 4 ./bin/is.C.x > $RESULTS_ABS_PATH/nas_yes_oomd.out 2>&1 &
+    # sudo cgexec -g .:bench.slice/bench-nas.slice mpirun -np 4 ./bin/is.C.x > $RESULTS_ABS_PATH/nas_yes_oomd.out 2>&1 &
+    sudo systemd-run --slice=$NAS_CGROUP_RELATIVE_PATH --unit=nas-job \
+        --working-directory=$(pwd) \
+        --property=StandardOutput=file:$RESULTS_ABS_PATH/nas_yes_oomd.out \
+        --property=StandardError=file:$RESULTS_ABS_PATH/nas_yes_oomd.out \
+        --remain-after-exit \
+        mpirun -np 4 ./bin/is.C.x
 else
     echo "oomd is not running"
-    sudo mpirun -np 4 ./bin/is.C.x > ../../results/nas_no_oomd.out &
+    sudo mpirun -np 4 ./bin/is.C.x > $RESULTS_ABS_PATH/nas_no_oomd.out &
 fi
-
-MPIRUN_PID=$!
 
 # wait for memtier
 echo "Sleeping for $WAIT_BETWEEN_TIME" 
@@ -60,12 +66,19 @@ echo "Running memtier for $MEMTIER_RUNTIME"
 if pgrep -x oomd > /dev/null
 then
     echo "oomd is running"
-    sudo cgexec -g memory:/$REDIS_CGROUP_NAME memtier_benchmark -s 127.0.0.1 -p 6379 -c 50 -t 4 --test-time $MEMTIER_RUNTIME --pipeline=10 --data-size=5000000 > ../../results/memtier_yes_oomd.out &
+    # sudo systemd-run --unit=memtier-job --slice=$REDIS_CGROUP_RELATIVE_PATH memtier_benchmark -s 127.0.0.1 -p 6379 -c 50 -t 4 --test-time $MEMTIER_RUNTIME --pipeline=10 --data-size=5000000 > $RESULTS_ABS_PATH/memtier_yes_oomd.out 2>&1 &
+    # sudo cgexec -g .:bench.slice/bench-redis.slice memtier_benchmark -s 127.0.0.1 -p 6379 -c 50 -t 4 --test-time $MEMTIER_RUNTIME --pipeline=10 --data-size=5000000 > $RESULTS_ABS_PATH/memtier_yes_oomd.out 2>&1 &
+    sudo systemd-run --slice=$REDIS_CGROUP_RELATIVE_PATH --unit=memtier-job \
+        --working-directory=$(pwd) \
+        --property=StandardOutput=file:$RESULTS_ABS_PATH/memtier_yes_oomd.out \
+        --property=StandardError=file:$RESULTS_ABS_PATH/memtier_yes_oomd.out \
+        --remain-after-exit \
+        memtier_benchmark -s 127.0.0.1 -p 6379 -c 50 -t 4 --test-time $MEMTIER_RUNTIME --pipeline=10 --data-size=5000000
 else
     echo "oomd is not running"
-    sudo memtier_benchmark -s 127.0.0.1 -p 6379 -c 50 -t 4 --test-time $MEMTIER_RUNTIME --pipeline=10 --data-size=5000000 > ../../results/memtier_no_oomd.out &
+    sudo memtier_benchmark -s 127.0.0.1 -p 6379 -c 50 -t 4 --test-time $MEMTIER_RUNTIME --pipeline=10 --data-size=5000000 > $RESULTS_ABS_PATH/memtier_no_oomd.out 2>&1 &
 
 fi
 
-wait $MPIRUN_PID
+sudo systemctl wait nas-job  # Wait for the job to finish
 echo "NAS finished"

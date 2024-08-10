@@ -4,12 +4,12 @@
             "name": "test freezer",
             "detectors": [
                 [
-                    "memory above 25% for 1 second",
+                    "memory above 20% for 1 second",
                     {
                         "name": "memory_above",
                         "args": {
-                            "cgroup": "/bench",
-                            "threshold": "25%",
+                            "cgroup": "bench.slice",
+                            "threshold": "20%",
                             "duration": "1"
                         }
                     }
@@ -19,7 +19,7 @@
                 {
                     "name": "freeze",
                     "args": {
-                        "cgroup": "/bench/nas"
+                        "cgroup": "bench.slice/bench-nas.slice"
                     }
                 },
                 {
