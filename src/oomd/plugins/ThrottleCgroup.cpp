@@ -27,7 +27,8 @@
 #include "../../../usr/include/x86_64-linux-gnu/sys/stat.h"
 
 #define THROTTLE_FILE_PATH "/cpu.max"
-#define THROTTLE_CGROUP "/sys/fs/cgroup/throttle"
+#define THROTTLE_CGROUP "/sys/fs/cgroup/bench.slice/bench-nas.slice"
+#define MONITOR_CGROUP "/sys/fs/cgroup/bench.slice"
 #define MAX_LEVEL 4
 #define PERIOD 100000
 namespace Oomd {
@@ -88,22 +89,22 @@ Engine::PluginRet ThrottleCgroup::run(OomdContext& ctx) {
          << "memory.stat (anon)=" << cgroup_ctx.anon_usage().value_or(0);
   }
 
-  long long totalMemory = memInfo.totalram;
-  totalMemory *= memInfo.mem_unit;
+  auto monitoredCgroupDirFd = Fs::DirFd::open(MONITOR_CGROUP);
 
-  long long freeMemory = memInfo.freeram;
-  freeMemory *= memInfo.mem_unit;
+  auto totalMemory = Fs::readMemmaxAt(monitoredCgroupDirFd.value());
 
-  double freeMemoryPercentage = (double)freeMemory / totalMemory * 100.0;
+  auto usedMemory = Fs::readMemcurrentAt(monitoredCgroupDirFd.value());
 
-  // if low on memory
-  if (freeMemoryPercentage < 30.0) {
+  double usedMemoryPercentage = (double)usedMemory.value() / totalMemory.value() * 100.0;
+
+  // if usage is high (low on memory)
+  if (usedMemoryPercentage > 70.0) {
     increaseLevel();
     OLOG << "low on memory, new throttle level: " << level << ", pausing...";
     return Engine::PluginRet::ASYNC_PAUSED;
   }
 
-  if (freeMemoryPercentage > 70) {
+  if (usedMemoryPercentage < 30) {
     decreaseLevel();
     OLOG << "memory is fine, new throttle level: " << level << ", pausing...";
 

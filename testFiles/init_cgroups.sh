@@ -29,4 +29,6 @@ create_slice "$REDIS_SLICE" $((3 * GB))
 create_slice "$THROTTLE_SLICE" ""
 create_slice "$TEST_SLICE" $((6 * GB))
 
+# so sub slices will have cpu controllers too
+sudo bash -c 'echo "+cpu" > /sys/fs/cgroup/bench.slice/cgroup.subtree_control'
 echo "Systemd slices created and started successfully."

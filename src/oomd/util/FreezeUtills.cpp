@@ -21,6 +21,8 @@ void writeToFile(
   file << value;
   if (file.fail()) {
     logError("Error writing to file: " + path);
+    file.close();
+    return;
   }
   file.close();
   OLOG << "Successfully wrote to file: " + path;
