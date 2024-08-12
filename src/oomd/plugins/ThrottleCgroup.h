@@ -1,12 +1,12 @@
 #include <string>
 #include <vector>
-#include "oomd/plugins/BaseKillPlugin.h"
+#include "oomd/engine/BasePlugin.h"
 
 #include <chrono>
 
 namespace Oomd {
 
-class ThrottleCgroup : public BaseKillPlugin {
+class ThrottleCgroup : public Engine::BasePlugin {
  public:
   int init(
       const Engine::PluginArgs& args,
@@ -30,21 +30,11 @@ class ThrottleCgroup : public BaseKillPlugin {
 
   Engine::PluginRet run(OomdContext& ctx) override;
 
-  int tryToKillPids(const std::vector<int>& procs) override;
-
   ~ThrottleCgroup() = default;
 
  protected:
  int level = 0;
- 
-  std::vector<OomdContext::ConstCgroupContextRef> rankForKilling(
-      OomdContext& ctx,
-      const std::vector<OomdContext::ConstCgroupContextRef>& cgroups) override;
 
-  void ologKillTarget(
-      OomdContext& ctx,
-      const CgroupContext& target,
-      const std::vector<OomdContext::ConstCgroupContextRef>& peers) override;
 };
 
 } // namespace Oomd

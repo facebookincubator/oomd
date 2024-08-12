@@ -38,7 +38,7 @@ REGISTER_PLUGIN(throttle, ThrottleCgroup::create);
 int ThrottleCgroup::init(
     const Engine::PluginArgs& args,
     const PluginConstructionContext& context) {
-  return BaseKillPlugin::init(args, context);
+  return 0;
 }
 
 void ThrottleCgroup::increaseLevel() {
@@ -83,11 +83,11 @@ std::string ThrottleCgroup::getCurrentQuotaAndPeriod() {
 Engine::PluginRet ThrottleCgroup::run(OomdContext& ctx) {
   struct sysinfo memInfo;
   sysinfo(&memInfo);
-  for (const CgroupContext& cgroup_ctx : ctx.addToCacheAndGet(cgroups_)) {
-    OLOG << "cgroup \"" << cgroup_ctx.cgroup().relativePath() << "\" "
-         << "memory.current=" << cgroup_ctx.current_usage().value_or(0)
-         << "memory.stat (anon)=" << cgroup_ctx.anon_usage().value_or(0);
-  }
+  // for (const CgroupContext& cgroup_ctx : ctx.addToCacheAndGet(cgroups_)) {
+  //   OLOG << "cgroup \"" << cgroup_ctx.cgroup().relativePath() << "\" "
+  //        << "memory.current=" << cgroup_ctx.current_usage().value_or(0)
+  //        << "memory.stat (anon)=" << cgroup_ctx.anon_usage().value_or(0);
+  // }
 
   auto monitoredCgroupDirFd = Fs::DirFd::open(MONITOR_CGROUP);
 
@@ -116,10 +116,6 @@ Engine::PluginRet ThrottleCgroup::run(OomdContext& ctx) {
   return Engine::PluginRet::CONTINUE;
 };
 
-int ThrottleCgroup::tryToKillPids(const std::vector<int>& procs) {
-  return 1;
-}
-
 void ThrottleCgroup::throttle(
     const std::string& cgroupPath,
     const std::string& quotaAndPeriod) {
@@ -128,22 +124,4 @@ void ThrottleCgroup::throttle(
 
   writeToFile(path, quotaAndPeriod);
 }
-
-std::vector<OomdContext::ConstCgroupContextRef> ThrottleCgroup::rankForKilling(
-    OomdContext& ctx,
-    const std::vector<OomdContext::ConstCgroupContextRef>& cgroups) {
-  return OomdContext::sortDescWithKillPrefs(
-      cgroups, [this](const CgroupContext& cgroup_ctx) {
-        return cgroup_ctx.current_usage().value_or(0);
-      });
-}
-
-void ThrottleCgroup::ologKillTarget(
-    OomdContext& ctx,
-    const CgroupContext& target,
-    const std::vector<OomdContext::ConstCgroupContextRef>& /* unused */) {
-  OLOG << "Prefeteched memory and unfreezed \""
-       << target.cgroup().relativePath();
-}
-
 } // namespace Oomd

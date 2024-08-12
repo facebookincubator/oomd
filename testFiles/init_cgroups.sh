@@ -24,8 +24,8 @@ MemoryMax=$mem_limit
 
 # Create and start the slices
 create_slice "$BENCH_SLICE" $((6 * GB))
-create_slice "$NAS_SLICE" $((3 * GB))
-create_slice "$REDIS_SLICE" $((3 * GB))
+create_slice "$NAS_SLICE" $((2 * GB))
+create_slice "$REDIS_SLICE" $((4 * GB))
 create_slice "$THROTTLE_SLICE" ""
 create_slice "$TEST_SLICE" $((6 * GB))
 

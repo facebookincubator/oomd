@@ -18,7 +18,7 @@ NAS_CGROUP_RELATIVE_PATH=bench-nas # relative to cgroup mount point
 MEMTIER_RUNTIME=20
 WAIT_BETWEEN_TIME=10
 RESULTS_ABS_PATH="/home/guyy/oomd/testFiles/results"
-MEMTIER_DATA_SIZE=$((10 * 1024 * 1024))
+MEMTIER_DATA_SIZE=$((8 * 1024 * 1024))
 
 # make sure cgroups exist
 sudo ./init_cgroups.sh
@@ -49,44 +49,47 @@ else
     cd ../../
 fi
 
-# Start redis
+# reset redis
+echo "Stopping Redis"
+sudo systemctl stop redis-server
 echo "Starting Redis"
 sudo systemctl start redis-server
+echo "Flushing keys"
+sudo redis-cli FLUSHALL
 
-# Start NAS in for 10 sec in the background and capture its PID
-echo "Running benchmark"
-
+# Check if OOMD is running
 if pgrep -x oomd > /dev/null; then
     echo "oomd is running"
-    sudo systemd-run --slice=$NAS_CGROUP_RELATIVE_PATH --unit=nas-job \
-        --working-directory=$(pwd) \
-        --property=StandardOutput=file:$RESULTS_ABS_PATH/nas_yes_oomd_${TESTED_PLUGIN}.out \
-        --property=StandardError=file:$RESULTS_ABS_PATH/nas_yes_oomd_${TESTED_PLUGIN}.out \
-        --remain-after-exit \
-        mpirun -np 4 ./bin/is.C.x
+    OOMD_STATUS="yes"
 else
     echo "oomd is not running"
-    sudo mpirun -np 4 ./bin/is.C.x > $RESULTS_ABS_PATH/nas_no_oomd_${TESTED_PLUGIN}.out &
+    OOMD_STATUS="no"
 fi
 
-# wait for memtier
+# start NAS as service
+echo "Starting NAS"
+
+sudo systemd-run --slice=$NAS_CGROUP_RELATIVE_PATH --unit=nas-job \
+    --working-directory=$(pwd) \
+    --property=StandardOutput=file:$RESULTS_ABS_PATH/nas_oomd_${OOMD_STATUS}_${TESTED_PLUGIN}.out \
+    --property=StandardError=file:$RESULTS_ABS_PATH/nas_oomd_${OOMD_STATUS}_${TESTED_PLUGIN}.out \
+    --remain-after-exit \
+    mpirun -np 4 ./bin/is.C.x
+
+
+# let it run for a while
 echo "Sleeping for $WAIT_BETWEEN_TIME" 
 sleep $WAIT_BETWEEN_TIME
 
 # Run memtier for 10 sec
-echo "Running memtier for $MEMTIER_RUNTIME"
-if pgrep -x oomd > /dev/null; then
-    echo "oomd is running"
-    sudo systemd-run --slice=$REDIS_CGROUP_RELATIVE_PATH --unit=memtier-job \
-        --working-directory=$(pwd) \
-        --property=StandardOutput=file:$RESULTS_ABS_PATH/memtier_yes_oomd_${TESTED_PLUGIN}.out \
-        --property=StandardError=file:$RESULTS_ABS_PATH/memtier_yes_oomd_${TESTED_PLUGIN}.out \
-        --remain-after-exit \
-        memtier_benchmark -s 127.0.0.1 -p 6379 -c 50 -t 4 --test-time $MEMTIER_RUNTIME --pipeline=10 --data-size=$MEMTIER_DATA_SIZE
-else
-    echo "oomd is not running"
-    sudo memtier_benchmark -s 127.0.0.1 -p 6379 -c 50 -t 4 --test-time $MEMTIER_RUNTIME --pipeline=10 --data-size=$MEMTIER_DATA_SIZE > $RESULTS_ABS_PATH/memtier_no_oomd_${TESTED_PLUGIN}.out 2>&1 &
-fi
+echo "Running memtier for $MEMTIER_RUNTIME seconds"
+sudo systemd-run --slice=$REDIS_CGROUP_RELATIVE_PATH --unit=memtier-job \
+    --working-directory=$(pwd) \
+    --property=StandardOutput=file:$RESULTS_ABS_PATH/memtier_oomd_${OOMD_STATUS}_${TESTED_PLUGIN}.out \
+    --property=StandardError=file:$RESULTS_ABS_PATH/memtier_oomd_${OOMD_STATUS}_${TESTED_PLUGIN}.out \
+    --remain-after-exit \
+    memtier_benchmark -s 127.0.0.1 -p 6379 -c 50 -t 4 --test-time $MEMTIER_RUNTIME --pipeline=10 --data-size=$MEMTIER_DATA_SIZE
+
 
 sudo systemctl wait nas-job  # Wait for the job to finish
 echo "NAS finished"
