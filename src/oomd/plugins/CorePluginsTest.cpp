@@ -48,6 +48,14 @@ std::unique_ptr<Engine::BasePlugin> createPlugin(const std::string& name) {
 namespace Oomd {
 class BaseKillPluginMock : public BaseKillPlugin {
  public:
+  /*
+   * We don't actually need to dump memory.stat since we won't
+   * actually be killing any live processes
+   */
+  int dumpMemoryStat(const CgroupContext&) override {
+    return 0;
+  }
+
   int tryToKillPids(const std::vector<int>& pids) override {
     int ret = 0;
     killed.reserve(pids.size());
@@ -58,7 +66,6 @@ class BaseKillPluginMock : public BaseKillPlugin {
         ++ret;
       }
     }
-
     return ret;
   }
 

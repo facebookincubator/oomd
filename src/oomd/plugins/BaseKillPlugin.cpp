@@ -443,6 +443,20 @@ int BaseKillPlugin::getAndTryToKillPids(const CgroupContext& target) {
   return nrKilled;
 }
 
+int BaseKillPlugin::dumpMemoryStat(const CgroupContext& target) {
+  auto stats =
+      Fs::readFileByLine(Fs::Fd::openat(target.fd(), Fs::kMemStatFile));
+  if (!stats) {
+    return 1;
+  }
+  OLOG << "memory.stat for " + target.cgroup().relativePath() + ": ";
+  for (auto& line : *stats) {
+    OLOG << line;
+  }
+
+  return 0;
+}
+
 int BaseKillPlugin::tryToKillCgroup(
     const CgroupContext& target,
     const KillUuid& killUuid,
@@ -462,8 +476,13 @@ int BaseKillPlugin::tryToKillCgroup(
 
   OLOG << "Trying to kill " << cgroupPath;
 
+  if (dumpMemoryStat(target)) {
+    OLOG << "Failed to open " << cgroupPath << "/memory.stat";
+  }
+
   reportKillUuidToXattr(cgroupPath, killUuid);
   reportKillInitiationToXattr(cgroupPath);
+
   while (tries--) {
     // Descendent cgroups created during killing will be missed because
     // getAndTryToKillPids reads cgroup children from OomdContext's cache

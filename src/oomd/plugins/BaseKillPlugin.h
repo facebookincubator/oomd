@@ -190,6 +190,7 @@ class BaseKillPlugin : public Engine::BasePlugin {
    * Override point for tests to control the clock
    */
   virtual bool pastPrekillHookTimeout(const OomdContext& ctx) const;
+  virtual int dumpMemoryStat(const CgroupContext& target);
 
  private:
   virtual int getAndTryToKillPids(const CgroupContext& target);
