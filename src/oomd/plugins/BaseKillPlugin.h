@@ -77,6 +77,8 @@ class BaseKillPlugin : public Engine::BasePlugin {
     }
   }
 
+  int getAndTryToKillPids(const CgroupContext& target);
+
  protected:
   /*
    * Required implementation point for kill plugins
@@ -192,9 +194,10 @@ class BaseKillPlugin : public Engine::BasePlugin {
   virtual bool pastPrekillHookTimeout(const OomdContext& ctx) const;
   virtual int dumpMemoryStat(const CgroupContext& target);
 
- private:
-  virtual int getAndTryToKillPids(const CgroupContext& target);
+  virtual int freezeCgroup(const CgroupContext& target, int freeze);
+  virtual int kernelKillCgroup(const CgroupContext& target);
 
+ private:
   enum class KillResult {
     SUCCESS,
     FAILED,
@@ -249,6 +252,7 @@ class BaseKillPlugin : public Engine::BasePlugin {
   bool dry_{false};
   bool alwaysContinue_{false};
   bool debug_{false};
+  bool kernelKill_{false};
 
   struct ActivePrekillHook {
    public:

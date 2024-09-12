@@ -594,6 +594,14 @@ SystemMaybe<int64_t> Fs::readSwapMaxAt(const DirFd& dirfd) {
   return ret;
 }
 
+SystemMaybe<int64_t> Fs::readPidsCurrentAt(const DirFd& dirfd) {
+  auto line = Fs::readFileByLine(Fs::Fd::openat(dirfd, Fs::kPidsCurr));
+  if (!line) {
+    return SYSTEM_ERROR(line.error());
+  }
+  return std::stoll((*line)[0]);
+}
+
 SystemMaybe<std::unordered_map<std::string, int64_t>> Fs::getVmstat(
     const std::string& path) {
   auto lines = readFileByLine(path);
@@ -768,6 +776,24 @@ SystemMaybe<Unit> Fs::writeMemReclaimAt(
   }
   auto ret = writeControlFileAt(
       Fs::Fd::openat(dirfd, kMemReclaimFile, false), val_str);
+  if (!ret) {
+    return SYSTEM_ERROR(ret.error());
+  }
+  return noSystemError();
+}
+
+SystemMaybe<Unit> Fs::writeFreezeAt(const DirFd& dirfd, int freeze) {
+  auto val_str = std::to_string(freeze);
+  auto ret =
+      writeControlFileAt(Fs::Fd::openat(dirfd, kCgroupFreeze, false), val_str);
+  if (!ret) {
+    return SYSTEM_ERROR(ret.error());
+  }
+  return noSystemError();
+}
+
+SystemMaybe<Unit> Fs::writeKillAt(const DirFd& dirfd) {
+  auto ret = writeControlFileAt(Fs::Fd::openat(dirfd, kCgroupKill, false), "1");
   if (!ret) {
     return SYSTEM_ERROR(ret.error());
   }

@@ -37,6 +37,7 @@ class Fs {
   static constexpr auto kSubtreeControlFile = "cgroup.subtree_control";
   static constexpr auto kProcsFile = "cgroup.procs";
   static constexpr auto kEventsFile = "cgroup.events";
+  static constexpr auto kCgroupFreeze = "cgroup.freeze";
   static constexpr auto kMemCurrentFile = "memory.current";
   static constexpr auto kMemPressureFile = "memory.pressure";
   static constexpr auto kMemLowFile = "memory.low";
@@ -58,6 +59,8 @@ class Fs {
   static constexpr auto kOomdUserPreferXAttr = "user.oomd_prefer";
   static constexpr auto kOomdSystemAvoidXAttr = "trusted.oomd_avoid";
   static constexpr auto kOomdUserAvoidXAttr = "user.oomd_avoid";
+  static constexpr auto kPidsCurr = "pids.current";
+  static constexpr auto kCgroupKill = "cgroup.kill";
 
   struct DirEnts {
     std::vector<std::string> dirs;
@@ -225,6 +228,7 @@ class Fs {
   static SystemMaybe<ResourcePressure> readIopressureAt(
       const DirFd& dirfd,
       PressureType type = PressureType::FULL);
+  static SystemMaybe<int64_t> readPidsCurrentAt(const DirFd& dirfd);
 
   static SystemMaybe<Unit> writeMemhighAt(const DirFd& dirfd, int64_t value);
   static SystemMaybe<Unit> writeMemhightmpAt(
@@ -235,6 +239,8 @@ class Fs {
       const DirFd& dirfd,
       int64_t value,
       std::optional<int64_t> swappiness);
+  static SystemMaybe<Unit> writeFreezeAt(const DirFd& dirfd, int value);
+  static SystemMaybe<Unit> writeKillAt(const DirFd& dirfd);
 
   static SystemMaybe<int64_t> getNrDyingDescendantsAt(const DirFd& dirfd);
   static SystemMaybe<KillPreference> readKillPreferenceAt(const DirFd& path);

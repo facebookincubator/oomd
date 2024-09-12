@@ -70,6 +70,7 @@ int BaseKillPlugin::init(
   argParser_.addArgument("dry", dry_);
   argParser_.addArgument("always_continue", alwaysContinue_);
   argParser_.addArgument("debug", debug_);
+  argParser_.addArgument("kernelkill", kernelKill_);
 
   if (!argParser_.parse(args)) {
     return 1;
@@ -443,6 +444,25 @@ int BaseKillPlugin::getAndTryToKillPids(const CgroupContext& target) {
   return nrKilled;
 }
 
+int BaseKillPlugin::kernelKillCgroup(const CgroupContext& target) {
+  if (!Fs::writeKillAt(target.fd())) {
+    OLOG << "Failed to write to cgroup.kill for "
+         << target.cgroup().absolutePath();
+    return 1;
+  }
+  return 0;
+}
+
+int BaseKillPlugin::freezeCgroup(const CgroupContext& target, int freeze) {
+  if (!Fs::writeFreezeAt(target.fd(), freeze)) {
+    OLOG << "Failed to write to cgroup.freeze for "
+         << target.cgroup().absolutePath();
+    return 1;
+  }
+
+  return 0;
+}
+
 int BaseKillPlugin::dumpMemoryStat(const CgroupContext& target) {
   auto stats =
       Fs::readFileByLine(Fs::Fd::openat(target.fd(), Fs::kMemStatFile));
@@ -474,7 +494,12 @@ int BaseKillPlugin::tryToKillCgroup(
     return true;
   }
 
-  OLOG << "Trying to kill " << cgroupPath;
+  if (kernelKill_) {
+    OLOG << "Trying to kill " << cgroupPath
+         << " with cgroup.freeze and cgroup.kill";
+  } else {
+    OLOG << "Trying to kill " << cgroupPath;
+  }
 
   if (dumpMemoryStat(target)) {
     OLOG << "Failed to open " << cgroupPath << "/memory.stat";
@@ -483,26 +508,61 @@ int BaseKillPlugin::tryToKillCgroup(
   reportKillUuidToXattr(cgroupPath, killUuid);
   reportKillInitiationToXattr(cgroupPath);
 
-  while (tries--) {
-    // Descendent cgroups created during killing will be missed because
-    // getAndTryToKillPids reads cgroup children from OomdContext's cache
-
-    nrKilled += getAndTryToKillPids(target);
-
-    if (nrKilled == lastNrKilled) {
-      break;
+  if (kernelKill_) {
+    if (freezeCgroup(target, 1)) {
+      return 0;
     }
 
-    // Give it a breather before killing again
-    //
-    // Don't sleep after the first round of kills b/c the majority of the
-    // time the sleep isn't necessary. The system responds fast enough.
-    if (lastNrKilled) {
-      std::this_thread::sleep_for(1s);
+    while (tries--) {
+      auto procsBeforeKill = Fs::readPidsCurrentAt(target.fd());
+
+      if (kernelKillCgroup(target)) {
+        // Killing failed, so we report the number of processes
+        // killed up to this point.
+        return nrKilled;
+      }
+
+      auto procsAfterKill = Fs::readPidsCurrentAt(target.fd());
+
+      if (!procsBeforeKill || !procsAfterKill) {
+        OLOG << "Failed to read pids from " << target.cgroup().absolutePath();
+        return nrKilled;
+      }
+
+      if (procsAfterKill.value() == 0 ||
+          procsBeforeKill.value() == procsAfterKill.value()) {
+        break;
+      }
+
+      nrKilled += procsBeforeKill.value() - procsAfterKill.value();
     }
 
-    lastNrKilled = nrKilled;
+    if (freezeCgroup(target, 0)) {
+      return nrKilled;
+    }
+  } else {
+    while (tries--) {
+      // Descendent cgroups created during killing will be missed because
+      // getAndTryToKillPids reads cgroup children from OomdContext's cache
+
+      nrKilled += getAndTryToKillPids(target);
+
+      if (nrKilled == lastNrKilled) {
+        break;
+      }
+
+      // Give it a breather before killing again
+      //
+      // Don't sleep after the first round of kills b/c the majority of the
+      // time the sleep isn't necessary. The system responds fast enough.
+      if (lastNrKilled) {
+        std::this_thread::sleep_for(1s);
+      }
+
+      lastNrKilled = nrKilled;
+    }
   }
+
   reportKillCompletionToXattr(cgroupPath, nrKilled);
   return nrKilled;
 }

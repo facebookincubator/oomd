@@ -15,6 +15,7 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
+#include <fcntl.h>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
@@ -49,10 +50,17 @@ namespace Oomd {
 class BaseKillPluginMock : public BaseKillPlugin {
  public:
   /*
+   * Since we are just simulating killing, we don't need to freeze the cgroup
+   */
+  int freezeCgroup(const CgroupContext& target, int freeze) override {
+    return 0;
+  }
+
+  /*
    * We don't actually need to dump memory.stat since we won't
    * actually be killing any live processes
    */
-  int dumpMemoryStat(const CgroupContext&) override {
+  int dumpMemoryStat(const CgroupContext& target) override {
     return 0;
   }
 
