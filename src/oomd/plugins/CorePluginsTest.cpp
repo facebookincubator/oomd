@@ -701,6 +701,39 @@ TEST_F(StandardKillRecursionTest, PrerunsRecursively) {
       (std::unordered_set<std::string>{"A/Y", "A/X", "B", "Z"}));
 }
 
+class KernelKillPlugin : public AlphabeticStandardKillPlugin {
+ public:
+  using BaseKillPlugin::tryToKillCgroup;
+  using BaseKillPlugin::tryToKillPids;
+};
+
+class DoubleKillTest : public CorePluginsTest {};
+
+TEST_F(DoubleKillTest, KillsTwice) {
+  F::materialize(F::makeDir(
+      tempdir_,
+      {F::makeDir(
+          "A",
+          {F::makeFile("pids.current", "1\n"),
+           F::makeFile("cgroup.kill", "0")})}));
+
+  // Should do nothing, since it will write to cgroup.kill with no side effect.
+  // We simulate a delayed kernel kill by leaving cgroup.procs unchanged.
+  // However, we should still expect the kill to return true, since we expect
+  // cgroup.kill to always succeed. As long as it returns STOP, there will be
+  // no double kill.
+  auto plugin = std::make_shared<KernelKillPlugin>();
+  ASSERT_NE(plugin, nullptr);
+  const PluginConstructionContext compile_context(tempdir_);
+  Engine::PluginArgs args;
+  args["cgroup"] = "*";
+  args["recursive"] = "true";
+  args["kernelkill"] = "true";
+
+  ASSERT_EQ(plugin->init(std::move(args), compile_context), 0);
+  EXPECT_EQ(plugin->run(ctx_), Engine::PluginRet::STOP);
+}
+
 class PressureRisingBeyondTest : public CorePluginsTest {};
 
 TEST_F(PressureRisingBeyondTest, DetectsHighMemPressure) {
