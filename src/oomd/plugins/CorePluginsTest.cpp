@@ -52,7 +52,7 @@ class BaseKillPluginMock : public BaseKillPlugin {
   /*
    * Since we are just simulating killing, we don't need to freeze the cgroup
    */
-  int freezeCgroup(const CgroupContext& target, int freeze) override {
+  int freezeCgroup(const CgroupContext& target) override {
     return 0;
   }
 

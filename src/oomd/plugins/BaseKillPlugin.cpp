@@ -445,22 +445,11 @@ int BaseKillPlugin::getAndTryToKillPids(const CgroupContext& target) {
 }
 
 int BaseKillPlugin::kernelKillCgroup(const CgroupContext& target) {
-  if (!Fs::writeKillAt(target.fd())) {
-    OLOG << "Failed to write to cgroup.kill for "
-         << target.cgroup().absolutePath();
-    return 1;
-  }
-  return 0;
+  return Fs::writeKillAt(target.fd()) ? 0 : 1;
 }
 
-int BaseKillPlugin::freezeCgroup(const CgroupContext& target, int freeze) {
-  if (!Fs::writeFreezeAt(target.fd(), freeze)) {
-    OLOG << "Failed to write to cgroup.freeze for "
-         << target.cgroup().absolutePath();
-    return 1;
-  }
-
-  return 0;
+int BaseKillPlugin::freezeCgroup(const CgroupContext& target) {
+  return Fs::writeFreezeAt(target.fd(), 1) ? 0 : 1;
 }
 
 int BaseKillPlugin::dumpMemoryStat(const CgroupContext& target) {
@@ -509,36 +498,22 @@ int BaseKillPlugin::tryToKillCgroup(
   reportKillInitiationToXattr(cgroupPath);
 
   if (kernelKill_) {
-    if (freezeCgroup(target, 1)) {
-      return 0;
+    if (freezeCgroup(target)) {
+      OLOG << "Failed to freeze cgroup " << target.cgroup().absolutePath()
+           << ", proceed to kill without freezing";
     }
 
-    while (tries--) {
-      auto procsBeforeKill = Fs::readPidsCurrentAt(target.fd());
-
-      if (kernelKillCgroup(target)) {
-        // Killing failed, so we report the number of processes
-        // killed up to this point.
-        return nrKilled;
-      }
-
-      auto procsAfterKill = Fs::readPidsCurrentAt(target.fd());
-
-      if (!procsBeforeKill || !procsAfterKill) {
-        OLOG << "Failed to read pids from " << target.cgroup().absolutePath();
-        return nrKilled;
-      }
-
-      if (procsAfterKill.value() == 0 ||
-          procsBeforeKill.value() == procsAfterKill.value()) {
-        break;
-      }
-
-      nrKilled += procsBeforeKill.value() - procsAfterKill.value();
-    }
-
-    if (freezeCgroup(target, 0)) {
-      return nrKilled;
+    auto procsBeforeKill = Fs::readPidsCurrentAt(target.fd());
+    if (!procsBeforeKill) {
+      OLOG << "Failed to read pids from " << target.cgroup().absolutePath()
+           << ", skip killing cgroup";
+    } else if (*procsBeforeKill == 0) {
+      OLOG << "No pids in " << target.cgroup().absolutePath()
+           << ", skip killing cgroup";
+    } else if (kernelKillCgroup(target)) {
+      OLOG << "Failed to kill cgroup " << target.cgroup().absolutePath();
+    } else {
+      nrKilled = procsBeforeKill.value();
     }
   } else {
     while (tries--) {
@@ -696,6 +671,9 @@ bool BaseKillPlugin::tryToLogAndKillCgroup(
       Oomd::incrementStat(CoreStats::kKillsKey, 1);
     }
     OOMD_KMSG_LOG(oss.str(), "oomd kill");
+  } else {
+    OLOG << "Failed to kill any process from "
+         << candidate.cgroupCtx.get().cgroup().absolutePath();
   }
 
   dumpKillInfo(

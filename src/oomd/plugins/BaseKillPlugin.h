@@ -194,7 +194,7 @@ class BaseKillPlugin : public Engine::BasePlugin {
   virtual bool pastPrekillHookTimeout(const OomdContext& ctx) const;
   virtual int dumpMemoryStat(const CgroupContext& target);
 
-  virtual int freezeCgroup(const CgroupContext& target, int freeze);
+  virtual int freezeCgroup(const CgroupContext& target);
   virtual int kernelKillCgroup(const CgroupContext& target);
 
  private:
