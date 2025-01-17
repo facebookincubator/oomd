@@ -189,6 +189,7 @@ Always returns CONTINUE.
     post_action_delay=15 (optional)
     dry=false (optional)
     always_continue=false (optional)
+    reap_memory=false (optional)
 
 ### Description
 
@@ -242,6 +243,8 @@ they will have no effect if set on ancestors of the targeted cgroups.
 STOP if killed something (even if dry=true), unless `always_continue`. CONTINUE
 otherwise.
 
+If `reap_memory` is set to true, attempt to speed up process memory cleanup via process_mrelease syscall. See https://lwn.net/Articles/864184/ for details.
+
 ## kill_by_swap_usage
 
 ### Arguments
@@ -252,6 +255,7 @@ otherwise.
     post_action_delay=15 (optional)
     dry=false (optional)
     always_continue=false (optional)
+    reap_memory=false (optional)
 
 ### Description
 
@@ -272,6 +276,8 @@ of SIGKILLs sent to resident processes.
 STOP if killed something (even if dry=true), unless `always_continue`. CONTINUE
 otherwise.
 
+If `reap_memory` is set to true, attempt to speed up process memory cleanup via process_mrelease syscall. See https://lwn.net/Articles/864184/ for details.
+
 ## kill_by_pressure
 
 ### Arguments
@@ -282,6 +288,7 @@ otherwise.
     post_action_delay=15 (optional)
     dry=false (optional)
     always_continue=false (optional)
+    reap_memory=false (optional)
 
 ### Description
 
@@ -302,6 +309,8 @@ of SIGKILLs sent to resident processes.
 STOP if killed something (even if dry=true), unless `always_continue`. CONTINUE
 otherwise.
 
+If `reap_memory` is set to true, attempt to speed up process memory cleanup via process_mrelease syscall. See https://lwn.net/Articles/864184/ for details.
+
 ## kill_by_io_cost
 
 ### Arguments
@@ -311,6 +320,7 @@ otherwise.
     post_action_delay=15 (optional)
     dry=false (optional)
     always_continue=false (optional)
+    reap_memory=false (optional)
 
 ### Description
 
@@ -329,6 +339,8 @@ of SIGKILLs sent to resident processes.
 STOP if killed something (even if dry=true), unless `always_continue`. CONTINUE
 otherwise.
 
+If `reap_memory` is set to true, attempt to speed up process memory cleanup via process_mrelease syscall. See https://lwn.net/Articles/864184/ for details.
+
 ## kill_by_pg_scan
 
 ### Arguments
@@ -338,6 +350,7 @@ otherwise.
     post_action_delay=15 (optional)
     dry=false (optional)
     always_continue=false (optional)
+    reap_memory=false (optional)
 
 ### Description
 
@@ -355,3 +368,5 @@ of SIGKILLs sent to resident processes.
 
 STOP if killed something (even if dry=true), unless `always_continue`. CONTINUE
 otherwise.
+
+If `reap_memory` is set to true, attempt to speed up process memory cleanup via process_mrelease syscall. See https://lwn.net/Articles/864184/ for details.

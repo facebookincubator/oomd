@@ -18,6 +18,8 @@
 #include "oomd/plugins/BaseKillPlugin.h"
 
 #include <fcntl.h>
+#include <signal.h>
+#include <sys/syscall.h>
 #include <unistd.h>
 #include <algorithm>
 #include <chrono>
@@ -42,7 +44,23 @@
 #include "oomd/include/CoreStats.h"
 #include "oomd/include/Types.h"
 #include "oomd/util/Fs.h"
+#include "oomd/util/ScopeGuard.h"
 #include "oomd/util/Util.h"
+
+#ifndef __NR_process_mrelease
+#define __NR_process_mrelease 448
+#endif
+
+namespace {
+static int pidfd_open(pid_t pid, unsigned int flags) noexcept {
+  return ::syscall(SYS_pidfd_open, pid, flags);
+}
+
+static int process_mrelease(int pidfd, unsigned int flags) noexcept {
+  return ::syscall(__NR_process_mrelease, pidfd, flags);
+}
+
+} // namespace
 
 static auto constexpr kOomdKillInitiationTrustedXattr = "trusted.oomd_ooms";
 static auto constexpr kOomdKillInitiationUserXattr = "user.oomd_ooms";
@@ -71,6 +89,7 @@ int BaseKillPlugin::init(
   argParser_.addArgument("always_continue", alwaysContinue_);
   argParser_.addArgument("debug", debug_);
   argParser_.addArgument("kernelkill", kernelKill_);
+  argParser_.addArgument("reap_memory", reapMemory_);
 
   if (!argParser_.parse(args)) {
     return 1;
@@ -466,6 +485,47 @@ int BaseKillPlugin::dumpMemoryStat(const CgroupContext& target) {
   return 0;
 }
 
+bool BaseKillPlugin::reapProcess(pid_t pid) {
+  const int pidfd = ::pidfd_open(pid, 0);
+  if (pidfd < 0) {
+    if (errno != ESRCH) {
+      OLOG << "pidfd_open " << pid << " failed: " << Util::strerror_r();
+    }
+    return false;
+  }
+  OOMD_SCOPE_EXIT {
+    ::close(pidfd);
+  };
+
+  if (::process_mrelease(pidfd, 0) < 0) {
+    if (errno != ESRCH) {
+      OLOG << "process_mrelease " << pid << " failed: " << Util::strerror_r();
+    }
+    return false;
+  }
+  return true;
+}
+
+int BaseKillPlugin::reapCgroupRecursively(const CgroupContext& target) {
+  int reaped = 0;
+  if (const auto& children = target.children()) {
+    for (const auto& childName : *children) {
+      if (auto childCtx =
+              target.oomd_ctx().addChildToCacheAndGet(target, childName)) {
+        reaped += reapCgroupRecursively(*childCtx);
+      }
+    }
+  }
+
+  if (const auto& pids = Fs::getPidsAt(target.fd())) {
+    for (int pid : *pids) {
+      reaped += reapProcess(pid);
+    }
+  }
+
+  return reaped;
+}
+
 int BaseKillPlugin::tryToKillCgroup(
     const CgroupContext& target,
     const KillUuid& killUuid,
@@ -536,6 +596,16 @@ int BaseKillPlugin::tryToKillCgroup(
 
       lastNrKilled = nrKilled;
     }
+  }
+
+  if (reapMemory_ && nrKilled > 0) {
+    OLOG << "Reaping processes in " << target.cgroup().absolutePath();
+    const auto start = std::chrono::steady_clock::now();
+    const int reaped = reapCgroupRecursively(target);
+    const auto end = std::chrono::steady_clock::now();
+    const auto dur =
+        std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+    OLOG << "Reaped " << reaped << " processes in " << dur.count() << "ms";
   }
 
   reportKillCompletionToXattr(cgroupPath, nrKilled);

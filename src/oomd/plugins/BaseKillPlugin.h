@@ -197,6 +197,14 @@ class BaseKillPlugin : public Engine::BasePlugin {
   virtual int freezeCgroup(const CgroupContext& target);
   virtual int kernelKillCgroup(const CgroupContext& target);
 
+  // Call process_mrelease for a given pid.
+  // Returns true if the process was successfully reaped.
+  virtual bool reapProcess(pid_t pid);
+
+  // Call process_mrelease for all pids in cgroup and its descendants.
+  // Returns the number of processes reaped
+  virtual int reapCgroupRecursively(const CgroupContext& target);
+
  private:
   enum class KillResult {
     SUCCESS,
@@ -253,6 +261,7 @@ class BaseKillPlugin : public Engine::BasePlugin {
   bool alwaysContinue_{false};
   bool debug_{false};
   bool kernelKill_{false};
+  bool reapMemory_{false};
 
   struct ActivePrekillHook {
    public:
