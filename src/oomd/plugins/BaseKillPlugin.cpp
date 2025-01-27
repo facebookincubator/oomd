@@ -564,14 +564,20 @@ int BaseKillPlugin::tryToKillCgroup(
     }
 
     auto procsBeforeKill = Fs::readPidsCurrentAt(target.fd());
-    if (!procsBeforeKill) {
-      OLOG << "Failed to read pids from " << target.cgroup().absolutePath()
-           << ", skip killing cgroup";
-    } else if (*procsBeforeKill == 0) {
+    auto populated = Fs::readIsPopulatedAt(target.fd());
+
+    if (!populated) {
+      OLOG << "Failed to read cgroup.events in "
+           << target.cgroup().absolutePath()
+           << ", something is wrong. Skip killing cgroup.";
+    } else if (!populated.value()) {
       OLOG << "No pids in " << target.cgroup().absolutePath()
            << ", skip killing cgroup";
     } else if (kernelKillCgroup(target)) {
       OLOG << "Failed to kill cgroup " << target.cgroup().absolutePath();
+    } else if (!procsBeforeKill || procsBeforeKill.value() == 0) {
+      // Placeholder if we cannot figure out how many we actually killed
+      nrKilled = 1;
     } else {
       nrKilled = procsBeforeKill.value();
     }
