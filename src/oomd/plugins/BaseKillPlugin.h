@@ -25,6 +25,7 @@
 #include "oomd/engine/BasePlugin.h"
 #include "oomd/engine/PrekillHook.h"
 #include "oomd/include/CgroupPath.h"
+#include "oomd/util/SystemMaybe.h"
 
 namespace Oomd {
 
@@ -133,7 +134,7 @@ class BaseKillPlugin : public Engine::BasePlugin {
    * @param dry sets whether or not we should actually issue SIGKILLs
    * @returns the number of processes killed
    */
-  virtual int tryToKillCgroup(
+  virtual SystemMaybe<int> tryToKillCgroup(
       const CgroupContext& target,
       const KillUuid& killUuid,
       bool dry);
@@ -184,9 +185,6 @@ class BaseKillPlugin : public Engine::BasePlugin {
    */
   virtual bool pastPrekillHookTimeout(const OomdContext& ctx) const;
   virtual int dumpMemoryStat(const CgroupContext& target);
-
-  virtual int freezeCgroup(const CgroupContext& target);
-  virtual int kernelKillCgroup(const CgroupContext& target);
 
   // Call process_mrelease for a given pid.
   // Returns true if the process was successfully reaped.

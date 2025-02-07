@@ -19,7 +19,6 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
-#include <algorithm>
 #include <memory>
 #include <unordered_set>
 
@@ -33,7 +32,6 @@
 #include "oomd/plugins/KillPressure.h"
 #include "oomd/plugins/KillSwapUsage.h"
 #include "oomd/util/Fixture.h"
-#include "oomd/util/Fs.h"
 #include "oomd/util/TestHelper.h"
 
 using namespace Oomd;
@@ -49,13 +47,6 @@ std::unique_ptr<Engine::BasePlugin> createPlugin(const std::string& name) {
 namespace Oomd {
 class BaseKillPluginMock : public BaseKillPlugin {
  public:
-  /*
-   * Since we are just simulating killing, we don't need to freeze the cgroup
-   */
-  int freezeCgroup(const CgroupContext& target) override {
-    return 0;
-  }
-
   /*
    * We don't actually need to dump memory.stat since we won't
    * actually be killing any live processes
@@ -77,14 +68,14 @@ class BaseKillPluginMock : public BaseKillPlugin {
     return ret;
   }
 
-  int tryToKillCgroup(
+  SystemMaybe<int> tryToKillCgroup(
       const CgroupContext& target,
       const KillUuid& kill_uuid,
       bool dry) override {
     if (unkillable_cgroups.count(target.cgroup().absolutePath()) > 0) {
       OLOG << "tried to kill " << target.cgroup().absolutePath()
            << ", failed b/c it's in unkillable_cgroups";
-      return false;
+      return 0;
     }
 
     OLOG << "killed " << target.cgroup().absolutePath();
@@ -152,7 +143,7 @@ TEST_F(BaseKillPluginTest, TryToKillCgroupKillsRecursive) {
       ctx_, CgroupPath("oomd/fixtures/plugins/base_kill_plugin", "one_big")));
 
   BaseKillPluginShim plugin;
-  EXPECT_EQ(plugin.tryToKillCgroup(target, "fake_kill_uuid", false), 31);
+  EXPECT_EQ(*plugin.tryToKillCgroup(target, "fake_kill_uuid", false), 31);
 
   int expected_total = 0;
   for (int i = 1; i <= 30; ++i) {

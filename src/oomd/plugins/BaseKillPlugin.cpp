@@ -23,15 +23,11 @@
 #include <unistd.h>
 #include <algorithm>
 #include <chrono>
-#include <cmath>
-#include <csignal>
-#include <fstream>
 #include <iomanip>
 #include <map>
 #include <memory>
 #include <optional>
 #include <string>
-#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -454,14 +450,6 @@ int BaseKillPlugin::getAndTryToKillPids(const CgroupContext& target) {
   return nrKilled;
 }
 
-int BaseKillPlugin::kernelKillCgroup(const CgroupContext& target) {
-  return Fs::writeKillAt(target.fd()) ? 0 : 1;
-}
-
-int BaseKillPlugin::freezeCgroup(const CgroupContext& target) {
-  return Fs::writeFreezeAt(target.fd(), 1) ? 0 : 1;
-}
-
 int BaseKillPlugin::dumpMemoryStat(const CgroupContext& target) {
   auto stats =
       Fs::readFileByLine(Fs::Fd::openat(target.fd(), Fs::kMemStatFile));
@@ -517,7 +505,7 @@ int BaseKillPlugin::reapCgroupRecursively(const CgroupContext& target) {
   return reaped;
 }
 
-int BaseKillPlugin::tryToKillCgroup(
+SystemMaybe<int> BaseKillPlugin::tryToKillCgroup(
     const CgroupContext& target,
     const KillUuid& killUuid,
     bool dry) {
@@ -549,24 +537,27 @@ int BaseKillPlugin::tryToKillCgroup(
   reportKillInitiationToXattr(cgroupPath);
 
   if (kernelKill_) {
-    if (freezeCgroup(target)) {
-      OLOG << "Failed to freeze cgroup " << target.cgroup().absolutePath()
-           << ", proceed to kill without freezing";
+    if (auto maybeFreezed = Fs::writeFreezeAt(target.fd(), 1); !maybeFreezed) {
+      OLOG << "Failed to freeze cgroup " << cgroupPath
+           << ", proceed to kill without freezing: "
+           << maybeFreezed.error().what();
     }
 
     auto procsBeforeKill = Fs::readPidsCurrentAt(target.fd());
     auto populated = Fs::readIsPopulatedAt(target.fd());
 
     if (!populated) {
-      OLOG << "Failed to read cgroup.events in "
-           << target.cgroup().absolutePath()
-           << ", something is wrong. Skip killing cgroup.";
-    } else if (!populated.value()) {
-      OLOG << "No pids in " << target.cgroup().absolutePath()
-           << ", skip killing cgroup";
-    } else if (kernelKillCgroup(target)) {
-      OLOG << "Failed to kill cgroup " << target.cgroup().absolutePath();
-    } else if (!procsBeforeKill || procsBeforeKill.value() == 0) {
+      return SYSTEM_ERROR(populated.error(), "Failed to read cgroup.events");
+    }
+    if (!populated.value()) {
+      return 0;
+    }
+    auto maybeKilled = Fs::writeKillAt(target.fd());
+    if (!maybeKilled) {
+      return SYSTEM_ERROR(
+          maybeKilled.error(), "Failed to kill cgroup with cgroup.kill");
+    }
+    if (!procsBeforeKill || procsBeforeKill.value() == 0) {
       // Placeholder if we cannot figure out how many we actually killed
       nrKilled = 1;
     } else {
@@ -719,32 +710,35 @@ bool BaseKillPlugin::tryToLogAndKillCgroup(
     const KillCandidate& candidate) {
   KillUuid killUuid = generateKillUuid();
   auto actionContext = ctx.getActionContext();
+  auto& target = candidate.cgroupCtx.get();
+  auto& cgroupPath = target.cgroup().relativePath();
 
-  int nrKilled = tryToKillCgroup(candidate.cgroupCtx.get(), killUuid, dry_);
+  auto maybeNrKilled = tryToKillCgroup(target, killUuid, dry_);
+  auto nrKilled = maybeNrKilled ? *maybeNrKilled : 0;
 
-  if (nrKilled > 0) {
-    auto memPressure =
-        candidate.cgroupCtx.get().mem_pressure().value_or(ResourcePressure{});
+  std::optional<std::string> errorMsg = std::nullopt;
+  if (!maybeNrKilled) {
+    errorMsg = maybeNrKilled.error().what();
+    OLOG << "Failed to kill cgroup " << cgroupPath << ": " << *errorMsg;
+  } else if (*maybeNrKilled == 0) {
+    OLOG << "No processed killed from " << cgroupPath;
+  } else {
+    auto memPressure = target.mem_pressure().value_or(ResourcePressure{});
     std::ostringstream oss;
     oss << std::setprecision(2) << std::fixed;
     oss << memPressure.sec_10 << " " << memPressure.sec_60 << " "
-        << memPressure.sec_300 << " "
-        << candidate.cgroupCtx.get().cgroup().relativePath() << " "
-        << candidate.cgroupCtx.get().current_usage().value_or(0) << " "
-        << "ruleset:[" << actionContext.ruleset_name << "] "
-        << "detectorgroup:[" << actionContext.detectorgroup << "] "
+        << memPressure.sec_300 << " " << cgroupPath << " "
+        << target.current_usage().value_or(0) << " " << "ruleset:["
+        << actionContext.ruleset_name << "] " << "detectorgroup:["
+        << actionContext.detectorgroup << "] "
         << "killer:" << (dry_ ? "(dry)" : "") << getName() << " v2";
     if (!dry_) {
       Oomd::incrementStat(CoreStats::kKillsKey, 1);
     }
     OOMD_KMSG_LOG(oss.str(), "oomd kill");
-  } else {
-    OLOG << "Failed to kill any process from "
-         << candidate.cgroupCtx.get().cgroup().absolutePath();
   }
 
-  dumpKillInfo(
-      candidate, actionContext, killUuid, nrKilled, dry_, std::nullopt);
+  dumpKillInfo(candidate, actionContext, killUuid, nrKilled, dry_, errorMsg);
 
   return nrKilled > 0;
 }
