@@ -179,15 +179,6 @@ class BaseKillPlugin : public Engine::BasePlugin {
       const std::string& cgroupPath,
       const std::string& killUuid);
 
-  virtual void dumpKillInfo(
-      const CgroupPath& killedGroup,
-      std::optional<OomdContext::ConstCgroupContextRef> context,
-      std::optional<OomdContext::ConstCgroupContextRef> killRoot,
-      const ActionContext& actionContext,
-      const std::string& killUuid,
-      int nrKilled,
-      bool dry) const;
-
   /*
    * Override point for tests to control the clock
    */
@@ -229,6 +220,14 @@ class BaseKillPlugin : public Engine::BasePlugin {
       OomdContext& ctx,
       std::vector<KillCandidate> nextBestOptionStack,
       bool hasTriedToKillSomethingAlready);
+
+  virtual void dumpKillInfo(
+      std::optional<KillCandidate> candidate,
+      const ActionContext& actionContext,
+      const std::string& killUuid,
+      int nrKilled,
+      bool dry,
+      std::optional<std::string> errorMsg) const;
 
   /*
    * Kills cgroup and logs a structured kill message to kmsg and stderr.

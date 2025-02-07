@@ -383,25 +383,16 @@ BaseKillPlugin::KillResult BaseKillPlugin::resumeTryingToKillSomething(
     KillUuid killUuid = generateKillUuid();
     auto actionContext = ctx.getActionContext();
 
-    if (firstKillCandidate.has_value()) {
-      dumpKillInfo(
-          firstKillCandidate.value().cgroupCtx.get().cgroup(),
-          firstKillCandidate.value().cgroupCtx.get(),
-          firstKillCandidate.value().killRoot.get(),
-          actionContext,
-          killUuid,
-          false,
-          dry_);
-    } else {
-      dumpKillInfo(
-          CgroupPath{"", ""},
-          std::nullopt,
-          std::nullopt,
-          actionContext,
-          killUuid,
-          false,
-          dry_);
-    }
+    // We haven't tried to kill anything yet. If firstKillCandidate is unset,
+    // then nextBestOptionStack must be provided empty, likely because plugin's
+    // rankForKilling() returns empty result, i.e. all candidates have low usage
+    // of the threshold resource. If firstKillCandidate is set, then all the
+    // candidates must have no process inside.
+    auto errorMsg = firstKillCandidate.has_value()
+        ? "All kill candidate cgroups are empty"
+        : "No kill candidate cgroups";
+    dumpKillInfo(
+        firstKillCandidate, actionContext, killUuid, false, dry_, errorMsg);
   }
 
   return KillResult::FAILED;
@@ -753,13 +744,7 @@ bool BaseKillPlugin::tryToLogAndKillCgroup(
   }
 
   dumpKillInfo(
-      candidate.cgroupCtx.get().cgroup(),
-      candidate.cgroupCtx.get(),
-      candidate.killRoot.get(),
-      actionContext,
-      killUuid,
-      nrKilled,
-      dry_);
+      candidate, actionContext, killUuid, nrKilled, dry_, std::nullopt);
 
   return nrKilled > 0;
 }
