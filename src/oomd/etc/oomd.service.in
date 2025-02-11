@@ -1,9 +1,13 @@
 [Unit]
 Description=Userland out-of-memory killer daemon
+Documentation=man:oomd(1) https://github.com/facebookincubator/oomd#configuration
 After=system.slice
+ConditionFileIsExecutable=@bindir@/oomd
 
 [Service]
-ExecStart=@bindir@/oomd --interval 1 --config @oomdconfdir@/oomd.json
+Environment="DAEMON_OPTS=--interval 1 --config @oomdconfdir@/oomd.json"
+EnvironmentFile=-@envfiledir@/oomd
+ExecStart=@bindir@/oomd $DAEMON_OPTS
 Restart=always
 SyslogIdentifier=oomd
 MemoryLow=64M
