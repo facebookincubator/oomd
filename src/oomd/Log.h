@@ -17,9 +17,10 @@
 
 #pragma once
 
-#include <algorithm>
+#include <time.h>
 #include <array>
 #include <condition_variable>
+#include <iomanip>
 #include <iostream>
 #include <mutex>
 #include <sstream>
@@ -150,6 +151,13 @@ static void OOMD_KMSG_LOG(Args&&... args) {
   Log::get().kmsgLog(std::forward<Args>(args)...);
 }
 
+inline auto OOMD_LOG_TIME() {
+  struct tm buf;
+  time_t now =
+      std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+  return std::put_time(::localtime_r(&now, &buf), "%m%d %H:%M:%S");
+}
+
 #ifdef __FILE_NAME__
 #define FILENAME __FILE_NAME__
 #elif defined __BASE_NAME__
@@ -159,6 +167,8 @@ static void OOMD_KMSG_LOG(Args&&... args) {
 #endif
 
 // This has to be a macro so __FILE__ and __LINE__ are captured
-#define OLOG ::Oomd::LogStream() << "[" << FILENAME << ":" << __LINE__ << "] "
+#define OLOG                                                                \
+  ::Oomd::LogStream() << ::Oomd::OOMD_LOG_TIME() << " [" << FILENAME << ":" \
+                      << __LINE__ << "] "
 
 } // namespace Oomd
