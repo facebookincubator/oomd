@@ -17,10 +17,8 @@
 
 #include "oomd/plugins/MemoryReclaim.h"
 
-#include "oomd/Log.h"
 #include "oomd/PluginRegistry.h"
 #include "oomd/util/ScopeGuard.h"
-#include "oomd/util/Util.h"
 
 static constexpr auto kPgscan = "pgscan";
 

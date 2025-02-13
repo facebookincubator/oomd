@@ -25,7 +25,6 @@
 #include "oomd/PluginRegistry.h"
 #include "oomd/include/CgroupPath.h"
 #include "oomd/util/Fs.h"
-#include "oomd/util/Util.h"
 
 namespace {
 auto constexpr kPgscanSwap = "pgscan_kswapd";

@@ -20,7 +20,6 @@
 #include "oomd/Log.h"
 #include "oomd/PluginRegistry.h"
 #include "oomd/util/PluginArgParser.h"
-#include "oomd/util/Util.h"
 
 namespace Oomd {
 

@@ -22,7 +22,6 @@
 #include <functional>
 #include <thread>
 
-#include <strings.h>
 #include "oomd/CgroupContext.h"
 #include "oomd/Log.h"
 #include "oomd/dropin/FsDropInService.h"

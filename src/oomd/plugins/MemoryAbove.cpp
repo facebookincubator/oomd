@@ -25,7 +25,6 @@
 #include "oomd/PluginRegistry.h"
 #include "oomd/util/Fs.h"
 #include "oomd/util/PluginArgParser.h"
-#include "oomd/util/ScopeGuard.h"
 #include "oomd/util/Util.h"
 
 namespace Oomd {

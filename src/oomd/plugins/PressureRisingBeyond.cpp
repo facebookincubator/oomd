@@ -18,14 +18,12 @@
 #include "oomd/plugins/PressureRisingBeyond.h"
 
 #include <iomanip>
-#include <stdexcept>
 #include <string>
 
 #include "oomd/Log.h"
 #include "oomd/PluginRegistry.h"
 #include "oomd/include/Types.h"
 #include "oomd/util/ScopeGuard.h"
-#include "oomd/util/Util.h"
 
 namespace Oomd {
 

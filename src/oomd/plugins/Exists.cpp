@@ -20,10 +20,7 @@
 #include <iomanip>
 #include <string>
 
-#include "oomd/Log.h"
 #include "oomd/PluginRegistry.h"
-#include "oomd/util/ScopeGuard.h"
-#include "oomd/util/Util.h"
 
 namespace Oomd {
 

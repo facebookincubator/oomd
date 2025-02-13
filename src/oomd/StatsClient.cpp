@@ -18,14 +18,12 @@
 #include "oomd/StatsClient.h"
 #include <json/reader.h>
 #include <json/value.h>
-#include <stdio.h>
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <unistd.h>
 #include <iostream>
 #include <optional>
 #include <vector>
-#include "oomd/Stats.h"
 #include "oomd/util/ScopeGuard.h"
 #include "oomd/util/Util.h"
 
