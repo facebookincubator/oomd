@@ -56,6 +56,12 @@ static int process_mrelease(int pidfd, unsigned int flags) noexcept {
   return ::syscall(__NR_process_mrelease, pidfd, flags);
 }
 
+static int getMsSince(std::chrono::steady_clock::time_point start) {
+  return std::chrono::duration_cast<std::chrono::milliseconds>(
+             std::chrono::steady_clock::now() - start)
+      .count();
+}
+
 } // namespace
 
 static auto constexpr kOomdKillInitiationTrustedXattr = "trusted.oomd_ooms";
@@ -388,7 +394,7 @@ BaseKillPlugin::KillResult BaseKillPlugin::resumeTryingToKillSomething(
         ? "All kill candidate cgroups are empty"
         : "No kill candidate cgroups";
     dumpKillInfo(
-        firstKillCandidate, actionContext, killUuid, false, dry_, errorMsg);
+        firstKillCandidate, actionContext, killUuid, false, dry_, errorMsg, {});
   }
 
   return KillResult::FAILED;
@@ -508,8 +514,10 @@ int BaseKillPlugin::reapCgroupRecursively(const CgroupContext& target) {
 SystemMaybe<int> BaseKillPlugin::tryToKillCgroup(
     const CgroupContext& target,
     const KillUuid& killUuid,
-    bool dry) {
+    bool dry,
+    KillCgroupStats& stats) {
   using namespace std::chrono_literals;
+  const auto killStart = std::chrono::steady_clock::now();
 
   const std::string& cgroupPath = target.cgroup().absolutePath();
 
@@ -588,15 +596,16 @@ SystemMaybe<int> BaseKillPlugin::tryToKillCgroup(
 
   if (reapMemory_ && nrKilled > 0) {
     OLOG << "Reaping processes in " << target.cgroup().absolutePath();
-    const auto start = std::chrono::steady_clock::now();
-    const int reaped = reapCgroupRecursively(target);
-    const auto end = std::chrono::steady_clock::now();
-    const auto dur =
-        std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-    OLOG << "Reaped " << reaped << " processes in " << dur.count() << "ms";
+    const auto reapStart = std::chrono::steady_clock::now();
+    stats.nrReaped = reapCgroupRecursively(target);
+    stats.reapDurMs = getMsSince(reapStart);
+    OLOG << "Reaped " << *stats.nrReaped << " processes in " << *stats.reapDurMs
+         << "ms";
   }
 
   reportKillCompletionToXattr(cgroupPath, nrKilled);
+
+  stats.totalDurMs = getMsSince(killStart);
   return nrKilled;
 }
 
@@ -713,7 +722,8 @@ bool BaseKillPlugin::tryToLogAndKillCgroup(
   auto& target = candidate.cgroupCtx.get();
   auto& cgroupPath = target.cgroup().relativePath();
 
-  auto maybeNrKilled = tryToKillCgroup(target, killUuid, dry_);
+  KillCgroupStats stats;
+  auto maybeNrKilled = tryToKillCgroup(target, killUuid, dry_, stats);
   auto nrKilled = maybeNrKilled ? *maybeNrKilled : 0;
 
   std::optional<std::string> errorMsg = std::nullopt;
@@ -738,7 +748,8 @@ bool BaseKillPlugin::tryToLogAndKillCgroup(
     OOMD_KMSG_LOG(oss.str(), "oomd kill");
   }
 
-  dumpKillInfo(candidate, actionContext, killUuid, nrKilled, dry_, errorMsg);
+  dumpKillInfo(
+      candidate, actionContext, killUuid, nrKilled, dry_, errorMsg, stats);
 
   return nrKilled > 0;
 }

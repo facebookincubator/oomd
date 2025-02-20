@@ -126,6 +126,12 @@ class BaseKillPlugin : public Engine::BasePlugin {
 
   using KillUuid = std::string;
 
+  struct KillCgroupStats {
+    std::optional<int> totalDurMs{std::nullopt};
+    std::optional<int> nrReaped{std::nullopt};
+    std::optional<int> reapDurMs{std::nullopt};
+  };
+
   /*
    * Kills a cgroup
    *
@@ -137,7 +143,8 @@ class BaseKillPlugin : public Engine::BasePlugin {
   virtual SystemMaybe<int> tryToKillCgroup(
       const CgroupContext& target,
       const KillUuid& killUuid,
-      bool dry);
+      bool dry,
+      KillCgroupStats& stats);
 
   /*
    * Sends SIGKILL to every PID in @param procs
@@ -225,7 +232,8 @@ class BaseKillPlugin : public Engine::BasePlugin {
       const std::string& killUuid,
       int nrKilled,
       bool dry,
-      std::optional<std::string> errorMsg) const;
+      std::optional<std::string> errorMsg,
+      const KillCgroupStats& stats) const;
 
   /*
    * Kills cgroup and logs a structured kill message to kmsg and stderr.
