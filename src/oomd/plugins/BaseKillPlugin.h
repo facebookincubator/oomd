@@ -266,7 +266,7 @@ class BaseKillPlugin : public Engine::BasePlugin {
   bool alwaysContinue_{false};
   bool debug_{false};
   bool kernelKill_{false};
-  bool reapMemory_{false};
+  bool reapMemory_{true};
 
   struct ActivePrekillHook {
    public:

@@ -189,7 +189,7 @@ Always returns CONTINUE.
     post_action_delay=15 (optional)
     dry=false (optional)
     always_continue=false (optional)
-    reap_memory=false (optional)
+    reap_memory=true (optional)
 
 ### Description
 
@@ -255,7 +255,7 @@ If `reap_memory` is set to true, attempt to speed up process memory cleanup via 
     post_action_delay=15 (optional)
     dry=false (optional)
     always_continue=false (optional)
-    reap_memory=false (optional)
+    reap_memory=true (optional)
 
 ### Description
 
@@ -288,7 +288,7 @@ If `reap_memory` is set to true, attempt to speed up process memory cleanup via 
     post_action_delay=15 (optional)
     dry=false (optional)
     always_continue=false (optional)
-    reap_memory=false (optional)
+    reap_memory=true (optional)
 
 ### Description
 
@@ -320,7 +320,7 @@ If `reap_memory` is set to true, attempt to speed up process memory cleanup via 
     post_action_delay=15 (optional)
     dry=false (optional)
     always_continue=false (optional)
-    reap_memory=false (optional)
+    reap_memory=true (optional)
 
 ### Description
 
@@ -350,7 +350,7 @@ If `reap_memory` is set to true, attempt to speed up process memory cleanup via 
     post_action_delay=15 (optional)
     dry=false (optional)
     always_continue=false (optional)
-    reap_memory=false (optional)
+    reap_memory=true (optional)
 
 ### Description
 
