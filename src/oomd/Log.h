@@ -20,10 +20,10 @@
 #include <time.h>
 #include <array>
 #include <condition_variable>
-#include <iomanip>
 #include <iostream>
 #include <mutex>
 #include <sstream>
+#include <string>
 #include <thread>
 #include <vector>
 
@@ -151,11 +151,21 @@ static void OOMD_KMSG_LOG(Args&&... args) {
   Log::get().kmsgLog(std::forward<Args>(args)...);
 }
 
-inline auto OOMD_LOG_TIME() {
-  struct tm buf;
-  time_t now =
+inline std::string OOMD_LOG_TIME() {
+  auto now =
       std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
-  return std::put_time(::localtime_r(&now, &buf), "%m%d %H:%M:%S");
+  ::tm tm;
+  if (::localtime_r(&now, &tm) == nullptr) {
+    return {};
+  }
+  // We are lucky, maximum length of format string corresponds to maximum
+  // length of formatted string.
+  char fmt[] = "%m%d %H:%M:%S";
+  std::string buf(sizeof(fmt), '\0');
+  if (::strftime(buf.data(), buf.size(), fmt, &tm) == 0) {
+    return {};
+  }
+  return buf;
 }
 
 #ifdef __FILE_NAME__
