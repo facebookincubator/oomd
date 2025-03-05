@@ -72,6 +72,8 @@ struct Ruleset {
   std::string silence_logs;
   std::string post_action_delay;
   std::string prekill_hook_timeout;
+  std::string xattr_filter;
+  std::string cgroup;
 };
 
 struct Root {

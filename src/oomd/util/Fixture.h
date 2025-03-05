@@ -18,13 +18,9 @@
 #pragma once
 
 #include <functional>
-#include <initializer_list>
-#include <memory>
 #include <string>
 #include <unordered_map>
 #include <utility>
-#include <vector>
-
 namespace Oomd {
 
 // Fixture is a utility class for unit tests to encode their fixture files and

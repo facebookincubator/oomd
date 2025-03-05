@@ -32,6 +32,7 @@ class DetectorGroup {
   DetectorGroup(
       const std::string& name,
       std::vector<std::unique_ptr<BasePlugin>> detectors);
+  DetectorGroup(DetectorGroup const& dg);
   ~DetectorGroup() = default;
 
   /*

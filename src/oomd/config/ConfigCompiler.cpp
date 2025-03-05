@@ -22,8 +22,8 @@
 #include "oomd/Log.h"
 #include "oomd/PluginRegistry.h"
 #include "oomd/engine/BasePlugin.h"
-#include "oomd/engine/DetectorGroup.h"
 #include "oomd/engine/EngineTypes.h"
+#include "oomd/engine/PrekillHook.h"
 #include "oomd/engine/Ruleset.h"
 #include "oomd/util/Util.h"
 
@@ -47,7 +47,7 @@ std::unique_ptr<PluginT> compilePluginGeneric(
 
   instance->setName(plugin.name);
 
-  int ret = instance->init(plugin.args, context);
+  int ret = instance->initPlugin(plugin.args, context);
   if (ret != 0) {
     OLOG << "Plugin=" << plugin.name << " failed to init() with code=" << ret;
     return nullptr;
@@ -188,7 +188,10 @@ std::unique_ptr<Oomd::Engine::Ruleset> compileRuleset(
       ruleset.dropin.actiongroup_enabled,
       silenced_logs,
       post_action_delay,
-      prekill_hook_timeout);
+      prekill_hook_timeout,
+      ruleset.xattr_filter,
+      context.cgroupFs(),
+      ruleset.cgroup);
 }
 
 } // namespace

@@ -17,13 +17,11 @@
 
 #pragma once
 
-#include <cstdint>
 #include <deque>
 #include <memory>
 #include <vector>
 
 #include "oomd/OomdContext.h"
-#include "oomd/engine/BasePlugin.h"
 #include "oomd/engine/PrekillHook.h"
 #include "oomd/engine/Ruleset.h"
 

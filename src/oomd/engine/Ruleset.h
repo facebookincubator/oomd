@@ -40,7 +40,21 @@ class Ruleset {
       bool actiongroup_dropin_enabled = false,
       uint32_t silenced_logs = 0,
       int post_action_delay = DEFAULT_POST_ACTION_DELAY,
-      int prekill_hook_timeout = DEFAULT_PREKILL_HOOK_TIMEOUT);
+      int prekill_hook_timeout = DEFAULT_PREKILL_HOOK_TIMEOUT,
+      const std::string& xattr_filter = "",
+      const std::string& cgroup_fs = "",
+      const std::string& cgroup = "");
+  Ruleset(
+      const std::string& name,
+      std::vector<std::unique_ptr<DetectorGroup>> detector_groups,
+      std::vector<std::unique_ptr<BasePlugin>> action_group,
+      bool disable_on_drop_in,
+      bool detectorgroups_dropin_enabled,
+      bool actiongroup_dropin_enabled,
+      uint32_t silenced_logs,
+      int post_action_delay,
+      int prekill_hook_timeout,
+      std::unique_ptr<CgroupPath>);
   ~Ruleset() = default;
 
   /*
@@ -82,6 +96,11 @@ class Ruleset {
   void pause_actions(std::chrono::seconds duration);
 
  private:
+  uint32_t runOnceImpl(OomdContext& context);
+  void registerRunnableRulesetForCgroupPath(
+      OomdContext& context,
+      const CgroupPath& cgroup_path);
+
   std::string name_;
   std::vector<std::unique_ptr<DetectorGroup>> detector_groups_;
   std::vector<std::unique_ptr<BasePlugin>> action_group_;
@@ -93,6 +112,9 @@ class Ruleset {
   bool actiongroup_dropin_enabled_{false};
   uint32_t silenced_logs_{0};
   int32_t numTargeted_{0};
+  std::string xattr_filter_;
+  std::optional<std::unique_ptr<CgroupPath>> cgroup_{std::nullopt};
+  std::unordered_map<std::string, std::unique_ptr<Ruleset>> runnable_rulesets_;
 
   struct AsyncActionChainState {
    public:
@@ -100,7 +122,7 @@ class Ruleset {
     ActionContext action_context;
   };
   std::optional<AsyncActionChainState> active_action_chain_state_{std::nullopt};
-  int run_action_chain(
+  uint32_t run_action_chain(
       std::vector<std::unique_ptr<BasePlugin>>::iterator action_chain_start,
       std::vector<std::unique_ptr<BasePlugin>>::iterator action_chain_end,
       OomdContext& context);

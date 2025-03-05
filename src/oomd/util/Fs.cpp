@@ -29,9 +29,7 @@
 #include <unistd.h>
 
 #include <cinttypes>
-#include <deque>
 #include <fstream>
-#include <sstream>
 #include <utility>
 
 #include "oomd/include/Assert.h"

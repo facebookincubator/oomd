@@ -20,7 +20,7 @@
 #include "oomd/CgroupContext.h"
 #include "oomd/OomdContext.h"
 #include "oomd/PluginRegistry.h"
-#include "oomd/engine/BasePlugin.h"
+#include "oomd/engine/PrekillHook.h"
 
 #define ASSERT_EXISTS(opt_expr) \
   ({                            \

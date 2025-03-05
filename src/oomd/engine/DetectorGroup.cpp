@@ -18,6 +18,7 @@
 #include "oomd/engine/DetectorGroup.h"
 #include "oomd/Log.h"
 #include "oomd/OomdContext.h"
+#include "oomd/PluginRegistry.h"
 #include "oomd/engine/EngineTypes.h"
 
 namespace Oomd {
@@ -27,6 +28,16 @@ DetectorGroup::DetectorGroup(
     const std::string& name,
     std::vector<std::unique_ptr<BasePlugin>> detectors)
     : name_(name), detectors_(std::move(detectors)) {}
+
+DetectorGroup::DetectorGroup(DetectorGroup const& dg) : name_(dg.name_) {
+  auto& registry = Oomd::getPluginRegistry();
+  for (auto it = dg.detectors_.begin(); it != dg.detectors_.end(); ++it) {
+    auto plugin = registry.create(it->get()->getName());
+    plugin->setName(it->get()->getName());
+    plugin->init(it->get()->getPluginArgs(), it->get()->getPluginContext());
+    detectors_.emplace_back(plugin);
+  }
+}
 
 void DetectorGroup::prerun(OomdContext& context) {
   for (const auto& detector : detectors_) {

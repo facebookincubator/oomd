@@ -18,12 +18,9 @@
 #pragma once
 
 #include <string>
-#include <unordered_map>
-#include <unordered_set>
 
 #include "oomd/OomdContext.h"
 #include "oomd/PluginConstructionContext.h"
-#include "oomd/include/CgroupPath.h"
 #include "oomd/include/Types.h"
 #include "oomd/util/PluginArgParser.h"
 
@@ -38,6 +35,15 @@ enum class PluginRet {
 
 class BasePlugin {
  public:
+  int initPlugin(
+      const PluginArgs& args,
+      const PluginConstructionContext& context) {
+    for (auto const& [key, value] : args) {
+      args_[key] = value;
+    }
+    context_ = context;
+    return init(args, context);
+  }
   /*
    * Config arguments are passed via @param args. If some required args are
    * missing, the plugin can return a non-zero value and oomd will abort
@@ -84,6 +90,14 @@ class BasePlugin {
     return name_;
   }
 
+  const PluginArgs getPluginArgs() const {
+    return args_;
+  }
+
+  const PluginConstructionContext& getPluginContext() const {
+    return context_;
+  }
+
   virtual ~BasePlugin() = default;
 
  protected:
@@ -91,6 +105,8 @@ class BasePlugin {
 
  private:
   std::string name_;
+  PluginArgs args_;
+  PluginConstructionContext context_;
 };
 
 } // namespace Engine

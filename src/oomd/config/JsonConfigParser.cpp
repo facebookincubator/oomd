@@ -128,6 +128,9 @@ Oomd::Config2::IR::Ruleset parseRuleset(const Json::Value& ruleset) {
         parsePlugin<Oomd::Config2::IR::Action>(action));
   }
 
+  ir_ruleset.xattr_filter = ruleset.get("xattr_filter", {}).asString();
+  ir_ruleset.cgroup = ruleset.get("cgroup", {}).asString();
+
   return ir_ruleset;
 }
 

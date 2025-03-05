@@ -20,12 +20,10 @@
 #include <string>
 #include <unordered_set>
 
-#include "oomd/Log.h"
 #include "oomd/PluginConstructionContext.h"
 #include "oomd/include/CgroupPath.h"
 #include "oomd/include/Types.h"
 #include "oomd/util/SystemMaybe.h"
-#include "oomd/util/Util.h"
 
 namespace Oomd {
 

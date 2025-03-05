@@ -19,6 +19,7 @@
 
 #include <memory>
 #include <optional>
+#include <unordered_set>
 #include <vector>
 #include "oomd/CgroupContext.h"
 #include "oomd/PluginConstructionContext.h"
@@ -57,6 +58,12 @@ class PrekillHook {
 
   PrekillHook(const PrekillHook&) = delete;
   PrekillHook& operator=(const PrekillHook&) = delete;
+
+  int initPlugin(
+      const PluginArgs& args,
+      const PluginConstructionContext& context) {
+    return init(args, context);
+  }
 
   virtual int init(
       const PluginArgs& args,

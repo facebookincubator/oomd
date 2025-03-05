@@ -19,7 +19,6 @@
 #include <optional>
 
 #include "oomd/Log.h"
-#include "oomd/engine/Engine.h"
 #include "oomd/util/Fs.h"
 
 namespace Oomd {
@@ -84,7 +83,7 @@ OomdContext::addChildrenToCacheAndGet(const CgroupContext& cgroup_ctx) {
 
   CgroupContext::Error err;
   std::unordered_set<Oomd::CgroupPath> child_paths;
-  if (auto children = cgroup_ctx.children(&err)) {
+  if (auto& children = cgroup_ctx.children(&err)) {
     for (const auto& name : *children) {
       if (const auto& child_ctx = addChildToCacheAndGet(cgroup_ctx, name)) {
         ret.push_back(*child_ctx);
@@ -131,6 +130,14 @@ const std::optional<Engine::Ruleset*> OomdContext::getInvokingRuleset() {
 
 void OomdContext::setInvokingRuleset(std::optional<Engine::Ruleset*> ruleset) {
   invoking_ruleset_ = ruleset;
+}
+
+const std::optional<CgroupPath> OomdContext::getRulesetCgroup() const {
+  return ruleset_cgroup_;
+}
+
+void OomdContext::setRulesetCgroup(std::optional<CgroupPath> ruleset_cgroup) {
+  ruleset_cgroup_ = std::move(ruleset_cgroup);
 }
 
 void OomdContext::dump() {

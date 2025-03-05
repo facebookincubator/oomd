@@ -28,6 +28,7 @@
 #include <vector>
 
 #include "oomd/CgroupContext.h"
+#include "oomd/engine/PrekillHook.h"
 #include "oomd/include/CgroupPath.h"
 #include "oomd/include/Types.h"
 
@@ -45,6 +46,7 @@ struct ActionContext {
   std::string action_group_run_uuid;
   std::optional<std::chrono::steady_clock::time_point> prekill_hook_timeout_ts{
       std::nullopt};
+  std::optional<CgroupPath> target_cgroup{std::nullopt};
 };
 
 struct ContextParams {
@@ -183,6 +185,12 @@ class OomdContext {
               const CgroupContext& cgroup_ctx)> prekill_hook_handler);
 
   /*
+   * used to define rule-set level cgroup
+   */
+  const std::optional<CgroupPath> getRulesetCgroup() const;
+  void setRulesetCgroup(std::optional<CgroupPath> context);
+
+  /*
    * Refresh all cgroups and remove ones no longer exist.
    */
   void refresh();
@@ -200,6 +208,7 @@ class OomdContext {
   std::function<std::optional<std::unique_ptr<Engine::PrekillHookInvocation>>(
       const CgroupContext& cgroup_ctx)>
       prekill_hook_handler_{nullptr};
+  std::optional<CgroupPath> ruleset_cgroup_{std::nullopt};
 };
 
 } // namespace Oomd

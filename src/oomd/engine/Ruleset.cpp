@@ -17,9 +17,10 @@
 
 #include "oomd/engine/Ruleset.h"
 #include "oomd/Log.h"
+#include "oomd/PluginRegistry.h"
+#include "oomd/engine/BasePlugin.h"
 #include "oomd/engine/EngineTypes.h"
 #include "oomd/util/ScopeGuard.h"
-#include "oomd/util/Util.h"
 
 namespace Oomd {
 namespace Engine {
@@ -33,7 +34,10 @@ Ruleset::Ruleset(
     bool actiongroup_dropin_enabled,
     uint32_t silence_logs,
     int post_action_delay,
-    int prekill_hook_timeout)
+    int prekill_hook_timeout,
+    const std::string& xattr_filter,
+    const std::string& cgroup_fs,
+    const std::string& cgroup)
     : name_(name),
       detector_groups_(std::move(detector_groups)),
       action_group_(std::move(action_group)),
@@ -42,7 +46,36 @@ Ruleset::Ruleset(
       disable_on_drop_in_(disable_on_drop_in),
       detectorgroups_dropin_enabled_(detectorgroups_dropin_enabled),
       actiongroup_dropin_enabled_(actiongroup_dropin_enabled),
-      silenced_logs_(silence_logs) {}
+      silenced_logs_(silence_logs),
+      xattr_filter_(xattr_filter) {
+  if (!cgroup.empty()) {
+    cgroup_ =
+        std::make_optional(std::make_unique<CgroupPath>(cgroup_fs, cgroup));
+  }
+}
+
+Ruleset::Ruleset(
+    const std::string& name,
+    std::vector<std::unique_ptr<DetectorGroup>> detector_groups,
+    std::vector<std::unique_ptr<BasePlugin>> action_group,
+    bool disable_on_drop_in,
+    bool detectorgroups_dropin_enabled,
+    bool actiongroup_dropin_enabled,
+    uint32_t silence_logs,
+    int post_action_delay,
+    int prekill_hook_timeout,
+    std::unique_ptr<CgroupPath> cgroup)
+    : name_(name),
+      detector_groups_(std::move(detector_groups)),
+      action_group_(std::move(action_group)),
+      post_action_delay_(post_action_delay),
+      prekill_hook_timeout_(prekill_hook_timeout),
+      disable_on_drop_in_(disable_on_drop_in),
+      detectorgroups_dropin_enabled_(detectorgroups_dropin_enabled),
+      actiongroup_dropin_enabled_(actiongroup_dropin_enabled),
+      silenced_logs_(silence_logs) {
+  cgroup_ = std::move(cgroup);
+}
 
 bool Ruleset::mergeWithDropIn(std::unique_ptr<Ruleset> ruleset) {
   if (!ruleset) {
@@ -103,7 +136,49 @@ uint32_t Ruleset::runOnce(OomdContext& context) {
   if (!enabled_) {
     return 0;
   }
+  if (!cgroup_.has_value()) {
+    return runOnceImpl(context);
+  }
+  auto visited = std::unordered_set<std::string>();
+  uint32_t ret = 0;
+  for (const auto& cgroup : cgroup_.value()->resolveWildcard()) {
+    auto cgroupfd = Fs::DirFd::open(cgroup.absolutePath());
+    if (!cgroupfd) {
+      continue;
+    }
+    if (!xattr_filter_.empty()) {
+      auto maybeHasXattr = Fs::hasxattrAt(cgroupfd.value(), xattr_filter_);
+      if (!maybeHasXattr) {
+        OLOG << "Failed to fetch xattr: " << xattr_filter_
+             << " for cgroup: " << cgroup.absolutePath()
+             << ". Error: " << maybeHasXattr.error().what();
+        continue;
+      }
+      if (!*maybeHasXattr) {
+        continue;
+      }
+    }
+    if (!runnable_rulesets_.contains(cgroup.absolutePath())) {
+      OLOG << "Adding runnable ruleset for cgroup: " << cgroup.absolutePath();
+      registerRunnableRulesetForCgroupPath(context, cgroup);
+    }
+    context.setRulesetCgroup(cgroup);
+    ret = runnable_rulesets_[cgroup.absolutePath()]->runOnceImpl(context);
+    visited.insert(cgroup.absolutePath());
+  }
+  for (auto&& cgroup_it = runnable_rulesets_.begin();
+       cgroup_it != runnable_rulesets_.end();
+       ++cgroup_it) {
+    if (visited.contains(cgroup_it->first)) {
+      continue;
+    }
+    OLOG << "Dropping runnable ruleset for cgroup: " << cgroup_it->first;
+    runnable_rulesets_.erase(cgroup_it);
+  }
+  return ret;
+}
 
+uint32_t Ruleset::runOnceImpl(OomdContext& context) {
   // If any DetectorGroup fires, then begin running action chain
   //
   // Note we're still check()'ing the detector groups so that any detectors
@@ -121,7 +196,8 @@ uint32_t Ruleset::runOnce(OomdContext& context) {
            dg->name(),
            Util::generateUuid(),
            std::chrono::steady_clock::now() +
-               std::chrono::seconds(prekill_hook_timeout_)});
+               std::chrono::seconds(prekill_hook_timeout_),
+           context.getRulesetCgroup()});
       context.setInvokingRuleset(this);
     }
   }
@@ -129,6 +205,7 @@ uint32_t Ruleset::runOnce(OomdContext& context) {
   OOMD_SCOPE_EXIT {
     context.setActionContext({"", "", "", std::nullopt});
     context.setInvokingRuleset(std::nullopt);
+    context.setRulesetCgroup(std::nullopt);
   };
 
   // run actions if now() == pause_actions_until_ because a delay of 0 should
@@ -139,17 +216,27 @@ uint32_t Ruleset::runOnce(OomdContext& context) {
 
   if (active_action_chain_state_ != std::nullopt) {
     // resume the action context from when the action chain was fired
-    context.setActionContext(
-        std::move(active_action_chain_state_->action_context));
+    context.setActionContext(active_action_chain_state_->action_context);
 
     // clear active_async_plugin_ and save it to a temp
     BasePlugin& target = active_action_chain_state_->active_plugin;
     active_action_chain_state_ = std::nullopt;
 
     for (auto&& it = action_group_.begin(); it != action_group_.end(); ++it) {
-      if (it->get() == &target) {
-        return run_action_chain(it, action_group_.end(), context);
+      if (it->get() != &target) {
+        continue;
       }
+      if (!(silenced_logs_ & LogSources::ENGINE)) {
+        std::string target_cgroup;
+        if (cgroup_.has_value()) {
+          target_cgroup = cgroup_.value()->absolutePath();
+        }
+        OLOG << "DetectorGroup=" << context.getActionContext().detectorgroup
+             << " has fired for Ruleset=" << name_
+             << " with target cgroup=" << target_cgroup
+             << ". Running action chain from state.";
+      }
+      return run_action_chain(it, action_group_.end(), context);
     }
   }
 
@@ -158,15 +245,21 @@ uint32_t Ruleset::runOnce(OomdContext& context) {
   }
 
   if (!(silenced_logs_ & LogSources::ENGINE)) {
+    std::string target_cgroup;
+    if (cgroup_.has_value()) {
+      target_cgroup = cgroup_.value()->absolutePath();
+    }
     OLOG << "DetectorGroup=" << context.getActionContext().detectorgroup
-         << " has fired for Ruleset=" << name_ << ". Running action chain.";
+         << " has fired for Ruleset=" << name_
+         << " with ruleset cgroup=" << target_cgroup
+         << ". Running action chain.";
   }
 
   // Begin running action chain
   return run_action_chain(action_group_.begin(), action_group_.end(), context);
 }
 
-int Ruleset::run_action_chain(
+uint32_t Ruleset::run_action_chain(
     std::vector<std::unique_ptr<BasePlugin>>::iterator action_chain_start,
     std::vector<std::unique_ptr<BasePlugin>>::iterator action_chain_end,
     OomdContext& context) {
@@ -226,6 +319,40 @@ int Ruleset::run_action_chain(
 void Ruleset::pause_actions(std::chrono::seconds duration) {
   pause_actions_until_ = std::chrono::steady_clock::now() + duration;
   plugin_overrode_post_action_delay_ = true;
+}
+
+void Ruleset::registerRunnableRulesetForCgroupPath(
+    OomdContext& context,
+    const CgroupPath& cgroup) {
+  auto detector_groups = std::vector<std::unique_ptr<DetectorGroup>>();
+  detector_groups.reserve(detector_groups_.size());
+  for (auto it = detector_groups_.begin(); it != detector_groups_.end(); ++it) {
+    detector_groups.push_back(std::make_unique<DetectorGroup>(*it->get()));
+  }
+  auto& registry = Oomd::getPluginRegistry();
+  auto action_group = std::vector<std::unique_ptr<BasePlugin>>();
+  action_group.reserve(action_group_.size());
+  for (auto it = action_group_.begin(); it != action_group_.end(); ++it) {
+    auto plugin = registry.create(it->get()->getName());
+    plugin->setName(it->get()->getName());
+    plugin->init(
+        it->get()->getPluginArgs(),
+        PluginConstructionContext(cgroup.cgroupFs()));
+    action_group.emplace_back(plugin);
+  }
+  auto ruleset = std::make_unique<Ruleset>(
+      name_,
+      std::move(detector_groups),
+      std::move(action_group),
+      disable_on_drop_in_,
+      detectorgroups_dropin_enabled_,
+      actiongroup_dropin_enabled_,
+      silenced_logs_,
+      post_action_delay_,
+      prekill_hook_timeout_,
+      std::make_unique<CgroupPath>(cgroup.cgroupFs(), cgroup.relativePath()));
+  ruleset->prerun(context);
+  runnable_rulesets_[cgroup.absolutePath()] = std::move(ruleset);
 }
 
 } // namespace Engine

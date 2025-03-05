@@ -77,6 +77,12 @@ void dumpIR(const Root& root) {
     --indent;
 
     OLOG << getIndentSpaces(indent) << "SilenceLogs=" << ruleset.silence_logs;
+    OLOG << getIndentSpaces(indent)
+         << "PostActionDelay=" << ruleset.post_action_delay;
+    OLOG << getIndentSpaces(indent)
+         << "PrekillHookTimeout=" << ruleset.prekill_hook_timeout;
+    OLOG << getIndentSpaces(indent) << "XattrFilter=" << ruleset.xattr_filter;
+    OLOG << getIndentSpaces(indent) << "Cgroup=" << ruleset.cgroup;
 
     // Print DetectorGroup's
     for (const auto& dg : ruleset.dgs) {

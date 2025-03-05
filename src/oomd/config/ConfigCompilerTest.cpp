@@ -40,6 +40,7 @@ namespace {
 int prerun_count;
 int prerun_stored_count;
 int count;
+std::map<std::string, int> count_map = std::map<std::string, int>();
 int stored_count;
 bool controlled_detector_on;
 std::unordered_map<std::string, unsigned int> prekill_hook_count;
@@ -580,6 +581,161 @@ TEST_F(CompilerTest, PrekillHook) {
     ASSERT_EQ(prekill_hook_count, expectation);
   }
 }
+
+TEST_F(CompilerTest, RulesetWildcardCGroup) {
+  IR::Detector cont;
+  cont.name = "Continue";
+  IR::Action increment;
+  increment.name = "IncrementCount";
+  IR::DetectorGroup dgroup{"group1", {std::move(cont)}};
+  IR::Ruleset ruleset{
+      /*name=*/"ruleset1",
+      /*dgs=*/{std::move(dgroup)},
+      /*acts=*/{std::move(increment)},
+      /*dropin=*/{},
+      /*silence_logs=*/"",
+      /*post_action_delay=*/"",
+      /*prekill_hook_timeout=*/"",
+      /*xattr_filter=*/"",
+      /*cgroup=*/".*"};
+  root.rulesets.emplace_back(std::move(ruleset));
+
+  auto engine = compile();
+  ASSERT_TRUE(engine);
+  for (int i = 0; i < 3; ++i) {
+    engine->runOnce(context);
+  }
+
+  EXPECT_EQ(count, 6);
+}
+
+TEST_F(CompilerTest, RulesetCGroup) {
+  IR::Detector cont;
+  cont.name = "Continue";
+  IR::Action increment;
+  increment.name = "IncrementCount";
+  IR::DetectorGroup dgroup{"group1", {std::move(cont)}};
+  IR::Ruleset ruleset{
+      /*name=*/"ruleset1",
+      /*dgs=*/{std::move(dgroup)},
+      /*acts=*/{std::move(increment)},
+      /*dropin=*/{},
+      /*silence_logs=*/"",
+      /*post_action_delay=*/"",
+      /*prekill_hook_timeout=*/"",
+      /*xattr_filter=*/"",
+      /*cgroup=*/"."};
+  root.rulesets.emplace_back(std::move(ruleset));
+
+  auto engine = compile();
+  ASSERT_TRUE(engine);
+  for (int i = 0; i < 3; ++i) {
+    engine->runOnce(context);
+  }
+
+  EXPECT_EQ(count, 3);
+}
+
+TEST_F(CompilerTest, RulesetCGroupXattrfilter) {
+  IR::Detector cont;
+  cont.name = "Continue";
+  IR::Action increment;
+  increment.name = "IncrementCount";
+  IR::DetectorGroup dgroup{"group1", {std::move(cont)}};
+  IR::Ruleset ruleset{
+      /*name=*/"ruleset1",
+      /*dgs=*/{std::move(dgroup)},
+      /*acts=*/{std::move(increment)},
+      /*dropin=*/{},
+      /*silence_logs=*/"",
+      /*post_action_delay=*/"",
+      /*prekill_hook_timeout=*/"",
+      /*xattr_filter=*/"dummyxattr",
+      /*cgroup=*/"."};
+  root.rulesets.emplace_back(std::move(ruleset));
+
+  auto engine = compile();
+  ASSERT_TRUE(engine);
+  for (int i = 0; i < 3; ++i) {
+    engine->runOnce(context);
+  }
+
+  EXPECT_EQ(count, 0);
+}
+
+TEST_F(CompilerTest, RulesetCGroupTwoChainsIndependentlyPaused) {
+  IR::Action cont{IR::Plugin{.name = "Continue"}};
+  IR::Action inc{IR::Plugin{.name = "IncrementCount"}};
+  IR::Action stop{IR::Plugin{.name = "Stop"}};
+  IR::Action pause{IR::Plugin{.name = "AsyncPause"}};
+
+  IR::DetectorGroup always_yes{
+      .name = "dg",
+      .detectors = {IR::Detector{IR::Plugin{.name = "Continue"}}}};
+
+  // Each enabled plugin will prerun() once, including action that's not taken.
+  root.rulesets = {
+      IR::Ruleset{
+          .name = "A",
+          .dgs = {always_yes},
+          .acts =
+              {inc,
+               inc,
+               pause, // (1)
+               inc,
+               inc,
+               inc,
+               pause, // (2)
+               inc,
+               stop}, // (3)
+          .post_action_delay = "0",
+          .cgroup = ".*"},
+      IR::Ruleset{
+          .name = "B",
+          .dgs = {IR::DetectorGroup{
+              .name = "ctld",
+              .detectors = {IR::Detector{
+                  IR::Plugin{.name = "ControlledDetector"}}}}},
+          .acts =
+              {inc,
+               inc,
+               inc,
+               pause, // (1)
+               inc,
+               inc}, // (2)
+          .post_action_delay = "0"}};
+
+  auto engine = compile();
+  ASSERT_TRUE(engine);
+
+  auto run_once = [&] {
+    const int count_before = count;
+    engine->prerun(context);
+    engine->runOnce(context);
+    int delta_count = count - count_before;
+    return delta_count;
+  };
+
+  // Run 3 times to check for ruleset's state is reset when finished executing
+  // action chain. behavior. AsyncPausePlugin resets itself.
+  for (int i = 0; i < 1; i++) {
+    // reset count on each run
+    count = 0;
+
+    EXPECT_EQ(run_once(),
+              4); // A.1 pause 1 (+2 * 2 cgroups), B idle
+    EXPECT_EQ(run_once(),
+              0); // A.1 pause 2, B idle
+    controlled_detector_on = true; // while A is paused, start B
+    EXPECT_EQ(run_once(), 3); // A.1 pause 3, B.1 pause 1 (+3)
+    controlled_detector_on = false;
+    EXPECT_EQ(run_once(), 6); // A.2 (+3 * 2 cgroups), B.1 pause 2
+    EXPECT_EQ(run_once(), 0); // A.2 pause 2, B.1 pause 3
+    EXPECT_EQ(run_once(), 2); // A.2 pause 3, B.2 end (+2)
+    EXPECT_EQ(run_once(), 2); // A.3 (+1 * 2 cgroups), B idle
+  }
+}
+
 TEST_F(DropInCompilerTest, PrerunCount) {
   IR::Plugin cont{.name = "Continue"};
   IR::Plugin stop{.name = "Stop"};

@@ -23,8 +23,6 @@
 #include <unistd.h>
 #include <chrono>
 #include <cstring>
-#include <iostream>
-#include <optional>
 
 #include "oomd/Stats.h"
 #include "oomd/StatsClient.h"

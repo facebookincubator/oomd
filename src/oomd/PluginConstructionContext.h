@@ -18,12 +18,12 @@
 #pragma once
 
 #include <string>
-#include <unordered_map>
 
 namespace Oomd {
 
 class PluginConstructionContext {
  public:
+  PluginConstructionContext() = default;
   PluginConstructionContext(const std::string& cgroup_fs);
   ~PluginConstructionContext() = default;
   PluginConstructionContext(const PluginConstructionContext& other) = default;
