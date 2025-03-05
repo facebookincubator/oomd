@@ -47,6 +47,11 @@ std::optional<OomdContext::ConstCgroupContextRef> OomdContext::addToCacheAndGet(
 
 std::vector<OomdContext::ConstCgroupContextRef> OomdContext::addToCacheAndGet(
     const std::unordered_set<CgroupPath>& cgroups) {
+  if (cgroups.empty()) {
+    OLOG
+        << "Trying to add empty cgroup set to context cache, is your plugin configured correctly?";
+    return {};
+  }
   std::unordered_set<CgroupPath> all_resolved;
   std::vector<ConstCgroupContextRef> ret;
   for (const auto& cgroup : cgroups) {

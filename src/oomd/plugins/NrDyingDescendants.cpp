@@ -29,12 +29,9 @@ int NrDyingDescendants::init(
     const Engine::PluginArgs& args,
     const PluginConstructionContext& context) {
   argParser_.addArgumentCustom(
-      "cgroup",
-      cgroups_,
-      [context](const std::string& cgroupStr) {
+      "cgroup", cgroups_, [context](const std::string& cgroupStr) {
         return PluginArgParser::parseCgroup(context, cgroupStr);
-      },
-      true);
+      });
 
   argParser_.addArgumentCustom(
       "count", count_, PluginArgParser::parseUnsignedInt, true);

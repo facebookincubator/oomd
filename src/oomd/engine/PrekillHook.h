@@ -69,12 +69,9 @@ class PrekillHook {
       const PluginArgs& args,
       const PluginConstructionContext& context) {
     argParser_.addArgumentCustom(
-        "cgroup",
-        cgroup_patterns_,
-        [context](const std::string& cgroupStr) {
+        "cgroup", cgroup_patterns_, [context](const std::string& cgroupStr) {
           return PluginArgParser::parseCgroup(context, cgroupStr);
-        },
-        true);
+        });
 
     if (!argParser_.parse(args)) {
       return 1;
