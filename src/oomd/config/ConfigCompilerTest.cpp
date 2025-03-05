@@ -276,7 +276,9 @@ class KillPlugin : public BasePlugin {
   int init(const PluginArgs& args, const PluginConstructionContext& context)
       override {
     cgroupFs_ = context.cgroupFs();
-    cgroupPath_ = args.at("cgroup");
+    if (args.contains("cgroup")) {
+      cgroupPath_ = args.at("cgroup");
+    }
     return 0;
   }
 
@@ -564,6 +566,40 @@ TEST_F(CompilerTest, PrekillHook) {
       .name = "ruleset1",
       .dgs = {std::move(dgroup)},
       .acts = {std::move(kill)}};
+  ruleset.post_action_delay = "0";
+  root.rulesets.emplace_back(std::move(ruleset));
+
+  OomdContext ctx_;
+  auto engine = compile();
+  ASSERT_TRUE(engine);
+
+  context.setPrekillHooksHandler([&](const CgroupContext& cgroup_ctx) {
+    return engine->firePrekillHook(cgroup_ctx, ctx_);
+  });
+
+  for (int i = 0; i < 3; i++) {
+    engine->runOnce(context);
+    decltype(prekill_hook_count) expectation = {{"only-hook", i + 1}};
+    ASSERT_EQ(prekill_hook_count, expectation);
+  }
+}
+
+TEST_F(CompilerTest, PrekillHookRuleset) {
+  IR::PrekillHook hook{IR::Plugin{.name = "NoOpPrekillHook"}};
+  hook.args["cgroup"] = "/";
+  hook.args["id"] = "only-hook";
+  root.prekill_hooks.push_back(std::move(hook));
+
+  IR::Detector cont;
+  cont.name = "Continue";
+  IR::Action kill;
+  kill.name = "Kill";
+  IR::DetectorGroup dgroup{"group1", {std::move(cont)}};
+  IR::Ruleset ruleset{
+      .name = "ruleset1",
+      .dgs = {std::move(dgroup)},
+      .acts = {std::move(kill)},
+      .cgroup = "/workload.slice"};
   ruleset.post_action_delay = "0";
   root.rulesets.emplace_back(std::move(ruleset));
 

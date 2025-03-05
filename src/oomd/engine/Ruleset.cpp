@@ -335,9 +335,9 @@ void Ruleset::registerRunnableRulesetForCgroupPath(
   for (auto it = action_group_.begin(); it != action_group_.end(); ++it) {
     auto plugin = registry.create(it->get()->getName());
     plugin->setName(it->get()->getName());
-    plugin->init(
-        it->get()->getPluginArgs(),
-        PluginConstructionContext(cgroup.cgroupFs()));
+    auto args = it->get()->getPluginArgs();
+    args.try_emplace("cgroup", cgroup.relativePath());
+    plugin->init(args, PluginConstructionContext(cgroup.cgroupFs()));
     action_group.emplace_back(plugin);
   }
   auto ruleset = std::make_unique<Ruleset>(
