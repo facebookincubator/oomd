@@ -238,7 +238,7 @@ class Fs {
   static SystemMaybe<Unit> writeMemReclaimAt(
       const DirFd& dirfd,
       int64_t value,
-      std::optional<int64_t> swappiness);
+      std::optional<int64_t> swappiness = std::nullopt);
   static SystemMaybe<Unit> writeFreezeAt(const DirFd& dirfd, int value);
   static SystemMaybe<Unit> writeKillAt(const DirFd& dirfd);
 

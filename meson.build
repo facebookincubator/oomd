@@ -4,7 +4,7 @@ project('oomd', 'cpp',
   version : 'v0.5.0',
   meson_version : '>= 0.45',
   license : 'GPL2',
-  default_options : ['stdsplit=false', 'cpp_std=c++17'])
+  default_options : ['stdsplit=false', 'cpp_std=c++20'])
 
 cpp_args = ['-DMESON_BUILD']
 
