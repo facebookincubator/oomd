@@ -151,6 +151,15 @@ static void OOMD_KMSG_LOG(Args&&... args) {
   Log::get().kmsgLog(std::forward<Args>(args)...);
 }
 
+inline std::string OOMD_TIME_STR(struct tm* tm) {
+  char buf[64];
+  int n = ::strftime(buf, sizeof(buf), "%m%d %H:%M:%S", tm);
+  if (n == 0) {
+    return {};
+  }
+  return std::string(buf, n);
+}
+
 inline std::string OOMD_LOG_TIME() {
   auto now =
       std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
@@ -158,14 +167,7 @@ inline std::string OOMD_LOG_TIME() {
   if (::localtime_r(&now, &tm) == nullptr) {
     return {};
   }
-  // We are lucky, maximum length of format string corresponds to maximum
-  // length of formatted string.
-  char fmt[] = "%m%d %H:%M:%S";
-  std::string buf(sizeof(fmt), '\0');
-  if (::strftime(buf.data(), buf.size(), fmt, &tm) == 0) {
-    return {};
-  }
-  return buf;
+  return OOMD_TIME_STR(&tm);
 }
 
 #ifdef __FILE_NAME__

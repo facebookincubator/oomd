@@ -180,3 +180,11 @@ TEST(LogStream, ControlMany) {
   ASSERT_EQ(log.lines.size(), 1);
   EXPECT_EQ(log.lines[0], "hello world\n");
 }
+
+TEST(LogStream, logTime) {
+  time_t t = 0;
+  struct tm tm;
+  ::gmtime_r(&t, &tm);
+  auto ts = OOMD_TIME_STR(&tm);
+  EXPECT_EQ(ts, "0101 00:00:00");
+}
