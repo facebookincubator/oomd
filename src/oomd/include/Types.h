@@ -41,7 +41,7 @@ enum struct DeviceType {
 };
 
 struct DeviceIOStat {
-  std::string dev_id{""};
+  std::string dev_id;
   int64_t rbytes{0};
   int64_t wbytes{0};
   int64_t rios{0};
