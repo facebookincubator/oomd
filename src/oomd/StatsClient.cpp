@@ -156,7 +156,7 @@ std::optional<std::string> StatsClient::msgSocket(std::string msg) {
               << std::endl;
     return std::nullopt;
   }
-  std::string ret = "";
+  std::string ret;
   std::array<char, 512> msg_buf = {};
   while (true) {
     int n = Util::readFull(sockfd, msg_buf.data(), msg_buf.size() - 1);

@@ -125,7 +125,7 @@ TEST_F(StatsTest, InvalidRequests) {
     ASSERT_FALSE(msg_opt);
   }
   {
-    const std::string msg = "";
+    const std::string msg;
     auto msg_opt = client.msgSocket(msg);
     ASSERT_TRUE(msg_opt);
     auto root = parseJson(*msg_opt);
