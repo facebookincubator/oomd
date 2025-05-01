@@ -314,7 +314,12 @@ BaseKillPlugin::KillResult BaseKillPlugin::resumeTryingToKillSomething(
     // PREFER cgroup first, but that won't fix the problem so it will kill
     // again; on the second time around, it first targets the now-empty PREFER
     // cgroup before moving on to a better victim.
-    if (!candidate.cgroupCtx.get().is_populated().value_or(true)) {
+    // There is another scenario where we killed a cgroup but the processes do
+    // not go away because init is stuck or process stuck in D state etc. With
+    // process_mrelease, we can release all anon memory of the processes
+    // regardless of their states. Skip such cgroup if it has zero anon usage.
+    if (!candidate.cgroupCtx.get().is_populated().value_or(true) ||
+        candidate.cgroupCtx.get().anon_usage() == 0) {
       if (!hasTriedToKillSomethingAlready && !firstKillCandidate) {
         firstKillCandidate = candidate;
       }
@@ -611,6 +616,24 @@ int BaseKillPlugin::tryToKillPids(const std::vector<int>& pids) {
   int nrKilled = 0;
 
   for (int pid : pids) {
+    auto statusPath = std::string("/proc/") + std::to_string(pid) + "/status";
+    auto status = Fs::readFileByLine(statusPath);
+    // Ignore dead processes. Their parent process will reap them.
+    bool dead = false;
+    if (status) {
+      for (auto& line : *status) {
+        if (line.starts_with("State:")) {
+          if (line.ends_with("X (dead)") || line.ends_with("Z (zombie)")) {
+            dead = true;
+          }
+          break;
+        }
+      }
+    }
+    if (dead) {
+      continue;
+    }
+
     auto commPath = std::string("/proc/") + std::to_string(pid) + "/comm";
     auto comm = Fs::readFileByLine(commPath);
 
