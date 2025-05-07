@@ -130,7 +130,7 @@ TEST(UtilTest, Trim) {
   Util::trim(s4);
   EXPECT_EQ(s4, "asdf");
 
-  std::string s5 = "";
+  std::string s5;
   Util::trim(s5);
   EXPECT_EQ(s5, "");
 

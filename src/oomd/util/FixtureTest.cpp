@@ -20,7 +20,7 @@ class FixtureTest : public ::testing::Test {
   // remove all temp directories
   void TearDown() override {
     DIR* dir;
-    std::string failureMsg = "";
+    std::string failureMsg;
     for (const auto& tempDir : tempDirs_) {
       dir = ::opendir(tempDir.c_str());
       if (dir != nullptr) {
