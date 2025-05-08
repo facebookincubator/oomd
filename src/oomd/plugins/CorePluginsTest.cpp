@@ -72,7 +72,7 @@ class BaseKillPluginMock : public BaseKillPlugin {
       const KillUuid& kill_uuid,
       bool dry,
       KillCgroupStats& stats) override {
-    if (unkillable_cgroups.count(target.cgroup().absolutePath()) > 0) {
+    if (unkillable_cgroups.contains(target.cgroup().absolutePath())) {
       OLOG << "tried to kill " << target.cgroup().absolutePath()
            << ", failed b/c it's in unkillable_cgroups";
       return 0;
