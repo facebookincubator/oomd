@@ -17,8 +17,6 @@
 
 #include <json/value.h>
 #include <sys/file.h>
-#include <sys/types.h>
-#include <sys/unistd.h>
 #include <cstring>
 #ifdef MESON_BUILD
 #include <filesystem>
@@ -40,7 +38,6 @@
 #include "oomd/StatsClient.h"
 #include "oomd/config/ConfigCompiler.h"
 #include "oomd/config/JsonConfigParser.h"
-#include "oomd/include/CgroupPath.h"
 #include "oomd/include/CoreStats.h"
 #include "oomd/include/Defines.h"
 #include "oomd/util/Fs.h"
