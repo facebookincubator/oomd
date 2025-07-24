@@ -73,6 +73,8 @@ class PrekillHook {
           return PluginArgParser::parseCgroup(context, cgroupStr);
         });
 
+    argParser_.addArgument("xattr", xattr_);
+
     if (!argParser_.parse(args)) {
       return 1;
     }
@@ -85,7 +87,11 @@ class PrekillHook {
       const ActionContext& action_ctx) = 0;
 
   virtual bool canRunOnCgroup(const CgroupContext& cgroup_ctx) {
-    for (auto pattern : cgroup_patterns_) {
+    if (auto hasXattr = Fs::hasxattrAt(cgroup_ctx.fd(), xattr_);
+        hasXattr && *hasXattr) {
+      return true;
+    }
+    for (const auto& pattern : cgroup_patterns_) {
       if (cgroup_ctx.cgroup().hasDescendantWithPrefixMatching(pattern)) {
         return true;
       }
@@ -107,6 +113,7 @@ class PrekillHook {
  private:
   std::string name_;
   std::unordered_set<CgroupPath> cgroup_patterns_{};
+  std::string xattr_;
 };
 
 } // namespace Engine
