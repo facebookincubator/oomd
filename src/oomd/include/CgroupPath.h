@@ -31,13 +31,14 @@ class CgroupPath {
   CgroupPath(CgroupPath&& other) = default;
   CgroupPath& operator=(const CgroupPath& other) = default;
   CgroupPath& operator=(CgroupPath&& other) = default;
-  static void setCgroupFs(const std::string& cgroup_fs);
 
   const std::string& absolutePath() const;
   // cgroup path without the cgroup fs
   const std::string& relativePath() const;
   const std::vector<std::string>& relativePathParts() const;
   const std::string& cgroupFs() const;
+  // CgroupPath taking parent as root
+  const CgroupPath relativeTo(const std::string& parent) const;
 
   CgroupPath getParent() const;
   CgroupPath getChild(const std::string& path) const;

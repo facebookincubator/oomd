@@ -17,8 +17,6 @@
 
 #include "oomd/include/CgroupPath.h"
 
-#include <optional>
-
 #include "oomd/util/Fs.h"
 #include "oomd/util/Util.h"
 
@@ -51,6 +49,10 @@ const std::vector<std::string>& CgroupPath::relativePathParts() const {
 
 const std::string& CgroupPath::cgroupFs() const {
   return cgroup_fs_;
+}
+
+const CgroupPath CgroupPath::relativeTo(const std::string& parent) const {
+  return CgroupPath(cgroup_fs_, parent + "/" + relativePath());
 }
 
 CgroupPath CgroupPath::getParent() const {

@@ -77,6 +77,22 @@ TEST(CgroupPathTest, ModifiersTest) {
   EXPECT_THROW(root.getParent(), std::invalid_argument);
 }
 
+TEST(CgroupPathTest, RelativeToTest) {
+  CgroupPath path("/sys/fs/cgroup", "system.slice/myservice.slice");
+  EXPECT_EQ(
+      path.relativeTo("").absolutePath(),
+      "/sys/fs/cgroup/system.slice/myservice.slice");
+  EXPECT_EQ(
+      path.relativeTo("/").absolutePath(),
+      "/sys/fs/cgroup/system.slice/myservice.slice");
+  EXPECT_EQ(
+      path.relativeTo("machine@0001.slice").absolutePath(),
+      "/sys/fs/cgroup/machine@0001.slice/system.slice/myservice.slice");
+  EXPECT_EQ(
+      path.relativeTo("machine@0001.slice/*").absolutePath(),
+      "/sys/fs/cgroup/machine@0001.slice/*/system.slice/myservice.slice");
+}
+
 TEST(CgroupPathTest, ComparisonsTest) {
   CgroupPath path1("/sys/fs/cgroup", "system.slice");
   CgroupPath path2("/sys/fs/cgroup", "system.slice");
