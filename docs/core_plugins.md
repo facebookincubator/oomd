@@ -11,7 +11,8 @@ it would probably not be very useful in many cases.
 
 ### Arguments
 
-    cgroup
+    cgroup (optional)
+    ruleset_cgroup (optional)
     resource
     threshold
     duration
@@ -29,6 +30,10 @@ Note that extra spaces are not permitted betwen ','s.
 
 The root host can be encoded as "/".
 
+`ruleset_cgroup` is similar to `cgroup` but is relative to the OomdContext's
+ruleset cgroup value, if provided. See [`Ruleset Cgroup`](ruleset_cgroup.md) for
+details.
+
 `resource` is io|memory
 
 CONTINUE if 1m pressure > `threshold` for longer than `duration` && trending
@@ -39,14 +44,15 @@ otherwise.
 
 ### Arguments
 
-    cgroup
+    cgroup (optional)
+    ruleset_cgroup (optional)
     threshold (optional)
     threshold_anon (optional)
     duration
 
 ### Description
 
-`cgroup` has the same semantics and features as `pressure_rising_beyond`.
+`cgroup` and `ruleset_cgroup` have the same semantics and features as `pressure_rising_beyond`.
 
 `threshold` and `threshold_anon` take either an absolute memory amount or a
 percentage of total memory used. Either one of these parameters must be
@@ -70,14 +76,15 @@ If `threshold_anon` is specified, CONTINUE if anonymous memory usage >
 
 ### Arguments
 
-    cgroup
+    cgroup (optional)
+    ruleset_cgroup (optional)
     resource
     threshold
     duration
 
 ### Description
 
-`cgroup` has the same semantics and features as `pressure_rising_beyond`.
+`cgroup` and `ruleset_cgroup` have the same semantics and features as `pressure_rising_beyond`.
 
 `resource` is io|memory
 
@@ -88,12 +95,13 @@ otherwise.
 
 ### Arguments
 
-    cgroup
+    cgroup (optional)
+    ruleset_cgroup (optional)
     duration
 
 ### Description
 
-`cgroup` has the same semantics and features as `pressure_rising_beyond`.
+`cgroup` and `ruleset_cgroup` have the same semantics and features as `pressure_rising_beyond`.
 
 CONTINUE if `cgroup`'s memory has been reclaimed in the past `duration` period.
 STOP otherwise.
@@ -140,15 +148,15 @@ memory issues that goes away after OOM kills.
 
 ### Arguments
 
-    cgroup
+    cgroup (optional)
+    ruleset_cgroup (optional)
     count
     lte=true (optional)
     negate=false (optional)
 
 ### Description
 
-`cgroup` supports comma separated arguments and wildcards. The plugin triggers
-if any of the globbed cgroups matches the condition.
+`cgroup` and `ruleset_cgroup` have the same semantics and features as `pressure_rising_beyond`.
 
 When `lte` is `true`, if `nr_dying_descendants(cgroup) <= count`, CONTINUE.
 STOP otherwise.
@@ -160,11 +168,12 @@ STOP otherwise.
 
 ### Arguments
 
-    cgroup
+    cgroup (optional)
+    ruleset_cgroup (optional)
     always=false
 
 ### Description
-`cgroup` has the same semantics and features as `pressure_rising_beyond`.
+`cgroup` and `ruleset_cgroup` have the same semantics and features as `pressure_rising_beyond`.
 However, this detector cannot monitor the root host.
 
 Dumps the system overview for `cgroup` to stderr if memory pressure is
@@ -181,7 +190,8 @@ Always returns CONTINUE.
 
 ### Arguments
 
-    cgroup
+    cgroup (optional)
+    ruleset_cgroup (optional)
     recursive=false (optional)
     size_threshold=50 (optional)
     min_growth_ratio=1.25 (optional)
@@ -201,6 +211,10 @@ paths. Eg.
     cgroup=workload.slice/workload-*.slice/*,system.slice/*
 
 Note that extra spaces are not permitted betwen ','s.
+
+`ruleset_cgroup` is similar to `cgroup` but is relative to the OomdContext's
+ruleset cgroup value, if provided. See [`Ruleset Cgroup`](ruleset_cgroup.md) for
+details.
 
 If `recursive` is set, walk down the cgroup tree looking for the best leaf to
 kill. Comparisons happen locally, between siblings, using the kill plugin's
@@ -249,7 +263,8 @@ If `reap_memory` is set to true, attempt to speed up process memory cleanup via 
 
 ### Arguments
 
-    cgroup
+    cgroup (optional)
+    ruleset_cgroup (optional)
     recursive=false (optional)
     threshold=1 (optional)
     post_action_delay=15 (optional)
@@ -259,7 +274,7 @@ If `reap_memory` is set to true, attempt to speed up process memory cleanup via 
 
 ### Description
 
-`cgroup` and `recursive` follow the same semantics and options as
+`cgroup`, `ruleset_cgroup` and `recursive` follow the same semantics and options as
 `kill_by_memory_size_or_growth`. oomd_prefer/oomd_avoid xattrs are respected
 the same way as well.
 
@@ -282,7 +297,8 @@ If `reap_memory` is set to true, attempt to speed up process memory cleanup via 
 
 ### Arguments
 
-    cgroup
+    cgroup (optional)
+    ruleset_cgroup (optional)
     recursive=false (optional)
     resource
     post_action_delay=15 (optional)
@@ -292,7 +308,7 @@ If `reap_memory` is set to true, attempt to speed up process memory cleanup via 
 
 ### Description
 
-`cgroup` and `recursive` follow the same semantics and options as
+`cgroup`, `ruleset_cgroup` and `recursive` follow the same semantics and options as
 `kill_by_memory_size_or_growth`. oomd_prefer/oomd_avoid xattrs are respected
 the same way as well.
 
@@ -315,7 +331,8 @@ If `reap_memory` is set to true, attempt to speed up process memory cleanup via 
 
 ### Arguments
 
-    cgroup
+    cgroup (optional)
+    ruleset_cgroup (optional)
     recursive=false (optional)
     post_action_delay=15 (optional)
     dry=false (optional)
@@ -324,7 +341,7 @@ If `reap_memory` is set to true, attempt to speed up process memory cleanup via 
 
 ### Description
 
-`cgroup` and `recursive` follow the same semantics and options as
+`cgroup`, `ruleset_cgroup` and `recursive` follow the same semantics and options as
 `kill_by_memory_size_or_growth`. oomd_prefer/oomd_avoid xattrs are respected
 the same way as well.
 
@@ -345,7 +362,8 @@ If `reap_memory` is set to true, attempt to speed up process memory cleanup via 
 
 ### Arguments
 
-    cgroup
+    cgroup (optional)
+    ruleset_cgroup (optional)
     recursive=false (optional)
     post_action_delay=15 (optional)
     dry=false (optional)
@@ -354,7 +372,7 @@ If `reap_memory` is set to true, attempt to speed up process memory cleanup via 
 
 ### Description
 
-`cgroup` and `recursive` follow the same semantics and options as
+`cgroup`, `ruleset_cgroup` and `recursive` follow the same semantics and options as
 `kill_by_memory_size_or_growth`. oomd_prefer/oomd_avoid xattrs are respected
 the same way as well.
 

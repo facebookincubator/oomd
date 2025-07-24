@@ -69,6 +69,12 @@ int MemoryAbove::init(
       "cgroup", cgroups_, [context](const std::string& cgroupStr) {
         return PluginArgParser::parseCgroup(context, cgroupStr);
       });
+  argParser_.addArgumentCustom(
+      "ruleset_cgroup",
+      ruleset_cgroups_,
+      [context](const std::string& cgroupStr) {
+        return PluginArgParser::parseCgroup(context, cgroupStr);
+      });
 
   argParser_.addArgumentCustom(
       thresholdArgName,
@@ -97,7 +103,8 @@ Engine::PluginRet MemoryAbove::run(OomdContext& ctx) {
   using std::chrono::steady_clock;
   int64_t current_memory_usage = 0;
   std::string current_cgroup;
-  for (const CgroupContext& cgroup_ctx : ctx.addToCacheAndGet(cgroups_)) {
+  for (const CgroupContext& cgroup_ctx :
+       ctx.addToCacheAndGet(cgroups_, ruleset_cgroups_)) {
     if (debug_) {
       OLOG << "cgroup \"" << cgroup_ctx.cgroup().relativePath() << "\" "
            << "memory.current=" << cgroup_ctx.current_usage().value_or(0)

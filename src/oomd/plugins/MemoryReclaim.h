@@ -40,6 +40,7 @@ class MemoryReclaim : public Engine::BasePlugin {
 
  private:
   std::unordered_set<CgroupPath> cgroups_;
+  std::unordered_set<CgroupPath> ruleset_cgroups_;
   int duration_;
 
   int64_t last_pgscan_{0};

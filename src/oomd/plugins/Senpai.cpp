@@ -83,9 +83,10 @@ int Senpai::init(
 }
 
 Engine::PluginRet Senpai::run(OomdContext& ctx) {
-  auto resolved_cgroups = ctx.reverseSort(
-      cgroups_,
-      [](const CgroupContext& cgroup_ctx) { return cgroup_ctx.id(); });
+  auto resolved_cgroups =
+      ctx.reverseSort(cgroups_, {}, [](const CgroupContext& cgroup_ctx) {
+        return cgroup_ctx.id();
+      });
   // Use reverse iterator after reverseSort to make it normal order
   auto resolvedIt = resolved_cgroups.crbegin();
   auto trackedIt = tracked_cgroups_.begin();

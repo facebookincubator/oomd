@@ -41,3 +41,6 @@ If the following are present on the host with an xattr named "oomd_example":
 
 Then, this ruleset's set of detectors and actions will run three times, each
 time setting the OomdContext to the particular cgroup value.
+
+Detectors and actions will run on both their regular cgroup pattern, and the
+ruleset cgroup pattern that is relative to the OomdContext's ruleset cgroup.

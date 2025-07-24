@@ -33,6 +33,12 @@ int MemoryReclaim::init(
       "cgroup", cgroups_, [context](const std::string& cgroupStr) {
         return PluginArgParser::parseCgroup(context, cgroupStr);
       });
+  argParser_.addArgumentCustom(
+      "ruleset_cgroup",
+      ruleset_cgroups_,
+      [context](const std::string& cgroupStr) {
+        return PluginArgParser::parseCgroup(context, cgroupStr);
+      });
 
   argParser_.addArgument("duration", duration_, true);
 
@@ -48,7 +54,8 @@ Engine::PluginRet MemoryReclaim::run(OomdContext& ctx) {
   using std::chrono::steady_clock;
 
   int64_t pgscan = 0;
-  for (const CgroupContext& cgroup_ctx : ctx.addToCacheAndGet(cgroups_)) {
+  for (const CgroupContext& cgroup_ctx :
+       ctx.addToCacheAndGet(cgroups_, ruleset_cgroups_)) {
     if (const auto& memstat = cgroup_ctx.memory_stat()) {
       if (auto pos = memstat->find(kPgscan); pos != memstat->end()) {
         pgscan += pos->second;

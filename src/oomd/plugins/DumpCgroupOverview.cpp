@@ -76,6 +76,12 @@ int DumpCgroupOverview::init(
       "cgroup", cgroups_, [context](const std::string& cgroupStr) {
         return PluginArgParser::parseCgroup(context, cgroupStr);
       });
+  argParser_.addArgumentCustom(
+      "ruleset_cgroup",
+      ruleset_cgroups_,
+      [context](const std::string& cgroupStr) {
+        return PluginArgParser::parseCgroup(context, cgroupStr);
+      });
 
   argParser_.addArgument("always", always_);
 
@@ -87,7 +93,8 @@ int DumpCgroupOverview::init(
 }
 
 Engine::PluginRet DumpCgroupOverview::run(OomdContext& ctx) {
-  for (const CgroupContext& cgroup_ctx : ctx.addToCacheAndGet(cgroups_)) {
+  for (const CgroupContext& cgroup_ctx :
+       ctx.addToCacheAndGet(cgroups_, ruleset_cgroups_)) {
     dumpCgroupOverview(cgroup_ctx, always_);
   }
 

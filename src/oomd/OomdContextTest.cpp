@@ -38,6 +38,9 @@ class OomdContextTest : public ::testing::Test {
   void TearDown() override {
     F::rmrChecked(tempdir_);
   }
+  CgroupPath cg(const std::string& path) {
+    return CgroupPath(tempdir_, path);
+  }
   std::string tempdir_;
 };
 
@@ -103,7 +106,7 @@ TEST_F(OomdContextTest, GetMultiple) {
   CgroupPath p4(tempdir_, "file1");
   CgroupPath p5(tempdir_, "NOT_EXIST");
 
-  auto cgroups = ctx.addToCacheAndGet({p1, p2, p3, p4, p5});
+  auto cgroups = ctx.addToCacheAndGet({p1, p2, p3, p4, p5}, {});
   auto cg1 = ctx.addToCacheAndGet(p1);
   auto cg2 = ctx.addToCacheAndGet(p2);
   auto cg3 = ctx.addToCacheAndGet(p3);
@@ -114,15 +117,34 @@ TEST_F(OomdContextTest, GetMultiple) {
 
   CgroupPath p6(tempdir_, "*");
   EXPECT_THAT(
-      ctx.addToCacheAndGet(std::unordered_set<CgroupPath>{p6}),
+      ctx.addToCacheAndGet(std::unordered_set<CgroupPath>{p6}, {}),
       UnorderedElementsAreArray(cgroups));
   // Check no duplicates
   EXPECT_THAT(
-      ctx.addToCacheAndGet({p1, p2, p3, p4, p5, p6}),
+      ctx.addToCacheAndGet({p1, p2, p3, p4, p5, p6}, {}),
       UnorderedElementsAreArray(cgroups));
   // Check empty result
-  EXPECT_EQ(ctx.addToCacheAndGet({p4, p5}).size(), 0);
-  EXPECT_EQ(ctx.addToCacheAndGet({}).size(), 0);
+  EXPECT_EQ(ctx.addToCacheAndGet({p4, p5}, {}).size(), 0);
+  EXPECT_EQ(ctx.addToCacheAndGet({}, {}).size(), 0);
+}
+
+TEST_F(OomdContextTest, GetRulesetCgroups) {
+  F::materialize(F::makeDir(
+      tempdir_,
+      {F::makeDir("dir1"), F::makeDir("dir2", {F::makeDir("dir3")})}));
+  ctx.setRulesetCgroup(cg("dir2"));
+  auto cgroups = ctx.addToCacheAndGet({cg("dir1")}, {cg("dir3")});
+  auto dir1 = ctx.addToCacheAndGet(cg("dir1"));
+  auto dir2 = ctx.addToCacheAndGet(cg("dir2"));
+  auto dir3 = ctx.addToCacheAndGet(cg("dir2/dir3"));
+
+  EXPECT_THAT(
+      ctx.addToCacheAndGet({cg("dir1")}, {cg("dir3")}),
+      UnorderedElementsAre(dir1, dir3));
+
+  EXPECT_THAT(ctx.addToCacheAndGet({}, {cg("/")}), ElementsAre(dir2));
+
+  EXPECT_TRUE(ctx.addToCacheAndGet({}, {cg("dir2")}).empty());
 }
 
 TEST_F(OomdContextTest, SortContext) {
@@ -149,8 +171,8 @@ TEST_F(OomdContextTest, SortContext) {
   CgroupPath p3(tempdir_, "asdf");
   CgroupPath p4(tempdir_, "fdsa");
 
-  auto sorted =
-      ctx.reverseSort({p1, p2, p3, p4}, [](const CgroupContext& cgroup_ctx) {
+  auto sorted = ctx.reverseSort(
+      {p1, p2, p3, p4}, {}, [](const CgroupContext& cgroup_ctx) {
         return cgroup_ctx.current_usage().value_or(0);
       });
 
@@ -168,9 +190,10 @@ TEST_F(OomdContextTest, SortContext) {
   CgroupPath p5(tempdir_, "*est");
   CgroupPath p6(tempdir_, "{biggest,smallest,asdf,fdsa}");
   CgroupPath p7(tempdir_, "NOT_EXIST");
-  sorted = ctx.reverseSort({p5, p6, p7}, [](const CgroupContext& cgroup_ctx) {
-    return cgroup_ctx.memory_low().value_or(0);
-  });
+  sorted =
+      ctx.reverseSort({p5, p6, p7}, {}, [](const CgroupContext& cgroup_ctx) {
+        return cgroup_ctx.memory_low().value_or(0);
+      });
 
   EXPECT_THAT(sorted, ElementsAre(*cg2, *cg4, *cg3, *cg1));
 }

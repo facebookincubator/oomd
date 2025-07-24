@@ -60,7 +60,7 @@ class BaseKillPlugin : public Engine::BasePlugin {
     // shallower than wide.
     std::vector<OomdContext::ConstCgroupContextRef> unvisited;
 
-    const auto& rootCgroups = ctx.addToCacheAndGet(cgroups_);
+    const auto& rootCgroups = ctx.addToCacheAndGet(cgroups_, ruleset_cgroups_);
     std::move(
         rootCgroups.begin(), rootCgroups.end(), std::back_inserter(unvisited));
 
@@ -260,6 +260,7 @@ class BaseKillPlugin : public Engine::BasePlugin {
   KillResult resumeFromPrekillHook(OomdContext& ctx);
 
   std::unordered_set<CgroupPath> cgroups_;
+  std::unordered_set<CgroupPath> ruleset_cgroups_;
   bool recursive_{false};
   std::optional<int> postActionDelay_{std::nullopt};
   bool dry_{false};

@@ -32,6 +32,12 @@ int NrDyingDescendants::init(
       "cgroup", cgroups_, [context](const std::string& cgroupStr) {
         return PluginArgParser::parseCgroup(context, cgroupStr);
       });
+  argParser_.addArgumentCustom(
+      "ruleset_cgroup",
+      ruleset_cgroups_,
+      [context](const std::string& cgroupStr) {
+        return PluginArgParser::parseCgroup(context, cgroupStr);
+      });
 
   argParser_.addArgumentCustom(
       "count", count_, PluginArgParser::parseUnsignedInt, true);
@@ -47,7 +53,8 @@ int NrDyingDescendants::init(
 }
 
 Engine::PluginRet NrDyingDescendants::run(OomdContext& ctx) {
-  for (const CgroupContext& cgroup_ctx : ctx.addToCacheAndGet(cgroups_)) {
+  for (const CgroupContext& cgroup_ctx :
+       ctx.addToCacheAndGet(cgroups_, ruleset_cgroups_)) {
     if (auto nr = cgroup_ctx.nr_dying_descendants()) {
       if ((lte_ && *nr <= count_) || (!lte_ && *nr > count_)) {
         if (debug_) {

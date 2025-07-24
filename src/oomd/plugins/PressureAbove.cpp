@@ -35,6 +35,12 @@ int PressureAbove::init(
       "cgroup", cgroups_, [context](const std::string& cgroupStr) {
         return PluginArgParser::parseCgroup(context, cgroupStr);
       });
+  argParser_.addArgumentCustom(
+      "ruleset_cgroup",
+      ruleset_cgroups_,
+      [context](const std::string& cgroupStr) {
+        return PluginArgParser::parseCgroup(context, cgroupStr);
+      });
 
   argParser_.addArgument("resource", resource_, true);
   argParser_.addArgument("threshold", threshold_, true);
@@ -54,7 +60,8 @@ Engine::PluginRet PressureAbove::run(OomdContext& ctx) {
   ResourcePressure current_pressure;
   int64_t current_memory_usage = 0;
 
-  for (const CgroupContext& cgroup_ctx : ctx.addToCacheAndGet(cgroups_)) {
+  for (const CgroupContext& cgroup_ctx :
+       ctx.addToCacheAndGet(cgroups_, ruleset_cgroups_)) {
     ResourcePressure rp;
     switch (resource_) {
       case ResourceType::IO:

@@ -39,6 +39,7 @@ class NrDyingDescendants : public Oomd::Engine::BasePlugin {
 
  private:
   std::unordered_set<CgroupPath> cgroups_;
+  std::unordered_set<CgroupPath> ruleset_cgroups_;
   int64_t count_{0};
   bool lte_{true}; // less than or equal
   bool debug_{false};

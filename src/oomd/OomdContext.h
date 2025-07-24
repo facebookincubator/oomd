@@ -86,11 +86,12 @@ class OomdContext {
   /*
    * Add a set of cgroups to cache if not already exist, and return the result.
    * Cgroup paths may contain glob pattern, which will be expanded if valid.
+   * If ruleset_cgroup_ is set, also add each ruleset_cgroups relative to it.
    * Returned CgroupContexts are all valid and won't contain duplicate.
    */
   std::vector<ConstCgroupContextRef> addToCacheAndGet(
-      const std::unordered_set<CgroupPath>& cgroups);
-
+      const std::unordered_set<CgroupPath>& cgroups,
+      const std::unordered_set<CgroupPath>& ruleset_cgroups);
   /*
    * Get child of cgroup, adding it to the cache if it doesn't exist yet.
    */
@@ -112,8 +113,9 @@ class OomdContext {
   template <class Functor>
   std::vector<ConstCgroupContextRef> reverseSort(
       const std::unordered_set<CgroupPath>& cgroups,
+      const std::unordered_set<CgroupPath>& ruleset_cgroups,
       Functor&& get_key) {
-    auto sorted = addToCacheAndGet(cgroups);
+    auto sorted = addToCacheAndGet(cgroups, ruleset_cgroups);
     std::sort(sorted.begin(), sorted.end(), [&](const auto& a, const auto& b) {
       return get_key(a.get()) > get_key(b.get());
     });

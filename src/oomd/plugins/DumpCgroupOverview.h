@@ -40,6 +40,7 @@ class DumpCgroupOverview : public Engine::BasePlugin {
 
  private:
   std::unordered_set<CgroupPath> cgroups_;
+  std::unordered_set<CgroupPath> ruleset_cgroups_;
   bool always_{false};
 };
 

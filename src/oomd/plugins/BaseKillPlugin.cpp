@@ -80,6 +80,12 @@ int BaseKillPlugin::init(
       "cgroup", cgroups_, [context](const std::string& cgroupStr) {
         return PluginArgParser::parseCgroup(context, cgroupStr);
       });
+  argParser_.addArgumentCustom(
+      "ruleset_cgroup",
+      ruleset_cgroups_,
+      [context](const std::string& cgroupStr) {
+        return PluginArgParser::parseCgroup(context, cgroupStr);
+      });
 
   argParser_.addArgument("recursive", recursive_);
   argParser_.addArgumentCustom(
@@ -104,7 +110,8 @@ Engine::PluginRet BaseKillPlugin::run(OomdContext& ctx) {
   if (prekillHookState_) {
     ret = resumeFromPrekillHook(ctx);
   } else {
-    ret = tryToKillSomething(ctx, ctx.addToCacheAndGet(cgroups_));
+    ret = tryToKillSomething(
+        ctx, ctx.addToCacheAndGet(cgroups_, ruleset_cgroups_));
   }
 
   if (ret == KillResult::DEFER) {

@@ -108,7 +108,7 @@ TEST_F(CgroupContextTest, UniqueId) {
   std::unordered_set<CgroupContext::Id> ids;
 
   for (const CgroupContext& cgroup_ctx : ctx_.addToCacheAndGet(
-           std::unordered_set<CgroupPath>{CgroupPath(tempDir_, "*")})) {
+           std::unordered_set<CgroupPath>{CgroupPath(tempDir_, "*")}, {})) {
     if (auto id = cgroup_ctx.id()) {
       ids.emplace(*id);
     }

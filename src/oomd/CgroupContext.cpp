@@ -411,7 +411,7 @@ std::optional<int64_t> CgroupContext::getMemoryProtection(Error* err) const {
     for (const auto& name : *children) {
       sibling_cgroups.insert(parent_cgroup.getChild(name));
     }
-    siblings = ctx_.addToCacheAndGet(sibling_cgroups);
+    siblings = ctx_.addToCacheAndGet(sibling_cgroups, {});
   } else {
     return std::nullopt;
   }
