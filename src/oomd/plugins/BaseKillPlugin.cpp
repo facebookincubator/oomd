@@ -23,6 +23,7 @@
 #include <unistd.h>
 #include <algorithm>
 #include <chrono>
+#include <fstream>
 #include <iomanip>
 #include <map>
 #include <memory>
@@ -774,6 +775,21 @@ bool BaseKillPlugin::tryToLogAndKillCgroup(
       Oomd::incrementStat(CoreStats::kKillsKey, 1);
     }
     OOMD_KMSG_LOG(oss.str(), "oomd kill");
+
+    // NOTE: This is a temporary hack make sure everything is written to
+    // dmesg after oomd kill so we don't bother to change oomd to
+    // parse information before the representative line which marks the
+    // beginning of a oom event.
+    if (logKmemallocPrekill_) {
+      std::ifstream fp("/tmp/oomd_kmemalloc_profiler");
+      if (fp.is_open()) {
+        std::string line;
+        while (std::getline(fp, line)) {
+          OOMD_KMSG_LOG(line, "");
+        }
+        fp.close();
+      }
+    }
   }
 
   dumpKillInfo(
