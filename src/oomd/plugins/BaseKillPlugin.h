@@ -268,6 +268,7 @@ class BaseKillPlugin : public Engine::BasePlugin {
   bool debug_{false};
   bool kernelKill_{false};
   bool reapMemory_{true};
+  bool logKmemallocPrekill_{false};
 
   struct ActivePrekillHook {
    public:

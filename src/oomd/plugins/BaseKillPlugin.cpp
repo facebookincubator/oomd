@@ -95,6 +95,7 @@ int BaseKillPlugin::init(
   argParser_.addArgument("debug", debug_);
   argParser_.addArgument("kernelkill", kernelKill_);
   argParser_.addArgument("reap_memory", reapMemory_);
+  argParser_.addArgument("log_kmemalloc_prekill", logKmemallocPrekill_);
 
   if (!argParser_.parse(args)) {
     return 1;
