@@ -157,7 +157,7 @@ void OomdContext::setRulesetCgroup(std::optional<CgroupPath> ruleset_cgroup) {
 void OomdContext::dump() {
   std::vector<ConstCgroupContextRef> cgroups;
   for (auto& pair : cgroups_) {
-    cgroups.push_back(pair.second);
+    cgroups.emplace_back(pair.second);
   }
   dump(cgroups);
 }
