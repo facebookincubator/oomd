@@ -134,11 +134,11 @@ SystemMaybe<Fs::DirEnts> Fs::readDirFromDIR(DIR* d, int flags) {
      * hierarchy.
      */
     if ((flags & DirEntFlags::DE_FILE) && dir->d_type == DT_REG) {
-      de.files.push_back(dir->d_name);
+      de.files.emplace_back(dir->d_name);
       continue;
     }
     if ((flags & DirEntFlags::DE_DIR) && dir->d_type == DT_DIR) {
-      de.dirs.push_back(dir->d_name);
+      de.dirs.emplace_back(dir->d_name);
       continue;
     }
 
@@ -149,10 +149,10 @@ SystemMaybe<Fs::DirEnts> Fs::readDirFromDIR(DIR* d, int flags) {
     }
 
     if ((flags & DirEntFlags::DE_FILE) && (buf.st_mode & S_IFREG)) {
-      de.files.push_back(dir->d_name);
+      de.files.emplace_back(dir->d_name);
     }
     if ((flags & DirEntFlags::DE_DIR) && (buf.st_mode & S_IFDIR)) {
-      de.files.push_back(dir->d_name);
+      de.files.emplace_back(dir->d_name);
     }
   }
 
