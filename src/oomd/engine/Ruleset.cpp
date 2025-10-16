@@ -37,6 +37,7 @@ Ruleset::Ruleset(
     int prekill_hook_timeout,
     const std::string& xattr_filter,
     const std::string& cgroup_fs,
+    // This is actually a comma separated list of cgroup glob patterns
     const std::string& cgroup)
     : name_(name),
       detector_groups_(std::move(detector_groups)),
@@ -49,8 +50,8 @@ Ruleset::Ruleset(
       silenced_logs_(silence_logs),
       xattr_filter_(xattr_filter) {
   if (!cgroup.empty()) {
-    cgroup_ =
-        std::make_optional(std::make_unique<CgroupPath>(cgroup_fs, cgroup));
+    cgroups_ = PluginArgParser::parseCgroup(
+        PluginConstructionContext(cgroup_fs), cgroup);
   }
 }
 
@@ -64,7 +65,7 @@ Ruleset::Ruleset(
     uint32_t silence_logs,
     int post_action_delay,
     int prekill_hook_timeout,
-    std::unique_ptr<CgroupPath> cgroup)
+    std::unordered_set<CgroupPath> cgroups)
     : name_(name),
       detector_groups_(std::move(detector_groups)),
       action_group_(std::move(action_group)),
@@ -74,7 +75,7 @@ Ruleset::Ruleset(
       detectorgroups_dropin_enabled_(detectorgroups_dropin_enabled),
       actiongroup_dropin_enabled_(actiongroup_dropin_enabled),
       silenced_logs_(silence_logs) {
-  cgroup_ = std::move(cgroup);
+  cgroups_ = std::move(cgroups);
 }
 
 bool Ruleset::mergeWithDropIn(std::unique_ptr<Ruleset> ruleset) {
@@ -136,18 +137,15 @@ uint32_t Ruleset::runOnce(OomdContext& context) {
   if (!enabled_) {
     return 0;
   }
-  if (!cgroup_.has_value()) {
+  if (!cgroups_.has_value()) {
     return runOnceImpl(context);
   }
   auto visited = std::unordered_set<std::string>();
   uint32_t ret = 0;
-  for (const auto& cgroup : cgroup_.value()->resolveWildcard()) {
-    auto cgroupfd = Fs::DirFd::open(cgroup.absolutePath());
-    if (!cgroupfd) {
-      continue;
-    }
+  for (const auto& cgroupCtx : context.addToCacheAndGet(cgroups_.value(), {})) {
+    auto& cgroup = cgroupCtx.get().cgroup();
     if (!xattr_filter_.empty()) {
-      auto maybeHasXattr = Fs::hasxattrAt(cgroupfd.value(), xattr_filter_);
+      auto maybeHasXattr = Fs::hasxattrAt(cgroupCtx.get().fd(), xattr_filter_);
       if (!maybeHasXattr) {
         OLOG << "Failed to fetch xattr: " << xattr_filter_
              << " for cgroup: " << cgroup.absolutePath()
@@ -196,9 +194,8 @@ uint32_t Ruleset::runOnceImpl(OomdContext& context) {
            dg->name(),
            Util::generateUuid(),
            std::chrono::steady_clock::now() +
-               std::chrono::seconds(prekill_hook_timeout_),
-           context.getRulesetCgroup()});
-      context.setInvokingRuleset(this);
+               std::chrono::seconds(prekill_hook_timeout_)}),
+          context.setInvokingRuleset(this);
     }
   }
 
@@ -228,13 +225,12 @@ uint32_t Ruleset::runOnceImpl(OomdContext& context) {
       }
       if (!(silenced_logs_ & LogSources::ENGINE)) {
         std::string target_cgroup;
-        if (cgroup_.has_value()) {
-          target_cgroup = cgroup_.value()->absolutePath();
+        if (auto& cgroup = context.getRulesetCgroup()) {
+          target_cgroup = cgroup->absolutePath();
         }
         OLOG << "DetectorGroup=" << context.getActionContext().detectorgroup
-             << " has fired for Ruleset=" << name_
-             << " with target cgroup=" << target_cgroup
-             << ". Running action chain from state.";
+             << " has fired for Ruleset=" << name_ << " with ruleset cgroup `"
+             << target_cgroup << "`. Running action chain from state.";
       }
       return run_action_chain(it, action_group_.end(), context);
     }
@@ -246,13 +242,12 @@ uint32_t Ruleset::runOnceImpl(OomdContext& context) {
 
   if (!(silenced_logs_ & LogSources::ENGINE)) {
     std::string target_cgroup;
-    if (cgroup_.has_value()) {
-      target_cgroup = cgroup_.value()->absolutePath();
+    if (auto& cgroup = context.getRulesetCgroup()) {
+      target_cgroup = cgroup->absolutePath();
     }
     OLOG << "DetectorGroup=" << context.getActionContext().detectorgroup
-         << " has fired for Ruleset=" << name_
-         << " with ruleset cgroup=" << target_cgroup
-         << ". Running action chain.";
+         << " has fired for Ruleset=" << name_ << " with ruleset cgroup `"
+         << target_cgroup << "`. Running action chain.";
   }
 
   // Begin running action chain
@@ -350,7 +345,7 @@ void Ruleset::registerRunnableRulesetForCgroupPath(
       silenced_logs_,
       post_action_delay_,
       prekill_hook_timeout_,
-      std::make_unique<CgroupPath>(cgroup.cgroupFs(), cgroup.relativePath()));
+      std::unordered_set{CgroupPath(cgroup.cgroupFs(), cgroup.relativePath())});
   ruleset->prerun(context);
   runnable_rulesets_[cgroup.absolutePath()] = std::move(ruleset);
 }

@@ -54,7 +54,7 @@ class Ruleset {
       uint32_t silenced_logs,
       int post_action_delay,
       int prekill_hook_timeout,
-      std::unique_ptr<CgroupPath>);
+      std::unordered_set<CgroupPath>);
   ~Ruleset() = default;
 
   /*
@@ -113,7 +113,7 @@ class Ruleset {
   uint32_t silenced_logs_{0};
   int32_t numTargeted_{0};
   std::string xattr_filter_;
-  std::optional<std::unique_ptr<CgroupPath>> cgroup_{std::nullopt};
+  std::optional<std::unordered_set<CgroupPath>> cgroups_{std::nullopt};
   std::unordered_map<std::string, std::unique_ptr<Ruleset>> runnable_rulesets_;
 
   struct AsyncActionChainState {

@@ -46,7 +46,6 @@ struct ActionContext {
   std::string action_group_run_uuid;
   std::optional<std::chrono::steady_clock::time_point> prekill_hook_timeout_ts{
       std::nullopt};
-  std::optional<CgroupPath> target_cgroup{std::nullopt};
 };
 
 struct ContextParams {

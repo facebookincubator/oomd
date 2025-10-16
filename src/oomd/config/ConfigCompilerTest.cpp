@@ -633,16 +633,16 @@ TEST_F(CompilerTest, RulesetWildcardCGroup) {
       /*post_action_delay=*/"",
       /*prekill_hook_timeout=*/"",
       /*xattr_filter=*/"",
-      /*cgroup=*/".*"};
+      // Should include {missing_control_files,system,workload}.slice
+      // and system.slice/service{1,2,3,4}.service
+      /*cgroup=*/"*.slice,system.slice/*.service"};
   root.rulesets.emplace_back(std::move(ruleset));
 
   auto engine = compile();
   ASSERT_TRUE(engine);
-  for (int i = 0; i < 3; ++i) {
-    engine->runOnce(context);
-  }
+  engine->runOnce(context);
 
-  EXPECT_EQ(count, 6);
+  EXPECT_EQ(count, 7);
 }
 
 TEST_F(CompilerTest, RulesetCGroup) {
@@ -665,11 +665,9 @@ TEST_F(CompilerTest, RulesetCGroup) {
 
   auto engine = compile();
   ASSERT_TRUE(engine);
-  for (int i = 0; i < 3; ++i) {
-    engine->runOnce(context);
-  }
+  engine->runOnce(context);
 
-  EXPECT_EQ(count, 3);
+  EXPECT_EQ(count, 1);
 }
 
 TEST_F(CompilerTest, RulesetCGroupXattrfilter) {
