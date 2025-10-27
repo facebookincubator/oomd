@@ -254,11 +254,12 @@ BaseKillPlugin::KillResult BaseKillPlugin::tryToKillSomething(
   // the highest ranked sibling is on top
   reverse(sorted->begin(), sorted->end());
   for (const auto& cgroupCtx : *sorted) {
-    nextBestOptionStack.emplace_back(KillCandidate{
-        .cgroupCtx = cgroupCtx,
-        // killRoots are the initialCgroups
-        .killRoot = cgroupCtx,
-        .peers = sorted});
+    nextBestOptionStack.emplace_back(
+        KillCandidate{
+            .cgroupCtx = cgroupCtx,
+            // killRoots are the initialCgroups
+            .killRoot = cgroupCtx,
+            .peers = sorted});
   }
 
   return resumeTryingToKillSomething(
@@ -277,8 +278,9 @@ BaseKillPlugin::KillResult BaseKillPlugin::resumeTryingToKillSomething(
     bool hasTriedToKillSomethingAlready) {
   OCHECK_EXCEPT(
       prekillHookState_ == std::nullopt,
-      std::runtime_error("Shouldn't be trying to kill anything while pre-kill"
-                         " hook is still running"));
+      std::runtime_error(
+          "Shouldn't be trying to kill anything while pre-kill"
+          " hook is still running"));
 
   std::optional<KillCandidate> firstKillCandidate = std::nullopt;
 
@@ -303,13 +305,14 @@ BaseKillPlugin::KillResult BaseKillPlugin::resumeTryingToKillSomething(
         // so the highest ranked sibling is on top
         reverse(sorted->begin(), sorted->end());
         for (const auto& cgroupCtx : *sorted) {
-          nextBestOptionStack.emplace_back(KillCandidate{
-              .cgroupCtx = cgroupCtx,
-              // killRoot is nullopt when peers are themselves
-              // the roots, in the first call. Each cgroup is then
-              // its own killRoot.
-              .killRoot = candidate.killRoot,
-              .peers = sorted});
+          nextBestOptionStack.emplace_back(
+              KillCandidate{
+                  .cgroupCtx = cgroupCtx,
+                  // killRoot is nullopt when peers are themselves
+                  // the roots, in the first call. Each cgroup is then
+                  // its own killRoot.
+                  .killRoot = candidate.killRoot,
+                  .peers = sorted});
         }
 
         continue;

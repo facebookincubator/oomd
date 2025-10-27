@@ -173,10 +173,11 @@ std::string concatStrs(Strs&&... strs) {
 // concatenated into a string for the message
 template <typename... Msg>
 auto systemError(int err, Msg&&... msg) {
-  return SystemError(std::system_error(
-      err,
-      std::system_category(),
-      detail::concatStrs(std::forward<Msg>(msg)...)));
+  return SystemError(
+      std::system_error(
+          err,
+          std::system_category(),
+          detail::concatStrs(std::forward<Msg>(msg)...)));
 }
 
 template <typename... Msg>

@@ -103,7 +103,7 @@ void proxy(T val, S& field, CgroupContext::Error* err) {
 #define FIELD_TYPE(field) decltype(CgroupContext::CgroupData::field)
 #define PROXY(field, expr) __PROXY(field, expr, FIELD_TYPE(field))
 #define PROXY_CONST_REF(field, expr) \
-  __PROXY(field, expr, const FIELD_TYPE(field)&)
+  __PROXY(field, expr, const FIELD_TYPE(field) &)
 
 PROXY_CONST_REF(children, getChildren())
 PROXY_CONST_REF(mem_pressure, getMemPressure(Fs::PressureType::FULL))

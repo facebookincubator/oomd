@@ -651,16 +651,15 @@ TEST_F(CompilerTest, RulesetCGroup) {
   IR::Action increment;
   increment.name = "IncrementCount";
   IR::DetectorGroup dgroup{"group1", {std::move(cont)}};
-  IR::Ruleset ruleset{
-      /*name=*/"ruleset1",
-      /*dgs=*/{std::move(dgroup)},
-      /*acts=*/{std::move(increment)},
-      /*dropin=*/{},
-      /*silence_logs=*/"",
-      /*post_action_delay=*/"",
-      /*prekill_hook_timeout=*/"",
-      /*xattr_filter=*/"",
-      /*cgroup=*/"."};
+  IR::Ruleset ruleset{/*name=*/"ruleset1",
+                      /*dgs=*/{std::move(dgroup)},
+                      /*acts=*/{std::move(increment)},
+                      /*dropin=*/{},
+                      /*silence_logs=*/"",
+                      /*post_action_delay=*/"",
+                      /*prekill_hook_timeout=*/"",
+                      /*xattr_filter=*/"",
+                      /*cgroup=*/"."};
   root.rulesets.emplace_back(std::move(ruleset));
 
   auto engine = compile();
@@ -676,16 +675,15 @@ TEST_F(CompilerTest, RulesetCGroupXattrfilter) {
   IR::Action increment;
   increment.name = "IncrementCount";
   IR::DetectorGroup dgroup{"group1", {std::move(cont)}};
-  IR::Ruleset ruleset{
-      /*name=*/"ruleset1",
-      /*dgs=*/{std::move(dgroup)},
-      /*acts=*/{std::move(increment)},
-      /*dropin=*/{},
-      /*silence_logs=*/"",
-      /*post_action_delay=*/"",
-      /*prekill_hook_timeout=*/"",
-      /*xattr_filter=*/"dummyxattr",
-      /*cgroup=*/"."};
+  IR::Ruleset ruleset{/*name=*/"ruleset1",
+                      /*dgs=*/{std::move(dgroup)},
+                      /*acts=*/{std::move(increment)},
+                      /*dropin=*/{},
+                      /*silence_logs=*/"",
+                      /*post_action_delay=*/"",
+                      /*prekill_hook_timeout=*/"",
+                      /*xattr_filter=*/"dummyxattr",
+                      /*cgroup=*/"."};
   root.rulesets.emplace_back(std::move(ruleset));
 
   auto engine = compile();

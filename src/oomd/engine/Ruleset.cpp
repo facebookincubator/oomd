@@ -296,9 +296,10 @@ uint32_t Ruleset::run_action_chain(
 
         break; // break out of switch
       case PluginRet::ASYNC_PAUSED:
-        active_action_chain_state_ = std::make_optional(AsyncActionChainState{
-            .active_plugin = std::ref(*action.get()),
-            .action_context = context.getActionContext()});
+        active_action_chain_state_ = std::make_optional(
+            AsyncActionChainState{
+                .active_plugin = std::ref(*action.get()),
+                .action_context = context.getActionContext()});
         OLOG << "Action=" << action->getName()
              << " returned ASYNC. Yielding action chain.";
         return 0; // don't return 1 until action returns STOP

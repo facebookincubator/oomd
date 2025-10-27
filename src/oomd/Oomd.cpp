@@ -116,8 +116,9 @@ int Oomd::run(const sigset_t* mask) {
     return EXIT_CANT_RECOVER;
   }
 
-  struct timespec ts {
-    .tv_sec = interval_.count(), .tv_nsec = 0,
+  struct timespec ts{
+      .tv_sec = interval_.count(),
+      .tv_nsec = 0,
   };
 
   OLOG << "Running oomd";

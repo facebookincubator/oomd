@@ -102,9 +102,13 @@ TEST_F(CgroupContextTest, MonitorRootHost) {
 }
 
 TEST_F(CgroupContextTest, UniqueId) {
-  F::materialize(F::makeDir(
-      tempDir_,
-      {F::makeDir("A"), F::makeDir("B"), F::makeDir("C"), F::makeDir("D")}));
+  F::materialize(
+      F::makeDir(
+          tempDir_,
+          {F::makeDir("A"),
+           F::makeDir("B"),
+           F::makeDir("C"),
+           F::makeDir("D")}));
   std::unordered_set<CgroupContext::Id> ids;
 
   for (const CgroupContext& cgroup_ctx : ctx_.addToCacheAndGet(
@@ -117,43 +121,44 @@ TEST_F(CgroupContextTest, UniqueId) {
 }
 
 TEST_F(CgroupContextTest, MemoryProtection) {
-  F::materialize(F::makeDir(
-      tempDir_,
-      {F::makeDir(
-          "A",
-          {F::makeFile("memory.current", "10000\n"),
-           F::makeFile("memory.low", "2000\n"),
-           F::makeFile("memory.min", "2500\n"),
-           F::makeDir(
-               "B",
-               {F::makeFile("memory.current", "1000\n"),
-                F::makeFile("memory.low", "250\n"),
-                F::makeFile("memory.min", "200\n"),
-                F::makeDir(
-                    "C",
-                    {F::makeFile("memory.current", "0\n"),
-                     F::makeFile("memory.low", "250\n"),
-                     F::makeFile("memory.min", "200\n")}),
-                F::makeDir(
-                    "D",
-                    {F::makeFile("memory.current", "1000\n"),
-                     F::makeFile("memory.low", "0\n"),
-                     F::makeFile("memory.min", "0\n")})}),
-           F::makeDir(
-               "E",
-               {F::makeFile("memory.current", "250\n"),
-                F::makeFile("memory.low", "1000\n"),
-                F::makeFile("memory.min", "200\n"),
-                F::makeDir(
-                    "F",
-                    {F::makeFile("memory.current", "2000\n"),
-                     F::makeFile("memory.low", "2000\n"),
-                     F::makeFile("memory.min", "2000\n")}),
-                F::makeDir(
-                    "G",
-                    {F::makeFile("memory.current", "3000\n"),
-                     F::makeFile("memory.low", "3000\n"),
-                     F::makeFile("memory.min", "3000\n")})})})}));
+  F::materialize(
+      F::makeDir(
+          tempDir_,
+          {F::makeDir(
+              "A",
+              {F::makeFile("memory.current", "10000\n"),
+               F::makeFile("memory.low", "2000\n"),
+               F::makeFile("memory.min", "2500\n"),
+               F::makeDir(
+                   "B",
+                   {F::makeFile("memory.current", "1000\n"),
+                    F::makeFile("memory.low", "250\n"),
+                    F::makeFile("memory.min", "200\n"),
+                    F::makeDir(
+                        "C",
+                        {F::makeFile("memory.current", "0\n"),
+                         F::makeFile("memory.low", "250\n"),
+                         F::makeFile("memory.min", "200\n")}),
+                    F::makeDir(
+                        "D",
+                        {F::makeFile("memory.current", "1000\n"),
+                         F::makeFile("memory.low", "0\n"),
+                         F::makeFile("memory.min", "0\n")})}),
+               F::makeDir(
+                   "E",
+                   {F::makeFile("memory.current", "250\n"),
+                    F::makeFile("memory.low", "1000\n"),
+                    F::makeFile("memory.min", "200\n"),
+                    F::makeDir(
+                        "F",
+                        {F::makeFile("memory.current", "2000\n"),
+                         F::makeFile("memory.low", "2000\n"),
+                         F::makeFile("memory.min", "2000\n")}),
+                    F::makeDir(
+                        "G",
+                        {F::makeFile("memory.current", "3000\n"),
+                         F::makeFile("memory.low", "3000\n"),
+                         F::makeFile("memory.min", "3000\n")})})})}));
 
   // Top level slice gets whatever protection it claims
   auto cgroup_ctx = ctx_.addToCacheAndGet(CgroupPath(tempDir_, "A"));
@@ -190,13 +195,14 @@ TEST_F(CgroupContextTest, MemoryProtection) {
  * Verify that CgroupContext won't read from a recreated cgroup.
  */
 TEST_F(CgroupContextTest, DistinguishRecreate) {
-  F::materialize(F::makeDir(
-      tempDir_,
-      {F::makeDir(
-          "system.slice",
-          // Dummy file to make cgroup valid
-          {F::makeFile("cgroup.controllers"),
-           F::makeFile("memory.current", "123\n")})}));
+  F::materialize(
+      F::makeDir(
+          tempDir_,
+          {F::makeDir(
+              "system.slice",
+              // Dummy file to make cgroup valid
+              {F::makeFile("cgroup.controllers"),
+               F::makeFile("memory.current", "123\n")})}));
 
   auto cgroup_ctx = ASSERT_EXISTS(
       CgroupContext::make(ctx_, CgroupPath(tempDir_, "system.slice")));
@@ -204,12 +210,13 @@ TEST_F(CgroupContextTest, DistinguishRecreate) {
 
   // Remove cgroup and recreate one with the exact same name
   F::rmrChecked(tempDir_ + "/system.slice");
-  F::materialize(F::makeDir(
-      tempDir_,
-      {F::makeDir(
-          "system.slice",
-          {F::makeFile("cgroup.controllers"),
-           F::makeFile("memory.current", "234\n")})}));
+  F::materialize(
+      F::makeDir(
+          tempDir_,
+          {F::makeDir(
+              "system.slice",
+              {F::makeFile("cgroup.controllers"),
+               F::makeFile("memory.current", "234\n")})}));
 
   // This CgroupContext should no longer be valid
   EXPECT_FALSE(cgroup_ctx.refresh());
@@ -226,49 +233,50 @@ TEST_F(CgroupContextTest, DistinguishRecreate) {
  */
 TEST_F(CgroupContextTest, DataLifeCycle) {
   // Set up cgroup control files
-  F::materialize(F::makeDir(
-      tempDir_,
-      {F::makeDir(
-          "system.slice",
-          // Dummy file to make cgroup valid
-          {F::makeFile("cgroup.controllers"),
-           F::makeFile(
-               "cgroup.stat",
-               {"nr_descendants 2\n"
-                "nr_dying_descendants 1\n"}),
-           F::makeFile(
-               "io.pressure",
-               {"some avg10=0.04 avg60=0.03 avg300=0.02 total=12345\n"
-                "full avg10=0.03 avg60=0.02 avg300=0.01 total=23456\n"}),
-           F::makeFile(
-               "io.stat",
-               {"1:10"
-                " rbytes=1111111 wbytes=2222222 rios=33 wios=44"
-                " dbytes=5555555555 dios=6\n"
-                "1:11"
-                " rbytes=2222222 wbytes=3333333 rios=44 wios=55"
-                " dbytes=6666666666 dios=7\n"}),
-           F::makeFile("memory.current", {"1122334455\n"}),
-           F::makeFile("memory.high", {"2233445566\n"}),
-           F::makeFile("memory.high.tmp", {"max 0\n"}),
-           F::makeFile("memory.low", {"11223344\n"}),
-           F::makeFile("memory.max", {"3344556677\n"}),
-           F::makeFile("memory.min", {"112233\n"}),
-           F::makeFile(
-               "memory.pressure",
-               {"some avg10=0.31 avg60=0.21 avg300=0.11 total=1234567\n"
-                "full avg10=0.30 avg60=0.20 avg300=0.10 total=2345678\n"}),
-           F::makeFile(
-               "memory.stat",
-               {"anon 123456789\n"
-                "file 12345678\n"
-                "shmem 1234567\n"
-                "pgscan 4567890123\n"}),
-           F::makeFile("memory.swap.current", {"1234\n"}),
-           F::makeFile("memory.swap.max", {"1024\n"}),
-           F::makeDir("service1.service", {}),
-           F::makeDir("service2.service", {}),
-           F::makeDir("service3.service", {})})}));
+  F::materialize(
+      F::makeDir(
+          tempDir_,
+          {F::makeDir(
+              "system.slice",
+              // Dummy file to make cgroup valid
+              {F::makeFile("cgroup.controllers"),
+               F::makeFile(
+                   "cgroup.stat",
+                   {"nr_descendants 2\n"
+                    "nr_dying_descendants 1\n"}),
+               F::makeFile(
+                   "io.pressure",
+                   {"some avg10=0.04 avg60=0.03 avg300=0.02 total=12345\n"
+                    "full avg10=0.03 avg60=0.02 avg300=0.01 total=23456\n"}),
+               F::makeFile(
+                   "io.stat",
+                   {"1:10"
+                    " rbytes=1111111 wbytes=2222222 rios=33 wios=44"
+                    " dbytes=5555555555 dios=6\n"
+                    "1:11"
+                    " rbytes=2222222 wbytes=3333333 rios=44 wios=55"
+                    " dbytes=6666666666 dios=7\n"}),
+               F::makeFile("memory.current", {"1122334455\n"}),
+               F::makeFile("memory.high", {"2233445566\n"}),
+               F::makeFile("memory.high.tmp", {"max 0\n"}),
+               F::makeFile("memory.low", {"11223344\n"}),
+               F::makeFile("memory.max", {"3344556677\n"}),
+               F::makeFile("memory.min", {"112233\n"}),
+               F::makeFile(
+                   "memory.pressure",
+                   {"some avg10=0.31 avg60=0.21 avg300=0.11 total=1234567\n"
+                    "full avg10=0.30 avg60=0.20 avg300=0.10 total=2345678\n"}),
+               F::makeFile(
+                   "memory.stat",
+                   {"anon 123456789\n"
+                    "file 12345678\n"
+                    "shmem 1234567\n"
+                    "pgscan 4567890123\n"}),
+               F::makeFile("memory.swap.current", {"1234\n"}),
+               F::makeFile("memory.swap.max", {"1024\n"}),
+               F::makeDir("service1.service", {}),
+               F::makeDir("service2.service", {}),
+               F::makeDir("service3.service", {})})}));
 
   auto cgroup_ctx = ASSERT_EXISTS(
       CgroupContext::make(ctx_, CgroupPath(tempDir_, "system.slice")));
@@ -401,48 +409,49 @@ TEST_F(CgroupContextTest, DataLifeCycle) {
   EXPECT_EQ(pg_scan_rate, std::nullopt);
 
   // Update most of control files (by adding 1, 0.1 or 0.01)
-  F::materialize(F::makeDir(
-      tempDir_,
-      {F::makeDir(
-          "system.slice",
-          {F::makeFile(
-               "cgroup.stat",
-               {"nr_descendants 3\n"
-                "nr_dying_descendants 2\n"}),
-           F::makeFile(
-               "io.pressure",
-               {"some avg10=0.04 avg60=0.03 avg300=0.02 total=12346\n"
-                "full avg10=0.04 avg60=0.03 avg300=0.02 total=23457\n"}),
-           F::makeFile(
-               "io.stat",
-               {"1:10"
-                " rbytes=1111112 wbytes=2222223 rios=34 wios=45"
-                " dbytes=5555555556 dios=7\n"
-                "1:11"
-                " rbytes=2222223 wbytes=3333334 rios=45 wios=56"
-                " dbytes=6666666667 dios=8\n"}),
-           F::makeFile("memory.current", {"1122334456\n"}),
-           F::makeFile("memory.high", {"2233445567\n"}),
-           F::makeFile("memory.high.tmp", {"max 0\n"}),
-           F::makeFile("memory.low", {"11223345\n"}),
-           F::makeFile("memory.min", {"112234\n"}),
-           F::makeFile("memory.max", {"3344556678\n"}),
-           F::makeFile(
-               "memory.pressure",
-               {"some avg10=0.31 avg60=0.21 avg300=0.11 total=1234568\n"
-                "full avg10=0.31 avg60=0.21 avg300=0.11 total=2345679\n"}),
-           F::makeFile(
-               "memory.stat",
-               {"anon 123456790\n"
-                "file 12345679\n"
-                "shmem 1234568\n"
-                "pgscan 5678901234\n"}),
-           F::makeFile("memory.swap.current", {"1235\n"}),
-           F::makeFile("memory.swap.max", {"2048\n"}),
-           F::makeDir("service1.service", {}),
-           F::makeDir("service2.service", {}),
-           F::makeDir("service3.service", {}),
-           F::makeDir("service4.service", {})})}));
+  F::materialize(
+      F::makeDir(
+          tempDir_,
+          {F::makeDir(
+              "system.slice",
+              {F::makeFile(
+                   "cgroup.stat",
+                   {"nr_descendants 3\n"
+                    "nr_dying_descendants 2\n"}),
+               F::makeFile(
+                   "io.pressure",
+                   {"some avg10=0.04 avg60=0.03 avg300=0.02 total=12346\n"
+                    "full avg10=0.04 avg60=0.03 avg300=0.02 total=23457\n"}),
+               F::makeFile(
+                   "io.stat",
+                   {"1:10"
+                    " rbytes=1111112 wbytes=2222223 rios=34 wios=45"
+                    " dbytes=5555555556 dios=7\n"
+                    "1:11"
+                    " rbytes=2222223 wbytes=3333334 rios=45 wios=56"
+                    " dbytes=6666666667 dios=8\n"}),
+               F::makeFile("memory.current", {"1122334456\n"}),
+               F::makeFile("memory.high", {"2233445567\n"}),
+               F::makeFile("memory.high.tmp", {"max 0\n"}),
+               F::makeFile("memory.low", {"11223345\n"}),
+               F::makeFile("memory.min", {"112234\n"}),
+               F::makeFile("memory.max", {"3344556678\n"}),
+               F::makeFile(
+                   "memory.pressure",
+                   {"some avg10=0.31 avg60=0.21 avg300=0.11 total=1234568\n"
+                    "full avg10=0.31 avg60=0.21 avg300=0.11 total=2345679\n"}),
+               F::makeFile(
+                   "memory.stat",
+                   {"anon 123456790\n"
+                    "file 12345679\n"
+                    "shmem 1234568\n"
+                    "pgscan 5678901234\n"}),
+               F::makeFile("memory.swap.current", {"1235\n"}),
+               F::makeFile("memory.swap.max", {"2048\n"}),
+               F::makeDir("service1.service", {}),
+               F::makeDir("service2.service", {}),
+               F::makeDir("service3.service", {}),
+               F::makeDir("service4.service", {})})}));
   F::rmrChecked(tempDir_ + "/system.slice/service2.service");
 
   // All values should stay the same
@@ -528,19 +537,21 @@ TEST_F(CgroupContextTest, DataLifeCycle) {
 
 TEST_F(CgroupContextTest, EffectiveSwapMax) {
   ctx_.setSystemContext(SystemContext{.swaptotal = 3000});
-  F::materialize(F::makeDir(
-      tempDir_,
-      {F::makeDir(
-          "system.slice",
-          {F::makeFile("cgroup.controllers"),
-           F::makeFile("memory.swap.max", "1000\n"),
-           F::makeDir(
-               "oomd.service",
-               {F::makeFile("cgroup.controllers"),
-                F::makeFile("memory.swap.max", "2000\n")})})}));
+  F::materialize(
+      F::makeDir(
+          tempDir_,
+          {F::makeDir(
+              "system.slice",
+              {F::makeFile("cgroup.controllers"),
+               F::makeFile("memory.swap.max", "1000\n"),
+               F::makeDir(
+                   "oomd.service",
+                   {F::makeFile("cgroup.controllers"),
+                    F::makeFile("memory.swap.max", "2000\n")})})}));
 
-  auto cgroup_ctx = ASSERT_EXISTS(CgroupContext::make(
-      ctx_, CgroupPath(tempDir_, "system.slice/oomd.service")));
+  auto cgroup_ctx = ASSERT_EXISTS(
+      CgroupContext::make(
+          ctx_, CgroupPath(tempDir_, "system.slice/oomd.service")));
 
   ASSERT_TRUE(cgroup_ctx.effective_swap_max());
   ASSERT_EQ(*cgroup_ctx.effective_swap_max(), 1000);
@@ -548,25 +559,26 @@ TEST_F(CgroupContextTest, EffectiveSwapMax) {
 
 TEST_F(CgroupContextTest, EffectiveSwapFree) {
   ctx_.setSystemContext(SystemContext{.swaptotal = 400, .swapused = 100});
-  F::materialize(F::makeDir(
-      tempDir_,
-      {F::makeDir(
-           "system.slice",
-           {F::makeFile("cgroup.controllers"),
-            F::makeFile("memory.swap.max", "max\n"),
-            F::makeFile("memory.swap.current", "100\n"),
-            F::makeDir(
-                "oomd.service",
-                {
-                    F::makeFile("cgroup.controllers"),
-                    F::makeFile("memory.swap.max", "200\n"),
-                    F::makeFile("memory.swap.current", "100\n"),
-                })}),
-       F::makeDir(
-           "foo.slice",
-           {F::makeFile("cgroup.controllers"),
-            F::makeFile("memory.swap.max", "0\n"),
-            F::makeFile("memory.swap.current", "0\n")})}));
+  F::materialize(
+      F::makeDir(
+          tempDir_,
+          {F::makeDir(
+               "system.slice",
+               {F::makeFile("cgroup.controllers"),
+                F::makeFile("memory.swap.max", "max\n"),
+                F::makeFile("memory.swap.current", "100\n"),
+                F::makeDir(
+                    "oomd.service",
+                    {
+                        F::makeFile("cgroup.controllers"),
+                        F::makeFile("memory.swap.max", "200\n"),
+                        F::makeFile("memory.swap.current", "100\n"),
+                    })}),
+           F::makeDir(
+               "foo.slice",
+               {F::makeFile("cgroup.controllers"),
+                F::makeFile("memory.swap.max", "0\n"),
+                F::makeFile("memory.swap.current", "0\n")})}));
 
   {
     // system.slice is limited by the total amount of the swap on the
@@ -578,8 +590,9 @@ TEST_F(CgroupContextTest, EffectiveSwapFree) {
   }
   {
     // oomd.service is limited by memory.swap.max
-    auto cgroup_ctx = ASSERT_EXISTS(CgroupContext::make(
-        ctx_, CgroupPath(tempDir_, "system.slice/oomd.service")));
+    auto cgroup_ctx = ASSERT_EXISTS(
+        CgroupContext::make(
+            ctx_, CgroupPath(tempDir_, "system.slice/oomd.service")));
     ASSERT_TRUE(cgroup_ctx.effective_swap_free());
     ASSERT_EQ(*cgroup_ctx.effective_swap_free(), 100);
   }
@@ -594,25 +607,26 @@ TEST_F(CgroupContextTest, EffectiveSwapFree) {
 
 TEST_F(CgroupContextTest, EffectiveSwapUtilPct) {
   ctx_.setSystemContext(SystemContext{.swaptotal = 400, .swapused = 100});
-  F::materialize(F::makeDir(
-      tempDir_,
-      {F::makeDir(
-           "system.slice",
-           {F::makeFile("cgroup.controllers"),
-            F::makeFile("memory.swap.max", "max\n"),
-            F::makeFile("memory.swap.current", "100\n"),
-            F::makeDir(
-                "oomd.service",
-                {
-                    F::makeFile("cgroup.controllers"),
-                    F::makeFile("memory.swap.max", "200\n"),
-                    F::makeFile("memory.swap.current", "100\n"),
-                })}),
-       F::makeDir(
-           "foo.slice",
-           {F::makeFile("cgroup.controllers"),
-            F::makeFile("memory.swap.max", "0\n"),
-            F::makeFile("memory.swap.current", "0\n")})}));
+  F::materialize(
+      F::makeDir(
+          tempDir_,
+          {F::makeDir(
+               "system.slice",
+               {F::makeFile("cgroup.controllers"),
+                F::makeFile("memory.swap.max", "max\n"),
+                F::makeFile("memory.swap.current", "100\n"),
+                F::makeDir(
+                    "oomd.service",
+                    {
+                        F::makeFile("cgroup.controllers"),
+                        F::makeFile("memory.swap.max", "200\n"),
+                        F::makeFile("memory.swap.current", "100\n"),
+                    })}),
+           F::makeDir(
+               "foo.slice",
+               {F::makeFile("cgroup.controllers"),
+                F::makeFile("memory.swap.max", "0\n"),
+                F::makeFile("memory.swap.current", "0\n")})}));
 
   {
     // system.slice is limited by the total amount of the swap on the
@@ -624,8 +638,9 @@ TEST_F(CgroupContextTest, EffectiveSwapUtilPct) {
   }
   {
     // oomd.service is limited by memory.swap.max
-    auto cgroup_ctx = ASSERT_EXISTS(CgroupContext::make(
-        ctx_, CgroupPath(tempDir_, "system.slice/oomd.service")));
+    auto cgroup_ctx = ASSERT_EXISTS(
+        CgroupContext::make(
+            ctx_, CgroupPath(tempDir_, "system.slice/oomd.service")));
     ASSERT_TRUE(cgroup_ctx.effective_swap_util_pct());
     ASSERT_EQ(*cgroup_ctx.effective_swap_util_pct(), 0.5);
   }
@@ -653,13 +668,14 @@ TEST_F(CgroupContextTest, EffectiveSwapUtilPctNoSwap) {
  * Verify that CgroupContext won't read from a recreated cgroup.
  */
 TEST_F(CgroupContextTest, MemoryGrowthDoesntDivideByZero) {
-  F::materialize(F::makeDir(
-      tempDir_,
-      {F::makeDir(
-          "system.slice",
-          // Dummy file to make cgroup valid
-          {F::makeFile("cgroup.controllers"),
-           F::makeFile("memory.current", "0\n")})}));
+  F::materialize(
+      F::makeDir(
+          tempDir_,
+          {F::makeDir(
+              "system.slice",
+              // Dummy file to make cgroup valid
+              {F::makeFile("cgroup.controllers"),
+               F::makeFile("memory.current", "0\n")})}));
 
   auto cgroup_ctx = ASSERT_EXISTS(
       CgroupContext::make(ctx_, CgroupPath(tempDir_, "system.slice")));

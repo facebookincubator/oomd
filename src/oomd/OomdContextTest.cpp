@@ -94,12 +94,13 @@ TEST_F(OomdContextTest, CgroupKeyRoot) {
 }
 
 TEST_F(OomdContextTest, GetMultiple) {
-  F::materialize(F::makeDir(
-      tempdir_,
-      {F::makeDir("dir1"),
-       F::makeDir("dir2"),
-       F::makeDir("dir3"),
-       F::makeFile("file1")}));
+  F::materialize(
+      F::makeDir(
+          tempdir_,
+          {F::makeDir("dir1"),
+           F::makeDir("dir2"),
+           F::makeDir("dir3"),
+           F::makeFile("file1")}));
   CgroupPath p1(tempdir_, "dir1");
   CgroupPath p2(tempdir_, "dir2");
   CgroupPath p3(tempdir_, "dir3");
@@ -129,9 +130,10 @@ TEST_F(OomdContextTest, GetMultiple) {
 }
 
 TEST_F(OomdContextTest, GetRulesetCgroups) {
-  F::materialize(F::makeDir(
-      tempdir_,
-      {F::makeDir("dir1"), F::makeDir("dir2", {F::makeDir("dir3")})}));
+  F::materialize(
+      F::makeDir(
+          tempdir_,
+          {F::makeDir("dir1"), F::makeDir("dir2", {F::makeDir("dir3")})}));
   ctx.setRulesetCgroup(cg("dir2"));
   auto cgroups = ctx.addToCacheAndGet({cg("dir1")}, {cg("dir3")});
   auto dir1 = ctx.addToCacheAndGet(cg("dir1"));
@@ -148,24 +150,25 @@ TEST_F(OomdContextTest, GetRulesetCgroups) {
 }
 
 TEST_F(OomdContextTest, SortContext) {
-  F::materialize(F::makeDir(
-      tempdir_,
-      {F::makeDir(
-           "biggest",
-           {F::makeFile("memory.current", "99999999\n"),
-            F::makeFile("memory.low", "1\n")}),
-       F::makeDir(
-           "smallest",
-           {F::makeFile("memory.current", "1\n"),
-            F::makeFile("memory.low", "4\n")}),
-       F::makeDir(
-           "asdf",
-           {F::makeFile("memory.current", "88888888\n"),
-            F::makeFile("memory.low", "2\n")}),
-       F::makeDir(
-           "fdsa",
-           {F::makeFile("memory.current", "77777777\n"),
-            F::makeFile("memory.low", "3\n")})}));
+  F::materialize(
+      F::makeDir(
+          tempdir_,
+          {F::makeDir(
+               "biggest",
+               {F::makeFile("memory.current", "99999999\n"),
+                F::makeFile("memory.low", "1\n")}),
+           F::makeDir(
+               "smallest",
+               {F::makeFile("memory.current", "1\n"),
+                F::makeFile("memory.low", "4\n")}),
+           F::makeDir(
+               "asdf",
+               {F::makeFile("memory.current", "88888888\n"),
+                F::makeFile("memory.low", "2\n")}),
+           F::makeDir(
+               "fdsa",
+               {F::makeFile("memory.current", "77777777\n"),
+                F::makeFile("memory.low", "3\n")})}));
   CgroupPath p1(tempdir_, "biggest");
   CgroupPath p2(tempdir_, "smallest");
   CgroupPath p3(tempdir_, "asdf");

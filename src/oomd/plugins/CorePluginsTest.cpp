@@ -141,8 +141,10 @@ class CorePluginsTest : public ::testing::Test {
 class BaseKillPluginTest : public CorePluginsTest {};
 
 TEST_F(BaseKillPluginTest, TryToKillCgroupKillsRecursive) {
-  auto target = ASSERT_EXISTS(CgroupContext::make(
-      ctx_, CgroupPath("oomd/fixtures/plugins/base_kill_plugin", "one_big")));
+  auto target = ASSERT_EXISTS(
+      CgroupContext::make(
+          ctx_,
+          CgroupPath("oomd/fixtures/plugins/base_kill_plugin", "one_big")));
 
   BaseKillPluginShim plugin;
   BaseKillPluginShim::KillCgroupStats stats;
@@ -254,24 +256,25 @@ class AlphabeticStandardKillPlugin : public BaseKillPluginMock {
 class StandardKillRecursionTest : public CorePluginsTest {};
 
 TEST_F(StandardKillRecursionTest, Recurses) {
-  F::materialize(F::makeDir(
-      tempdir_,
-      {Fixture::makeDir(
-           "A",
-           {
-               // Note "Z" and "X" are higher than the "F" in "A" below.
-               // This tests that decisions are made locally: first choose B
-               // from root's {A, B}, then choose F from B's {F}. If leaves
-               // are compared across subtrees Z will win and break the
-               // test.
-               Fixture::makeDir("Z", {}),
-               Fixture::makeDir("X", {}),
-           }),
-       Fixture::makeDir(
-           "B",
-           {
-               Fixture::makeDir("F", {}),
-           })}));
+  F::materialize(
+      F::makeDir(
+          tempdir_,
+          {Fixture::makeDir(
+               "A",
+               {
+                   // Note "Z" and "X" are higher than the "F" in "A" below.
+                   // This tests that decisions are made locally: first choose B
+                   // from root's {A, B}, then choose F from B's {F}. If leaves
+                   // are compared across subtrees Z will win and break the
+                   // test.
+                   Fixture::makeDir("Z", {}),
+                   Fixture::makeDir("X", {}),
+               }),
+           Fixture::makeDir(
+               "B",
+               {
+                   Fixture::makeDir("F", {}),
+               })}));
 
   auto plugin = std::make_shared<AlphabeticStandardKillPlugin>();
   ASSERT_NE(plugin, nullptr);
@@ -290,24 +293,25 @@ TEST_F(StandardKillRecursionTest, Recurses) {
 TEST_F(StandardKillRecursionTest, ConfigurableToNotRecurse) {
   // Same as StandardKillRecursionTest.Recurses but without args["recursive"]
 
-  F::materialize(F::makeDir(
-      tempdir_,
-      {Fixture::makeDir(
-           "A",
-           {
-               // Note "Z" and "X" are higher than the "F" in "A" below.
-               // This tests that decisions are made locally: first choose B
-               // from root's {A, B}, then choose F from B's {F}. If leaves
-               // are compared across subtrees Z will win and break the
-               // test.
-               Fixture::makeDir("Z", {}),
-               Fixture::makeDir("X", {}),
-           }),
-       Fixture::makeDir(
-           "B",
-           {
-               Fixture::makeDir("F", {}),
-           })}));
+  F::materialize(
+      F::makeDir(
+          tempdir_,
+          {Fixture::makeDir(
+               "A",
+               {
+                   // Note "Z" and "X" are higher than the "F" in "A" below.
+                   // This tests that decisions are made locally: first choose B
+                   // from root's {A, B}, then choose F from B's {F}. If leaves
+                   // are compared across subtrees Z will win and break the
+                   // test.
+                   Fixture::makeDir("Z", {}),
+                   Fixture::makeDir("X", {}),
+               }),
+           Fixture::makeDir(
+               "B",
+               {
+                   Fixture::makeDir("F", {}),
+               })}));
 
   auto plugin = std::make_shared<AlphabeticStandardKillPlugin>();
   ASSERT_NE(plugin, nullptr);
@@ -339,31 +343,32 @@ TEST_F(StandardKillRecursionTest, BacktracksUpTreeOnFail) {
   auto plugin = std::make_shared<AlphabeticStandardKillPlugin>();
   ASSERT_NE(plugin, nullptr);
 
-  F::materialize(F::makeDir(
-      tempdir_,
-      {F::makeDir(
-          "test.slice",
-          {Fixture::makeDir(
-               "A",
-               {
-                   Fixture::makeDir("Z", {}),
-               }),
-           Fixture::makeDir(
-               "P",
-               {
-                   Fixture::makeDir("Z", {}),
-                   Fixture::makeDir("X", {}),
-               }),
-           Fixture::makeDir(
-               "Q",
-               {
-                   Fixture::makeDir(
-                       "F",
-                       {
-                           Fixture::makeDir("P", {}),
+  F::materialize(
+      F::makeDir(
+          tempdir_,
+          {F::makeDir(
+              "test.slice",
+              {Fixture::makeDir(
+                   "A",
+                   {
+                       Fixture::makeDir("Z", {}),
+                   }),
+               Fixture::makeDir(
+                   "P",
+                   {
+                       Fixture::makeDir("Z", {}),
+                       Fixture::makeDir("X", {}),
+                   }),
+               Fixture::makeDir(
+                   "Q",
+                   {
+                       Fixture::makeDir(
+                           "F",
+                           {
+                               Fixture::makeDir("P", {}),
 
-                       }),
-               })})}));
+                           }),
+                   })})}));
 
   plugin->unkillable_cgroups.emplace(
       CgroupPath(tempdir_, "test.slice/Q/F/P").absolutePath());
@@ -386,37 +391,38 @@ TEST_F(StandardKillRecursionTest, RespectsMemoryOomGroup) {
   auto plugin = std::make_shared<AlphabeticStandardKillPlugin>();
   ASSERT_NE(plugin, nullptr);
 
-  F::materialize(F::makeDir(
-      tempdir_,
-      {F::makeDir(
-          "test.slice",
-          {Fixture::makeDir(
-               "A",
-               {
-                   Fixture::makeDir("Z", {}),
-               }),
-           Fixture::makeDir(
-               "Y",
-               {Fixture::makeDir(
-                   "M",
+  F::materialize(
+      F::makeDir(
+          tempdir_,
+          {F::makeDir(
+              "test.slice",
+              {Fixture::makeDir(
+                   "A",
                    {
-                       // Without oom.group here, child Y/M/Z would be killed.
-                       // With this, recursion will stop here, and Y/M will be
-                       // killed.
-                       Fixture::makeFile("memory.oom.group", "1\n"),
-
                        Fixture::makeDir("Z", {}),
-                       Fixture::makeDir("X", {}),
-                   })}),
-           Fixture::makeDir(
-               "Q",
-               {
-                   Fixture::makeDir(
-                       "F",
+                   }),
+               Fixture::makeDir(
+                   "Y",
+                   {Fixture::makeDir(
+                       "M",
                        {
-                           Fixture::makeDir("P", {}),
-                       }),
-               })})}));
+                           // Without oom.group here, child Y/M/Z would be
+                           // killed. With this, recursion will stop here, and
+                           // Y/M will be killed.
+                           Fixture::makeFile("memory.oom.group", "1\n"),
+
+                           Fixture::makeDir("Z", {}),
+                           Fixture::makeDir("X", {}),
+                       })}),
+               Fixture::makeDir(
+                   "Q",
+                   {
+                       Fixture::makeDir(
+                           "F",
+                           {
+                               Fixture::makeDir("P", {}),
+                           }),
+                   })})}));
 
   const PluginConstructionContext compile_context(tempdir_);
   Engine::PluginArgs args;
@@ -439,32 +445,33 @@ TEST_F(StandardKillRecursionTest, RespectsPreferAvoid) {
   // use OomdContext::sortDescWithKillPrefs in the same way, so we test an ex
   // of it here.
 
-  F::materialize(F::makeDir(
-      tempdir_,
-      {F::makeDir(
-          "test.slice",
-          {Fixture::makeDir(
-               "A",
-               {
-                   Fixture::makeDir("Z", {}),
-               }),
-           Fixture::makeDir(
-               "B",
-               {Fixture::makeDir(
-                   "M",
+  F::materialize(
+      F::makeDir(
+          tempdir_,
+          {F::makeDir(
+              "test.slice",
+              {Fixture::makeDir(
+                   "A",
                    {
                        Fixture::makeDir("Z", {}),
-                       Fixture::makeDir("V", {}),
-                   })}),
-           Fixture::makeDir(
-               "Q",
-               {
-                   Fixture::makeDir(
-                       "F",
+                   }),
+               Fixture::makeDir(
+                   "B",
+                   {Fixture::makeDir(
+                       "M",
                        {
-                           Fixture::makeDir("P", {}),
-                       }),
-               })})}));
+                           Fixture::makeDir("Z", {}),
+                           Fixture::makeDir("V", {}),
+                       })}),
+               Fixture::makeDir(
+                   "Q",
+                   {
+                       Fixture::makeDir(
+                           "F",
+                           {
+                               Fixture::makeDir("P", {}),
+                           }),
+                   })})}));
 
   Engine::PluginArgs args;
   args["cgroup"] = "*";
@@ -529,28 +536,29 @@ TEST_F(StandardKillRecursionTest, IgnoresDeadCgroup) {
   auto plugin = std::make_shared<AlphabeticStandardKillPlugin>();
   ASSERT_NE(plugin, nullptr);
 
-  F::materialize(F::makeDir(
-      tempdir_,
-      {Fixture::makeDir(
-           "A",
-           {
-               Fixture::makeDir("Z", {}),
-               Fixture::makeDir("X", {}),
-           }),
-       Fixture::makeDir(
-           "B",
-           {
-               Fixture::makeDir(
-                   "F",
-                   {
-                       // Same as StandardKillRecursionTest.Recurses above,
-                       // except cgroup.events' populated=0
-                       F::makeFile(
-                           "cgroup.events",
-                           "populated 0\n"
-                           "frozen 0\n"),
-                   }),
-           })}));
+  F::materialize(
+      F::makeDir(
+          tempdir_,
+          {Fixture::makeDir(
+               "A",
+               {
+                   Fixture::makeDir("Z", {}),
+                   Fixture::makeDir("X", {}),
+               }),
+           Fixture::makeDir(
+               "B",
+               {
+                   Fixture::makeDir(
+                       "F",
+                       {
+                           // Same as StandardKillRecursionTest.Recurses above,
+                           // except cgroup.events' populated=0
+                           F::makeFile(
+                               "cgroup.events",
+                               "populated 0\n"
+                               "frozen 0\n"),
+                       }),
+               })}));
 
   const PluginConstructionContext compile_context(tempdir_);
   Engine::PluginArgs args;
@@ -565,34 +573,35 @@ TEST_F(StandardKillRecursionTest, IgnoresDeadCgroup) {
 }
 
 TEST_F(StandardKillRecursionTest, IgnoresOutsideConfiguredCgroup) {
-  F::materialize(F::makeDir(
-      tempdir_,
-      {Fixture::makeDir(
-           "A",
-           {
-               Fixture::makeDir(
-                   "Y",
-                   {
-                       Fixture::makeDir("P", {}),
-                       Fixture::makeDir("Q", {}),
-                   }),
-               Fixture::makeDir("X", {}),
-           }),
-       Fixture::makeDir(
-           "B",
-           {
-               Fixture::makeDir("F", {}),
-           }),
-       Fixture::makeDir(
-           "C",
-           {
-               Fixture::makeDir("F", {}),
-           }),
-       Fixture::makeDir(
-           "Z",
-           {
-               Fixture::makeDir("F", {}),
-           })}));
+  F::materialize(
+      F::makeDir(
+          tempdir_,
+          {Fixture::makeDir(
+               "A",
+               {
+                   Fixture::makeDir(
+                       "Y",
+                       {
+                           Fixture::makeDir("P", {}),
+                           Fixture::makeDir("Q", {}),
+                       }),
+                   Fixture::makeDir("X", {}),
+               }),
+           Fixture::makeDir(
+               "B",
+               {
+                   Fixture::makeDir("F", {}),
+               }),
+           Fixture::makeDir(
+               "C",
+               {
+                   Fixture::makeDir("F", {}),
+               }),
+           Fixture::makeDir(
+               "Z",
+               {
+                   Fixture::makeDir("F", {}),
+               })}));
 
   const auto& target_when_plugin_cgroup_arg_is =
       [&](const std::string& cgroup_arg) -> std::string {
@@ -625,43 +634,44 @@ TEST_F(StandardKillRecursionTest, IgnoresOutsideConfiguredCgroup) {
 }
 
 TEST_F(StandardKillRecursionTest, PrerunsRecursively) {
-  F::materialize(F::makeDir(
-      tempdir_,
-      {Fixture::makeDir(
-           "A",
-           {
-               Fixture::makeDir(
-                   "Y",
-                   {
-                       // oom.group prevents prerun from running on P and Q,
-                       // even if "recursive" is set
-                       Fixture::makeFile("memory.oom.group", "1\n"),
-                       Fixture::makeDir("P", {}),
-                       Fixture::makeDir("Q", {}),
-                   }),
-               Fixture::makeDir("X", {}),
-           }),
-       Fixture::makeDir(
-           "B",
-           {
-               Fixture::makeDir(
-                   "F",
-                   {
-                       Fixture::makeDir("P", {}),
-                       Fixture::makeDir("Q", {}),
-                   }),
-               Fixture::makeDir("X", {}),
-           }),
-       Fixture::makeDir(
-           "C",
-           {
-               Fixture::makeDir("F", {}),
-           }),
-       Fixture::makeDir(
-           "Z",
-           {
-               Fixture::makeDir("F", {}),
-           })}));
+  F::materialize(
+      F::makeDir(
+          tempdir_,
+          {Fixture::makeDir(
+               "A",
+               {
+                   Fixture::makeDir(
+                       "Y",
+                       {
+                           // oom.group prevents prerun from running on P and Q,
+                           // even if "recursive" is set
+                           Fixture::makeFile("memory.oom.group", "1\n"),
+                           Fixture::makeDir("P", {}),
+                           Fixture::makeDir("Q", {}),
+                       }),
+                   Fixture::makeDir("X", {}),
+               }),
+           Fixture::makeDir(
+               "B",
+               {
+                   Fixture::makeDir(
+                       "F",
+                       {
+                           Fixture::makeDir("P", {}),
+                           Fixture::makeDir("Q", {}),
+                       }),
+                   Fixture::makeDir("X", {}),
+               }),
+           Fixture::makeDir(
+               "C",
+               {
+                   Fixture::makeDir("F", {}),
+               }),
+           Fixture::makeDir(
+               "Z",
+               {
+                   Fixture::makeDir("F", {}),
+               })}));
 
   const auto& get_touched_cgroups =
       [&](bool recurse) -> std::unordered_set<std::string> {
@@ -705,13 +715,14 @@ class KernelKillPlugin : public AlphabeticStandardKillPlugin {
 class DoubleKillTest : public CorePluginsTest {};
 
 TEST_F(DoubleKillTest, KillsTwice) {
-  F::materialize(F::makeDir(
-      tempdir_,
-      {F::makeDir(
-          "A",
-          {F::makeFile("cgroup.events", "populated 1"),
-           F::makeFile("pids.current", "1\n"),
-           F::makeFile("cgroup.kill", "0")})}));
+  F::materialize(
+      F::makeDir(
+          tempdir_,
+          {F::makeDir(
+              "A",
+              {F::makeFile("cgroup.events", "populated 1"),
+               F::makeFile("pids.current", "1\n"),
+               F::makeFile("cgroup.kill", "0")})}));
 
   // Should do nothing, since it will write to cgroup.kill with no side effect.
   // We simulate a delayed kernel kill by leaving cgroup.procs unchanged.
@@ -734,12 +745,13 @@ class NoPidControllerTest : public CorePluginsTest {};
 
 TEST_F(NoPidControllerTest, KillsWithoutPidController) {
   // Despite not having a pid controller, we should still be able to kill
-  F::materialize(F::makeDir(
-      tempdir_,
-      {F::makeDir(
-          "A",
-          {F::makeFile("cgroup.kill", "0"),
-           F::makeFile("cgroup.events", "populated 1")})}));
+  F::materialize(
+      F::makeDir(
+          tempdir_,
+          {F::makeDir(
+              "A",
+              {F::makeFile("cgroup.kill", "0"),
+               F::makeFile("cgroup.events", "populated 1")})}));
   auto plugin = std::make_shared<KernelKillPlugin>();
   ASSERT_NE(plugin, nullptr);
   const PluginConstructionContext compile_context(tempdir_);
@@ -810,8 +822,9 @@ TEST_F(PressureRisingBeyondTest, NoDetectLowMemPressure) {
 }
 
 TEST_F(PressureRisingBeyondTest, DetectsHighMemPressureMultiCgroup) {
-  F::materialize(F::makeDir(
-      tempdir_, {F::makeDir("high_pressure"), F::makeDir("low_pressure")}));
+  F::materialize(
+      F::makeDir(
+          tempdir_, {F::makeDir("high_pressure"), F::makeDir("low_pressure")}));
 
   auto plugin = createPlugin("pressure_rising_beyond");
   ASSERT_NE(plugin, nullptr);
@@ -846,8 +859,9 @@ TEST_F(PressureRisingBeyondTest, DetectsHighMemPressureMultiCgroup) {
 }
 
 TEST_F(PressureRisingBeyondTest, DetectsHighMemPressureWildcard) {
-  F::materialize(F::makeDir(
-      tempdir_, {F::makeDir("high_pressure"), F::makeDir("low_pressure")}));
+  F::materialize(
+      F::makeDir(
+          tempdir_, {F::makeDir("high_pressure"), F::makeDir("low_pressure")}));
 
   auto plugin = createPlugin("pressure_rising_beyond");
   ASSERT_NE(plugin, nullptr);
@@ -937,8 +951,9 @@ TEST_F(PressureAboveTest, NoDetectLowMemPressure) {
 }
 
 TEST_F(PressureAboveTest, DetectsHighMemPressureMultiCgroup) {
-  F::materialize(F::makeDir(
-      tempdir_, {F::makeDir("high_pressure"), F::makeDir("low_pressure")}));
+  F::materialize(
+      F::makeDir(
+          tempdir_, {F::makeDir("high_pressure"), F::makeDir("low_pressure")}));
 
   auto plugin = createPlugin("pressure_above");
   ASSERT_NE(plugin, nullptr);
@@ -972,8 +987,9 @@ TEST_F(PressureAboveTest, DetectsHighMemPressureMultiCgroup) {
 }
 
 TEST_F(PressureAboveTest, DetectsHighMemPressureWildcard) {
-  F::materialize(F::makeDir(
-      tempdir_, {F::makeDir("high_pressure"), F::makeDir("low_pressure")}));
+  F::materialize(
+      F::makeDir(
+          tempdir_, {F::makeDir("high_pressure"), F::makeDir("low_pressure")}));
 
   auto plugin = createPlugin("pressure_above");
   ASSERT_NE(plugin, nullptr);
@@ -1119,8 +1135,9 @@ TEST_F(MemoryAboveTest, DetectsHighMemUsagePercent) {
 }
 
 TEST_F(MemoryAboveTest, NoDetectLowMemUsageMultiple) {
-  F::materialize(F::makeDir(
-      tempdir_, {F::makeDir("high_memory"), F::makeDir("low_memory")}));
+  F::materialize(
+      F::makeDir(
+          tempdir_, {F::makeDir("high_memory"), F::makeDir("low_memory")}));
 
   auto plugin = createPlugin("memory_above");
   ASSERT_NE(plugin, nullptr);
@@ -1147,8 +1164,9 @@ TEST_F(MemoryAboveTest, NoDetectLowMemUsageMultiple) {
 }
 
 TEST_F(MemoryAboveTest, DetectsHighMemUsageMultiple) {
-  F::materialize(F::makeDir(
-      tempdir_, {F::makeDir("high_memory"), F::makeDir("low_memory")}));
+  F::materialize(
+      F::makeDir(
+          tempdir_, {F::makeDir("high_memory"), F::makeDir("low_memory")}));
 
   auto plugin = createPlugin("memory_above");
   ASSERT_NE(plugin, nullptr);
@@ -1815,28 +1833,29 @@ TEST_F(KillPgScanTest, CanTargetRecursively) {
   // removed, and gets itself removed from OomdContext's cache.
   auto controllers = F::makeFile("cgroup.controllers", "memory");
 
-  F::materialize(F::makeDir(
-      tempdir_,
-      {controllers,
-       Fixture::makeDir(
-           "A",
-           {
-               controllers,
-               Fixture::makeDir("Z", {controllers}),
-               Fixture::makeDir("X", {controllers}),
-           }),
-       Fixture::makeDir(
-           "B",
-           {
-               controllers,
-               Fixture::makeDir("F", {controllers}),
-           }),
-       Fixture::makeDir(
-           "sibling",
-           {
-               controllers,
-               Fixture::makeDir("F", {controllers}),
-           })}));
+  F::materialize(
+      F::makeDir(
+          tempdir_,
+          {controllers,
+           Fixture::makeDir(
+               "A",
+               {
+                   controllers,
+                   Fixture::makeDir("Z", {controllers}),
+                   Fixture::makeDir("X", {controllers}),
+               }),
+           Fixture::makeDir(
+               "B",
+               {
+                   controllers,
+                   Fixture::makeDir("F", {controllers}),
+               }),
+           Fixture::makeDir(
+               "sibling",
+               {
+                   controllers,
+                   Fixture::makeDir("F", {controllers}),
+               })}));
 
   auto plugin = std::make_shared<KillPgScan<BaseKillPluginMock>>();
   ASSERT_NE(plugin, nullptr);
@@ -2018,9 +2037,10 @@ TEST_F(NrDyingDescendantsTest, RootCgroup) {
 }
 
 TEST_F(NrDyingDescendantsTest, MultiCgroupGt) {
-  F::materialize(F::makeDir(
-      tempdir_,
-      {F::makeDir("above"), F::makeDir("above1"), F::makeDir("below")}));
+  F::materialize(
+      F::makeDir(
+          tempdir_,
+          {F::makeDir("above"), F::makeDir("above1"), F::makeDir("below")}));
 
   auto plugin = createPlugin("nr_dying_descendants");
   ASSERT_NE(plugin, nullptr);
@@ -2520,37 +2540,42 @@ TEST_F(KillMemoryGrowthTest, DoesntGrowthKillBelowUsageThreshold) {
   // at min_growth_ratio=1.25 cgroup1 and cgroup2 are qualified, so only
   // cgroup2 is eligible for growth kill.
   EXPECT_EQ(
-      target_with_args(Engine::PluginArgs{
-          {"growing_size_percentile", "50"}, {"min_growth_ratio", "1.25"}}),
+      target_with_args(
+          Engine::PluginArgs{
+              {"growing_size_percentile", "50"}, {"min_growth_ratio", "1.25"}}),
       std::unordered_set<int>({789})); // cgroup2
 
   // At growing_size_percentile=20 all cgroups are eligible, and cgroup1 has
   // the highest growth.
   EXPECT_EQ(
-      target_with_args(Engine::PluginArgs{
-          {"growing_size_percentile", "20"}, {"min_growth_ratio", "1.25"}}),
+      target_with_args(
+          Engine::PluginArgs{
+              {"growing_size_percentile", "20"}, {"min_growth_ratio", "1.25"}}),
       std::unordered_set<int>({123, 456})); // cgroup1
 
   // All cgroups are eligible when both restrictions set to zero.
   EXPECT_EQ(
-      target_with_args(Engine::PluginArgs{
-          {"growing_size_percentile", "0"}, {"min_growth_ratio", "0"}}),
+      target_with_args(
+          Engine::PluginArgs{
+              {"growing_size_percentile", "0"}, {"min_growth_ratio", "0"}}),
       std::unordered_set<int>({123, 456})); // cgroup1
 
   // At growing_size_percentile=67 only cgroup3 is qualified, but it does not
   // meet the min_growth_ratio requirement. We skip the growth kill phase, and
   // fall through to kill by size (no threshold), which picks cgroup3.
   EXPECT_EQ(
-      target_with_args(Engine::PluginArgs{
-          {"growing_size_percentile", "67"}, {"min_growth_ratio", "1.25"}}),
+      target_with_args(
+          Engine::PluginArgs{
+              {"growing_size_percentile", "67"}, {"min_growth_ratio", "1.25"}}),
       std::unordered_set<int>({111})); // cgroup3
 
   // All cgroups pass growing_size_percentile=20, but none pass
   // min_growth_ratio=10. We skip the growth kill phase, and fall through to
   // kill by size (no threshold), which picks cgroup3.
   EXPECT_EQ(
-      target_with_args(Engine::PluginArgs{
-          {"growing_size_percentile", "20"}, {"min_growth_ratio", "10"}}),
+      target_with_args(
+          Engine::PluginArgs{
+              {"growing_size_percentile", "20"}, {"min_growth_ratio", "10"}}),
       std::unordered_set<int>({111})); // cgroup3
 }
 
@@ -2708,24 +2733,25 @@ TEST_F(KillMemoryGrowthTest, KillsBigCgroupMultiCgroup) {
 }
 
 TEST_F(KillMemoryGrowthTest, CanTargetRecursively) {
-  F::materialize(F::makeDir(
-      tempdir_,
-      {Fixture::makeDir(
-           "A",
-           {
-               Fixture::makeDir("Z", {}),
-               Fixture::makeDir("X", {}),
-           }),
-       Fixture::makeDir(
-           "B",
-           {
-               Fixture::makeDir("F", {}),
-           }),
-       Fixture::makeDir(
-           "sibling",
-           {
-               Fixture::makeDir("F", {}),
-           })}));
+  F::materialize(
+      F::makeDir(
+          tempdir_,
+          {Fixture::makeDir(
+               "A",
+               {
+                   Fixture::makeDir("Z", {}),
+                   Fixture::makeDir("X", {}),
+               }),
+           Fixture::makeDir(
+               "B",
+               {
+                   Fixture::makeDir("F", {}),
+               }),
+           Fixture::makeDir(
+               "sibling",
+               {
+                   Fixture::makeDir("F", {}),
+               })}));
 
   auto plugin = std::make_shared<KillMemoryGrowth<BaseKillPluginMock>>();
   ASSERT_NE(plugin, nullptr);
@@ -2854,24 +2880,25 @@ TEST_F(KillSwapUsageTest, BiasedSwapKillTest) {
   auto plugin = std::make_shared<KillSwapUsage<BaseKillPluginMock>>();
   ASSERT_NE(plugin, nullptr);
 
-  F::materialize(F::makeDir(
-      tempdir_,
-      {F::makeFile("meminfo", "SwapTotal:\t25 kB\nMemTotal:\t100 kB"),
-       F::makeDir(
-           "cgroup1",
-           {
-               F::makeFile("cgroup.procs", "101\n"),
-           }),
-       F::makeDir(
-           "cgroup2",
-           {
-               F::makeFile("cgroup.procs", "201\n"),
-           }),
-       F::makeDir(
-           "cgroup3",
-           {
-               F::makeFile("cgroup.procs", "301\n"),
-           })}));
+  F::materialize(
+      F::makeDir(
+          tempdir_,
+          {F::makeFile("meminfo", "SwapTotal:\t25 kB\nMemTotal:\t100 kB"),
+           F::makeDir(
+               "cgroup1",
+               {
+                   F::makeFile("cgroup.procs", "101\n"),
+               }),
+           F::makeDir(
+               "cgroup2",
+               {
+                   F::makeFile("cgroup.procs", "201\n"),
+               }),
+           F::makeDir(
+               "cgroup3",
+               {
+                   F::makeFile("cgroup.procs", "301\n"),
+               })}));
 
   const PluginConstructionContext compile_context(tempdir_);
   Engine::PluginArgs args;
@@ -2912,24 +2939,25 @@ TEST_F(KillSwapUsageTest, BiasedSwapKillNoSwapExcessTest) {
   auto plugin = std::make_shared<KillSwapUsage<BaseKillPluginMock>>();
   ASSERT_NE(plugin, nullptr);
 
-  F::materialize(F::makeDir(
-      tempdir_,
-      {F::makeFile("meminfo", "SwapTotal:\t25 kB\nMemTotal:\t100 kB"),
-       F::makeDir(
-           "cgroup1",
-           {
-               F::makeFile("cgroup.procs", "101\n"),
-           }),
-       F::makeDir(
-           "cgroup2",
-           {
-               F::makeFile("cgroup.procs", "201\n"),
-           }),
-       F::makeDir(
-           "cgroup3",
-           {
-               F::makeFile("cgroup.procs", "301\n"),
-           })}));
+  F::materialize(
+      F::makeDir(
+          tempdir_,
+          {F::makeFile("meminfo", "SwapTotal:\t25 kB\nMemTotal:\t100 kB"),
+           F::makeDir(
+               "cgroup1",
+               {
+                   F::makeFile("cgroup.procs", "101\n"),
+               }),
+           F::makeDir(
+               "cgroup2",
+               {
+                   F::makeFile("cgroup.procs", "201\n"),
+               }),
+           F::makeDir(
+               "cgroup3",
+               {
+                   F::makeFile("cgroup.procs", "301\n"),
+               })}));
 
   const PluginConstructionContext compile_context(tempdir_);
   Engine::PluginArgs args;
@@ -2971,16 +2999,17 @@ TEST_F(KillSwapUsageTest, BiasedSwapKillZeroSwapTest) {
   auto plugin = std::make_shared<KillSwapUsage<BaseKillPluginMock>>();
   ASSERT_NE(plugin, nullptr);
 
-  F::materialize(F::makeDir(
-      tempdir_,
-      {
-          F::makeFile("meminfo", "SwapTotal:\t25 kB\nMemTotal:\t100 kB"),
-          F::makeDir(
-              "cgroup1",
-              {
-                  F::makeFile("cgroup.procs", "101\n"),
-              }),
-      }));
+  F::materialize(
+      F::makeDir(
+          tempdir_,
+          {
+              F::makeFile("meminfo", "SwapTotal:\t25 kB\nMemTotal:\t100 kB"),
+              F::makeDir(
+                  "cgroup1",
+                  {
+                      F::makeFile("cgroup.procs", "101\n"),
+                  }),
+          }));
 
   const PluginConstructionContext compile_context(tempdir_);
   Engine::PluginArgs args;
