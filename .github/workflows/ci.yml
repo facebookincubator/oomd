@@ -19,9 +19,13 @@ jobs:
             cxx: g++
           - cc: clang
             cxx: clang++
+          - cc: clang
+            cxx: clang++
+            cxxflags: -fsanitize=address -g
     env:
       CC: ${{ matrix.cc }}
       CXX: ${{ matrix.cxx }}
+      CXXFLAGS: ${{ matrix.cxxflags }}
     steps:
       - run: sudo apt-get update
       - name: Install dependencies
