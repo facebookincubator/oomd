@@ -32,6 +32,11 @@ namespace Oomd {
 class LogBase {
  public:
   virtual ~LogBase() = default;
+  LogBase() = default;
+  LogBase(const LogBase&) = delete;
+  LogBase& operator=(const LogBase&) = delete;
+  LogBase(LogBase&&) = delete;
+  LogBase& operator=(LogBase&&) = delete;
   virtual void kmsgLog(const std::string& buf, const std::string& prefix)
       const = 0;
   virtual void debugLog(std::string&& buf) = 0;
@@ -41,6 +46,8 @@ class Log : public LogBase {
  public:
   Log(const Log& other) = delete;
   Log& operator=(const Log& other) = delete;
+  Log(Log&&) = delete;
+  Log& operator=(Log&&) = delete;
   ~Log() override;
   static bool init(const std::string& kmsg_path);
   static Log&
@@ -101,6 +108,10 @@ class LogStream {
   LogStream();
   explicit LogStream(LogBase& sink);
   ~LogStream();
+  LogStream(const LogStream&) = delete;
+  LogStream& operator=(const LogStream&) = delete;
+  LogStream(LogStream&&) = delete;
+  LogStream& operator=(LogStream&&) = delete;
 
   template <typename T>
   LogStream& operator<<(const T& v) {
