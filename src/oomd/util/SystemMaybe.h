@@ -38,12 +38,6 @@ class SystemError final {
   std::system_error err_;
 
  public:
-  SystemError() = default;
-  SystemError(const SystemError&) = default;
-  SystemError(SystemError&&) = default;
-  SystemError& operator=(const SystemError&) = default;
-  SystemError& operator=(SystemError&&) = default;
-
   SystemError(const std::system_error& err) : err_(err) {}
   SystemError(std::system_error&& err) : err_(std::move(err)) {}
 
