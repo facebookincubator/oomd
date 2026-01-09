@@ -39,6 +39,7 @@ class Exists : public Oomd::Engine::BasePlugin {
 
  private:
   std::unordered_set<CgroupPath> cgroups_;
+  std::unordered_set<CgroupPath> ruleset_cgroups_;
   bool negate_{false};
   bool debug_{false};
 };

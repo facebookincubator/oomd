@@ -33,6 +33,12 @@ int Exists::init(
       "cgroup", cgroups_, [context](const std::string& cgroupStr) {
         return PluginArgParser::parseCgroup(context, cgroupStr);
       });
+  argParser_.addArgumentCustom(
+      "ruleset_cgroup",
+      ruleset_cgroups_,
+      [context](const std::string& cgroupStr) {
+        return PluginArgParser::parseCgroup(context, cgroupStr);
+      });
 
   argParser_.addArgument("negate", negate_);
   argParser_.addArgument("debug", debug_);
@@ -46,16 +52,8 @@ int Exists::init(
 }
 
 Engine::PluginRet Exists::run(OomdContext& ctx) {
-  bool exists = false;
+  bool exists = !ctx.addToCacheAndGet(cgroups_, ruleset_cgroups_).empty();
 
-  for (const auto& cgroup : cgroups_) {
-    if (cgroup.resolveWildcard().size()) {
-      exists = true;
-      goto out;
-    }
-  }
-
-out:
   if (negate_) {
     exists = !exists;
   }
