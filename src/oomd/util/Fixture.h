@@ -27,8 +27,8 @@ namespace Oomd {
 // materialize them in run time in some temporary directory.
 class Fixture {
  public:
-  typedef std::function<void(const std::string& path, const std::string& name)>
-      materializeFunc;
+  using materializeFunc =
+      std::function<void(const std::string& path, const std::string& name)>;
 
   // Dirent to be materialized into a file or directory
   class DirEntry {
@@ -45,7 +45,7 @@ class Fixture {
 
   // Helper functions to create different named DirEntries so that we can
   // represent a directory tree with initializer_list in a single statement.
-  typedef std::pair<const std::string, DirEntry> DirEntryPair;
+  using DirEntryPair = std::pair<const std::string, DirEntry>;
   static DirEntryPair makeFile(
       const std::string& name,
       const std::string& content = "");
