@@ -47,6 +47,8 @@ int SystemdRestart<Base>::init(
 
   this->argParser_.addArgument("dry", dry_);
 
+  this->argParser_.addArgument("machine_type", machine_type_);
+
   if (!this->argParser_.parse(args)) {
     return 1;
   }
@@ -64,7 +66,7 @@ Engine::PluginRet SystemdRestart<Base>::run(OomdContext& /* unused */) {
     OLOG << "DRY-RUN: restarting service " << service_;
     ret = true;
   } else {
-    ret = Base::restartService(service_);
+    ret = Base::restartService(service_, machine_type_);
   }
 
   if (ret) {

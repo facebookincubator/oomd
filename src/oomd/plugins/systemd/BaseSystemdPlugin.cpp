@@ -34,7 +34,8 @@ returns false in case of any errors.
 bool BaseSystemdPlugin::talkToSystemdManager(
     const std::string& method,
     const std::string& service,
-    const std::string& mode) {
+    const std::string& mode,
+    const std::string& machine_type) {
   ::sd_bus_error error = SD_BUS_ERROR_NULL;
   ::sd_bus_message* m = nullptr;
   ::sd_bus* bus = nullptr;
@@ -48,8 +49,13 @@ bool BaseSystemdPlugin::talkToSystemdManager(
     ::sd_bus_unref(bus);
   };
 
-  /* Connect to the system bus */
-  r = ::sd_bus_open_system(&bus);
+  /* Connect to the system bus - use machine-specific bus if machine_type
+   * provided */
+  if (machine_type.empty()) {
+    r = ::sd_bus_open_system(&bus);
+  } else {
+    r = ::sd_bus_open_system_machine(&bus, machine_type.c_str());
+  }
   if (r < 0) {
     OLOG << "Failed to connect to system bus: " << strerror(-r);
     return false;
@@ -93,14 +99,28 @@ bool BaseSystemdPlugin::talkToSystemdManager(
   return true;
 }
 
-bool BaseSystemdPlugin::restartService(const std::string& service) {
-  OLOG << "Restarting systemd service \"" << service << "\"";
-  return talkToSystemdManager("RestartUnit", service);
+bool BaseSystemdPlugin::restartService(
+    const std::string& service,
+    const std::string& machine_type) {
+  if (machine_type.empty()) {
+    OLOG << "Restarting systemd service \"" << service << "\"";
+  } else {
+    OLOG << "Restarting systemd service \"" << service
+         << "\" on machine=" << machine_type;
+  }
+  return talkToSystemdManager("RestartUnit", service, "replace", machine_type);
 }
 
-bool BaseSystemdPlugin::stopService(const std::string& service) {
-  OLOG << "Stopping systemd service \"" << service << "\"";
-  return talkToSystemdManager("StopUnit", service);
+bool BaseSystemdPlugin::stopService(
+    const std::string& service,
+    const std::string& machine_type) {
+  if (machine_type.empty()) {
+    OLOG << "Stopping systemd service \"" << service << "\"";
+  } else {
+    OLOG << "Stopping systemd service \"" << service
+         << "\" on machine=" << machine_type;
+  }
+  return talkToSystemdManager("StopUnit", service, "replace", machine_type);
 }
 
 } // namespace Oomd

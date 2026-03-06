@@ -31,11 +31,16 @@ class BaseSystemdPlugin : public Oomd::Engine::BasePlugin {
   virtual bool talkToSystemdManager(
       const std::string& method,
       const std::string& service,
-      const std::string& mode = "replace");
+      const std::string& mode = "replace",
+      const std::string& machine_type = "");
 
-  virtual bool restartService(const std::string& service);
+  virtual bool restartService(
+      const std::string& service,
+      const std::string& machine_type = "");
 
-  virtual bool stopService(const std::string& service);
+  virtual bool stopService(
+      const std::string& service,
+      const std::string& machine_type = "");
 };
 
 } // namespace Oomd

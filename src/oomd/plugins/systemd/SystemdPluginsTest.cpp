@@ -27,15 +27,22 @@ using namespace Oomd;
 namespace Oomd {
 class BaseSystemdPluginMock : public BaseSystemdPlugin {
  public:
-  bool restartService(const std::string& service) override {
+  bool restartService(
+      const std::string& service,
+      const std::string& machine_type = "") override {
     restarted = service;
+    restarted_machine_type = machine_type;
     return true;
   }
-  bool stopService(const std::string& service) override {
+  bool stopService(
+      const std::string& service,
+      const std::string& machine_type = "") override {
     stopped = service;
+    stopped_machine_type = machine_type;
     return true;
   }
   bool talkToSystemdManager(
+      const std::string& /* unused */,
       const std::string& /* unused */,
       const std::string& /* unused */,
       const std::string& /* unused */) override {
@@ -43,7 +50,9 @@ class BaseSystemdPluginMock : public BaseSystemdPlugin {
   }
 
   std::string restarted;
+  std::string restarted_machine_type;
   std::string stopped;
+  std::string stopped_machine_type;
 };
 } // namespace Oomd
 
@@ -62,6 +71,7 @@ TEST(SystemdRestart, RestartService) {
   OomdContext ctx;
   EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
   EXPECT_EQ(plugin->restarted, "some.service");
+  EXPECT_EQ(plugin->restarted_machine_type, "");
 }
 
 TEST(SystemdRestart, RestartServiceDry) {
@@ -78,4 +88,22 @@ TEST(SystemdRestart, RestartServiceDry) {
   OomdContext ctx;
   EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
   EXPECT_EQ(plugin->restarted.size(), 0);
+}
+
+TEST(SystemdRestart, RestartServiceWithMachineType) {
+  auto plugin = std::make_shared<SystemdRestart<BaseSystemdPluginMock>>();
+  ASSERT_NE(plugin, nullptr);
+
+  Engine::PluginArgs args;
+  args["service"] = "wedge_agent.service";
+  args["post_action_delay"] = "0";
+  args["dry"] = "false";
+  args["machine_type"] = "netos";
+  const PluginConstructionContext compile_context("/sys/fs/cgroup");
+  ASSERT_EQ(plugin->init(std::move(args), compile_context), 0);
+
+  OomdContext ctx;
+  EXPECT_EQ(plugin->run(ctx), Engine::PluginRet::STOP);
+  EXPECT_EQ(plugin->restarted, "wedge_agent.service");
+  EXPECT_EQ(plugin->restarted_machine_type, "netos");
 }

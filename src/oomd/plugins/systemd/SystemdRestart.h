@@ -38,6 +38,7 @@ class SystemdRestart : public Base {
 
  private:
   std::string service_;
+  std::string machine_type_;
   int post_action_delay_{15};
   bool dry_{false};
   static constexpr auto kRestartsKey = "oomd.restarts";
