@@ -87,6 +87,7 @@ std::vector<CgroupPath> CgroupPath::resolveWildcard() const {
   if (!glob) {
     return ret;
   }
+  ret.reserve(glob->size());
   for (const auto& path : *glob) {
     if (path.find(cgroup_fs_) == 0) {
       if (path.size() == cgroup_fs_.size()) {
