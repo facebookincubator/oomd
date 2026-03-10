@@ -320,6 +320,9 @@ void Ruleset::pause_actions(std::chrono::seconds duration) {
 void Ruleset::registerRunnableRulesetForCgroupPath(
     OomdContext& context,
     const CgroupPath& cgroup) {
+  // All detector and action plugins are copied from the original ruleset with
+  // exact same arguments. They will see different ruleset cgroup during run and
+  // prerun. Besides that they just store states to track their ruleset cgroup.
   auto detector_groups = std::vector<std::unique_ptr<DetectorGroup>>();
   detector_groups.reserve(detector_groups_.size());
   for (auto it = detector_groups_.begin(); it != detector_groups_.end(); ++it) {
@@ -331,9 +334,7 @@ void Ruleset::registerRunnableRulesetForCgroupPath(
   for (auto it = action_group_.begin(); it != action_group_.end(); ++it) {
     auto plugin = registry.create(it->get()->getName());
     plugin->setName(it->get()->getName());
-    auto args = it->get()->getPluginArgs();
-    args.try_emplace("cgroup", cgroup.relativePath());
-    plugin->init(args, PluginConstructionContext(cgroup.cgroupFs()));
+    plugin->init(it->get()->getPluginArgs(), it->get()->getPluginContext());
     action_group.emplace_back(plugin);
   }
   auto ruleset = std::make_unique<Ruleset>(
