@@ -96,6 +96,9 @@ class Ruleset {
   void pause_actions(std::chrono::seconds duration);
 
  private:
+  void prerunImpl(
+      OomdContext& context,
+      const std::optional<CgroupPath>& ruleset_cgroup);
   uint32_t runOnceImpl(OomdContext& context);
   void registerRunnableRulesetForCgroupPath(
       OomdContext& context,

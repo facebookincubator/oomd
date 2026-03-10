@@ -125,12 +125,26 @@ void Ruleset::prerun(OomdContext& context) {
   if (!enabled_) {
     return;
   }
+  if (!cgroups_.has_value()) {
+    prerunImpl(context, std::nullopt);
+    return;
+  }
+  for (const auto& runnableRuleset : runnable_rulesets_) {
+    runnableRuleset.second->prerunImpl(context, runnableRuleset.first);
+  }
+}
+
+void Ruleset::prerunImpl(
+    OomdContext& context,
+    const std::optional<CgroupPath>& ruleset_cgroup) {
+  context.setRulesetCgroup(ruleset_cgroup);
   for (const auto& dg : detector_groups_) {
     dg->prerun(context);
   }
   for (const auto& action : action_group_) {
     action->prerun(context);
   }
+  context.setRulesetCgroup(std::nullopt);
 }
 
 uint32_t Ruleset::runOnce(OomdContext& context) {
@@ -349,7 +363,7 @@ void Ruleset::registerRunnableRulesetForCgroupPath(
       post_action_delay_,
       prekill_hook_timeout_,
       std::unordered_set{CgroupPath(cgroup.cgroupFs(), cgroup.relativePath())});
-  ruleset->prerun(context);
+  ruleset->prerunImpl(context, cgroup);
   runnable_rulesets_[cgroup] = std::move(ruleset);
 }
 
