@@ -114,7 +114,7 @@ class Ruleset {
   int32_t numTargeted_{0};
   std::string xattr_filter_;
   std::optional<std::unordered_set<CgroupPath>> cgroups_{std::nullopt};
-  std::unordered_map<std::string, std::unique_ptr<Ruleset>> runnable_rulesets_;
+  std::unordered_map<CgroupPath, std::unique_ptr<Ruleset>> runnable_rulesets_;
 
   struct AsyncActionChainState {
    public:

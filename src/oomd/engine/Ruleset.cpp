@@ -140,7 +140,7 @@ uint32_t Ruleset::runOnce(OomdContext& context) {
   if (!cgroups_.has_value()) {
     return runOnceImpl(context);
   }
-  auto visited = std::unordered_set<std::string>();
+  auto visited = std::unordered_set<CgroupPath>();
   uint32_t ret = 0;
   for (const auto& cgroupCtx : context.addToCacheAndGet(cgroups_.value(), {})) {
     auto& cgroup = cgroupCtx.get().cgroup();
@@ -156,13 +156,13 @@ uint32_t Ruleset::runOnce(OomdContext& context) {
         continue;
       }
     }
-    if (!runnable_rulesets_.contains(cgroup.absolutePath())) {
+    if (!runnable_rulesets_.contains(cgroup)) {
       OLOG << "Adding runnable ruleset for cgroup: " << cgroup.absolutePath();
       registerRunnableRulesetForCgroupPath(context, cgroup);
     }
     context.setRulesetCgroup(cgroup);
-    ret = runnable_rulesets_[cgroup.absolutePath()]->runOnceImpl(context);
-    visited.insert(cgroup.absolutePath());
+    ret = runnable_rulesets_[cgroup]->runOnceImpl(context);
+    visited.insert(cgroup);
   }
   for (auto&& cgroup_it = runnable_rulesets_.begin();
        cgroup_it != runnable_rulesets_.end();
@@ -170,7 +170,8 @@ uint32_t Ruleset::runOnce(OomdContext& context) {
     if (visited.contains(cgroup_it->first)) {
       continue;
     }
-    OLOG << "Dropping runnable ruleset for cgroup: " << cgroup_it->first;
+    OLOG << "Dropping runnable ruleset for cgroup: "
+         << cgroup_it->first.absolutePath();
     runnable_rulesets_.erase(cgroup_it);
   }
   return ret;
@@ -349,7 +350,7 @@ void Ruleset::registerRunnableRulesetForCgroupPath(
       prekill_hook_timeout_,
       std::unordered_set{CgroupPath(cgroup.cgroupFs(), cgroup.relativePath())});
   ruleset->prerun(context);
-  runnable_rulesets_[cgroup.absolutePath()] = std::move(ruleset);
+  runnable_rulesets_[cgroup] = std::move(ruleset);
 }
 
 } // namespace Engine
