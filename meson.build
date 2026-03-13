@@ -107,12 +107,14 @@ executable('oomd',
 prefixdir = get_option('prefix')
 bindir = join_paths(prefixdir, get_option('bindir'))
 sysconfdir = join_paths(prefixdir, get_option('sysconfdir'))
+envfiledir = join_paths(prefixdir, get_option('envfiledir'))
 oomdconfdir = join_paths(sysconfdir, 'oomd')
 systemunitdir = join_paths(prefixdir, 'lib/systemd/system')
 
 substs = configuration_data()
 substs.set('bindir', bindir)
 substs.set('sysconfdir', sysconfdir)
+substs.set('envfiledir', envfiledir)
 substs.set('oomdconfdir', oomdconfdir)
 substs.set('systemunitdir', systemunitdir)
 
