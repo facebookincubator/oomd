@@ -675,8 +675,9 @@ std::string BaseKillPlugin::getxattr(
     const std::string& path,
     const std::string& attr) {
   auto ret = Fs::getxattr(path, attr);
-  // TODO(dschatzberg): Report error
   if (!ret) {
+    OLOG << "Failed to get xattr " << attr << " on " << path << ": "
+         << ret.error().what();
     return "";
   }
   return *ret;
@@ -686,8 +687,9 @@ bool BaseKillPlugin::setxattr(
     const std::string& path,
     const std::string& attr,
     const std::string& val) {
-  // TODO(dschatzberg): Report error
-  if (!Fs::setxattr(path, attr, val)) {
+  if (auto maybe = Fs::setxattr(path, attr, val); !maybe) {
+    OLOG << "Failed to set xattr " << attr << "=" << val << " on " << path
+         << ": " << maybe.error().what();
     return false;
   }
   return true;
