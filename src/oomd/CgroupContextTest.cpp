@@ -269,6 +269,7 @@ TEST_F(CgroupContextTest, DataLifeCycle) {
                F::makeFile(
                    "memory.stat",
                    {"anon 123456789\n"
+                    "zswap 7654321\n"
                     "file 12345678\n"
                     "shmem 1234567\n"
                     "pgscan 4567890123\n"}),
@@ -296,6 +297,7 @@ TEST_F(CgroupContextTest, DataLifeCycle) {
   decltype(cgroup_ctx.memory_high_tmp()) memory_high_tmp;
   decltype(cgroup_ctx.memory_max()) memory_max;
   decltype(cgroup_ctx.anon_usage()) anon_usage;
+  decltype(cgroup_ctx.zswap_usage()) zswap_usage;
   decltype(cgroup_ctx.file_usage()) file_usage;
   decltype(cgroup_ctx.shmem_usage()) shmem_usage;
   decltype(cgroup_ctx.nr_dying_descendants()) nr_dying_descendants;
@@ -322,6 +324,7 @@ TEST_F(CgroupContextTest, DataLifeCycle) {
     memory_high_tmp = cgroup_ctx.memory_high_tmp();
     memory_max = cgroup_ctx.memory_max();
     anon_usage = cgroup_ctx.anon_usage();
+    zswap_usage = cgroup_ctx.zswap_usage();
     file_usage = cgroup_ctx.file_usage();
     shmem_usage = cgroup_ctx.shmem_usage();
     nr_dying_descendants = cgroup_ctx.nr_dying_descendants();
@@ -346,6 +349,7 @@ TEST_F(CgroupContextTest, DataLifeCycle) {
     ASSERT_TRUE(memory_high);
     ASSERT_TRUE(memory_high_tmp);
     ASSERT_TRUE(memory_max);
+    ASSERT_TRUE(zswap_usage);
     ASSERT_TRUE(nr_dying_descendants);
     ASSERT_TRUE(memory_protection);
     ASSERT_TRUE(io_cost_cumulative);
@@ -377,6 +381,7 @@ TEST_F(CgroupContextTest, DataLifeCycle) {
       memory_stat,
       memory_stat_t(
           {{"anon", 123456789},
+           {"zswap", 7654321},
            {"file", 12345678},
            {"shmem", 1234567},
            {"pgscan", 4567890123}}));
@@ -395,6 +400,7 @@ TEST_F(CgroupContextTest, DataLifeCycle) {
   EXPECT_EQ(memory_high_tmp, std::numeric_limits<int64_t>::max());
   EXPECT_EQ(memory_max, 3344556677);
   EXPECT_EQ(anon_usage, 123456789);
+  EXPECT_EQ(zswap_usage, 7654321);
   EXPECT_EQ(file_usage, 12345678);
   EXPECT_EQ(shmem_usage, 1234567);
   EXPECT_EQ(nr_dying_descendants, 1);
@@ -443,6 +449,7 @@ TEST_F(CgroupContextTest, DataLifeCycle) {
                F::makeFile(
                    "memory.stat",
                    {"anon 123456790\n"
+                    "zswap 7654322\n"
                     "file 12345679\n"
                     "shmem 1234568\n"
                     "pgscan 5678901234\n"}),
@@ -470,6 +477,7 @@ TEST_F(CgroupContextTest, DataLifeCycle) {
   EXPECT_EQ(cgroup_ctx.memory_high_tmp(), memory_high_tmp);
   EXPECT_EQ(cgroup_ctx.memory_max(), memory_max);
   EXPECT_EQ(cgroup_ctx.anon_usage(), anon_usage);
+  EXPECT_EQ(cgroup_ctx.zswap_usage(), zswap_usage);
   EXPECT_EQ(cgroup_ctx.file_usage(), file_usage);
   EXPECT_EQ(cgroup_ctx.shmem_usage(), shmem_usage);
   EXPECT_EQ(cgroup_ctx.nr_dying_descendants(), nr_dying_descendants);
@@ -503,6 +511,7 @@ TEST_F(CgroupContextTest, DataLifeCycle) {
       memory_stat,
       memory_stat_t(
           {{"anon", 123456790},
+           {"zswap", 7654322},
            {"file", 12345679},
            {"shmem", 1234568},
            {"pgscan", 5678901234}}));
@@ -521,6 +530,7 @@ TEST_F(CgroupContextTest, DataLifeCycle) {
   EXPECT_EQ(memory_high_tmp, std::numeric_limits<int64_t>::max());
   EXPECT_EQ(memory_max, 3344556678);
   EXPECT_EQ(anon_usage, 123456790);
+  EXPECT_EQ(zswap_usage, 7654322);
   EXPECT_EQ(file_usage, 12345679);
   EXPECT_EQ(shmem_usage, 1234568);
   EXPECT_EQ(nr_dying_descendants, 2);

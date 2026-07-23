@@ -572,6 +572,30 @@ TEST_F(StandardKillRecursionTest, IgnoresDeadCgroup) {
   EXPECT_EQ(*plugin->killed_cgroup, CgroupPath(tempdir_, "A/Z").absolutePath());
 }
 
+TEST_F(StandardKillRecursionTest, KillsCgroupWithOnlyZswapUsage) {
+  F::materialize(
+      F::makeDir(
+          tempdir_, {Fixture::makeDir("A", {}), Fixture::makeDir("B", {})}));
+
+  TestHelper::setCgroupData(
+      ctx_,
+      CgroupPath(tempdir_, "B"),
+      CgroupData{
+          .memory_stat = {{{"anon", 0}, {"zswap", 4096}, {"pgscan", 0}}},
+          .is_populated = true});
+
+  auto plugin = std::make_shared<AlphabeticStandardKillPlugin>();
+  const PluginConstructionContext compile_context(tempdir_);
+  Engine::PluginArgs args;
+  args["cgroup"] = "*";
+  args["post_action_delay"] = "0";
+  args["dry"] = "true";
+  ASSERT_EQ(plugin->init(args, compile_context), 0);
+  EXPECT_EQ(plugin->run(ctx_), Engine::PluginRet::STOP);
+
+  EXPECT_EQ(*plugin->killed_cgroup, CgroupPath(tempdir_, "B").absolutePath());
+}
+
 TEST_F(StandardKillRecursionTest, IgnoresOutsideConfiguredCgroup) {
   F::materialize(
       F::makeDir(

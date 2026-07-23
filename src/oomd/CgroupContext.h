@@ -149,6 +149,7 @@ class CgroupContext {
 
   // Non-cached derived counters
   std::optional<int64_t> anon_usage(Error* err = nullptr) const;
+  std::optional<int64_t> zswap_usage(Error* err = nullptr) const;
   std::optional<int64_t> file_usage(Error* err = nullptr) const;
   std::optional<int64_t> shmem_usage(Error* err = nullptr) const;
   std::optional<int64_t> effective_usage(

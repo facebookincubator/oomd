@@ -329,9 +329,12 @@ BaseKillPlugin::KillResult BaseKillPlugin::resumeTryingToKillSomething(
     // There is another scenario where we killed a cgroup but the processes do
     // not go away because init is stuck or process stuck in D state etc. With
     // process_mrelease, we can release all anon memory of the processes
-    // regardless of their states. Skip such cgroup if it has zero anon usage.
+    // regardless of their states. Anonymous memory swapped into zswap is
+    // accounted as kernel memory instead of anon, but is also released when
+    // the processes exit. Skip only when both usages are zero.
     if (!candidate.cgroupCtx.get().is_populated().value_or(true) ||
-        candidate.cgroupCtx.get().anon_usage() == 0) {
+        (candidate.cgroupCtx.get().anon_usage() == 0 &&
+         candidate.cgroupCtx.get().zswap_usage().value_or(0) == 0)) {
       if (!hasTriedToKillSomethingAlready && !firstKillCandidate) {
         firstKillCandidate = candidate;
       }
@@ -403,9 +406,9 @@ BaseKillPlugin::KillResult BaseKillPlugin::resumeTryingToKillSomething(
     // then nextBestOptionStack must be provided empty, likely because plugin's
     // rankForKilling() returns empty result, i.e. all candidates have low usage
     // of the threshold resource. If firstKillCandidate is set, then all the
-    // candidates must have no process inside.
+    // candidates must be empty or have no kill-reclaimable memory.
     auto errorMsg = firstKillCandidate.has_value()
-        ? "All kill candidate cgroups are empty"
+        ? "All kill candidate cgroups are empty or have no reclaimable memory"
         : "No kill candidate cgroups";
     dumpKillInfo(
         firstKillCandidate, actionContext, killUuid, false, dry_, errorMsg, {});

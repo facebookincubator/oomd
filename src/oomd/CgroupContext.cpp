@@ -145,6 +145,16 @@ std::optional<int64_t> CgroupContext::anon_usage(Error* err) const {
   }
   return std::nullopt;
 }
+std::optional<int64_t> CgroupContext::zswap_usage(Error* err) const {
+  if (const auto& stat = memory_stat(err)) {
+    if (auto zswap = stat->find("zswap"); zswap != stat->end()) {
+      return zswap->second;
+    } else if (err) {
+      *err = Error::INVALID_CGROUP;
+    }
+  }
+  return std::nullopt;
+}
 std::optional<int64_t> CgroupContext::file_usage(Error* err) const {
   if (const auto& stat = memory_stat(err)) {
     if (auto file = stat->find("file"); file != stat->end()) {
