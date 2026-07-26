@@ -175,6 +175,7 @@ if gtest_dep.found() and gmock_dep.found()
             include_directories : inc,
             cpp_args : cpp_args,
             dependencies : deps,
+            link_args : test_name == 'util' ? ['-Wl,--wrap=readdir64'] : [],
             link_whole : [oomd_lib, oomd_fixture_lib])
         test(executable_name_suffix,
              test_executable,

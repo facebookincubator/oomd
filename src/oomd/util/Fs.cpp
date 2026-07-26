@@ -152,7 +152,7 @@ SystemMaybe<Fs::DirEnts> Fs::readDirFromDIR(DIR* d, int flags) {
       de.files.emplace_back(dir->d_name);
     }
     if ((flags & DirEntFlags::DE_DIR) && (buf.st_mode & S_IFDIR)) {
-      de.files.emplace_back(dir->d_name);
+      de.dirs.emplace_back(dir->d_name);
     }
   }
 
