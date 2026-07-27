@@ -32,7 +32,7 @@ class PluginRegistry {
   using FactoryMap = std::unordered_map<std::string, FactoryFunction>;
 
   bool add(const std::string& name, FactoryFunction fac) {
-    if (map_.find(name) != map_.end()) {
+    if (map_.contains(name)) {
       return false;
     }
 
@@ -41,7 +41,7 @@ class PluginRegistry {
   }
 
   T* create(const std::string& name) {
-    if (map_.find(name) == map_.end()) {
+    if (!map_.contains(name)) {
       return nullptr;
     }
 
