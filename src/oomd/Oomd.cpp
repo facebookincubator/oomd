@@ -155,7 +155,7 @@ int Oomd::run(const sigset_t* mask) {
     engine_->runOnce(ctx_);
   }
 
-  return 0;
+  __builtin_unreachable();
 }
 
 } // namespace Oomd
