@@ -29,6 +29,16 @@
 using namespace Oomd;
 using namespace testing;
 
+extern "C" struct dirent* __real_readdir64(DIR* dir);
+
+extern "C" struct dirent* __wrap_readdir64(DIR* dir) {
+  auto* entry = __real_readdir64(dir);
+  if (entry) {
+    entry->d_type = DT_UNKNOWN;
+  }
+  return entry;
+}
+
 class FsTest : public ::testing::Test {
  protected:
   void SetUp() override {
@@ -50,7 +60,7 @@ class FsTest : public ::testing::Test {
   FsFixture fixture_{};
 };
 
-TEST_F(FsTest, FindDirectories) {
+TEST_F(FsTest, FindDirsFallback) {
   auto dir = fixture_.fsDataDir();
   auto de = ASSERT_SYS_OK(Fs::readDir(dir, Fs::DE_DIR));
 
