@@ -43,7 +43,7 @@ Finally, enable and start it with:
 Note that oomd requires PSI to function. This kernel feature has been merged
 into the 4.20 release.
 
-oomd currently depends on [meson][2] and [jsoncpp][4]. [libsystemd][6] is an
+oomd currently depends on [meson][2] and [jsoncpp][4]. [libsystemd][6] laters is an
 optional dependency.
 
 oomd also requires GCC 8+ or clang 6+. Other compilers have not been tested.
