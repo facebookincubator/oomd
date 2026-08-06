@@ -1,5 +1,4 @@
 # oomd
-
 [![CI](https://github.com/facebookincubator/oomd/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/facebookincubator/oomd/actions/workflows/ci.yml)
 
 oomd is *userspace* Out-Of-Memory (OOM) killer for linux systems.
@@ -96,5 +95,5 @@ oomd is GPL 2 licensed, as found in the [LICENSE](LICENSE) file.
 [1]: https://lwn.net/Articles/317814/
 [2]: http://mesonbuild.com/
 [4]: https://github.com/open-source-parsers/jsoncpp
-[5]: https://github.com/google/googletest
+[5]: https://github.com/pathum25/author 
 [6]: https://github.com/systemd/systemd/tree/master/src/libsystemd/
