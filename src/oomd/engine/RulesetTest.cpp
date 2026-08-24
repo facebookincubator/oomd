@@ -387,3 +387,82 @@ TEST_F(
   EXPECT_EQ(runCounts().pause.at("task"), 2);
   EXPECT_EQ(actionRunCount("after", "task"), 0);
 }
+
+TEST_F(
+    RulesetCgroupLifecycleTest,
+    RecreatedPathBetweenEvaluationsGetsFreshDetectorState) {
+  createCgroups({"task"});
+  const auto path = cgroup("task");
+  auto old_identity = CgroupContext::make(context_, path);
+  ASSERT_TRUE(old_identity);
+  const auto old_id = old_identity->id();
+  ASSERT_TRUE(old_id);
+
+  auto ruleset = makeRuleset(
+      kSecondRunDetectorName, {{kRecordingActionName, {{"label", "record"}}}});
+  ruleset->runOnce(context_);
+  EXPECT_EQ(actionRunCount("record", "task"), 0);
+
+  removeCgroups({"task"});
+  createCgroups({"task"});
+  auto new_identity = CgroupContext::make(context_, path);
+  ASSERT_TRUE(new_identity);
+  const auto new_id = new_identity->id();
+  ASSERT_TRUE(new_id);
+  EXPECT_NE(*old_id, *new_id);
+
+  ruleset->runOnce(context_);
+  EXPECT_EQ(actionRunCount("record", "task"), 0);
+  ruleset->runOnce(context_);
+  EXPECT_EQ(actionRunCount("record", "task"), 1);
+}
+
+TEST_F(
+    RulesetCgroupLifecycleTest,
+    RecreatedPathBetweenEvaluationsDropsAsyncPausedState) {
+  createCgroups({"task"});
+  const auto path = cgroup("task");
+  auto old_identity = CgroupContext::make(context_, path);
+  ASSERT_TRUE(old_identity);
+  const auto old_id = old_identity->id();
+  ASSERT_TRUE(old_id);
+
+  auto ruleset = makeRuleset(
+      kTrackingDetectorName,
+      {{kRecordingActionName, {{"label", "before"}}},
+       {kPauseOnceActionName, {}},
+       {kRecordingActionName, {{"label", "after"}}}});
+  ruleset->runOnce(context_);
+  EXPECT_EQ(actionRunCount("before", "task"), 1);
+  EXPECT_EQ(runCounts().pause.at("task"), 1);
+  EXPECT_EQ(actionRunCount("after", "task"), 0);
+
+  removeCgroups({"task"});
+  createCgroups({"task"});
+  auto new_identity = CgroupContext::make(context_, path);
+  ASSERT_TRUE(new_identity);
+  const auto new_id = new_identity->id();
+  ASSERT_TRUE(new_id);
+  EXPECT_NE(*old_id, *new_id);
+
+  runCounts().prerun.clear();
+  ruleset->prerun(context_);
+  EXPECT_EQ(runCounts().prerun.count("task"), 0);
+
+  ruleset->runOnce(context_);
+  EXPECT_EQ(actionRunCount("before", "task"), 2);
+  EXPECT_EQ(runCounts().pause.at("task"), 2);
+  EXPECT_EQ(actionRunCount("after", "task"), 0);
+}
+
+TEST_F(RulesetCgroupLifecycleTest, MissingPathBeforePrerunIsDropped) {
+  createCgroups({"task"});
+  auto ruleset = makeRuleset(kTrackingDetectorName);
+  ruleset->runOnce(context_);
+
+  removeCgroups({"task"});
+  runCounts().prerun.clear();
+  ruleset->prerun(context_);
+
+  EXPECT_EQ(runCounts().prerun.count("task"), 0);
+}

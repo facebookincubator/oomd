@@ -129,8 +129,19 @@ void Ruleset::prerun(OomdContext& context) {
     prerunImpl(context, std::nullopt);
     return;
   }
-  for (const auto& runnableRuleset : runnable_rulesets_) {
-    runnableRuleset.second->prerunImpl(context, runnableRuleset.first);
+  for (auto runnableRuleset = runnable_rulesets_.begin();
+       runnableRuleset != runnable_rulesets_.end();) {
+    const auto cgroupCtx = context.addToCacheAndGet(runnableRuleset->first);
+    const auto cgroupId = cgroupCtx ? cgroupCtx->get().id() : std::nullopt;
+    if (!cgroupId || *cgroupId != runnableRuleset->second.cgroup_id) {
+      OLOG << "Dropping runnable ruleset for missing or recreated cgroup: "
+           << runnableRuleset->first.absolutePath();
+      runnableRuleset = runnable_rulesets_.erase(runnableRuleset);
+      continue;
+    }
+    runnableRuleset->second.ruleset->prerunImpl(
+        context, runnableRuleset->first);
+    ++runnableRuleset;
   }
 }
 
@@ -156,10 +167,12 @@ uint32_t Ruleset::runOnce(OomdContext& context) {
   }
   auto visited = std::unordered_set<CgroupPath>();
   uint32_t ret = 0;
-  for (const auto& cgroupCtx : context.addToCacheAndGet(cgroups_.value(), {})) {
-    auto& cgroup = cgroupCtx.get().cgroup();
+  for (const auto& cgroupCtxRef :
+       context.addToCacheAndGet(cgroups_.value(), {})) {
+    const auto& cgroupCtx = cgroupCtxRef.get();
+    const auto& cgroup = cgroupCtx.cgroup();
     if (!xattr_filter_.empty()) {
-      auto maybeHasXattr = Fs::hasxattrAt(cgroupCtx.get().fd(), xattr_filter_);
+      auto maybeHasXattr = Fs::hasxattrAt(cgroupCtx.fd(), xattr_filter_);
       if (!maybeHasXattr) {
         OLOG << "Failed to fetch xattr: " << xattr_filter_
              << " for cgroup: " << cgroup.absolutePath()
@@ -170,12 +183,26 @@ uint32_t Ruleset::runOnce(OomdContext& context) {
         continue;
       }
     }
-    if (!runnable_rulesets_.contains(cgroup)) {
+
+    const auto cgroupId = cgroupCtx.id();
+    if (!cgroupId) {
+      OLOG << "Failed to fetch cgroup id for: " << cgroup.absolutePath();
+      continue;
+    }
+
+    auto runnableRuleset = runnable_rulesets_.find(cgroup);
+    if (runnableRuleset == runnable_rulesets_.end()) {
       OLOG << "Adding runnable ruleset for cgroup: " << cgroup.absolutePath();
-      registerRunnableRulesetForCgroupPath(context, cgroup);
+      runnableRuleset =
+          registerRunnableRulesetForCgroupPath(context, cgroup, *cgroupId);
+    } else if (runnableRuleset->second.cgroup_id != *cgroupId) {
+      OLOG << "Replacing runnable ruleset for recreated cgroup: "
+           << cgroup.absolutePath();
+      runnableRuleset =
+          registerRunnableRulesetForCgroupPath(context, cgroup, *cgroupId);
     }
     context.setRulesetCgroup(cgroup);
-    ret = runnable_rulesets_[cgroup]->runOnceImpl(context);
+    ret = runnableRuleset->second.ruleset->runOnceImpl(context);
     visited.insert(cgroup);
   }
   for (auto&& cgroup_it = runnable_rulesets_.begin();
@@ -332,9 +359,11 @@ void Ruleset::pause_actions(std::chrono::seconds duration) {
   plugin_overrode_post_action_delay_ = true;
 }
 
-void Ruleset::registerRunnableRulesetForCgroupPath(
+Ruleset::RunnableRulesetMap::iterator
+Ruleset::registerRunnableRulesetForCgroupPath(
     OomdContext& context,
-    const CgroupPath& cgroup) {
+    const CgroupPath& cgroup,
+    CgroupContext::Id cgroup_id) {
   // All detector and action plugins are copied from the original ruleset with
   // exact same arguments. They will see different ruleset cgroup during run and
   // prerun. Besides that they just store states to track their ruleset cgroup.
@@ -364,7 +393,9 @@ void Ruleset::registerRunnableRulesetForCgroupPath(
       prekill_hook_timeout_,
       std::unordered_set{CgroupPath(cgroup.cgroupFs(), cgroup.relativePath())});
   ruleset->prerunImpl(context, cgroup);
-  runnable_rulesets_[cgroup] = std::move(ruleset);
+  return runnable_rulesets_
+      .insert_or_assign(cgroup, RunnableRuleset{cgroup_id, std::move(ruleset)})
+      .first;
 }
 
 } // namespace Engine

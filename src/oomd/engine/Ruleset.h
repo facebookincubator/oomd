@@ -96,13 +96,20 @@ class Ruleset {
   void pause_actions(std::chrono::seconds duration);
 
  private:
+  struct RunnableRuleset {
+    CgroupContext::Id cgroup_id;
+    std::unique_ptr<Ruleset> ruleset;
+  };
+  using RunnableRulesetMap = std::unordered_map<CgroupPath, RunnableRuleset>;
+
   void prerunImpl(
       OomdContext& context,
       const std::optional<CgroupPath>& ruleset_cgroup);
   uint32_t runOnceImpl(OomdContext& context);
-  void registerRunnableRulesetForCgroupPath(
+  RunnableRulesetMap::iterator registerRunnableRulesetForCgroupPath(
       OomdContext& context,
-      const CgroupPath& cgroup_path);
+      const CgroupPath& cgroup_path,
+      CgroupContext::Id cgroup_id);
 
   std::string name_;
   std::vector<std::unique_ptr<DetectorGroup>> detector_groups_;
@@ -117,7 +124,7 @@ class Ruleset {
   int32_t numTargeted_{0};
   std::string xattr_filter_;
   std::optional<std::unordered_set<CgroupPath>> cgroups_{std::nullopt};
-  std::unordered_map<CgroupPath, std::unique_ptr<Ruleset>> runnable_rulesets_;
+  RunnableRulesetMap runnable_rulesets_;
 
   struct AsyncActionChainState {
    public:
