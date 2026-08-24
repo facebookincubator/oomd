@@ -274,6 +274,14 @@ class Fs {
       const std::string& path,
       const std::string& attr);
 
+  /*
+   * Read an xattr through an already-open directory fd. A present empty value
+   * is distinct from a missing attribute; syscall failures remain errors.
+   */
+  static SystemMaybe<std::optional<std::string>> getxattrAt(
+      const DirFd& dirfd,
+      const std::string& attr);
+
   static SystemMaybe<bool> hasxattrAt(
       const DirFd& dirfd,
       const std::string& attr);

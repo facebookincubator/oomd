@@ -15,6 +15,7 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
+#include <cerrno>
 #include <optional>
 #include <utility>
 #include <vector>
@@ -28,6 +29,15 @@
 
 using namespace Oomd;
 using namespace testing;
+
+namespace {
+
+class InvalidDirFd final : public Fs::DirFd {
+ public:
+  InvalidDirFd() : Fs::DirFd(-1) {}
+};
+
+} // namespace
 
 class FsTest : public ::testing::Test {
  protected:
@@ -402,6 +412,41 @@ TEST_F(FsTest, IsUnderParentPath) {
   EXPECT_FALSE(Fs::isUnderParentPath("", "/sys/"));
   EXPECT_FALSE(Fs::isUnderParentPath("/sys/", ""));
   EXPECT_FALSE(Fs::isUnderParentPath("", ""));
+}
+
+TEST_F(FsTest, GetxattrAtDistinguishesPresentMissingAndError) {
+  const auto path = fixture_.fsDataDir() + "/dir1";
+  const std::string attr = "user.oomd_test";
+  ASSERT_SYS_OK(Fs::setxattr(path, attr, "value"));
+
+  auto dir = ASSERT_SYS_OK(Fs::DirFd::open(path));
+  auto present = Fs::getxattrAt(dir, attr);
+  ASSERT_TRUE(present) << present.error().what();
+  ASSERT_TRUE(present->has_value());
+  EXPECT_EQ(**present, "value");
+
+  const std::string valueWithEmbeddedNull{"va\0lue", 6};
+  ASSERT_SYS_OK(Fs::setxattr(path, attr, valueWithEmbeddedNull));
+  auto presentWithEmbeddedNull = Fs::getxattrAt(dir, attr);
+  ASSERT_TRUE(presentWithEmbeddedNull)
+      << presentWithEmbeddedNull.error().what();
+  ASSERT_TRUE(presentWithEmbeddedNull->has_value());
+  EXPECT_EQ(**presentWithEmbeddedNull, valueWithEmbeddedNull);
+
+  ASSERT_SYS_OK(Fs::setxattr(path, attr, ""));
+  auto presentEmpty = Fs::getxattrAt(dir, attr);
+  ASSERT_TRUE(presentEmpty) << presentEmpty.error().what();
+  ASSERT_TRUE(presentEmpty->has_value());
+  EXPECT_TRUE(presentEmpty->value().empty());
+
+  auto missing = Fs::getxattrAt(dir, "user.oomd_missing");
+  ASSERT_TRUE(missing) << missing.error().what();
+  EXPECT_FALSE(missing->has_value());
+
+  InvalidDirFd invalidDir;
+  auto error = Fs::getxattrAt(invalidDir, attr);
+  ASSERT_FALSE(error);
+  EXPECT_EQ(error.error().code().value(), EBADF);
 }
 
 TEST_F(FsTest, GetCgroup2MountPoint) {

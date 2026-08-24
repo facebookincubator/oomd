@@ -15,6 +15,7 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
+#include <array>
 #include <optional>
 
 #include "oomd/util/Fs.h"
@@ -22,6 +23,7 @@
 #include <dirent.h>
 #include <fcntl.h>
 #include <glob.h>
+#include <linux/limits.h>
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -891,6 +893,25 @@ SystemMaybe<std::string> Fs::getxattr(
     return SYSTEM_ERROR(errno);
   }
   return val;
+}
+
+SystemMaybe<std::optional<std::string>> Fs::getxattrAt(
+    const DirFd& dirfd,
+    const std::string& attr) {
+  // Do not zero-initialize this 64 KiB buffer.
+  // fgetxattr() writes every byte that this function reads.
+  // NOLINTNEXTLINE(cppcoreguidelines-pro-type-member-init)
+  std::array<char, XATTR_SIZE_MAX> value;
+  auto size = ::fgetxattr(dirfd.fd(), attr.c_str(), value.data(), value.size());
+  if (size == -1) {
+    if (errno == ENODATA) {
+      return std::optional<std::string>{std::nullopt};
+    }
+    return SYSTEM_ERROR(errno);
+  }
+
+  return std::optional<std::string>{
+      std::string(value.data(), static_cast<size_t>(size))};
 }
 
 SystemMaybe<bool> Fs::hasxattrAt(const DirFd& dirfd, const std::string& attr) {
