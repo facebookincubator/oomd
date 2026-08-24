@@ -106,6 +106,27 @@ otherwise.
 CONTINUE if `cgroup`'s memory has been reclaimed in the past `duration` period.
 STOP otherwise.
 
+## swap_above_memory_max
+
+### Arguments
+
+    cgroup (optional)
+    ruleset_cgroup (optional)
+    threshold_pct
+    debug=false (optional)
+
+### Description
+
+`cgroup` and `ruleset_cgroup` have the same semantics and features as
+`pressure_rising_beyond`.
+`threshold_pct` must be a non-negative integer no greater than `INT_MAX`.
+
+For each cgroup, compare `memory.swap.current` with that same cgroup's live
+`memory.max`. CONTINUE if at least one finite, positive `memory.max` has swap
+strictly greater than `threshold_pct` percent of the limit. STOP otherwise.
+Missing, non-positive, and unlimited limits do not match. `debug=true` logs
+the sampled operands and a reason for each decision.
+
 ## swap_free
 
 ### Arguments

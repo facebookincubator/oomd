@@ -51,6 +51,7 @@ srcs = files('''
     src/oomd/plugins/PressureAbove.cpp
     src/oomd/plugins/PressureRisingBeyond.cpp
     src/oomd/plugins/Senpai.cpp
+    src/oomd/plugins/SwapAboveMemoryMax.cpp
     src/oomd/plugins/SwapFree.cpp
     src/oomd/plugins/Exists.cpp
     src/oomd/plugins/KillIOCost.cpp
@@ -148,6 +149,7 @@ core_tests = [
   ['cpath',    files('src/oomd/include/CgroupPathTest.cpp')],
   ['compiler', files('src/oomd/config/ConfigCompilerTest.cpp')],
   ['plugin',   files('src/oomd/plugins/CorePluginsTest.cpp')],
+  ['swap_above_memory_max', files('src/oomd/plugins/SwapAboveMemoryMaxTest.cpp')],
   ['stats',    files('src/oomd/StatsTest.cpp')],
   ['dropin',   files('src/oomd/dropin/DropInServiceAdaptorTest.cpp',
                      'src/oomd/dropin/FsDropInServiceTest.cpp')],
