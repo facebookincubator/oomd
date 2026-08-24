@@ -179,14 +179,14 @@ uint32_t Ruleset::runOnce(OomdContext& context) {
     visited.insert(cgroup);
   }
   for (auto&& cgroup_it = runnable_rulesets_.begin();
-       cgroup_it != runnable_rulesets_.end();
-       ++cgroup_it) {
+       cgroup_it != runnable_rulesets_.end();) {
     if (visited.contains(cgroup_it->first)) {
+      ++cgroup_it;
       continue;
     }
     OLOG << "Dropping runnable ruleset for cgroup: "
          << cgroup_it->first.absolutePath();
-    runnable_rulesets_.erase(cgroup_it);
+    cgroup_it = runnable_rulesets_.erase(cgroup_it);
   }
   return ret;
 }
