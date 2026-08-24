@@ -15,7 +15,9 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
+#include <unistd.h>
 #include <cerrno>
+#include <cstring>
 #include <optional>
 #include <utility>
 #include <vector>
@@ -24,17 +26,69 @@
 #include <gtest/gtest.h>
 
 #include "oomd/fixtures/FsFixture.h"
+#include "oomd/util/Fixture.h"
 #include "oomd/util/Fs.h"
 #include "oomd/util/TestHelper.h"
 
 using namespace Oomd;
 using namespace testing;
 
+namespace Oomd {
+
+class FsReadDirTestPeer {
+ public:
+  static SystemMaybe<Fs::DirEnts> readDirAt(
+      const Fs::DirFd& dirfd,
+      int flags,
+      Fs::ReaddirFn reader,
+      void* context) {
+    return Fs::readDirAtWithReader(dirfd, flags, reader, context);
+  }
+};
+
+} // namespace Oomd
+
 namespace {
 
 class InvalidDirFd final : public Fs::DirFd {
  public:
   InvalidDirFd() : Fs::DirFd(-1) {}
+};
+
+struct ScriptedDirReader {
+  struct Step {
+    std::optional<std::string> name;
+    unsigned char type{DT_UNKNOWN};
+    int error{0};
+  };
+
+  std::vector<Step> steps;
+  size_t next{0};
+  struct dirent entry{};
+
+  static struct dirent* read(DIR*, void* context) {
+    auto& script = *static_cast<ScriptedDirReader*>(context);
+    if (script.next >= script.steps.size()) {
+      errno = EIO;
+      return nullptr;
+    }
+    const auto& step = script.steps[script.next++];
+    errno = step.error;
+    if (!step.name) {
+      return nullptr;
+    }
+
+    EXPECT_LT(step.name->size(), sizeof(script.entry.d_name));
+    if (step.name->size() >= sizeof(script.entry.d_name)) {
+      errno = ENAMETOOLONG;
+      return nullptr;
+    }
+
+    std::memset(&script.entry, 0, sizeof(script.entry));
+    script.entry.d_type = step.type;
+    std::memcpy(script.entry.d_name, step.name->c_str(), step.name->size() + 1);
+    return &script.entry;
+  }
 };
 
 } // namespace
@@ -71,6 +125,18 @@ TEST_F(FsTest, FindDirectories) {
   EXPECT_THAT(de.dirs, Contains(std::string("wildcard")));
   EXPECT_THAT(de.dirs, Not(Contains(std::string("dir21"))));
   EXPECT_THAT(de.dirs, Not(Contains(std::string("dir22"))));
+}
+
+TEST_F(FsTest, FindDotPrefixedDirectory) {
+  const auto dir = fixture_.fsDataDir();
+  Fixture::materialize(Fixture::makeDir(".hidden.service"), dir);
+
+  auto byPath = ASSERT_SYS_OK(Fs::readDir(dir, Fs::DE_DIR));
+  EXPECT_THAT(byPath.dirs, Contains(std::string(".hidden.service")));
+
+  auto dirFd = ASSERT_SYS_OK(Fs::DirFd::open(dir));
+  auto byFd = ASSERT_SYS_OK(Fs::readDirAt(dirFd, Fs::DE_DIR));
+  EXPECT_THAT(byFd.dirs, Contains(std::string(".hidden.service")));
 }
 
 TEST_F(FsTest, IsDir) {
@@ -112,6 +178,19 @@ TEST_F(FsTest, FindFiles) {
   EXPECT_THAT(de.files, Contains(std::string("file3")));
   EXPECT_THAT(de.files, Contains(std::string("file4")));
   EXPECT_THAT(de.files, Not(Contains(std::string("file5"))));
+}
+
+TEST_F(FsTest, DoesNotClassifySymlinksAsFiles) {
+  const auto dir = fixture_.fsDataDir();
+  const auto link = dir + "/file_link";
+  ASSERT_EQ(::symlink("file1", link.c_str()), 0) << std::strerror(errno);
+
+  auto byPath = ASSERT_SYS_OK(Fs::readDir(dir, Fs::DE_FILE));
+  EXPECT_THAT(byPath.files, Not(Contains(std::string("file_link"))));
+
+  auto dirFd = ASSERT_SYS_OK(Fs::DirFd::open(dir));
+  auto byFd = ASSERT_SYS_OK(Fs::readDirAt(dirFd, Fs::DE_FILE));
+  EXPECT_THAT(byFd.files, Not(Contains(std::string("file_link"))));
 }
 
 TEST_F(FsTest, Glob) {
@@ -548,4 +627,35 @@ TEST_F(FsTest, Swappiness) {
   ASSERT_SYS_OK(Fs::setSwappiness(42, path));
   auto swappiness = ASSERT_SYS_OK(Fs::getSwappiness(path));
   EXPECT_EQ(swappiness, 42);
+}
+
+TEST_F(FsTest, ReadDirAtFailsClosedOnReaddirError) {
+  auto dirFd = ASSERT_SYS_OK(Fs::DirFd::open(fixture_.fsDataDir()));
+  ScriptedDirReader script{{
+      {std::string{"dir1"}, DT_DIR, 0},
+      {std::nullopt, DT_UNKNOWN, EIO},
+  }};
+
+  auto result = FsReadDirTestPeer::readDirAt(
+      dirFd, Fs::DE_DIR, ScriptedDirReader::read, &script);
+
+  ASSERT_FALSE(result) << "partial directory entries must not escape";
+  EXPECT_EQ(result.error().code().value(), EIO);
+  EXPECT_EQ(script.next, script.steps.size());
+}
+
+TEST_F(FsTest, ReadDirAtClassifiesUnknownDirectoryWithFstatat) {
+  auto dirFd = ASSERT_SYS_OK(Fs::DirFd::open(fixture_.fsDataDir()));
+  ScriptedDirReader script{{
+      {std::string{"dir1"}, DT_UNKNOWN, 0},
+      {std::nullopt, DT_UNKNOWN, 0},
+  }};
+
+  auto result = ASSERT_SYS_OK(
+      FsReadDirTestPeer::readDirAt(
+          dirFd, Fs::DE_DIR, ScriptedDirReader::read, &script));
+
+  EXPECT_THAT(result.dirs, ElementsAre(std::string{"dir1"}));
+  EXPECT_TRUE(result.files.empty());
+  EXPECT_EQ(script.next, script.steps.size());
 }

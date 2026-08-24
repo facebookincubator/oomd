@@ -31,6 +31,8 @@
 
 namespace Oomd {
 
+class FsReadDirTestPeer;
+
 class Fs {
  public:
   static constexpr auto kControllersFile = "cgroup.controllers";
@@ -143,7 +145,7 @@ class Fs {
 
   /*
    * Reads a directory and returns the names of the requested entry types
-   * Won't return any dotfiles (including ./ and ../)
+   * Won't return the synthetic . and .. entries.
    */
   static SystemMaybe<DirEnts> readDir(const std::string& path, int flags);
 
@@ -300,12 +302,20 @@ class Fs {
       const std::string& path = "/proc/sys/vm/swappiness");
 
  private:
+  friend class FsReadDirTestPeer;
+  using ReaddirFn = struct dirent* (*)(DIR * dir, void* context);
   static std::unordered_map<std::string, int64_t> getMemstatLikeFromLines(
       const std::vector<std::string>& lines);
   static SystemMaybe<Unit> writeControlFileAt(
       SystemMaybe<Fd>&& fd,
       const std::string& content);
-  static SystemMaybe<DirEnts> readDirFromDIR(DIR* dir, int flags);
+  static SystemMaybe<DirEnts> readDirAtWithReader(
+      const DirFd& dirfd,
+      int flags,
+      ReaddirFn reader,
+      void* context);
+  static SystemMaybe<DirEnts>
+  readDirFromDIR(DIR* dir, int flags, ReaddirFn reader, void* context);
 };
 
 } // namespace Oomd

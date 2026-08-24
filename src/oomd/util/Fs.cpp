@@ -121,11 +121,22 @@ bool Fs::isCgroupValid(const DirFd& dirfd) {
   return ::faccessat(dirfd.fd(), kControllersFile, F_OK, 0) == 0;
 }
 
-SystemMaybe<Fs::DirEnts> Fs::readDirFromDIR(DIR* d, int flags) {
+SystemMaybe<Fs::DirEnts>
+Fs::readDirFromDIR(DIR* d, int flags, ReaddirFn reader, void* context) {
   Fs::DirEnts de;
 
-  while (struct dirent* dir = ::readdir(d)) {
-    if (dir->d_name[0] == '.') {
+  while (true) {
+    errno = 0;
+    struct dirent* dir = reader(d, context);
+    if (dir == nullptr) {
+      if (errno != 0) {
+        return SYSTEM_ERROR(errno);
+      }
+      break;
+    }
+
+    const std::string_view name{dir->d_name};
+    if (name == "." || name == "..") {
       continue;
     }
 
@@ -150,11 +161,11 @@ SystemMaybe<Fs::DirEnts> Fs::readDirFromDIR(DIR* d, int flags) {
       return SYSTEM_ERROR(errno);
     }
 
-    if ((flags & DirEntFlags::DE_FILE) && (buf.st_mode & S_IFREG)) {
+    if ((flags & DirEntFlags::DE_FILE) && S_ISREG(buf.st_mode)) {
       de.files.emplace_back(dir->d_name);
     }
-    if ((flags & DirEntFlags::DE_DIR) && (buf.st_mode & S_IFDIR)) {
-      de.files.emplace_back(dir->d_name);
+    if ((flags & DirEntFlags::DE_DIR) && S_ISDIR(buf.st_mode)) {
+      de.dirs.emplace_back(dir->d_name);
     }
   }
 
@@ -162,6 +173,18 @@ SystemMaybe<Fs::DirEnts> Fs::readDirFromDIR(DIR* d, int flags) {
 }
 
 SystemMaybe<Fs::DirEnts> Fs::readDirAt(const DirFd& dirfd, int flags) {
+  return readDirAtWithReader(
+      dirfd,
+      flags,
+      [](DIR* dir, void*) -> struct dirent* { return ::readdir(dir); },
+      nullptr);
+}
+
+SystemMaybe<Fs::DirEnts> Fs::readDirAtWithReader(
+    const DirFd& dirfd,
+    int flags,
+    ReaddirFn reader,
+    void* context) {
   // once an fd is passed to fdopendir, it is unusable except through that DIR
   int fresh_fd = ::dup(dirfd.fd());
 
@@ -183,7 +206,7 @@ SystemMaybe<Fs::DirEnts> Fs::readDirAt(const DirFd& dirfd, int flags) {
     ::closedir(d);
   };
 
-  return Fs::readDirFromDIR(d, flags);
+  return Fs::readDirFromDIR(d, flags, reader, context);
 }
 
 SystemMaybe<Fs::DirEnts> Fs::readDir(const std::string& path, int flags) {
@@ -194,7 +217,8 @@ SystemMaybe<Fs::DirEnts> Fs::readDir(const std::string& path, int flags) {
   OOMD_SCOPE_EXIT {
     ::closedir(d);
   };
-  return readDirFromDIR(d, flags);
+  return readDirFromDIR(
+      d, flags, [](DIR* dir, void*) { return ::readdir(dir); }, nullptr);
 }
 
 bool Fs::isDir(const std::string& path) {
