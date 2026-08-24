@@ -24,6 +24,7 @@
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
+#include <utility>
 #include <vector>
 
 #include "oomd/include/Types.h"
@@ -98,9 +99,11 @@ class Fs {
       *this = std::move(other);
     }
     Fd& operator=(const Fd& other) = delete;
-    Fd& operator=(Fd&& other) {
-      fd_ = other.fd_;
-      other.fd_ = -1;
+    Fd& operator=(Fd&& other) noexcept {
+      if (this != &other) {
+        close();
+        fd_ = std::exchange(other.fd_, -1);
+      }
       return *this;
     }
     ~Fd() {

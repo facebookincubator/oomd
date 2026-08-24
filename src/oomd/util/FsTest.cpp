@@ -15,6 +15,7 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
+#include <fcntl.h>
 #include <unistd.h>
 #include <cerrno>
 #include <cstring>
@@ -491,6 +492,23 @@ TEST_F(FsTest, IsUnderParentPath) {
   EXPECT_FALSE(Fs::isUnderParentPath("", "/sys/"));
   EXPECT_FALSE(Fs::isUnderParentPath("/sys/", ""));
   EXPECT_FALSE(Fs::isUnderParentPath("", ""));
+}
+
+TEST_F(FsTest, MoveAssignmentClosesPreviouslyOwnedFd) {
+  auto destination =
+      ASSERT_SYS_OK(Fs::DirFd::open(fixture_.fsDataDir() + "/dir1"));
+  auto source = ASSERT_SYS_OK(Fs::DirFd::open(fixture_.fsDataDir() + "/dir2"));
+  const int replacedFd = destination.fd();
+  const int sourceFd = source.fd();
+  ASSERT_NE(replacedFd, sourceFd);
+
+  destination = std::move(source);
+
+  errno = 0;
+  EXPECT_EQ(::fcntl(replacedFd, F_GETFD), -1);
+  EXPECT_EQ(errno, EBADF);
+  EXPECT_EQ(destination.fd(), sourceFd);
+  EXPECT_NE(::fcntl(destination.fd(), F_GETFD), -1);
 }
 
 TEST_F(FsTest, GetxattrAtDistinguishesPresentMissingAndError) {
