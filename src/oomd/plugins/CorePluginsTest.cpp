@@ -50,7 +50,7 @@ class BaseKillPluginMock : public BaseKillPlugin {
    * We don't actually need to dump memory.stat since we won't
    * actually be killing any live processes
    */
-  int dumpMemoryStat(const CgroupContext& target) override {
+  int dumpMemoryStat(const CgroupContext& /* target */) override {
     return 0;
   }
 
