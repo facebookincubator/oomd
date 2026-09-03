@@ -20,6 +20,11 @@ child slice.
 Ruleset Cgroup targeting is configured in a top-level "cgroup" key and
 "xattr_filter" key as a child of "rulesets".
 
+`xattr_filter` checks only that an extended attribute with that name exists on a
+matching cgroup. It does not inspect the extended attribute value. Add an
+`xattr_glob` detector to each detector group that must match an extended
+attribute value.
+
 For example:
 
 ```

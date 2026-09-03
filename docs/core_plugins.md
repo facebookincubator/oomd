@@ -137,6 +137,39 @@ the sampled operands and a reason for each decision.
 CONTINUE if percentage of free:total swap drops below `threshold_pct` %.
 STOP otherwise.
 
+## xattr_glob
+
+### Arguments
+
+    cgroup (optional)
+    ruleset_cgroup (optional)
+    xattr
+    allowlist
+    denylist (optional)
+    debug=false (optional)
+
+### Description
+
+`cgroup` and `ruleset_cgroup` have the same semantics and features as
+`pressure_rising_beyond`.
+`xattr` is the cgroup extended attribute to read.
+`allowlist` and `denylist` are comma-separated glob pattern lists. Empty
+patterns are not valid. Commas are separators and cannot be escaped.
+Whitespace is not removed. Each space is part of the pattern.
+Patterns use `fnmatch(3)` syntax with no flags. Each pattern is matched against
+the complete raw xattr value. Slash characters have no special meaning.
+The xattr name must contain 1 to 255 bytes. The xattr value and patterns must
+not contain a NUL byte. The two lists can contain at most 256 patterns in
+total. Each pattern can contain at most 512 bytes, and all patterns can contain
+at most 32 KiB in total. Each comma-separated list can contain at most 64 KiB.
+
+STOP if no target cgroup is selected, if the xattr is missing, if xattr read
+fails, if an xattr value is invalid, if an xattr value matches `denylist`, or
+if no xattr value matches `allowlist`. An empty `allowlist` denies all values.
+CONTINUE if at least one xattr value matches `allowlist` and no xattr value
+matches `denylist`.
+`debug=true` logs the result for each evaluated cgroup.
+
 ## exists
 
 ### Arguments

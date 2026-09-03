@@ -17,7 +17,7 @@
 
 #include "oomd/plugins/systemd/BaseSystemdPlugin.h"
 
-#include <systemd/sd-bus.h>
+#include <systemd/sd-bus.h> // @manual
 
 #include "oomd/Log.h"
 #include "oomd/util/ScopeGuard.h"
