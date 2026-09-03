@@ -113,26 +113,33 @@ otherwise) to create instances of your plugin.
 
 ## Build files
 
-For fbsource builds, add plugin files to `fbcode/oomd/BUCK`.
-Generic public plugin headers under `plugins/` are part of `shared_plugins`.
-Generic public plugin source files under `plugins/` are part of `oss_plugins`
-and the fleet `plugins` target. The source globs add them by default.
+Add the plugin to each build that must compile it.
+
+In fbsource, generic public plugin headers under `plugins/` are part of
+`shared_plugins`. Generic public plugin source files under `plugins/` are part
+of `oss_plugins` and the fleet `plugins` target. The source globs add them by
+default.
 
 Use the exception lists only when the plugin is not generic:
 
 - Put Facebook-only plugin code under `plugins/facebook/` and list it in
-  `fb_plugin_headers` or `fb_plugin_srcs`.
+  `fb_plugin_headers` or `fb_plugin_srcs` in `fbcode/oomd/BUCK`.
 - List OSS-only plugin code in `oss_only_plugin_headers` or
-  `oss_only_plugin_srcs`.
+  `oss_only_plugin_srcs` in `fbcode/oomd/BUCK`.
 
 The `shared_plugins` target owns headers only. Link tests and binaries against
-one complete variant when they need plugin registration. Use `oss_plugins` for
-generic plugin tests. Use the fleet `plugins` target for Facebook-only plugin
-tests and the fleet binary.
+one complete plugin variant when they need plugin registration. Use
+`oss_plugins` for generic plugin tests. Use the fleet `plugins` target for
+Facebook-only plugin tests and the fleet binary.
 
 For the public Meson build, add exported generic plugin source files and tests
 to `public_tld/meson.build`. If the plugin needs an optional library, put the
 source and tests in the matching optional dependency block.
+
+After you add or move an exported C or C++ file, run
+`buck test fbcode//oomd:oss_source_manifest_test -- --timeout=300`. This test
+checks Meson source coverage, subject to reviewed exceptions. It also checks
+exported source and header files for non-public includes and internal markers.
 
 ## Logging
 

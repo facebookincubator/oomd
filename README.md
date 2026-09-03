@@ -61,6 +61,9 @@ and some examples.
 See [docs/core_plugins.md](docs/core_plugins.md) for a quick reference on
 core plugin capabilities.
 
+The default Meson build includes the public plugin set. Run
+`oomd --list-plugins` on your built binary to list the enabled plugins.
+
 See [docs/production_setup.md](docs/production_setup.md) for guidelines on
 how oomd should be set up in a production environment.
 

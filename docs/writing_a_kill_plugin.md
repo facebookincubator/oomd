@@ -55,8 +55,9 @@ out to the subclass’ `rankForKilling` and `ologKillTarget` implementations.
 
 When creating a new kill plugin, it’s easiest to copy the files of an existing
 kill plugin and follow their format. KillIOCost is a simple, useful plugin that
-uses most of the APIs we’re interested in. It’s spread across 3 files, plus
-entries in the TARGETS and meson.build files.
+uses most of the APIs this guide uses. It is spread across 3 files, plus
+entries in the build files. See the build-file section in
+[writing_a_plugin.md](writing_a_plugin.md).
 
 ### KillIOCost.h
 
@@ -109,8 +110,10 @@ be in a `.cpp` file.
       REGISTER_PLUGIN(kill_by_io_cost, KillIOCost<>::create);
       } // namespace Oomd
 
-The `.cpp` file just registers the `kill_by_io_cost` plugin. List the `.cpp`
-file in TARGETS and meson.build or the plugin will not be registered.
+The `.cpp` file just registers the `kill_by_io_cost` plugin. Make sure the
+`.cpp` file is in the correct build target, or the plugin will not be
+registered. For build-file details, see
+[writing_a_plugin.md](writing_a_plugin.md).
 
 
 ### KillIOCost-inl.h

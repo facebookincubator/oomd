@@ -53,6 +53,8 @@ srcs = files('''
     src/oomd/plugins/Senpai.cpp
     src/oomd/plugins/SwapAboveMemoryMax.cpp
     src/oomd/plugins/SwapFree.cpp
+    src/oomd/plugins/XattrGlob.cpp
+    src/oomd/plugins/XattrValueMatcher.cpp
     src/oomd/plugins/Exists.cpp
     src/oomd/plugins/KillIOCost.cpp
     src/oomd/plugins/KillMemoryGrowth.cpp
@@ -148,8 +150,11 @@ core_tests = [
   ['assert',   files('src/oomd/include/AssertTest.cpp')],
   ['cpath',    files('src/oomd/include/CgroupPathTest.cpp')],
   ['compiler', files('src/oomd/config/ConfigCompilerTest.cpp')],
+  ['ruleset',  files('src/oomd/engine/RulesetTest.cpp')],
   ['plugin',   files('src/oomd/plugins/CorePluginsTest.cpp')],
   ['swap_above_memory_max', files('src/oomd/plugins/SwapAboveMemoryMaxTest.cpp')],
+  ['xattr_glob', files('src/oomd/plugins/XattrGlobTest.cpp')],
+  ['xattr_value_matcher', files('src/oomd/plugins/XattrValueMatcherTest.cpp')],
   ['stats',    files('src/oomd/StatsTest.cpp')],
   ['dropin',   files('src/oomd/dropin/DropInServiceAdaptorTest.cpp',
                      'src/oomd/dropin/FsDropInServiceTest.cpp')],

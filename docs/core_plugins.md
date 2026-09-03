@@ -198,6 +198,10 @@ otherwise.
 This plugin triggers kernel panic when executed, which helps capture elusive
 memory issues that goes away after OOM kills.
 
+Its source is exported for opt-in builds, but the default Meson binary does
+not compile or register it. Enabling it in a downstream binary requires a
+separate safety review.
+
 ## nr_dying_descendants
 
 ### Arguments

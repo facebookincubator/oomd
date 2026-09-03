@@ -9,18 +9,25 @@ from main.
 
 ## Semantic versioning
 
-We choose to follow semantic versioning. Note that this doesn't matter much for
-major version < 1 but will matter a lot for >= 1.0.0 releases.
+oomd uses semantic versioning. Before version 1.0.0, the public API can change
+between minor versions. Starting with version 1.0.0, incompatible public API
+changes require a major version change.
 
 ## Tagging a release
 
 1. Make sure main builds and passes all tests.
 
-1. Update the `version` field in `meson.build`. The format is
+1. In fbsource, run
+   `buck test fbcode//oomd:oss_source_manifest_test -- --timeout=300`. This
+   test checks the public source manifest. It also rejects non-public include
+   roots and selected internal markers in exported C and C++ files.
+
+1. Update the `version` field in the internal `public_tld/meson.build` file.
+   The exported path is `meson.build`. Use the format
    `v<MAJOR>.<MINOR>.<PATCH>`.
 
-1. Tag a release. We do this in the github UI by clicking "releases" (on same
-   line as "commits"), then "Draft a new release". The tag should be the same
-   as in `meson.build`. The title should be in `X.Y.Z` format. The tag
-   description should include some high level notes and a link to the
-   appropriate commit log. Please see previous releases for an example.
+1. Land the version change and wait for it to sync to GitHub.
+
+1. Create a GitHub release for the synced commit. The tag must match the
+   `meson.build` version. Use `X.Y.Z` for the release title. Add high-level
+   release notes and a link to the applicable commit log.
