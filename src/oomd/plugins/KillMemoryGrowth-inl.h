@@ -16,6 +16,7 @@
  */
 
 #include <algorithm>
+#include <cmath>
 #include <iomanip>
 #include <string>
 #include <utility>
@@ -48,7 +49,15 @@ int KillMemoryGrowth<Base>::init(
       });
 
   this->argParser_.addArgumentCustom(
-      "min_growth_ratio", min_growth_ratio_, PluginArgParser::parseUnsignedInt);
+      "min_growth_ratio", min_growth_ratio_, [](const std::string& s) {
+        size_t parsed = 0;
+        auto value = std::stof(s, &parsed);
+        if (parsed != s.size() || !std::isfinite(value) || value < 0) {
+          throw std::invalid_argument(
+              "min_growth_ratio must be a finite non-negative number");
+        }
+        return value;
+      });
 
   return Base::init(args, context);
 }

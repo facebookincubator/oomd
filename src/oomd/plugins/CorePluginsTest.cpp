@@ -2108,6 +2108,21 @@ TEST_F(KillMemoryGrowthTest, InvalidArgs) {
 
   args["growing_size_percentile"] = "99";
   ASSERT_EQ(plugin->init(args, compile_context), 0);
+
+  auto init_with_ratio = [&](const std::string& ratio) {
+    auto ratio_plugin =
+        std::make_shared<KillMemoryGrowth<BaseKillPluginMock>>();
+    EXPECT_NE(ratio_plugin, nullptr);
+    auto ratio_args = args;
+    ratio_args["min_growth_ratio"] = ratio;
+    return ratio_plugin->init(ratio_args, compile_context);
+  };
+
+  EXPECT_EQ(init_with_ratio("1.25"), 0);
+  EXPECT_EQ(init_with_ratio("-0.1"), 1);
+  EXPECT_EQ(init_with_ratio("nan"), 1);
+  EXPECT_EQ(init_with_ratio("inf"), 1);
+  EXPECT_EQ(init_with_ratio("1.25suffix"), 1);
 }
 
 TEST_F(KillMemoryGrowthTest, TemporalCounter) {
@@ -2600,6 +2615,15 @@ TEST_F(KillMemoryGrowthTest, DoesntGrowthKillBelowUsageThreshold) {
       target_with_args(
           Engine::PluginArgs{
               {"growing_size_percentile", "20"}, {"min_growth_ratio", "10"}}),
+      std::unordered_set<int>({111})); // cgroup3
+
+  // A fractional ratio must not be truncated to its integer prefix. Cgroup1
+  // grows by 40 / 7, which is below 5.9. No cgroup enters the growth phase, so
+  // the size fallback selects cgroup3.
+  EXPECT_EQ(
+      target_with_args(
+          Engine::PluginArgs{
+              {"growing_size_percentile", "0"}, {"min_growth_ratio", "5.9"}}),
       std::unordered_set<int>({111})); // cgroup3
 }
 
