@@ -2,7 +2,7 @@
 
 project('oomd', 'cpp',
   version : 'v0.5.0',
-  meson_version : '>= 0.45',
+  meson_version : '>= 0.57.0',
   license : 'GPL2',
   default_options : ['stdsplit=false', 'cpp_std=c++20'])
 
@@ -11,8 +11,8 @@ cpp_args = ['-DMESON_BUILD']
 inc = include_directories('src')
 
 # Plumbing to #define a GIT_VERSION so Main.cpp can print it out
-vcs_tagger = [meson.source_root() + '/vcs_tagger.sh',
-    meson.source_root(),
+vcs_tagger = [meson.project_source_root() + '/vcs_tagger.sh',
+    meson.project_source_root(),
     meson.project_version()]
 version_h = vcs_tag(
     input : 'src/oomd/include/Version.h.in',
@@ -134,8 +134,6 @@ configure_file(
 install_man('man/oomd.1')
 
 # Core tests
-# TODO: Normally we'd use a dictionary here, but they are only supported as of
-# Meson version 0.47.0.  Ubuntu 18.04 provides only Meson version 0.45.1.
 core_tests = [
   ['config',   files('src/oomd/config/JsonConfigParserTest.cpp')],
   ['util',     files('src/oomd/util/FixtureTest.cpp',
@@ -185,7 +183,7 @@ if gtest_dep.found() and gmock_dep.found()
             link_whole : [oomd_lib, oomd_fixture_lib])
         test(executable_name_suffix,
              test_executable,
-             workdir : meson.source_root() + '/src')
+             workdir : meson.project_source_root() + '/src')
     endforeach
 
 endif
