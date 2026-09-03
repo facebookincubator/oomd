@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/facebookincubator/oomd/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/facebookincubator/oomd/actions/workflows/ci.yml)
 
-oomd is *userspace* Out-Of-Memory (OOM) killer for linux systems.
+oomd is a *userspace* Out-Of-Memory (OOM) killer for Linux systems.
 
 ## Background
 
@@ -46,10 +46,10 @@ into the 4.20 release.
 oomd currently depends on [meson][2] and [jsoncpp][4]. [libsystemd][6] is an
 optional dependency.
 
-oomd also requires GCC 8+ or clang 6+. Other compilers have not been tested.
+oomd requires a compiler and standard library with C++20 support.
 
     $ git clone https://github.com/facebookincubator/oomd
-    $ cd oomd/oomd
+    $ cd oomd
     $ meson build && ninja -C build
     $ cd build && sudo ninja install
 
@@ -69,8 +69,7 @@ how oomd should be set up in a production environment.
 
 ## Running tests
 
-oomd depends on [gtest/gmock][5] to run tests. Installing gtest/gmock from master
-is preferred.
+oomd depends on [gtest/gmock][5] to run tests.
 
 If meson detects gtest/gmock is installed, meson will generate build rules for tests.
 
@@ -85,9 +84,10 @@ to make writing plugins as easy as possible.
 
 See [docs/writing_a_plugin.md](docs/writing_a_plugin.md) for a tutorial.
 
-## Help / Discussion / Support
+## Reporting bugs
 
-Join our **#oomd** channel on irc.freenode.net!
+Use [GitHub issues](https://github.com/facebookincubator/oomd/issues) to report
+public bugs.
 
 
 ## License

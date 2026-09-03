@@ -8,7 +8,7 @@ every matching cgroup.
 Oomd users may want to run detectors and actions on every matching cgroup
 without the need to dynamically generate cgroup configs. Users may also want to
 write sets of actions and detectors that target the particular cgroup slice that
-triggerred an action rather than broadly applying a rule.
+triggered an action rather than broadly applying a rule.
 
 For example, a cgroup slice may contain four dynamically generated sub-slices.
 We want to write a config that applies to each of those subslices individually,
@@ -17,8 +17,8 @@ child slice.
 
 ## Configuration
 
-Ruleset Cgroup targeting is configured in a top-level "cgroup" key and
-"xattr_filter" key as a child of "rulesets".
+Configure ruleset cgroup targeting with the `cgroup` and optional
+`xattr_filter` fields in a ruleset object.
 
 `xattr_filter` checks only that an extended attribute with that name exists on a
 matching cgroup. It does not inspect the extended attribute value. Add an
@@ -28,24 +28,37 @@ attribute value.
 For example:
 
 ```
-  {
-      "rulesets": [
-        ...
-        "cgroup": "workload.slice/workload-.\*.slice/.\*service"
-        "xattr_filter": "oomd_example"
-        ...
+{
+  "rulesets": [
+    {
+      "name": "per-service policy",
+      "cgroup": "workload.slice/workload-*.slice/*.service",
+      "xattr_filter": "user.oomd_example",
+      "detectors": [
+        [
+          "always",
+          {"name": "continue"}
+        ]
       ],
-  }
+      "actions": [
+        {"name": "stop"}
+      ]
+    }
+  ]
+}
 ```
 
-If the following are present on the host with an xattr named "oomd_example":
+If the following cgroups have an xattr named `user.oomd_example`:
 
 - workload.slice/workload-a.slice/workload-a1.service
 - workload.slice/workload-a.slice/workload-a2.service
 - workload.slice/workload-b.slice/workload-b1.service
 
-Then, this ruleset's set of detectors and actions will run three times, each
-time setting the OomdContext to the particular cgroup value.
+Then, oomd creates one ruleset instance for each cgroup. Each instance has its
+own `OomdContext` ruleset cgroup value. Removal discards the instance. If a
+matching path is recreated, oomd replaces the instance and resets its plugin
+state.
 
-Detectors and actions will run on both their regular cgroup pattern, and the
-ruleset cgroup pattern that is relative to the OomdContext's ruleset cgroup.
+A detector or action can configure a regular `cgroup` pattern, a
+`ruleset_cgroup` pattern that is relative to this value, or both. A plugin that
+configures both patterns uses the union of both matching cgroup sets.

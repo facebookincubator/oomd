@@ -1,68 +1,51 @@
-# Structured stats collection
+# Structured statistics
 
-The structured stats collection is a threadsafe key-value store, with `std::string` for keys and `int` for values.
-
-It can be also be queried from a different process using the StatsClient class.
-
+oomd stores statistics in a thread-safe key-value map. Keys are strings, and
+values are integers. The daemon also serves these values through a Unix socket.
 
 ## Internal API
 
-### Get stats
-  `std::unordered_map<std::string, int> getStats()`
+### Get all statistics
 
+    std::unordered_map<std::string, int> getStats()
 
-  Returns an unordered map copy of the current stats.
+This function returns a copy of the current map.
 
+### Increment a value
 
-### Increment a key-value pair in stats
-  `int setStats(const std::string& key, int val)`
+    int incrementStat(const std::string& key, int val)
 
+This function adds `val` to the value for `key`. It creates the key if needed.
+It returns 0 on success and 1 if the statistics service is not initialized.
 
-  This increments the value of the corresponding key by val.
+### Set a value
 
-  Returns 0 upon success, and 1 on error.
+    int setStat(const std::string& key, int val)
 
+This function sets `key` to `val`. It returns 0 on success and 1 if the
+statistics service is not initialized.
 
-### Set a key-value pair in stats
-  `int setStats(const std::string& key, int val)`
+### Reset all values
 
+    int resetStats()
 
-  Sets the corresponding key in stats to val.
+This function sets all existing values to zero. It returns 0 on success and 1
+if the statistics service is not initialized.
 
-  Returns 0 upon success, and 1 on error.
+## Command-line interface
 
+The running daemon listens on `oomd-stats.socket` in its runtime directory.
+The default runtime directory is `/run/oomd`. Use `--runtime-dir` if the daemon
+uses a different directory.
 
-### Reset stats
-  `int Oomd::resetStats()`
+Use `--dump-stats` or `-d` to print the current values as JSON:
 
-
-  Sets the value of all existing key-value pairs in the stats collection
-  to 0.
-
-
-  Returns 0 upon success, and 1 on error.
-
-
-
-## External interface
-
-  Command line flags:
-
-##### `-d`
-
-  Dumps all accumulated stats to stdout in a JSON string.
-  
-    $ /path/to/binary -d
+    $ oomd --dump-stats
     {
-     "oomd.kills_structured" : 1,
-     "oomd.restarts_structured" : 2
+      "oomd.dropin.added" : 0,
+      "oomd.dropin.fired" : 0,
+      "oomd.kills" : 1
     }
-    $ /path/to/binary -d | jq '.["oomd.kills_structured"]'
-    1
 
-
-#####`-r`
-
-  Reset stats by setting all values to 0.
-
-Notes: If both `-d` and `-r` are included, `-d` is completed first.
+Use `--reset-stats` or `-r` to set all values to zero. If both options are
+present, oomd prints the values before it resets them.

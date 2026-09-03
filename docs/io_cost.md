@@ -1,22 +1,21 @@
 # IO Cost
 
-IO cost is one of the many metrics (swap, memory, pressure, etc) logged by oomd
-periodically, based on which the plugins can decide if an alarm should be
-triggered, or which cgroup should be cleaned up. This documentation provides
-some background about IO cost in the context of oomd.
+IO cost is one of the metrics that oomd collects periodically. Plugins can use
+it to decide whether an alarm must start or which cgroup must be cleaned up.
+This document describes I/O cost in oomd.
 
 ## What is IO Cost
 
-IO cost is a unit-less metric measuring how much load is put on some IO devices
-by a cgroup. It is based on a simple model using bandwidth and iops of read,
-write, and trim to approximate some definition of load.
+IO cost is a unitless metric that estimates the load that a cgroup puts on
+selected I/O devices. The model uses read, write, and trim operation counts and
+byte counts.
 
 In order to calculate IO cost, oomd reads the
 [`io.stat`](https://facebookmicrosites.github.io/cgroup2/docs/io-controller.html#interface-files)
-file in each cgroup, from where the cumulative IOs and bytes of read/write/trim
-are obtained. Then the difference between two consecutive intervals divided by
-the duration is bandwidth and iops. The dot-product between some coefficients
-and the measurements is the IO cost.
+file in each cgroup. It calculates a weighted cumulative value from the I/O
+operation and byte counters. The difference between two consecutive samples is
+the I/O cost for one event-loop interval. oomd does not divide this difference
+by the elapsed time.
 
 By default, these are the coefficients for HDD and SSD devices:
 ```
@@ -37,9 +36,9 @@ static const struct Oomd::IOCostCoeffs default_ssd_coeffs = {
     .trimbw = 9.10e-10,
 };
 ```
-These number are obtained through experiments with disks running on Facebook
-servers. They may not match other IO devices and therefore running experiments
-with your own devices is recommended.
+These coefficients came from experiments with devices on Facebook servers.
+They can be inaccurate for other I/O devices. Test and tune the coefficients
+for your devices.
 
 ## How to Configure IO Cost
 
@@ -52,25 +51,22 @@ IO cost in oomd is configured by command line arguments:
 
 ### `--device DEVS`
 
-This option tells oomd what are the root devices, or ones that will contribute
-to calculating the IO cost. The `io.stat` file can have multiple lines, one for
-each IO device that the cgroup has interacted with. Only lines belong to the
-root devices will be used to calculated the IO cost.
+This option specifies the root devices that contribute to the I/O cost. The
+`io.stat` file can have one line for each device that the cgroup used. oomd uses
+only the lines for the selected root devices.
 
-This option expects `DEVS` in the format of comma separated `<major>:<minor>`
-pairs of devices, e.g. `252:1,253:1` for two devices, one with major=252 and
-minor=1 and the other with major=253 and minor=1. This will tell oomd to
-calculate IO cost by summing the bandwitdh and iops data of both `252:1` and
-`253:1`.
+This option expects a comma-separated list of `<major>:<minor>` device pairs.
+For example, `252:1,253:1` selects two devices. oomd sums the I/O data for both
+devices when it calculates the cost.
 
 ### `--hdd-coeffs COEFFS`
 
-This option specifies an alternative to the `default_hdd_coeffs` shown above. It
-expects a comma separated list of numeric values, which will be coefficients in
-the order of read iops, read bandwidth, write iops, write bandwidth, trim iops,
-and trim bandwidth. See `std::stod` for support numeric formats. If less than 6
-values are passed, remaining ones are set zero. Coefficients for trim are
-likely ignored and should not be passed.
+This option specifies an alternative to the `default_hdd_coeffs` shown above.
+It expects a comma-separated list of numeric values. The values apply to read
+operations, read bytes, write operations, write bytes, trim operations, and
+trim bytes, in that order. See `std::stod` for supported numeric formats. If
+fewer than six values are present, the remaining coefficients are zero. oomd
+applies all six coefficients. The default HDD trim coefficients are zero.
 
 ### `--ssd-coeffs COEFFS`
 

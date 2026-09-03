@@ -1,16 +1,21 @@
 # Production setup
 
-The document covers how oomd is set up in production at Facebook.
+This document describes a production setup for oomd.
 
 ## Host setup
 
-### kernel command line
-The follow command line arguments must be set:
+### Kernel features
 
-* `swapaccount=1`
-  * or equivalent, if the kernel has this turned on via compile time flags
+oomd requires a cgroup v2 mount and a memory-pressure runtime interface. It
+uses `/proc/pressure/memory` when that PSI interface is available. It also
+accepts the legacy `/proc/mempressure` interface. Older systems can require
+this kernel command-line option to select the unified cgroup hierarchy:
+
 * `systemd.unified_cgroup_hierarchy=1`
-  * or equivalent, if systemd has this turned on via compile time flags
+
+If the configuration reads per-cgroup swap usage, the kernel must also provide
+cgroup swap accounting. Older kernels can require `swapaccount=1` to enable
+it.
 
 ### cgroup2
 
@@ -21,9 +26,9 @@ with `--cgroup-fs`.
 
 ### systemd
 
-The host must be managed by systemd. Furthermore, resource accounting must be
-turned on for all units monitored by oomd. The easiest way to turn on resource
-accounting is by changing the system defaults:
+The provided service unit uses systemd, but the oomd executable does not
+require systemd. On a systemd host, enable resource accounting for all units
+that oomd monitors. You can enable it in the system defaults:
 
 ```
 DefaultCPUAccounting=true
@@ -32,54 +37,57 @@ DefaultMemoryAccounting=true
 DefaultTasksAccounting=true
 ```
 
-Refer to https://www.freedesktop.org/software/systemd/man/systemd-system.conf.html#DefaultCPUAccounting=
-for more details.
+See the [systemd system configuration documentation][systemd-accounting] for
+more details.
 
-### kernel w/ PSI (pressure stall information)
+### PSI (Pressure Stall Information)
 
-oomd requires PSI to function. Kernels 4.20 and above should have PSI.
-Verify your kernel has been compiled with PSI by running:
+oomd uses the memory PSI interface when it is available. Verify that interface:
 
 ```
-$  zcat /proc/config.gz | grep CONFIG_PSI
-CONFIG_PSI=y
+$ cat /proc/pressure/memory
+some avg10=0.00 avg60=0.00 avg300=0.00 total=0
+full avg10=0.00 avg60=0.00 avg300=0.00 total=0
 ```
+
+On older supported kernels, verify that `/proc/mempressure` is available
+instead.
 
 ### swap
 
-The system must have swap enabled for oomd to function correctly. With swap
-enabled, the system spends enough time swapping pages to let oomd react.
-Without swap, the system enters a livelocked state much more quickly and
-may prevent oomd from doing in a reasonable amount of time.
+Enable swap when the configuration uses swap-based detectors, actions, or
+swap-based Senpai features. Swap can also give oomd more time to act before the
+system runs out of memory.
 
-While this kind of sounds like a crutch, swap is generally very good on modern
-systems. See https://chrisdown.name/2018/01/02/in-defence-of-swap.html for
-more details on swap.
+See [In defence of swap](https://chrisdown.name/2018/01/02/in-defence-of-swap.html)
+for more information.
 
-The current recommendation for swap size is at least 1x size of physical memory.
+Select the swap size for the workload and its recovery target.
 
 ## Service setup
 
-oomd must be run in a protected cgroup. In other words, we use a specialized
-systemd service setup to guarantee oomd resources so that oomd can act in
-resource starved scenarios.
+Run oomd in a protected cgroup. This protection helps oomd operate when the
+host has little available memory.
 
-You typically group host critical services in their own special cgroup.
-Perhaps named `hostcritical.slice`. oomd should be grouped in here with
-other host critical services like `sshd.service`. `hostcritical.slice` should
-be guaranteed a minimum amount of reserved memory via `memory.min`. This
-essentially `mlockall`s oomd except the kernel sets aside the memory ahead
-of time. A portion of that memory - 64M should be enough - should be given to
-oomd.
+Group host-critical services in a slice such as `hostcritical.slice`. Put oomd
+in this slice with other critical services such as `sshd.service`. Use
+`MemoryMin=` on `oomd.service` to protect oomd. Configure the slice separately
+if all services in the slice need protection. A 64 MiB allocation for oomd is
+a reasonable starting point.
 
-The resulting config should look something like:
+For example, add these settings to the service:
 
 ```
-$ systemctl cat oomd.service | grep Memory
+[Service]
+Slice=hostcritical.slice
 MemoryMin=64M
 MemoryLow=64M
+```
 
-$ systemctl show fb-oomd.service | grep ControlGroup
+Then verify the service cgroup:
+
+```
+$ systemctl show oomd.service --property ControlGroup
 ControlGroup=/hostcritical.slice/oomd.service
 ```
 
@@ -87,8 +95,8 @@ TODO: document io.latency config
 
 ## Monitoring
 
-Stats are currently collected by grep'ing through oomd logs files. This is
-obviously very brittle but work is underway to provide a structured stats
-interface.
+oomd provides structured statistics through a Unix socket. Use
+`oomd --dump-stats` to read them and `oomd --reset-stats` to reset them. See
+[stats.md](stats.md) for the API and runtime-directory details.
 
-TODO: document the WIP structured stats collection interface
+[systemd-accounting]: https://www.freedesktop.org/software/systemd/man/systemd-system.conf.html#DefaultCPUAccounting=

@@ -1,12 +1,11 @@
 # Writing a plugin
 
 Plugins are at the core of oomd. Everything that implements business logic
-must be done in a plugin. If you haven't already, you should read
-[configuration.md](configuration.md). That doc explains the high level goals
-of plugins.
+must be done in a plugin. First, read [configuration.md](configuration.md).
+That document explains the high-level goals of plugins.
 
-If you're writing a kill plugin, you can get most common kill plugin
-functionality by inheriting from BaseKillPlugin. Read this doc, then read
+If you write a kill plugin, inherit from `BaseKillPlugin` to reuse the common
+kill behavior. Read this document, and then read
 [writing_a_kill_plugin.md](writing_a_kill_plugin.md).
 
 ## Interface
@@ -39,40 +38,28 @@ transforms (typically) JSON configuration into actual data structures oomd
 will work with. As part of the compilation process, oomd will run `init(..)`
 on every instantiated plugin.
 
-`MonitoredResources& resources` is a typedef'd std::unordered_set of strings.
-Plugins should insert any cgroups they want accounting on into `resources`.
-Accounting information will be passed back to the plugin at each event loop
-tick in `run(..)` via `OomdContext& context`. Kill plugins will typically
-place any cgroups they are instructed to possibly kill into `resources`.
-
-`const PluginArgs& args` is a map of arguments that are provided to the plugin.
-Each plugin, as defined by the config schema, is allowed to have a JSON object
-containing string->string key/value pairs representing the configuration.
+`const PluginArgs& args` is a string map of arguments for the plugin. The JSON
+`args` object can contain string, number, or Boolean values. The JSON parser
+converts each value to a string in `PluginArgs`.
 
 `const PluginConstructionContext& context` holds other init()-time context.
-`context->cgroupFs()` is the cgroup fs that oomd will monitor, as set from the
---cgroup-fs command line flag, defaulting to /sys/fs/cgroup.
+`context.cgroupFs()` is the cgroup filesystem that oomd monitors. The
+`--cgroup-fs` option sets this path. The default path is `/sys/fs/cgroup`.
 
-If plugin initialization is success, the plugin must return zero. A non-zero
-return value will fail the config compilation process (and usually exit the
-process). Plugins are encouraged to print a useful error message before
-returning non-zero.
+The plugin must return zero after successful initialization. A nonzero return
+value makes configuration compilation fail. The plugin should log a useful
+error before it returns a nonzero value.
 
 ### run(..)
 
-`run(..)` is called by the core oomd runtime each event loop tick. The
-duration between each tick can be configured via `--interval,-i` on the
-command line. `run(..)` is the work horse function of every plugin. This
-is where most, if not all, of the work is expected to be done. You can do
-pretty much whatever you want in the plugin. Make syscalls, inspect the file
-system, mess with other plugins by modifying `OomdContext`, name it. (Not to
-imply doing all of those things are a productive idea).
+The runtime calls detector `run(..)` methods on each event-loop tick. It calls
+action `run(..)` methods only after a detector group fires. The `--interval`
+or `-i` option sets the interval between ticks. Most plugin work occurs in
+`run(..)`.
 
 `OomdContext& context` is an object that contains state about the system.
-`OomdContext&` typically contains accounting information on every cgroup
-that the core oomd runtime has been instructed to monitor. This means that
-cgroups other plugins placed into `resources` in `init(..)` will also be
-available.
+Call `context.addToCacheAndGet(...)` to select cgroups and make their accounting
+data available for the current event-loop tick.
 
 ### prerun(..)
 
@@ -105,11 +92,9 @@ Plugins are required to register themselves to the plugin registry via the
 register your plugin and try to use it in a config, the compilation process
 will fail and oomd will not start up.
 
-Note that `REGISTER_PLUGIN` must be a static factory method that returns
-a pointer to an instance of your plugin allocated on the heap. There is
-not currently support to register custom deleter functions. This means
-you may not use custom allocators (by overloading `new`/`delete` or
-otherwise) to create instances of your plugin.
+`REGISTER_PLUGIN` takes a zero-argument factory callable. A static `create`
+method is the normal pattern. The callable must return a plugin pointer that
+uses the standard deleter. Custom deleters are not supported.
 
 ## Build files
 
@@ -147,9 +132,8 @@ Plugins are encouraged to use the oomd logging facilities.
 
 `OLOG` is an ostream style macro that prints logs asynchronously. This is
 useful as systems under intense memory pressure are not usually able to write
-to filesystems or output things to stdout/sterr. It's usually not a good idea
-to log inline on a production host, as writes can block indefinitely, thus
-limiting the utility of oomd.
+to filesystems or write to standard output or standard error. Avoid synchronous
+logging on a production host because a write can block indefinitely.
 
 `OLOG` is also smart enough to log inline (ie not async) when run in unit
 tests. Logging async in unit tests can mess with gtest output parsing.
@@ -168,8 +152,8 @@ core plugins: ContinuePlugin. You can find the code at
 
     namespace Oomd {
 
-Plugins do not need to exist in the `Oomd` namespace but it'll save you some
-typing.
+Plugins do not need to be in the `Oomd` namespace. The namespace reduces the
+required qualification.
 
     class ContinuePlugin : public Engine::BasePlugin {
 
@@ -178,7 +162,6 @@ section.
 
      public:
       int init(
-          Engine::MonitoredResources& /* unused */,
           const Engine::PluginArgs& /* unused */,
           const PluginConstructionContext& /* unused */) override {
         return 0;
@@ -198,15 +181,13 @@ Our plugin does nothing besides return CONTINUE.
         return new ContinuePlugin();
       }
 
+      ~ContinuePlugin() override = default;
+
+    };
+
     } // namespace Oomd
 
-This is our static factory method. Note it has to be static, as the config
-compiler uses the static plugin registry, and all factory functions in the
-plugin registry must be static.
-
-      ~ContinuePlugin() = default;
-
-We can use the default destructor.
+This is the static factory method. The class can use the default destructor.
 
 ### ContinuePlugin.cpp
 

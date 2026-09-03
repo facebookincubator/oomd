@@ -24,10 +24,9 @@ environments. For example, consider the following cgroup hierarchy:
             └── nested-containers-sidecar
 ```
 
-oomd configs will usually set `task` as the kill target. This is correct and
-optimal most of the time. However, in cases where containers are nested, eg.
-when a container hosts its own container-like environment, this becomes
-suboptimal.
+oomd configurations usually set `task` as the kill target. This selection is
+suitable for most configurations. A nested container can require a more
+specific target when it hosts its own container-like environment.
 
 In our example, `task` holds its own set of nested containers, `container1`,
 `container2`, and `container3`. With the standard oomd config, all
@@ -48,10 +47,12 @@ off.
 
 ### Drop-in config
 
-Drop-in configs use the exact same format as base configs with the following
-caveat:
+Drop-in configs use the same top-level format as base configs. A drop-in file
+can contain rulesets, prekill hooks, or both.
 
-* Both detector groups and actions may be omitted
+A drop-in ruleset identifies a base ruleset by `name`. It can omit its detector
+groups or its actions. Only these two fields replace parts of the cloned base
+ruleset. Other ruleset fields keep their values from the base configuration.
 
 ## Usage
 
@@ -62,7 +63,7 @@ drop-in config into the engine. Filenames beginning with '.' are ignored.
 
 ### Mechanism
 
-* Every drop-in config must target a ruleset in the base config
+* Every drop-in ruleset must target a ruleset in the base config
   * Targeting is done with the ruleset `name`
   * If there is more than one match, the first base ruleset will be chosen
   * If more than one drop-in config is present, they are added last-in-first-out
@@ -70,6 +71,10 @@ drop-in config into the engine. Filenames beginning with '.' are ignored.
   * A single drop-in config may contain more than one ruleset
   * Drop-in configs override the targeted ruleset on detector group or action
     group granularity
+
+* A drop-in file can contain prekill hooks without a drop-in ruleset
+  * Drop-in prekill hooks run before base prekill hooks
+  * Hooks from a newer drop-in run before hooks from an older drop-in
 
 * Behind the scenes, oomd will clone a copy of the targeted ruleset and
   replace the dropped-in detector groups and action groups. That new ruleset

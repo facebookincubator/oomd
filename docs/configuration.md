@@ -2,18 +2,19 @@
 
 ## Design principles
 
-oomd is designed to be as flexible and as extensible as possible. To that end,
-oomd is configured via a declarative configuration file. The idea is you can
-have a set of memory protection rules that are orthogonal and intuitive to
-reason about. In a sense it's a lot like iptables chains work (but much better,
-I promise).
+oomd uses a declarative configuration file. A configuration can contain
+independent memory protection rules that run in ordered detector and action
+chains.
 
 ## Schema
 
 oomd configs have a loosely defined BNF:
 
+    ARG_VALUE:
+    <string> | <number> | <bool>
+
     ARG:
-    <string>: <string>
+    <string>: ARG_VALUE
 
     NAME:
     <string>
@@ -36,9 +37,11 @@ oomd configs have a loosely defined BNF:
     PLUGIN
 
     DROPIN:
-    "disable-on-drop-in": <bool>,
-    "detectors": <bool>,
-    "actions": <bool>
+    "drop-in": {
+      "disable-on-drop-in": <bool>,
+      "detectors": <bool>,
+      "actions": <bool>
+    }
 
     SILENCE_LOGS:
     "silence-logs": NAME[,NAME[,...]]
@@ -56,29 +59,28 @@ oomd configs have a loosely defined BNF:
     "xattr_filter": NAME,
 
     RULESET:
-    [
-        NAME,
+    {
+        "name": NAME,
         DROPIN,
         SILENCE_LOGS,
         POST_ACTION_DELAY,
         PREKILL_HOOK_TIMEOUT,
         CGROUP,
         XATTR_FILTER,
-        "detectors": [ [DETECTOR_GROUP[,DETECTOR_GROUP[,...]]] ],
-        "actions": [ [ACTION[,ACTION[,...]]] ],
-    ]
+        "detectors": [ DETECTOR_GROUP[,DETECTOR_GROUP[,...]] ],
+        "actions": [ ACTION[,ACTION[,...]] ]
+    }
 
     ROOT:
     {
-        "rulesets": [ RULESET[,RULESET[,...]]  ],
-        "prekill_hooks": [ PLUGIN ]
+        "rulesets": [ RULESET[,RULESET[,...]]  ] (optional),
+        "prekill_hooks": [ PLUGIN[,PLUGIN[,...]] ] (optional)
     }
 
-In plain english, the general idea is that each oomd config one or more
-RULESETs. Each RULESET has a set of DETECTOR_GROUPs and a set of ACTIONs. Each
-DETECTOR_GROUP has a set of DETECTORs. Both DETECTORs and ACTIONs are PLUGIN
-types. That means _everything_ is a plugin in oomd. The rules on how a
-conforming config is evaluated at runtime are described in the next section.
+An oomd configuration can contain RULESETs and prekill hooks. Each RULESET has
+a set of DETECTOR_GROUPs and a set of ACTIONs. Each DETECTOR_GROUP has a set of
+DETECTORs. DETECTORs and ACTIONs are PLUGIN types. The next section describes
+how oomd evaluates a valid configuration.
 
 See [prekill_hooks.md](prekill_hooks.md) for details of the experimental
 "prekill_hooks" feature.
@@ -97,33 +99,35 @@ feature.
 
 ## Runtime evaluation rules
 
-- Every plugin must return CONTINUE, STOP or ASYNC_PAUSE.
+- Each plugin `run()` method must return `CONTINUE`, `STOP`, or
+  `ASYNC_PAUSED`.
 
-  - CONTINUE
-    - For DETECTORs, noop chain
+  - `CONTINUE`
+    - For DETECTORs, continue the current DETECTOR_GROUP chain
     - For ACTIONs, continue executing the current ACTION chain
-  - STOP
+  - `STOP`
     - For DETECTORs, evaluate the current DETECTOR_GROUP chain to false
     - For ACTIONs, abort execution of the current ACTION chain
-  - ASYNC_PAUSE
-    - For DETECTORs, not supported. If used, noop (in other words, CONTINUE)
+  - `ASYNC_PAUSED`
+    - For DETECTORs, treat it as `CONTINUE`
     - For ACTIONs, pause the action chain until the next event loop tick.
 
-- DETECTOR_GROUPs evaluate true if and only if all DETECTORs in the chain return
-  CONTINUE
+- DETECTOR_GROUPs evaluate to true if no DETECTOR returns `STOP`.
 
 - For each RULESET, if _any_ DETECTOR_GROUP fires, the associated ACTION chain
   will begin execution
 
-- ACTIONs may take multiple event loop ticks to complete. Returning ASYNC_PAUSE
-  allows other RULESETs and all DETECTORs to run concurrently. An ACTION
-  returning ASNYC_PAUSE will be run() again on the next tick, allowing it to do
-  more work and either re-ASYNC_PAUSE, or STOP or CONTINUE. If it CONTINUEs, the
-  ACTION chain will resume executing the subsequent ACTION plugins.
+- ACTIONs may take multiple event loop ticks to complete. Returning
+  `ASYNC_PAUSED` allows other RULESETs and all DETECTORs to run. An ACTION
+  that returns `ASYNC_PAUSED` runs again on the next tick. It can return
+  `ASYNC_PAUSED` again, or it can return `STOP` or `CONTINUE`. If it returns
+  `CONTINUE`, the ACTION chain resumes with the next ACTION plugin.
 
-- Each RULESET will trigger once per wildcard match of the cgroup NAME. If an
-  XATTR_FILTER is defined, then RULESETs only trigger if the cgroup NAME has an
-  xattr name matching XATTR_FILTER.
+- A RULESET with a cgroup NAME creates one ruleset instance for each wildcard
+  match. The detectors in each instance decide whether its action chain starts.
+  If an XATTR_FILTER is defined, oomd creates an instance only when the matched
+  cgroup has an extended attribute with that exact name. A RULESET without a
+  cgroup NAME runs once and does not use XATTR_FILTER.
 
 ### Notes
 
@@ -133,9 +137,7 @@ feature.
 
 ## Example
 
-This example uses the JSON front end. At time of writing (11/20/18), JSON is the
-only supported config front end. The config compiler has been designed with
-extensibility in mind as well. It would not be difficult to add another config
+This example uses the JSON front end. JSON is the only supported configuration
 front end.
 
     {

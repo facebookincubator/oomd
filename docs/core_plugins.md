@@ -1,9 +1,31 @@
 # Core plugins
 
-Note that this document is organized in two sections: detectors and actions.
-In theory, there's nothing stopping you from using a detector as an action
-and an action as a detector. The oomd runtime is completely agnostic. However,
-it would probably not be very useful in many cases.
+This document groups the plugins as control-flow plugins, detectors, and
+actions. The runtime does not enforce the detector and action groups. A
+configuration can use a detector as an action or an action as a detector, but
+the result is not always useful.
+
+# Control-flow plugins
+
+## continue
+
+### Arguments
+
+    No arguments
+
+### Description
+
+Always returns CONTINUE. It can be used in a detector group or an action chain.
+
+## stop
+
+### Arguments
+
+    No arguments
+
+### Description
+
+Always returns STOP. It can be used in a detector group or an action chain.
 
 # Detectors
 
@@ -20,13 +42,13 @@ it would probably not be very useful in many cases.
 
 ### Description
 
-`cgroup` specifies the "parent" cgroup(s) to monitor. Eg. if
-cgroup=system.slice, we would be monitoring everything inside system.slice.
-`cgroup` supports multi-cgroup and wildcard paths. Eg:
+`cgroup` specifies the parent cgroups to monitor. For example,
+`cgroup=system.slice` monitors the cgroups in `system.slice`. `cgroup` supports
+comma-separated patterns and wildcard paths. For example:
 
     cgroup=workload.slice/workload-*.slice,system.slice
 
-Note that extra spaces are not permitted betwen ','s.
+Do not put spaces before or after a comma.
 
 The root host can be encoded as "/".
 
@@ -34,7 +56,7 @@ The root host can be encoded as "/".
 ruleset cgroup value, if provided. See [`Ruleset Cgroup`](ruleset_cgroup.md) for
 details.
 
-`resource` is io|memory
+`resource` is `io` or `memory`.
 
 CONTINUE if 1m pressure > `threshold` for longer than `duration` && trending
 above threshold (10s > `threshold`) && 10s not falling rapidly. STOP
@@ -49,13 +71,15 @@ otherwise.
     threshold (optional)
     threshold_anon (optional)
     duration
+    debug=false (optional)
 
 ### Description
 
-`cgroup` and `ruleset_cgroup` have the same semantics and features as `pressure_rising_beyond`.
+`cgroup` and `ruleset_cgroup` have the same semantics and features as
+`pressure_rising_beyond`.
 
 `threshold` and `threshold_anon` take either an absolute memory amount or a
-percentage of total memory used. Either one of these parameters must be
+percentage of total host memory. Either one of these parameters must be
 specified. When both are specified, only `threshold_anon` is effective.
 
 An absolute memory amount threshold accepts combinations of K|M|G|T
@@ -72,6 +96,8 @@ longer than `duration`, STOP otherwise.
 If `threshold_anon` is specified, CONTINUE if anonymous memory usage >
 `threshold_anon` longer than `duration`, STOP otherwise.
 
+`debug=true` logs the sampled memory values and threshold state.
+
 ## pressure_above
 
 ### Arguments
@@ -84,9 +110,10 @@ If `threshold_anon` is specified, CONTINUE if anonymous memory usage >
 
 ### Description
 
-`cgroup` and `ruleset_cgroup` have the same semantics and features as `pressure_rising_beyond`.
+`cgroup` and `ruleset_cgroup` have the same semantics and features as
+`pressure_rising_beyond`.
 
-`resource` is io|memory
+`resource` is `io` or `memory`.
 
 CONTINUE if 10s pressure > `threshold` longer than `duration` STOP
 otherwise.
@@ -132,10 +159,11 @@ the sampled operands and a reason for each decision.
 ### Arguments
 
     threshold_pct
+    swapout_bps_threshold=0 (optional)
 
 ### Description
-CONTINUE if percentage of free:total swap drops below `threshold_pct` %.
-STOP otherwise.
+CONTINUE if the percentage of free swap is below `threshold_pct` and the
+current swap-out rate is at least `swapout_bps_threshold`. STOP otherwise.
 
 ## xattr_glob
 
@@ -174,29 +202,31 @@ matches `denylist`.
 
 ### Arguments
 
-    cgroup
+    cgroup (optional)
+    ruleset_cgroup (optional)
     negate=false (optional)
 
 ### Description
 
-`cgroup` supports comma separated arguments and wildcards.
+`cgroup` and `ruleset_cgroup` have the same semantics and features as
+`pressure_rising_beyond`.
 
-When `negate` is `false`, if `cgroup` exists, CONTINUE. STOP
-otherwise.
+When `negate=false`, return CONTINUE if any configured `cgroup` or
+`ruleset_cgroup` pattern resolves to a cgroup. Return STOP otherwise.
 
-When `negate` is `true`, if `cgroup` doesn't exist, CONTINUE. STOP
-otherwise.
+When `negate=true`, return CONTINUE if no configured pattern resolves to a
+cgroup. Return STOP otherwise.
 
 ## kernel_panic
 
 ### Arguments
 
-    No argument
+    No arguments
 
 ### Description
 
-This plugin triggers kernel panic when executed, which helps capture elusive
-memory issues that goes away after OOM kills.
+This plugin triggers a kernel panic. It can help capture memory problems that
+disappear after an OOM kill.
 
 Its source is exported for opt-in builds, but the default Meson binary does
 not compile or register it. Enabling it in a downstream binary requires a
@@ -210,11 +240,14 @@ separate safety review.
     ruleset_cgroup (optional)
     count
     lte=true (optional)
-    negate=false (optional)
+    debug=false (optional)
 
 ### Description
 
-`cgroup` and `ruleset_cgroup` have the same semantics and features as `pressure_rising_beyond`.
+`cgroup` and `ruleset_cgroup` have the same semantics and features as
+`pressure_rising_beyond`.
+
+`debug=true` logs the matching count.
 
 When `lte` is `true`, if `nr_dying_descendants(cgroup) <= count`, CONTINUE.
 STOP otherwise.
@@ -231,8 +264,8 @@ STOP otherwise.
     always=false
 
 ### Description
-`cgroup` and `ruleset_cgroup` have the same semantics and features as `pressure_rising_beyond`.
-However, this detector cannot monitor the root host.
+`cgroup` and `ruleset_cgroup` have the same semantics and features as
+`pressure_rising_beyond`.
 
 Dumps the system overview for `cgroup` to stderr if memory pressure is
 non-negligible.
@@ -254,21 +287,23 @@ Always returns CONTINUE.
     size_threshold=50 (optional)
     min_growth_ratio=1.25 (optional)
     growing_size_percentile=80 (optional)
-    post_action_delay=15 (optional)
+    post_action_delay (optional ruleset-delay override)
     dry=false (optional)
     always_continue=false (optional)
+    debug=false (optional)
+    kernelkill=false (optional)
     reap_memory=true (optional)
+    log_kmemalloc_prekill=false (optional)
 
 ### Description
 
-`cgroup` specifies the cgroup(s) that should be considered for killing.
-Eg. if cgroup=system.slice/*, everything inside system.slice would be
-considered for killing. `cgroup` also support multi-cgroup and wildcard
-paths. Eg.
+`cgroup` specifies the cgroups that oomd considers for killing. For example,
+`cgroup=system.slice/*` selects all matching cgroups in `system.slice`.
+`cgroup` supports comma-separated patterns and wildcard paths. For example:
 
     cgroup=workload.slice/workload-*.slice/*,system.slice/*
 
-Note that extra spaces are not permitted betwen ','s.
+Do not put spaces before or after a comma.
 
 `ruleset_cgroup` is similar to `cgroup` but is relative to the OomdContext's
 ruleset cgroup value, if provided. See [`Ruleset Cgroup`](ruleset_cgroup.md) for
@@ -286,36 +321,42 @@ example above using `recursive` as
 
 Note the lack of trailing "*".
 
-Kill the biggest (memory.current - memory.low) child cgroup if larger than
-`size_threshold` percent or kill the fastest growing over
-`min_growth_ratio` of the biggest `growing_size_percentile` by size.  True
-if killed something, which terminates actions.
+The plugin ranks candidates in three phases. It first ranks cgroups whose
+current usage is at least `size_threshold` percent of total sibling usage. It
+then ranks cgroups that are at or above the configured
+`growing_size_percentile` cutoff and whose current-to-average usage ratio is at
+least `min_growth_ratio`. It finally ranks all remaining cgroups. Size ranking
+uses effective usage, which is current usage minus normalized memory
+protection.
 
-Disables its action chain for `post_action_delay` if a kill was performed. Other
-rulesets will run normally. This plugins' ruleset's detectors will run, but will
-not trigger any actions.
+After a successful kill, the plugin returns STOP and pauses its action chain.
+`post_action_delay` overrides the ruleset delay. If the argument is absent, the
+plugin uses the ruleset delay, whose default is 15 seconds. Other rulesets
+continue to run. If `always_continue=true`, the plugin returns CONTINUE and
+does not apply this delay.
 
-If `dry` is set to true, does not actually perform kill but prints via logs what
-kill it would have done.
+If `dry=true`, the plugin does not send a kill. It logs the target that it would
+have killed.
 
-Avoids killing cgroups which aren't experiencing memory pressure at all as
-they aren't contributing the pressure anyway.
+Cgroups that are killed have their `trusted.oomd_kill` and `user.oomd_kill`
+xattrs incremented by the reported number of killed processes. Kernel kill mode
+can report an estimated number.
 
-cgroups that are killed have the "trusted.oomd_kill" xattr set to the number
-of SIGKILLs sent to resident processes.
+Cgroups with `trusted.oomd_prefer` or `user.oomd_prefer` are ranked before
+other cgroups. Cgroups with `trusted.oomd_avoid` or `user.oomd_avoid` are ranked
+last. A prefer attribute takes precedence over an avoid attribute. oomd checks
+the attributes on each candidate at each ranking level. It does not inherit an
+attribute from an ancestor.
 
-cgroups with the "trusted.oomd_prefer" xattr set will be killed before any other
-cgroups, even if others are better choices by the above logic. A cgroup with
-"trusted.oomd_avoid" will not be killed unless there are no other cgroups to
-kill. If multiple cgroups are "trusted.oomd_prefer"ed, the above logic will be
-used to pick between them. If a cgroup has both of these xattrs it is considered
-"prefer". The xattrs must be set on cgroups targeted in the `cgroup` arg;
-they will have no effect if set on ancestors of the targeted cgroups.
+STOP after a successful kill, or after a selection in dry mode, unless
+`always_continue=true`. CONTINUE otherwise.
 
-STOP if killed something (even if dry=true), unless `always_continue`. CONTINUE
-otherwise.
-
-If `reap_memory` is set to true, attempt to speed up process memory cleanup via process_mrelease syscall. See https://lwn.net/Articles/864184/ for details.
+`debug=true` logs more candidate details. `kernelkill=true` freezes the target
+and uses `cgroup.kill` instead of sending signals to each process.
+`reap_memory=true` tries to release process memory with `process_mrelease`.
+See [process_mrelease](https://lwn.net/Articles/864184/) for details.
+`log_kmemalloc_prekill=true` logs `/tmp/oomd_kmemalloc_profiler` after a
+successful kill or dry-mode selection.
 
 ## kill_by_swap_usage
 
@@ -325,31 +366,30 @@ If `reap_memory` is set to true, attempt to speed up process memory cleanup via 
     ruleset_cgroup (optional)
     recursive=false (optional)
     threshold=1 (optional)
-    post_action_delay=15 (optional)
+    post_action_delay (optional ruleset-delay override)
     dry=false (optional)
     always_continue=false (optional)
+    debug=false (optional)
+    kernelkill=false (optional)
     reap_memory=true (optional)
+    log_kmemalloc_prekill=false (optional)
+    biased_swap_kill=false (optional)
 
 ### Description
 
-`cgroup`, `ruleset_cgroup` and `recursive` follow the same semantics and options as
-`kill_by_memory_size_or_growth`. oomd_prefer/oomd_avoid xattrs are respected
-the same way as well.
+The common `BaseKillPlugin` arguments follow the same semantics as
+`kill_by_memory_size_or_growth`. The kill preference xattrs also have the same
+effect.
 
-`threshold` follows the same semantics and options as `memory_above`.
+`threshold` accepts a byte size or a percentage of total host swap. By default,
+the plugin ranks children by total swap use. `biased_swap_kill=true` ranks them
+by swap use above the swap share implied by their normalized memory protection.
 
-`post_action_delay` and `dry` follow the same semantics and options as
-`kill_by_memory_size_or_growth`
-
-Kills the child with the largest swap usage.
-
-cgroups that are killed have the "trusted.oomd_kill" xattr set to the number
-of SIGKILLs sent to resident processes.
+Cgroups that are killed have their `trusted.oomd_kill` and `user.oomd_kill`
+xattrs incremented by the reported number of killed processes.
 
 STOP if killed something (even if dry=true), unless `always_continue`. CONTINUE
 otherwise.
-
-If `reap_memory` is set to true, attempt to speed up process memory cleanup via process_mrelease syscall. See https://lwn.net/Articles/864184/ for details.
 
 ## kill_by_pressure
 
@@ -359,31 +399,29 @@ If `reap_memory` is set to true, attempt to speed up process memory cleanup via 
     ruleset_cgroup (optional)
     recursive=false (optional)
     resource
-    post_action_delay=15 (optional)
+    post_action_delay (optional ruleset-delay override)
     dry=false (optional)
     always_continue=false (optional)
+    debug=false (optional)
+    kernelkill=false (optional)
     reap_memory=true (optional)
+    log_kmemalloc_prekill=false (optional)
 
 ### Description
 
-`cgroup`, `ruleset_cgroup` and `recursive` follow the same semantics and options as
-`kill_by_memory_size_or_growth`. oomd_prefer/oomd_avoid xattrs are respected
-the same way as well.
+The common `BaseKillPlugin` arguments follow the same semantics as
+`kill_by_memory_size_or_growth`. The kill preference xattrs also have the same
+effect.
 
-`resource` is io|memory
-
-`post_action_delay` and `dry` follow the same semantics and options as
-`kill_by_memory_size_or_growth`
+`resource` is `io` or `memory`.
 
 Kills the child generating the most pressure.
 
-cgroups that are killed have the "trusted.oomd_kill" xattr set to the number
-of SIGKILLs sent to resident processes.
+Cgroups that are killed have their `trusted.oomd_kill` and `user.oomd_kill`
+xattrs incremented by the reported number of killed processes.
 
 STOP if killed something (even if dry=true), unless `always_continue`. CONTINUE
 otherwise.
-
-If `reap_memory` is set to true, attempt to speed up process memory cleanup via process_mrelease syscall. See https://lwn.net/Articles/864184/ for details.
 
 ## kill_by_io_cost
 
@@ -392,29 +430,27 @@ If `reap_memory` is set to true, attempt to speed up process memory cleanup via 
     cgroup (optional)
     ruleset_cgroup (optional)
     recursive=false (optional)
-    post_action_delay=15 (optional)
+    post_action_delay (optional ruleset-delay override)
     dry=false (optional)
     always_continue=false (optional)
+    debug=false (optional)
+    kernelkill=false (optional)
     reap_memory=true (optional)
+    log_kmemalloc_prekill=false (optional)
 
 ### Description
 
-`cgroup`, `ruleset_cgroup` and `recursive` follow the same semantics and options as
-`kill_by_memory_size_or_growth`. oomd_prefer/oomd_avoid xattrs are respected
-the same way as well.
-
-`post_action_delay` and `dry` follow the same semantics and options as
-`kill_by_memory_size_or_growth`
+The common `BaseKillPlugin` arguments follow the same semantics as
+`kill_by_memory_size_or_growth`. The kill preference xattrs also have the same
+effect.
 
 Kills the child generating the most io cost.
 
-cgroups that are killed have the "trusted.oomd_kill" xattr set to the number
-of SIGKILLs sent to resident processes.
+Cgroups that are killed have their `trusted.oomd_kill` and `user.oomd_kill`
+xattrs incremented by the reported number of killed processes.
 
 STOP if killed something (even if dry=true), unless `always_continue`. CONTINUE
 otherwise.
-
-If `reap_memory` is set to true, attempt to speed up process memory cleanup via process_mrelease syscall. See https://lwn.net/Articles/864184/ for details.
 
 ## kill_by_pg_scan
 
@@ -423,26 +459,26 @@ If `reap_memory` is set to true, attempt to speed up process memory cleanup via 
     cgroup (optional)
     ruleset_cgroup (optional)
     recursive=false (optional)
-    post_action_delay=15 (optional)
+    post_action_delay (optional ruleset-delay override)
     dry=false (optional)
     always_continue=false (optional)
+    debug=false (optional)
+    kernelkill=false (optional)
     reap_memory=true (optional)
+    log_kmemalloc_prekill=false (optional)
 
 ### Description
 
-`cgroup`, `ruleset_cgroup` and `recursive` follow the same semantics and options as
-`kill_by_memory_size_or_growth`. oomd_prefer/oomd_avoid xattrs are respected
-the same way as well.
+The common `BaseKillPlugin` arguments follow the same semantics as
+`kill_by_memory_size_or_growth`. The kill preference xattrs also have the same
+effect.
 
-`post_action_delay` and `dry` follow the same semantics and options as
-`kill_by_memory_size_or_growth`
+The first call collects a page-scan sample and returns `ASYNC_PAUSED`. The next
+call ranks cgroups by the increase in page scans over one event-loop tick. It
+only considers cgroups with a positive increase.
 
-Kills the child with the highest pg scan rate.
-
-cgroups that are killed have the "trusted.oomd_kill" xattr set to the number
-of SIGKILLs sent to resident processes.
+Cgroups that are killed have their `trusted.oomd_kill` and `user.oomd_kill`
+xattrs incremented by the reported number of killed processes.
 
 STOP if killed something (even if dry=true), unless `always_continue`. CONTINUE
 otherwise.
-
-If `reap_memory` is set to true, attempt to speed up process memory cleanup via process_mrelease syscall. See https://lwn.net/Articles/864184/ for details.
