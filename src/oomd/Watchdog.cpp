@@ -48,6 +48,45 @@ struct timespec toTimespec(std::chrono::nanoseconds ns) {
   return ts;
 }
 
+bool isHexDigit(char c) {
+  return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') ||
+      (c >= 'A' && c <= 'F');
+}
+
+size_t skipFramePrefix(const char* input, size_t input_len, size_t pos) {
+  if (pos + 6 <= input_len && input[pos] == '[' && input[pos + 1] == '<' &&
+      input[pos + 2] == '0' && input[pos + 3] == '>' && input[pos + 4] == ']' &&
+      input[pos + 5] == ' ') {
+    return pos + 6;
+  }
+  return pos;
+}
+
+size_t skipSymbolOffset(const char* input, size_t input_len, size_t pos) {
+  if (input[pos] != '+' || pos + 3 >= input_len || input[pos + 1] != '0' ||
+      input[pos + 2] != 'x') {
+    return pos;
+  }
+
+  size_t offset_end = pos + 3;
+  const size_t offset_start = offset_end;
+  while (offset_end < input_len && isHexDigit(input[offset_end])) {
+    ++offset_end;
+  }
+  if (offset_end == offset_start || offset_end + 3 > input_len ||
+      input[offset_end] != '/' || input[offset_end + 1] != '0' ||
+      input[offset_end + 2] != 'x') {
+    return pos;
+  }
+
+  size_t size_end = offset_end + 3;
+  const size_t size_start = size_end;
+  while (size_end < input_len && isHexDigit(input[size_end])) {
+    ++size_end;
+  }
+  return size_end == size_start ? pos : size_end;
+}
+
 void writeRecord(int fd, const char* record, size_t len) {
   const int output_fd = fd >= 0 ? fd : STDERR_FILENO;
   ssize_t written;
@@ -383,17 +422,43 @@ Watchdog::StackCapture Watchdog::captureKernelStack() const {
   if (bytes == 0) {
     return StackCapture{};
   }
+  const bool source_truncated = bytes > kRawStackMax;
+  return normalizeStack(
+      raw.data(), source_truncated ? kRawStackMax : bytes, source_truncated);
+}
+
+Watchdog::StackCapture Watchdog::normalizeStack(
+    const char* input,
+    size_t input_len,
+    bool source_truncated) {
   StackCapture capture;
   capture.status = "ok";
-  capture.truncated = bytes > kRawStackMax;
-  const size_t input_len = capture.truncated ? kRawStackMax : bytes;
+  capture.truncated = source_truncated;
+  bool frame_start = true;
   bool pending_separator = false;
 
   for (size_t pos = 0; pos < input_len;) {
-    const char c = raw[pos];
+    const char c = input[pos];
     if (c == '\n' || c == '\r') {
       pending_separator = capture.stack_len > 0;
+      frame_start = true;
       ++pos;
+      continue;
+    }
+
+    if (frame_start) {
+      const size_t frame_start_pos = skipFramePrefix(input, input_len, pos);
+      if (frame_start_pos != pos) {
+        pos = frame_start_pos;
+        frame_start = false;
+        continue;
+      }
+    }
+    frame_start = false;
+
+    const size_t symbol_end = skipSymbolOffset(input, input_len, pos);
+    if (symbol_end != pos) {
+      pos = symbol_end;
       continue;
     }
 

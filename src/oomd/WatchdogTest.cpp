@@ -46,6 +46,12 @@ struct WatchdogTestClock {
 
 class WatchdogTestPeer {
  public:
+  struct NormalizedStack {
+    std::string stack;
+    bool truncated;
+    std::string status;
+  };
+
   static std::unique_ptr<Watchdog> create(
       std::chrono::milliseconds timeout,
       int kmsg_fd,
@@ -111,6 +117,18 @@ class WatchdogTestPeer {
   static bool handleHeartbeatDeadline(Watchdog& watchdog) {
     return watchdog.handleHeartbeatDeadline() ==
         Watchdog::EventAction::Continue;
+  }
+
+  static NormalizedStack normalizeStack(
+      const std::string& input,
+      bool source_truncated = false) {
+    const auto capture =
+        Watchdog::normalizeStack(input.data(), input.size(), source_truncated);
+    return NormalizedStack{
+        .stack = std::string(capture.stack.data(), capture.stack_len),
+        .truncated = capture.truncated,
+        .status = capture.status,
+    };
   }
 
  private:
@@ -449,8 +467,8 @@ TEST(WatchdogTest, RepeatedReportsShareHeartbeatAndIncreaseAge) {
 
   const auto emitted = records(sink.contents());
   ASSERT_EQ(emitted.size(), 2);
-  expectRecord(emitted[0], "1000", "blocked_frame;second+0x1a/0x90");
-  expectRecord(emitted[1], "1000", "blocked_frame;second+0x1a/0x90");
+  expectRecord(emitted[0], "1000", "blocked_frame;second");
+  expectRecord(emitted[1], "1000", "blocked_frame;second");
   EXPECT_EQ(field(emitted[0], "heartbeat_age_ms="), "100");
   EXPECT_EQ(field(emitted[1], "heartbeat_age_ms="), "200");
 }
@@ -510,6 +528,45 @@ TEST(WatchdogTest, EarlyTimerExpirationRearmsForLatestHeartbeat) {
   setNow(clock, 200ms);
   ASSERT_EQ(WatchdogTestPeer::armHeartbeatTimer(*watchdog), 0);
   EXPECT_EQ(initial, 1ns);
+}
+
+TEST(WatchdogTest, NormalizeStackRemovesAddressesAndWhitespace) {
+  const auto normalized = WatchdogTestPeer::normalizeStack(
+      "[<0>] do_freezer_trap+0x1a/0x90\n"
+      "[<0>] module_frame+0xABC/0xDEF [module name]\r\n"
+      "[<1>] other+0x2/0x3\tunparsed+0x/0x2 frame\n");
+
+  EXPECT_EQ(
+      normalized.stack,
+      "do_freezer_trap;module_frame_[module_name];"
+      "[<1>]_other_unparsed+0x/0x2_frame");
+  EXPECT_FALSE(normalized.truncated);
+  EXPECT_EQ(normalized.status, "ok");
+}
+
+TEST(WatchdogTest, NormalizeStackReportsBothTruncationSources) {
+  const auto output_truncated =
+      WatchdogTestPeer::normalizeStack(std::string(1000, 'x'));
+  const auto input_truncated = WatchdogTestPeer::normalizeStack("frame", true);
+
+  EXPECT_EQ(output_truncated.stack.size(), 512);
+  EXPECT_TRUE(output_truncated.truncated);
+  EXPECT_EQ(output_truncated.status, "ok");
+  EXPECT_EQ(input_truncated.stack, "frame");
+  EXPECT_TRUE(input_truncated.truncated);
+  EXPECT_EQ(input_truncated.status, "ok");
+}
+
+TEST(WatchdogTest, NormalizeStackReportsEmptyInput) {
+  const auto normalized = WatchdogTestPeer::normalizeStack("");
+  const auto truncated = WatchdogTestPeer::normalizeStack("\n", true);
+
+  EXPECT_TRUE(normalized.stack.empty());
+  EXPECT_FALSE(normalized.truncated);
+  EXPECT_EQ(normalized.status, "empty");
+  EXPECT_TRUE(truncated.stack.empty());
+  EXPECT_TRUE(truncated.truncated);
+  EXPECT_EQ(truncated.status, "empty");
 }
 
 TEST(WatchdogTest, RawStackTruncationRequiresDataBeyondReadLimit) {

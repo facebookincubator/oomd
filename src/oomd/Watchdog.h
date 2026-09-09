@@ -96,6 +96,8 @@ class Watchdog {
   EventAction handleHeartbeatDeadline();
   void threadMain();
   StackCapture captureKernelStack() const;
+  static StackCapture
+  normalizeStack(const char* input, size_t input_len, bool source_truncated);
   bool reportStall(uint64_t heartbeat_ns, uint64_t observed_ns) const;
   bool emit(const char* buf, size_t len) const;
 
