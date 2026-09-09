@@ -24,6 +24,7 @@
 
 #include "oomd/CgroupContext.h"
 #include "oomd/Log.h"
+#include "oomd/Watchdog.h"
 #include "oomd/dropin/FsDropInService.h"
 #include "oomd/include/Assert.h"
 #include "oomd/include/Defines.h"
@@ -40,9 +41,31 @@ Oomd::Oomd(
     const std::unordered_map<std::string, DeviceType>& io_devs,
     const IOCostCoeffs& hdd_coeffs,
     const IOCostCoeffs& ssd_coeffs)
+    : Oomd(
+          std::move(ir_root),
+          std::move(engine),
+          interval,
+          cgroup_fs,
+          drop_in_dir,
+          io_devs,
+          hdd_coeffs,
+          ssd_coeffs,
+          nullptr) {}
+
+Oomd::Oomd(
+    std::unique_ptr<Config2::IR::Root> ir_root,
+    std::unique_ptr<Engine::Engine> engine,
+    int interval,
+    const std::string& cgroup_fs,
+    const std::string& drop_in_dir,
+    const std::unordered_map<std::string, DeviceType>& io_devs,
+    const IOCostCoeffs& hdd_coeffs,
+    const IOCostCoeffs& ssd_coeffs,
+    std::unique_ptr<Watchdog> watchdog)
     : interval_(interval),
       ir_root_(std::move(ir_root)),
-      engine_(std::move(engine)) {
+      engine_(std::move(engine)),
+      watchdog_(std::move(watchdog)) {
   ContextParams params{
       .io_devs = io_devs,
       .hdd_coeffs = hdd_coeffs,
@@ -124,6 +147,10 @@ int Oomd::run(const sigset_t* mask) {
   OLOG << "Running oomd";
 
   while (true) {
+    if (watchdog_) {
+      watchdog_->beat();
+    }
+
     // sigtimedwait so if we get a SIGINT or SIGTERM we wake up and exit right
     // away.
     int rc;

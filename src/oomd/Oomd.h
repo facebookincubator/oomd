@@ -34,6 +34,7 @@ namespace Engine {
 class Engine;
 }
 class DropInServiceAdaptor;
+class Watchdog;
 
 class Oomd {
  public:
@@ -46,6 +47,16 @@ class Oomd {
       const std::unordered_map<std::string, DeviceType>& io_devs = {},
       const IOCostCoeffs& hdd_coeffs = {},
       const IOCostCoeffs& ssd_coeffs = {});
+  Oomd(
+      std::unique_ptr<Config2::IR::Root> ir_root,
+      std::unique_ptr<Engine::Engine> engine,
+      int interval,
+      const std::string& cgroup_fs,
+      const std::string& drop_in_dir,
+      const std::unordered_map<std::string, DeviceType>& io_devs,
+      const IOCostCoeffs& hdd_coeffs,
+      const IOCostCoeffs& ssd_coeffs,
+      std::unique_ptr<Watchdog> watchdog);
   ~Oomd();
 
   void updateContext();
@@ -57,6 +68,7 @@ class Oomd {
   std::unique_ptr<Config2::IR::Root> ir_root_;
   std::unique_ptr<Engine::Engine> engine_;
   std::unique_ptr<DropInServiceAdaptor> fs_drop_in_service_;
+  std::unique_ptr<Watchdog> watchdog_;
 
   OomdContext ctx_;
 };

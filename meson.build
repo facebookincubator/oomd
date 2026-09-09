@@ -29,6 +29,7 @@ srcs = files('''
     src/oomd/Stats.cpp
     src/oomd/StatsClient.cpp
     src/oomd/PluginRegistry.cpp
+    src/oomd/Watchdog.cpp
     src/oomd/config/ConfigCompiler.cpp
     src/oomd/config/ConfigTypes.cpp
     src/oomd/config/JsonConfigParser.cpp
@@ -145,6 +146,7 @@ core_tests = [
   ['cgctx',    files('src/oomd/CgroupContextTest.cpp')],
   ['context',  files('src/oomd/OomdContextTest.cpp')],
   ['log',      files('src/oomd/LogTest.cpp')],
+  ['watchdog', files('src/oomd/WatchdogTest.cpp')],
   ['assert',   files('src/oomd/include/AssertTest.cpp')],
   ['cpath',    files('src/oomd/include/CgroupPathTest.cpp')],
   ['compiler', files('src/oomd/config/ConfigCompilerTest.cpp')],

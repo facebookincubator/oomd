@@ -73,6 +73,12 @@ Comma separated values for SSD IO cost calculation (default: see doc)
 .BI "\-\-hdd\-coeffs " COEFFS
 Comma separated values for HDD IO cost calculation (default: see doc)
 
+.TP
+.BI "\-\-watchdog\-timeout " SECS
+Report after SECS without an event-loop heartbeat and every SECS thereafter.
+SECS must be greater than \fB\-\-interval\fR. Zero disables the watchdog
+(default: 0).
+
 
 .SH SEE ALSO
 https://github.com/facebookincubator/oomd#configuration

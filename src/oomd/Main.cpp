@@ -17,6 +17,7 @@
 
 #include <json/value.h>
 #include <sys/file.h>
+#include <chrono>
 #include <cstring>
 #ifdef MESON_BUILD
 #include <filesystem>
@@ -25,6 +26,7 @@
 #endif
 #include <fstream>
 #include <iostream>
+#include <memory>
 #include <sstream>
 #include <string>
 #include <unordered_map>
@@ -36,6 +38,7 @@
 #include "oomd/PluginRegistry.h"
 #include "oomd/Stats.h"
 #include "oomd/StatsClient.h"
+#include "oomd/Watchdog.h"
 #include "oomd/config/ConfigCompiler.h"
 #include "oomd/config/JsonConfigParser.h"
 #include "oomd/include/CoreStats.h"
@@ -61,6 +64,7 @@ static constexpr auto kRuntimeDir = "/run/oomd";
 static constexpr auto kRuntimeLock = "oomd.lock";
 static constexpr auto kStatsSocket = "oomd-stats.socket";
 static constexpr auto kKmsgPath = "/dev/kmsg";
+static constexpr int kMaxWatchdogTimeoutSecs = 86400;
 static const struct Oomd::IOCostCoeffs default_hdd_coeffs = {
     .read_iops = 1.31e-3,
     .readbw = 1.13e-7,
@@ -96,7 +100,8 @@ static void printUsage() {
          "  --device DEVS              Comma separated <major>:<minor> pairs for IO cost calculation (default: none)\n"
          "  --ssd-coeffs COEFFS        Comma separated values for SSD IO cost calculation (default: see doc)\n"
          "  --hdd-coeffs COEFFS        Comma separated values for HDD IO cost calculation (default: see doc)\n"
-         "  --kmsg-override PATH       File to log kills to (default: /dev/kmsg)"
+         "  --kmsg-override PATH       File to log kills to (default: /dev/kmsg)\n"
+         "  --watchdog-timeout SECS    Heartbeat timeout and report interval; must exceed --interval (0: disabled, default: 0)"
       << std::endl;
 }
 
@@ -224,6 +229,7 @@ enum MainOptions {
   OPT_DEVICE = 256, // avoid collision with char
   OPT_SSD_COEFFS,
   OPT_HDD_COEFFS,
+  OPT_WATCHDOG_TIMEOUT,
 };
 
 int main(int argc, char** argv) {
@@ -235,6 +241,7 @@ int main(int argc, char** argv) {
   std::string dev_id;
   std::string kmsg_path = kKmsgPath;
   int interval = 5;
+  int watchdog_timeout = 0;
   bool should_check_config = false;
 
   int option_index = 0;
@@ -271,6 +278,8 @@ int main(int argc, char** argv) {
       option{"ssd-coeffs", required_argument, nullptr, OPT_SSD_COEFFS},
       option{"hdd-coeffs", required_argument, nullptr, OPT_HDD_COEFFS},
       option{"kmsg-override", required_argument, nullptr, 'k'},
+      option{
+          "watchdog-timeout", required_argument, nullptr, OPT_WATCHDOG_TIMEOUT},
       option{nullptr, 0, nullptr, 0}};
 
   while ((c = getopt_long(
@@ -353,6 +362,20 @@ int main(int argc, char** argv) {
       case 'k':
         kmsg_path = std::string(optarg);
         break;
+      case OPT_WATCHDOG_TIMEOUT:
+        try {
+          watchdog_timeout = std::stoi(optarg, &parsed_len);
+        } catch (const std::exception&) {
+          parse_error = true;
+        }
+        if (parse_error || watchdog_timeout < 0 ||
+            watchdog_timeout > kMaxWatchdogTimeoutSecs ||
+            parsed_len != strlen(optarg)) {
+          std::cerr << "Watchdog timeout not an integer in [0, "
+                    << kMaxWatchdogTimeoutSecs << "]: " << optarg << std::endl;
+          return 1;
+        }
+        break;
       case 0:
         break;
       case '?':
@@ -371,6 +394,12 @@ int main(int argc, char** argv) {
     }
     std::cerr << std::endl;
     printUsage();
+    return 1;
+  }
+
+  if (watchdog_timeout > 0 && watchdog_timeout <= interval) {
+    std::cerr << "Watchdog timeout must be greater than interval: "
+              << watchdog_timeout << " <= " << interval << std::endl;
     return 1;
   }
 
@@ -482,6 +511,15 @@ int main(int argc, char** argv) {
     return EXIT_CANT_RECOVER;
   }
 
+  std::unique_ptr<Oomd::Watchdog> watchdog;
+  if (watchdog_timeout > 0) {
+    watchdog = Oomd::Watchdog::create(
+        std::chrono::seconds(watchdog_timeout), kmsg_path);
+    if (!watchdog) {
+      OLOG << "Failed to start watchdog; running without stall detection";
+    }
+  }
+
   Oomd::Oomd oomd(
       std::move(ir),
       std::move(engine),
@@ -490,6 +528,7 @@ int main(int argc, char** argv) {
       drop_in_dir,
       *io_devs,
       hdd_coeffs,
-      ssd_coeffs);
+      ssd_coeffs,
+      std::move(watchdog));
   return oomd.run(&mask);
 }
