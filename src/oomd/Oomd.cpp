@@ -18,7 +18,14 @@
 #include "oomd/Oomd.h"
 
 #include <signal.h>
+#include <sys/socket.h>
+#include <sys/un.h>
+#include <unistd.h>
+#include <cerrno>
 #include <cmath>
+#include <cstddef>
+#include <cstdlib>
+#include <cstring>
 #include <functional>
 #include <thread>
 
@@ -31,6 +38,50 @@
 #include "oomd/util/Fs.h"
 #include "oomd/util/Util.h"
 namespace Oomd {
+
+namespace {
+
+// Minimal sd_notify(3). libsystemd is an optional dependency of the open
+// source build, so oomd cannot rely on it being linked.
+void notifySystemd(const char* state) {
+  const char* path = std::getenv("NOTIFY_SOCKET");
+  if (path == nullptr || path[0] == '\0') {
+    return;
+  }
+
+  struct sockaddr_un addr{};
+  addr.sun_family = AF_UNIX;
+  size_t path_len = std::strlen(path);
+  if ((path[0] != '/' && path[0] != '@') || path_len >= sizeof(addr.sun_path)) {
+    OLOG << "Unsupported NOTIFY_SOCKET=" << path;
+    return;
+  }
+  std::memcpy(addr.sun_path, path, path_len);
+  // A leading '@' denotes a socket in the abstract namespace.
+  if (addr.sun_path[0] == '@') {
+    addr.sun_path[0] = '\0';
+  }
+
+  int fd = ::socket(AF_UNIX, SOCK_DGRAM | SOCK_CLOEXEC, 0);
+  if (fd < 0) {
+    OLOG << "Failed to create systemd notify socket: " << std::strerror(errno);
+    return;
+  }
+  auto addr_len =
+      static_cast<socklen_t>(offsetof(struct sockaddr_un, sun_path) + path_len);
+  if (::sendto(
+          fd,
+          state,
+          std::strlen(state),
+          MSG_NOSIGNAL,
+          reinterpret_cast<const struct sockaddr*>(&addr),
+          addr_len) < 0) {
+    OLOG << "Failed to notify systemd: " << std::strerror(errno);
+  }
+  ::close(fd);
+}
+
+} // namespace
 
 Oomd::Oomd(
     std::unique_ptr<Config2::IR::Root> ir_root,
@@ -146,6 +197,7 @@ int Oomd::run(const sigset_t* mask) {
 
   OLOG << "Running oomd";
 
+  bool notified_ready = false;
   while (true) {
     if (watchdog_) {
       watchdog_->beat();
@@ -180,6 +232,13 @@ int Oomd::run(const sigset_t* mask) {
 
     // Run all the plugins
     engine_->runOnce(ctx_);
+
+    // Only report readiness once a full tick has run, so a build that crashes
+    // on its first tick fails its systemd start job instead of passing it.
+    if (!notified_ready) {
+      notifySystemd("READY=1");
+      notified_ready = true;
+    }
   }
 
   __builtin_unreachable();
