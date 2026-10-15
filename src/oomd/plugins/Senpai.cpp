@@ -62,6 +62,7 @@ int Senpai::init(
   argParser_.addArgument("swapout_bps_threshold", swapout_bps_threshold_);
   argParser_.addArgument("swap_validation", swap_validation_);
   argParser_.addArgument("modulate_swappiness", modulate_swappiness_);
+  argParser_.addArgument("reclaim_unmapped_anon", reclaim_unmapped_anon_);
   argParser_.addArgument("log_interval", log_interval_);
 
   if (!argParser_.parse(args)) {
@@ -321,7 +322,9 @@ bool Senpai::resetMemhigh(const CgroupContext& cgroup_ctx) {
 bool Senpai::reclaim(const CgroupContext& cgroup_ctx, int64_t size) {
   auto has_memory_reclaim_opt = hasMemoryReclaim(cgroup_ctx);
   if (has_memory_reclaim_opt && *has_memory_reclaim_opt) {
-    return (bool)Fs::writeMemReclaimAt(cgroup_ctx.fd(), size);
+    auto ret = Fs::writeMemReclaimAt(cgroup_ctx.fd(), size);
+    return ret ||
+        (reclaim_unmapped_anon_ && ret.error().code().value() == EAGAIN);
   }
 
   auto current_opt = cgroup_ctx.current_usage();
@@ -347,7 +350,6 @@ bool Senpai::reclaim(const CgroupContext& cgroup_ctx, int64_t size) {
   return true;
 }
 
-/** Returns file cache + swappable anon. */
 SystemMaybe<int64_t> Senpai::getReclaimableBytes(
     const CgroupContext& cgroup_ctx) {
   const auto& stat_opt = cgroup_ctx.memory_stat();
@@ -381,7 +383,9 @@ SystemMaybe<int64_t> Senpai::getReclaimableBytes(
     }
   }
 
-  return file_cache + swappable;
+  auto unmapped_anon =
+      reclaim_unmapped_anon_ ? cgroup_ctx.unmapped_anon_usage().value_or(0) : 0;
+  return file_cache + std::max(swappable, unmapped_anon);
 }
 
 /** Returns unreclaimable + limit_min_bytes. */

@@ -125,6 +125,7 @@ class Senpai : public Engine::BasePlugin {
   bool swap_validation_{false};
   bool immediate_backoff_{false};
   bool modulate_swappiness_{false};
+  bool reclaim_unmapped_anon_{false};
 };
 
 } // namespace Oomd

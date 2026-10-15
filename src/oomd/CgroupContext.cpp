@@ -16,6 +16,8 @@
  */
 #include "oomd/CgroupContext.h"
 
+#include <algorithm>
+
 #include "oomd/OomdContext.h"
 
 namespace Oomd {
@@ -145,6 +147,32 @@ std::optional<int64_t> CgroupContext::anon_usage(Error* err) const {
   }
   return std::nullopt;
 }
+
+std::optional<int64_t> CgroupContext::unmapped_anon_usage(Error* err) const {
+  const auto& stat = memory_stat(err);
+  if (!stat) {
+    return std::nullopt;
+  }
+
+  auto anon = stat->find("anon");
+  auto shmem = stat->find("shmem");
+  auto active_anon = stat->find("active_anon");
+  auto inactive_anon = stat->find("inactive_anon");
+  auto swapcached = stat->find("swapcached");
+  if (anon == stat->end() || shmem == stat->end() ||
+      active_anon == stat->end() || inactive_anon == stat->end()) {
+    if (err) {
+      *err = Error::INVALID_CGROUP;
+    }
+    return std::nullopt;
+  }
+
+  return std::max<int64_t>(
+      0,
+      active_anon->second + inactive_anon->second - shmem->second -
+          anon->second - (swapcached == stat->end() ? 0 : swapcached->second));
+}
+
 std::optional<int64_t> CgroupContext::zswap_usage(Error* err) const {
   if (const auto& stat = memory_stat(err)) {
     if (auto zswap = stat->find("zswap"); zswap != stat->end()) {

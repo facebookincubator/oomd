@@ -31,6 +31,7 @@
 #include "oomd/plugins/KillPressure.h"
 #include "oomd/plugins/KillSwapUsage.h"
 #include "oomd/util/Fixture.h"
+#include "oomd/util/Fs.h"
 #include "oomd/util/TestHelper.h"
 
 using namespace Oomd;
@@ -3388,6 +3389,126 @@ TEST_F(KillPressureTest, DoesntKillsHighestPressureDry) {
           }});
   EXPECT_EQ(plugin->run(ctx_), Engine::PluginRet::STOP);
   EXPECT_EQ(plugin->killed.size(), 0);
+}
+
+class SenpaiTest : public CorePluginsTest {
+ protected:
+  void SetUp() override {
+    CorePluginsTest::SetUp();
+    F::materialize(
+        F::makeDir(
+            "A",
+            {F::makeFile("cgroup.controllers", "memory\n"),
+             F::makeFile(
+                 "memory.pressure",
+                 "some avg10=0 avg60=0 avg300=0 total=0\n"
+                 "full avg10=0 avg60=0 avg300=0 total=0\n"),
+             F::makeFile("memory.reclaim")}),
+        tempdir_);
+  }
+
+  void runProbe(
+      Engine::PluginArgs args = {},
+      bool enable_unmapped_anon = true) {
+    args.emplace("cgroup", "A");
+    args.emplace("interval", "0");
+    args.emplace("immediate_backoff", "true");
+    args.emplace("limit_min_bytes", "1048576");
+    args.emplace("max_probe", "0.5");
+    if (enable_unmapped_anon) {
+      args.emplace("reclaim_unmapped_anon", "true");
+    }
+    ctx_.setSystemContext(system_);
+    TestHelper::setCgroupData(ctx_, CgroupPath(tempdir_, "A"), data_);
+    F::writeChecked(tempdir_ + "/A/memory.reclaim", "");
+    auto plugin = createPlugin("senpai");
+    ASSERT_NE(plugin, nullptr);
+    ASSERT_EQ(plugin->init(args, PluginConstructionContext(tempdir_)), 0);
+    ASSERT_EQ(plugin->run(ctx_), Engine::PluginRet::CONTINUE);
+    ASSERT_EQ(plugin->run(ctx_), Engine::PluginRet::CONTINUE);
+    reclaim_requests_ =
+        ASSERT_SYS_OK(Fs::readFileByLine(tempdir_ + "/A/memory.reclaim"));
+  }
+
+  CgroupData data_{
+      .mem_pressure_some = ResourcePressure{},
+      .io_pressure_some = ResourcePressure{},
+      .memory_stat =
+          memory_stat_t{
+              {"anon", 2 << 20},
+              {"shmem", 1 << 20},
+              {"active_anon", 2 << 20},
+              {"inactive_anon", 5 << 20},
+              {"active_file", 1 << 20},
+              {"inactive_file", 1 << 20}},
+      .current_usage = 9 << 20,
+      .memory_min = 0};
+  SystemContext system_;
+  std::vector<std::string> reclaim_requests_;
+};
+
+TEST_F(SenpaiTest, ReclaimIncludesUnusedAnonWithoutSwap) {
+  runProbe();
+  EXPECT_THAT(reclaim_requests_, ElementsAre("2621440"));
+}
+
+TEST_F(SenpaiTest, ReclaimUnmappedAnonIsDisabledByDefault) {
+  runProbe({}, false);
+  EXPECT_THAT(reclaim_requests_, ElementsAre("524288"));
+}
+
+TEST_F(SenpaiTest, ReclaimIgnoresFullyMappedAndNegativeAnonGaps) {
+  for (const auto anon : {6 << 20, 7 << 20}) {
+    (*data_.memory_stat)["anon"] = anon;
+    runProbe();
+    EXPECT_THAT(reclaim_requests_, ElementsAre("524288"));
+  }
+}
+
+TEST_F(SenpaiTest, ReclaimUsesOnlyFileCacheWithIncompleteAnonStats) {
+  data_.memory_stat->erase("anon");
+  runProbe();
+  EXPECT_THAT(reclaim_requests_, ElementsAre("524288"));
+}
+
+TEST_F(SenpaiTest, ReclaimIgnoresEmptyAnonLru) {
+  for (const auto* key : {"anon", "shmem", "active_anon", "inactive_anon"}) {
+    (*data_.memory_stat)[key] = 0;
+  }
+  runProbe();
+  EXPECT_THAT(reclaim_requests_, ElementsAre("524288"));
+}
+
+TEST_F(SenpaiTest, ReclaimDoesNotMistakeSwapCacheForUnusedAnon) {
+  system_ = {.swaptotal = 16 << 20, .swappiness = 0};
+  (*data_.memory_stat)["swapcached"] = 4 << 20;
+  runProbe();
+  EXPECT_THAT(reclaim_requests_, ElementsAre("524288"));
+}
+
+TEST_F(SenpaiTest, ReclaimDoesNotDoubleCountSwappableAnon) {
+  system_ = {.swaptotal = 16 << 20, .swappiness = 60};
+  data_.effective_swap_free = 8 << 20;
+  runProbe();
+  EXPECT_THAT(reclaim_requests_, ElementsAre("4194304"));
+}
+
+TEST_F(SenpaiTest, ReclaimIncludesUnusedAnonWithLimitedSwapSpace) {
+  system_ = {.swaptotal = 16 << 20, .swappiness = 60};
+  data_.effective_swap_free = 2 << 20;
+  runProbe();
+  EXPECT_THAT(reclaim_requests_, ElementsAre("2621440"));
+}
+
+TEST_F(SenpaiTest, ReclaimPreservesMinimumReserve) {
+  runProbe({{"limit_min_bytes", "6291456"}});
+  EXPECT_TRUE(reclaim_requests_.empty());
+}
+
+TEST_F(SenpaiTest, ReclaimHonorsPressureLimit) {
+  data_.mem_pressure_some = ResourcePressure{.sec_10 = 0.2};
+  runProbe();
+  EXPECT_TRUE(reclaim_requests_.empty());
 }
 
 class StopTest : public CorePluginsTest {};
