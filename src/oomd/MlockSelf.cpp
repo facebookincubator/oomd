@@ -41,7 +41,6 @@ size_t mlockSelf() {
   char mapname[PATH_MAX];
   static_assert(sizeof(mapname) == 4096, "update the %4095s width below");
   char perm[5];
-  char dev[6];
 
   int bufsz = sizeof(uintptr_t) * 4 + sizeof(mapname) + sizeof(char) * 11;
   // pad due to the spaces between the inode number and the mapname
@@ -64,18 +63,19 @@ size_t mlockSelf() {
         buf.get(),
         // Unlike the original, bound the pathname: PATH_MAX limits syscall path
         // arguments, but /proc/self/maps prints a mapping's full path, which
-        // can be longer (e.g. a deep tree created with relative paths).
-        "%lx-%lx %4s %lx %5s %lu %4095s",
+        // can be longer (e.g. a deep tree created with relative paths). Skip
+        // the device: the kernel prints it as "%02x:%02x", which is wider than
+        // 5 characters once the major or minor exceeds 0xff (e.g. NVMe's 259).
+        "%lx-%lx %4s %lx %*s %lu %4095s",
         &begin,
         &end,
         perm,
         &pgoff,
-        dev,
         &inode,
         mapname);
 
     // page in read-only segments that correspond to a file on disk
-    if (r != 7 || perm[0] != 'r' || perm[1] != '-' ||
+    if (r != 6 || perm[0] != 'r' || perm[1] != '-' ||
         access(mapname, F_OK) != 0) {
       continue;
     }
