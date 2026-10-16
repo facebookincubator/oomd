@@ -44,6 +44,11 @@ Stats::~Stats() {
   statsThreadRunning_ = false;
   auto client = StatsClient(stats_socket_path_);
   client.closeSocket();
+  // Join the accept loop first, so no message thread can start after the
+  // wait below.
+  if (stats_thread_.joinable()) {
+    stats_thread_.join();
+  }
   std::unique_lock<std::mutex> lock(thread_mutex_);
   if (!thread_exited_.wait_for(lock, std::chrono::seconds(5), [this] {
         return this->thread_count_ == 0;
@@ -55,9 +60,6 @@ Stats::~Stats() {
     OCHECK(false);
   }
   lock.unlock();
-  if (stats_thread_.joinable()) {
-    stats_thread_.join();
-  }
   if (::unlink(serv_addr_.sun_path) < 0) {
     OLOG << "Closing stats error: unlinking socket path: "
          << ::strerror_r(errno, err_buf.data(), err_buf.size());
@@ -149,23 +151,25 @@ void Stats::runSocket() {
     const void* time_ptr = static_cast<const void*>(&io_timeout);
     ::setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, time_ptr, sizeof io_timeout);
     ::setsockopt(sockfd, SOL_SOCKET, SO_SNDTIMEO, time_ptr, sizeof io_timeout);
-    std::unique_lock<std::mutex> lock(thread_mutex_);
+    std::lock_guard<std::mutex> lock(thread_mutex_);
     ++thread_count_;
-    std::thread msg_thread_ =
-        std::thread([this, sockfd] { this->processMsg(sockfd); });
-    msg_thread_.detach();
-    lock.unlock();
-    thread_exited_.notify_one();
+    std::thread([this, sockfd] { this->processMsg(sockfd); }).detach();
   }
 }
 
 void Stats::processMsg(int sockfd) {
   std::array<char, 64> err_buf = {};
+  // Runs on every return. Notify before unlocking: once ~Stats sees
+  // thread_count_ at 0 it can destroy thread_exited_, so this thread must not
+  // touch it afterwards.
   OOMD_SCOPE_EXIT {
     if (::close(sockfd) < 0) {
       OLOG << "Stats server error: closing file descriptor: "
            << ::strerror_r(errno, err_buf.data(), err_buf.size());
     }
+    std::lock_guard<std::mutex> lock(thread_mutex_);
+    thread_count_--;
+    thread_exited_.notify_one();
   };
   char mode = 'a';
   char byte_buf;
@@ -216,10 +220,6 @@ void Stats::processMsg(int sockfd) {
     OLOG << "Stats server error: writing to socket: "
          << ::strerror_r(errno, err_buf.data(), err_buf.size());
   }
-  std::unique_lock<std::mutex> lock(thread_mutex_);
-  thread_count_--;
-  lock.unlock();
-  thread_exited_.notify_one();
 }
 
 std::unordered_map<std::string, int> Stats::getAll() {

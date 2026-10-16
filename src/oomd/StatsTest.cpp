@@ -21,6 +21,9 @@
 #include <json/reader.h>
 #include <json/value.h>
 #include <sys/socket.h>
+#include <sys/un.h>
+#include <unistd.h>
+#include <cstring>
 #include <exception>
 #include <iostream>
 #include <optional>
@@ -60,6 +63,29 @@ class StatsTest : public ::testing::Test {
     return Stats::get_for_unittest(socket_path);
   }
 };
+
+TEST_F(StatsTest, ShutsDownAfterAnIdleClient) {
+  auto stats = get_instance();
+  ASSERT_TRUE(stats);
+  // A client that connects and sends nothing. Its message thread gives up
+  // when the 2 s receive timeout ends.
+  const int client = ::socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0);
+  ASSERT_GE(client, 0);
+  sockaddr_un addr{};
+  addr.sun_family = AF_UNIX;
+  ASSERT_LT(socket_path.size(), sizeof(addr.sun_path));
+  std::memcpy(addr.sun_path, socket_path.c_str(), socket_path.size());
+  ASSERT_EQ(
+      ::connect(client, reinterpret_cast<sockaddr*>(&addr), sizeof(addr)), 0);
+  // The server accepts connections in order, so once a later request is
+  // answered, the idle client has its own message thread.
+  ASSERT_TRUE(StatsClient(socket_path).getStats());
+
+  // ~Stats waits for that thread. It used to wait for a count that the
+  // timed-out thread never decremented, and abort after 5 s.
+  stats.reset();
+  ::close(client);
+}
 
 TEST_F(StatsTest, BasicStats) {
   auto stats = get_instance();

@@ -99,7 +99,8 @@ class Stats {
   std::unordered_map<std::string, int> stats_;
   std::thread stats_thread_;
   std::mutex thread_mutex_;
-  std::atomic<int> thread_count_{0};
+  // Guarded by thread_mutex_
+  int thread_count_{0};
   std::condition_variable thread_exited_;
 };
 
