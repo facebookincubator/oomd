@@ -29,11 +29,13 @@
 #include <memory>
 #include <sstream>
 #include <string>
+#include <thread>
 #include <unordered_map>
 
 #include <getopt.h>
 
 #include "oomd/Log.h"
+#include "oomd/MlockSelf.h"
 #include "oomd/Oomd.h"
 #include "oomd/PluginRegistry.h"
 #include "oomd/Stats.h"
@@ -101,7 +103,8 @@ static void printUsage() {
          "  --ssd-coeffs COEFFS        Comma separated values for SSD IO cost calculation (default: see doc)\n"
          "  --hdd-coeffs COEFFS        Comma separated values for HDD IO cost calculation (default: see doc)\n"
          "  --kmsg-override PATH       File to log kills to (default: /dev/kmsg)\n"
-         "  --watchdog-timeout SECS    Heartbeat timeout and report interval; must exceed --interval (0: disabled, default: 0)"
+         "  --watchdog-timeout SECS    Heartbeat timeout and report interval; must exceed --interval (0: disabled, default: 0)\n"
+         "  --mlock-self               Lock the binary and shared libraries into memory; needs RLIMIT_MEMLOCK or CAP_IPC_LOCK (default: off)"
       << std::endl;
 }
 
@@ -230,6 +233,7 @@ enum MainOptions {
   OPT_SSD_COEFFS,
   OPT_HDD_COEFFS,
   OPT_WATCHDOG_TIMEOUT,
+  OPT_MLOCK_SELF,
 };
 
 int main(int argc, char** argv) {
@@ -243,6 +247,7 @@ int main(int argc, char** argv) {
   int interval = 5;
   int watchdog_timeout = 0;
   bool should_check_config = false;
+  bool mlock_self = false;
 
   int option_index = 0;
   int c = 0;
@@ -280,6 +285,7 @@ int main(int argc, char** argv) {
       option{"kmsg-override", required_argument, nullptr, 'k'},
       option{
           "watchdog-timeout", required_argument, nullptr, OPT_WATCHDOG_TIMEOUT},
+      option{"mlock-self", no_argument, nullptr, OPT_MLOCK_SELF},
       option{nullptr, 0, nullptr, 0}};
 
   while ((c = getopt_long(
@@ -375,6 +381,9 @@ int main(int argc, char** argv) {
                     << kMaxWatchdogTimeoutSecs << "]: " << optarg << std::endl;
           return 1;
         }
+        break;
+      case OPT_MLOCK_SELF:
+        mlock_self = true;
         break;
       case 0:
         break;
@@ -530,5 +539,15 @@ int main(int argc, char** argv) {
       hdd_coeffs,
       ssd_coeffs,
       std::move(watchdog));
-  return oomd.run(&mask);
+  // Locking runs beside the event loop so that a restart under memory pressure
+  // doesn't wait for the whole pass before its first iteration.
+  std::thread mlock_thread;
+  if (mlock_self) {
+    mlock_thread = Oomd::mlockSelfAsync();
+  }
+  const int ret = oomd.run(&mask);
+  if (mlock_thread.joinable()) {
+    mlock_thread.join();
+  }
+  return ret;
 }

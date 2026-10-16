@@ -79,6 +79,13 @@ Report after SECS without an event-loop heartbeat and every SECS thereafter.
 SECS must be greater than \fB\-\-interval\fR. Zero disables the watchdog
 (default: 0).
 
+.TP
+.B \-\-mlock\-self
+Lock the file mappings of the binary and its shared libraries into memory at
+startup, so they cannot be evicted and refaulted under memory pressure.
+Locking needs an \fBRLIMIT_MEMLOCK\fR that covers them or
+\fBCAP_IPC_LOCK\fR. Failures are logged and ignored (default: off).
+
 
 .SH SEE ALSO
 https://github.com/facebookincubator/oomd#configuration

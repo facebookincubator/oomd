@@ -24,6 +24,7 @@ srcs = files('''
     src/oomd/CgroupContext.cpp
     src/oomd/PluginConstructionContext.cpp
     src/oomd/Log.cpp
+    src/oomd/MlockSelf.cpp
     src/oomd/Oomd.cpp
     src/oomd/OomdContext.cpp
     src/oomd/Stats.cpp
@@ -147,6 +148,7 @@ core_tests = [
   ['context',  files('src/oomd/OomdContextTest.cpp')],
   ['log',      files('src/oomd/LogTest.cpp')],
   ['watchdog', files('src/oomd/WatchdogTest.cpp')],
+  ['mlock_self', files('src/oomd/MlockSelfTest.cpp')],
   ['assert',   files('src/oomd/include/AssertTest.cpp')],
   ['cpath',    files('src/oomd/include/CgroupPathTest.cpp')],
   ['compiler', files('src/oomd/config/ConfigCompilerTest.cpp')],
