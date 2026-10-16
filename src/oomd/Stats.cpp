@@ -21,8 +21,11 @@
 #include <sys/stat.h>
 #include <sys/un.h>
 #include <unistd.h>
+#include <algorithm>
 #include <chrono>
+#include <cstdint>
 #include <cstring>
+#include <limits>
 
 #include "oomd/Stats.h"
 #include "oomd/StatsClient.h"
@@ -229,7 +232,13 @@ std::unordered_map<std::string, int> Stats::getAll() {
 
 int Stats::increment(const std::string& key, int val) {
   std::lock_guard<std::mutex> lock(stats_mutex_);
-  stats_[key] = stats_[key] + val;
+  // Saturate instead of overflowing. Values are ints, and counters keep
+  // growing if no collector resets them.
+  auto& value = stats_[key];
+  value = static_cast<int>(std::clamp<int64_t>(
+      int64_t{value} + val,
+      std::numeric_limits<int>::min(),
+      std::numeric_limits<int>::max()));
   return 0;
 }
 

@@ -26,6 +26,7 @@
 #include <cstring>
 #include <exception>
 #include <iostream>
+#include <limits>
 #include <optional>
 #include "oomd/StatsClient.h"
 
@@ -113,6 +114,23 @@ TEST_F(StatsTest, BasicStats) {
   EXPECT_EQ(map.size(), 2);
   EXPECT_EQ(map["one"], 1);
   EXPECT_EQ(map["two"], 2 * 2);
+}
+
+TEST_F(StatsTest, IncrementSaturatesInsteadOfOverflowing) {
+  auto stats = get_instance();
+  ASSERT_TRUE(stats);
+  const int max = std::numeric_limits<int>::max();
+  const int min = std::numeric_limits<int>::min();
+
+  // Each contribution is valid on its own; their sums are not.
+  EXPECT_EQ(stats->increment("up", max - 1), 0);
+  EXPECT_EQ(stats->increment("up", 5), 0);
+  EXPECT_EQ(stats->increment("up", 1), 0);
+  EXPECT_EQ(stats->getAll()["up"], max);
+
+  EXPECT_EQ(stats->increment("down", min + 1), 0);
+  EXPECT_EQ(stats->increment("down", -5), 0);
+  EXPECT_EQ(stats->getAll()["down"], min);
 }
 
 TEST_F(StatsTest, InvalidSocketPath) {
