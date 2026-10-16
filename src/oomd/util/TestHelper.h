@@ -78,6 +78,14 @@ class TestHelper {
       }
     }
   }
+
+  /*
+   * Close the directory fd of a cached CgroupContext, so reads through it
+   * fail. id() then returns nothing unless it was set with setCgroupData.
+   */
+  static void dropDirFd(OomdContext& ctx, const CgroupPath& cgroup) {
+    static_cast<Fs::Fd&>(ctx.cgroups_.at(cgroup).cgroup_dir_) = Fs::Fd(-1);
+  }
 };
 
 /*
