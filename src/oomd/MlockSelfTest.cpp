@@ -20,6 +20,7 @@
 #include <sys/mman.h>
 #include <sys/resource.h>
 #include <sys/stat.h>
+#include <sys/syscall.h>
 #include <sys/wait.h>
 #include <unistd.h>
 
@@ -32,6 +33,13 @@
 #include "oomd/MlockSelf.h"
 
 using namespace Oomd;
+
+// Sanitizer runtimes replace mlock() with a no-op that returns 0. A
+// definition in the executable takes precedence over theirs, including for
+// calls from mlockSelf(), so this must not move into a library.
+extern "C" int mlock(const void* addr, size_t len) {
+  return static_cast<int>(::syscall(SYS_mlock, addr, len));
+}
 
 namespace {
 
@@ -54,8 +62,17 @@ size_t vmLckBytes() {
   return 0;
 }
 
-// Sanitizers intercept mlock() and return 0 without making the syscall, so a
-// page only counts as locked if VmLck actually grew.
+// An unprivileged process may raise its soft limit up to the hard limit.
+void raiseMemlockLimit() {
+  struct rlimit limit{};
+  if (::getrlimit(RLIMIT_MEMLOCK, &limit) == 0 &&
+      limit.rlim_cur < limit.rlim_max) {
+    limit.rlim_cur = limit.rlim_max;
+    ::setrlimit(RLIMIT_MEMLOCK, &limit);
+  }
+}
+
+// Don't trust mlock()'s return value: a no-op mlock() must skip, not pass.
 bool canMlockPage() {
   const long page = ::sysconf(_SC_PAGESIZE);
   void* addr = ::mmap(
@@ -96,14 +113,16 @@ int runInChild(const std::function<int()>& fn) {
 } // namespace
 
 TEST(MlockSelfTest, LocksOwnMappings) {
+  raiseMemlockLimit();
   if (!canMlockPage()) {
-    SKIP_TEST("mlock not permitted or intercepted by a sanitizer");
+    SKIP_TEST("can't mlock a page");
   }
   const size_t before = vmLckBytes();
   const size_t locked = mlockSelf();
   EXPECT_GT(locked, 0);
-  EXPECT_GE(vmLckBytes() - before, locked);
-  ::munlockall();
+  EXPECT_GE(vmLckBytes(), before + locked);
+  // munlockall() is a no-op under sanitizers too.
+  ::syscall(SYS_munlockall);
 }
 
 TEST(MlockSelfTest, LocksNothingWithoutMemlockLimit) {
@@ -111,7 +130,7 @@ TEST(MlockSelfTest, LocksNothingWithoutMemlockLimit) {
     struct rlimit limit{};
     ::getrlimit(RLIMIT_MEMLOCK, &limit);
     limit.rlim_cur = 0;
-    // Skip if mlock() still succeeds: CAP_IPC_LOCK or a sanitizer interceptor.
+    // Skip if mlock() still succeeds, e.g. with CAP_IPC_LOCK.
     if (::setrlimit(RLIMIT_MEMLOCK, &limit) != 0 ||
         ::mlock(&limit, sizeof(limit)) == 0) {
       return kSkip;
