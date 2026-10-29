@@ -30,6 +30,7 @@ srcs = files('''
     src/oomd/Stats.cpp
     src/oomd/StatsClient.cpp
     src/oomd/PluginRegistry.cpp
+    src/oomd/ReclaimPool.cpp
     src/oomd/Watchdog.cpp
     src/oomd/config/ConfigCompiler.cpp
     src/oomd/config/ConfigTypes.cpp
@@ -149,6 +150,7 @@ core_tests = [
   ['log',      files('src/oomd/LogTest.cpp')],
   ['watchdog', files('src/oomd/WatchdogTest.cpp')],
   ['mlock_self', files('src/oomd/MlockSelfTest.cpp')],
+  ['reclaim_pool', files('src/oomd/ReclaimPoolTest.cpp')],
   ['assert',   files('src/oomd/include/AssertTest.cpp')],
   ['cpath',    files('src/oomd/include/CgroupPathTest.cpp')],
   ['compiler', files('src/oomd/config/ConfigCompilerTest.cpp')],
