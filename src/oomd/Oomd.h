@@ -34,6 +34,7 @@ namespace Engine {
 class Engine;
 }
 class DropInServiceAdaptor;
+class ReclaimPool;
 class Watchdog;
 
 class Oomd {
@@ -56,15 +57,20 @@ class Oomd {
       const std::unordered_map<std::string, DeviceType>& io_devs,
       const IOCostCoeffs& hdd_coeffs,
       const IOCostCoeffs& ssd_coeffs,
-      std::unique_ptr<Watchdog> watchdog);
+      std::unique_ptr<Watchdog> watchdog,
+      std::unique_ptr<ReclaimPool> reclaim_pool);
   ~Oomd();
 
   void updateContext();
   int run(const sigset_t* mask);
 
  private:
+  void superviseReclaimPool();
+
   // runtime settings
   std::chrono::seconds interval_{0};
+  // Declared before engine_ so it outlives the plugins that submit to it
+  std::unique_ptr<ReclaimPool> reclaim_pool_;
   std::unique_ptr<Config2::IR::Root> ir_root_;
   std::unique_ptr<Engine::Engine> engine_;
   std::unique_ptr<DropInServiceAdaptor> fs_drop_in_service_;

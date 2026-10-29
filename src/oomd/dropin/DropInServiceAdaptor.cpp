@@ -53,7 +53,7 @@ void DropInServiceAdaptor::updateDropIns() {
 bool DropInServiceAdaptor::scheduleDropInAdd(
     const std::string& tag,
     const Config2::IR::Root& drop_in) {
-  const PluginConstructionContext compile_context(cgroup_fs_);
+  const PluginConstructionContext compile_context(cgroup_fs_, senpai_threads_);
   auto unit = Config2::compileDropIn(root_, drop_in, compile_context);
   if (!unit.has_value()) {
     return false;

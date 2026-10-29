@@ -182,6 +182,13 @@ struct ReclaimPool::State {
   }
 };
 
+bool ReclaimPool::blockCancelSignal() {
+  sigset_t set;
+  sigemptyset(&set);
+  sigaddset(&set, kCancelSignal);
+  return ::pthread_sigmask(SIG_BLOCK, &set, nullptr) == 0;
+}
+
 ReclaimPool::ReclaimPool(int threads) : ReclaimPool(threads, Options{}) {}
 
 ReclaimPool::ReclaimPool(int threads, Options options) {

@@ -59,7 +59,7 @@ class MockAdaptor : public DropInServiceAdaptor {
       const std::string& cgroup_fs,
       const Root& root_2,
       Engine::Engine& engine)
-      : DropInServiceAdaptor(cgroup_fs, root_2, engine) {}
+      : DropInServiceAdaptor(cgroup_fs, root_2, engine, /*senpai_threads=*/0) {}
 
   bool scheduleDropInAdd(const std::string& tag, const Root& drop_in) {
     return DropInServiceAdaptor::scheduleDropInAdd(tag, drop_in);

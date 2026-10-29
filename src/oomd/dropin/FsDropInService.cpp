@@ -40,7 +40,8 @@ std::unique_ptr<FsDropInService> FsDropInService::create(
     const std::string& cgroup_fs,
     const Config2::IR::Root& root,
     Engine::Engine& engine,
-    const std::string& drop_in_dir) {
+    const std::string& drop_in_dir,
+    int senpai_threads) {
   if (drop_in_dir.size() == 0) {
     return nullptr;
   }
@@ -68,7 +69,8 @@ std::unique_ptr<FsDropInService> FsDropInService::create(
       engine,
       drop_in_dir,
       std::move(epollfd).fd(),
-      std::move(terminatefd).fd());
+      std::move(terminatefd).fd(),
+      senpai_threads);
 }
 
 FsDropInService::FsDropInService(
@@ -78,8 +80,9 @@ FsDropInService::FsDropInService(
     Engine::Engine& engine,
     const std::string& drop_in_dir,
     int epollfd,
-    int terminatefd)
-    : DropInServiceAdaptor(cgroup_fs, root, engine),
+    int terminatefd,
+    int senpai_threads)
+    : DropInServiceAdaptor(cgroup_fs, root, engine, senpai_threads),
       epollfd_(epollfd),
       terminatefd_(terminatefd),
       drop_in_dir_(drop_in_dir) {

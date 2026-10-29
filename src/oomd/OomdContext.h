@@ -40,6 +40,8 @@ class PrekillHook;
 class PrekillHookInvocation;
 } // namespace Engine
 
+class ReclaimPool;
+
 struct ActionContext {
   std::string ruleset_name;
   std::string detectorgroup;
@@ -186,6 +188,13 @@ class OomdContext {
               const CgroupContext& cgroup_ctx)> prekill_hook_handler);
 
   /*
+   * The pool that runs Senpai's memory.reclaim writes, or nullptr when
+   * --senpai-threads is 0. Owned by Oomd.
+   */
+  ReclaimPool* reclaimPool() const;
+  void setReclaimPool(ReclaimPool* pool);
+
+  /*
    * used to define rule-set level cgroup
    */
   const std::optional<CgroupPath> getRulesetCgroup() const;
@@ -210,6 +219,7 @@ class OomdContext {
       const CgroupContext& cgroup_ctx)>
       prekill_hook_handler_{nullptr};
   std::optional<CgroupPath> ruleset_cgroup_{std::nullopt};
+  ReclaimPool* reclaim_pool_{nullptr};
 };
 
 } // namespace Oomd

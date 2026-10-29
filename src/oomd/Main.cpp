@@ -29,15 +29,18 @@
 #include <memory>
 #include <sstream>
 #include <string>
+#include <system_error>
 #include <thread>
 #include <unordered_map>
 
 #include <getopt.h>
+#include <unistd.h>
 
 #include "oomd/Log.h"
 #include "oomd/MlockSelf.h"
 #include "oomd/Oomd.h"
 #include "oomd/PluginRegistry.h"
+#include "oomd/ReclaimPool.h"
 #include "oomd/Stats.h"
 #include "oomd/StatsClient.h"
 #include "oomd/Watchdog.h"
@@ -104,7 +107,8 @@ static void printUsage() {
          "  --hdd-coeffs COEFFS        Comma separated values for HDD IO cost calculation (default: see doc)\n"
          "  --kmsg-override PATH       File to log kills to (default: /dev/kmsg)\n"
          "  --watchdog-timeout SECS    Heartbeat timeout and report interval; must exceed --interval (0: disabled, default: 0)\n"
-         "  --mlock-self               Lock the binary and shared libraries into memory; needs RLIMIT_MEMLOCK or CAP_IPC_LOCK (default: off)"
+         "  --mlock-self               Lock the binary and shared libraries into memory; needs RLIMIT_MEMLOCK or CAP_IPC_LOCK (default: off)\n"
+         "  --senpai-threads N         Threads for Senpai memory.reclaim writes; 0 writes on the event loop (default: 0, max: online CPUs)"
       << std::endl;
 }
 
@@ -234,6 +238,7 @@ enum MainOptions {
   OPT_HDD_COEFFS,
   OPT_WATCHDOG_TIMEOUT,
   OPT_MLOCK_SELF,
+  OPT_SENPAI_THREADS,
 };
 
 int main(int argc, char** argv) {
@@ -246,6 +251,7 @@ int main(int argc, char** argv) {
   std::string kmsg_path = kKmsgPath;
   int interval = 5;
   int watchdog_timeout = 0;
+  int senpai_threads = 0;
   bool should_check_config = false;
   bool mlock_self = false;
 
@@ -263,6 +269,13 @@ int main(int argc, char** argv) {
   sigaddset(&mask, SIGTERM);
   if (sigprocmask(SIG_BLOCK, &mask, nullptr) == -1) {
     perror("sigprocmask");
+    exit(EXIT_FAILURE);
+  }
+  // Only Senpai reclaim threads take the cancel signal. Block it here, before
+  // any thread starts, but keep it out of mask: the event loop exits on any
+  // signal in mask.
+  if (!Oomd::ReclaimPool::blockCancelSignal()) {
+    perror("pthread_sigmask");
     exit(EXIT_FAILURE);
   }
 
@@ -286,6 +299,7 @@ int main(int argc, char** argv) {
       option{
           "watchdog-timeout", required_argument, nullptr, OPT_WATCHDOG_TIMEOUT},
       option{"mlock-self", no_argument, nullptr, OPT_MLOCK_SELF},
+      option{"senpai-threads", required_argument, nullptr, OPT_SENPAI_THREADS},
       option{nullptr, 0, nullptr, 0}};
 
   while ((c = getopt_long(
@@ -385,6 +399,18 @@ int main(int argc, char** argv) {
       case OPT_MLOCK_SELF:
         mlock_self = true;
         break;
+      case OPT_SENPAI_THREADS:
+        try {
+          senpai_threads = std::stoi(optarg, &parsed_len);
+        } catch (const std::exception&) {
+          parse_error = true;
+        }
+        if (parse_error || senpai_threads < 0 || parsed_len != strlen(optarg)) {
+          std::cerr << "Senpai threads not a >=0 integer: " << optarg
+                    << std::endl;
+          return 1;
+        }
+        break;
       case 0:
         break;
       case '?':
@@ -461,13 +487,20 @@ int main(int argc, char** argv) {
     return 1;
   }
 
+  const long online_cpus = ::sysconf(_SC_NPROCESSORS_ONLN);
+  if (online_cpus > 0 && senpai_threads > online_cpus) {
+    OLOG << "Clamping --senpai-threads " << senpai_threads
+         << " to the number of online CPUs, " << online_cpus;
+    senpai_threads = static_cast<int>(online_cpus);
+  }
+
   if (should_check_config) {
     auto ir = parseConfig(flag_conf_file);
     if (!ir) {
       return 1;
     }
 
-    Oomd::PluginConstructionContext compile_context(cgroup_fs);
+    Oomd::PluginConstructionContext compile_context(cgroup_fs, senpai_threads);
 
     auto engine = Oomd::Config2::compile(*ir, compile_context);
     if (!engine) {
@@ -507,12 +540,30 @@ int main(int argc, char** argv) {
   std::cerr << "oomd running with conf_file=" << flag_conf_file
             << " interval=" << interval << std::endl;
 
+  // Started before the config compiles, so that plugins see the real mode:
+  // if no thread can start, Senpai writes on the event loop.
+  std::unique_ptr<Oomd::ReclaimPool> reclaim_pool;
+  if (senpai_threads > 0) {
+    try {
+      reclaim_pool = std::make_unique<Oomd::ReclaimPool>(
+          senpai_threads,
+          Oomd::ReclaimPool::Options{.thread_name = "oomd-senpai"});
+      senpai_threads = reclaim_pool->threads();
+      OLOG << "Senpai reclaim pool: " << senpai_threads << " threads";
+    } catch (const std::system_error& e) {
+      OLOG << "No Senpai reclaim thread could start, so Senpai writes on "
+              "the event loop: "
+           << e.what();
+      senpai_threads = 0;
+    }
+  }
+
   auto ir = parseConfig(flag_conf_file);
   if (!ir) {
     return EXIT_CANT_RECOVER;
   }
 
-  Oomd::PluginConstructionContext compile_context(cgroup_fs);
+  Oomd::PluginConstructionContext compile_context(cgroup_fs, senpai_threads);
 
   auto engine = Oomd::Config2::compile(*ir, compile_context);
   if (!engine) {
@@ -538,7 +589,8 @@ int main(int argc, char** argv) {
       *io_devs,
       hdd_coeffs,
       ssd_coeffs,
-      std::move(watchdog));
+      std::move(watchdog),
+      std::move(reclaim_pool));
   // Locking runs beside the event loop so that a restart under memory pressure
   // doesn't wait for the whole pass before its first iteration.
   std::thread mlock_thread;

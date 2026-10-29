@@ -243,6 +243,14 @@ void OomdContext::setPrekillHooksHandler(
   prekill_hook_handler_ = prekill_hook_handler;
 }
 
+ReclaimPool* OomdContext::reclaimPool() const {
+  return reclaim_pool_;
+}
+
+void OomdContext::setReclaimPool(ReclaimPool* pool) {
+  reclaim_pool_ = pool;
+}
+
 std::optional<std::unique_ptr<Engine::PrekillHookInvocation>>
 OomdContext::firePrekillHook(const CgroupContext& cgroup_ctx) {
   if (!prekill_hook_handler_) {

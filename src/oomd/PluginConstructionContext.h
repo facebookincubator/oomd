@@ -25,6 +25,7 @@ class PluginConstructionContext {
  public:
   PluginConstructionContext() = default;
   PluginConstructionContext(const std::string& cgroup_fs);
+  PluginConstructionContext(const std::string& cgroup_fs, int senpai_threads);
   ~PluginConstructionContext() = default;
   PluginConstructionContext(const PluginConstructionContext& other) = default;
   PluginConstructionContext(PluginConstructionContext&& other) = default;
@@ -34,9 +35,13 @@ class PluginConstructionContext {
       default;
 
   const std::string& cgroupFs() const;
+  // Threads in the Senpai reclaim pool (--senpai-threads); 0 means Senpai
+  // writes memory.reclaim on the event loop.
+  int senpaiThreads() const;
 
  private:
   std::string cgroup_fs_;
+  int senpai_threads_{0};
 };
 
 } // namespace Oomd

@@ -31,6 +31,7 @@
 
 #include "oomd/CgroupContext.h"
 #include "oomd/Log.h"
+#include "oomd/ReclaimPool.h"
 #include "oomd/Watchdog.h"
 #include "oomd/dropin/FsDropInService.h"
 #include "oomd/include/Assert.h"
@@ -101,7 +102,8 @@ Oomd::Oomd(
           io_devs,
           hdd_coeffs,
           ssd_coeffs,
-          nullptr) {}
+          /*watchdog=*/nullptr,
+          /*reclaim_pool=*/nullptr) {}
 
 Oomd::Oomd(
     std::unique_ptr<Config2::IR::Root> ir_root,
@@ -112,8 +114,10 @@ Oomd::Oomd(
     const std::unordered_map<std::string, DeviceType>& io_devs,
     const IOCostCoeffs& hdd_coeffs,
     const IOCostCoeffs& ssd_coeffs,
-    std::unique_ptr<Watchdog> watchdog)
+    std::unique_ptr<Watchdog> watchdog,
+    std::unique_ptr<ReclaimPool> reclaim_pool)
     : interval_(interval),
+      reclaim_pool_(std::move(reclaim_pool)),
       ir_root_(std::move(ir_root)),
       engine_(std::move(engine)),
       watchdog_(std::move(watchdog)) {
@@ -123,13 +127,26 @@ Oomd::Oomd(
       .ssd_coeffs = ssd_coeffs,
   };
   ctx_ = OomdContext(params);
+  ctx_.setReclaimPool(reclaim_pool_.get());
   if (drop_in_dir.size()) {
-    fs_drop_in_service_ =
-        FsDropInService::create(cgroup_fs, *ir_root_, *engine_, drop_in_dir);
+    fs_drop_in_service_ = FsDropInService::create(
+        cgroup_fs,
+        *ir_root_,
+        *engine_,
+        drop_in_dir,
+        reclaim_pool_ ? reclaim_pool_->threads() : 0);
   }
 }
 
 Oomd::~Oomd() = default;
+
+// Resends signals to cancelled writes that may have missed theirs, and expires
+// writes that run too long.
+void Oomd::superviseReclaimPool() {
+  if (reclaim_pool_) {
+    reclaim_pool_->supervise();
+  }
+}
 
 void Oomd::updateContext() {
   // Update information about swapfree
@@ -232,6 +249,8 @@ int Oomd::run(const sigset_t* mask) {
 
     // Run all the plugins
     engine_->runOnce(ctx_);
+
+    superviseReclaimPool();
 
     // Only report readiness once a full tick has run, so a build that crashes
     // on its first tick fails its systemd start job instead of passing it.

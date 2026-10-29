@@ -86,6 +86,13 @@ startup, so they cannot be evicted and refaulted under memory pressure.
 Locking needs an \fBRLIMIT_MEMLOCK\fR that covers them or
 \fBCAP_IPC_LOCK\fR. Failures are logged and ignored (default: off).
 
+.TP
+.BI "\-\-senpai\-threads " N
+Run Senpai memory.reclaim writes on N threads named oomd-senpai-0 to
+oomd-senpai-N-1, so the event loop does not wait for reclaim. Zero writes on
+the event loop. Values above the number of online CPUs are clamped
+(default: 0).
+
 
 .SH SEE ALSO
 https://github.com/facebookincubator/oomd#configuration

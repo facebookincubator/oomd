@@ -46,8 +46,12 @@ class DropInServiceAdaptor {
   DropInServiceAdaptor(
       const std::string& cgroup_fs,
       const Config2::IR::Root& root,
-      Engine::Engine& engine)
-      : cgroup_fs_(cgroup_fs), root_(root), engine_(engine) {}
+      Engine::Engine& engine,
+      int senpai_threads)
+      : cgroup_fs_(cgroup_fs),
+        senpai_threads_(senpai_threads),
+        root_(root),
+        engine_(engine) {}
 
   virtual ~DropInServiceAdaptor() = default;
 
@@ -74,6 +78,7 @@ class DropInServiceAdaptor {
 
  private:
   std::string cgroup_fs_;
+  int senpai_threads_{0};
   const Config2::IR::Root& root_;
   Engine::Engine& engine_;
 

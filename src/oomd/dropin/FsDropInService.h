@@ -35,7 +35,8 @@ class FsDropInService : public DropInServiceAdaptor {
       const std::string& cgroup_fs,
       const Config2::IR::Root& root,
       Engine::Engine& engine,
-      const std::string& drop_in_dir);
+      const std::string& drop_in_dir,
+      int senpai_threads);
   // Public constructor hidden by Tag, so make_unique works
   FsDropInService(
       const Tag& tag,
@@ -44,7 +45,8 @@ class FsDropInService : public DropInServiceAdaptor {
       Engine::Engine& engine,
       const std::string& drop_in_dir,
       int epollfd,
-      int terminatefd);
+      int terminatefd,
+      int senpai_threads);
   ~FsDropInService() override;
 
  protected:

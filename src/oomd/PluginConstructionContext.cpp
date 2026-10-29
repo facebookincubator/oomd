@@ -23,8 +23,17 @@ PluginConstructionContext::PluginConstructionContext(
     const std::string& cgroup_fs)
     : cgroup_fs_(cgroup_fs) {}
 
+PluginConstructionContext::PluginConstructionContext(
+    const std::string& cgroup_fs,
+    int senpai_threads)
+    : cgroup_fs_(cgroup_fs), senpai_threads_(senpai_threads) {}
+
 const std::string& PluginConstructionContext::cgroupFs() const {
   return cgroup_fs_;
+}
+
+int PluginConstructionContext::senpaiThreads() const {
+  return senpai_threads_;
 }
 
 } // namespace Oomd

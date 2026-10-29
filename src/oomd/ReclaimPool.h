@@ -105,6 +105,10 @@ class ReclaimPool {
   // Writes that run longer are cancelled and end as expired
   static constexpr std::chrono::seconds kMaxRun{60};
 
+  // Blocks kCancelSignal in the calling thread and every thread it creates
+  // later. Call early in main(); pool threads unblock it for themselves.
+  static bool blockCancelSignal();
+
   // Starts the threads. If some fail to start the pool runs with the others;
   // if none starts, it throws std::system_error.
   explicit ReclaimPool(int threads);

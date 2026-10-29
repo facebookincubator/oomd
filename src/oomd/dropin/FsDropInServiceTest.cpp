@@ -71,8 +71,12 @@ class FsDropInServiceTest : public ::testing::Test {
     ASSERT_TRUE(engine_ != nullptr);
 
     drop_in_dir_ = Fixture::mkdtempChecked();
-    drop_in_service_ =
-        FsDropInService::create("/sys/fs/cgroup", root, *engine_, drop_in_dir_);
+    drop_in_service_ = FsDropInService::create(
+        "/sys/fs/cgroup",
+        root,
+        *engine_,
+        drop_in_dir_,
+        /*senpai_threads=*/0);
     ASSERT_TRUE(drop_in_service_ != nullptr);
   }
 
@@ -124,8 +128,12 @@ TEST_F(FsDropInServiceTest, LoadExisting) {
   drop_in_service_ = nullptr;
   Fixture::materialize(
       Fixture::makeFile("drop_in_action.json", drop_in_action), drop_in_dir_);
-  drop_in_service_ =
-      FsDropInService::create("/sys/fs/cgroup", root, *engine_, drop_in_dir_);
+  drop_in_service_ = FsDropInService::create(
+      "/sys/fs/cgroup",
+      root,
+      *engine_,
+      drop_in_dir_,
+      /*senpai_threads=*/0);
   ASSERT_TRUE(drop_in_service_ != nullptr);
 
   drop_in_service_->updateDropIns();

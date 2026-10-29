@@ -151,6 +151,7 @@ core_tests = [
   ['watchdog', files('src/oomd/WatchdogTest.cpp')],
   ['mlock_self', files('src/oomd/MlockSelfTest.cpp')],
   ['reclaim_pool', files('src/oomd/ReclaimPoolTest.cpp')],
+  ['loop',     files('src/oomd/OomdTest.cpp')],
   ['assert',   files('src/oomd/include/AssertTest.cpp')],
   ['cpath',    files('src/oomd/include/CgroupPathTest.cpp')],
   ['compiler', files('src/oomd/config/ConfigCompilerTest.cpp')],
