@@ -20,6 +20,7 @@
 #include <fcntl.h>
 #include <pthread.h>
 #include <sys/stat.h>
+#include <sys/syscall.h>
 #include <unistd.h>
 #include <algorithm>
 #include <cerrno>
@@ -78,14 +79,18 @@ struct ReclaimPool::State {
     MemoryReclaimRequest request;
     std::weak_ptr<Owner> owner;
     std::atomic<CancelReason> cancel{CancelReason::None};
-    // The rest is guarded by mutex.
+    // The rest is guarded by mutex. cancelled_at: when a running write was
+    // cancelled. stuck_reported: when its last stuck report went out.
     Clock::time_point enqueued;
     Clock::time_point started;
+    Clock::time_point cancelled_at;
+    std::optional<Clock::time_point> stuck_reported;
     int thread{-1};
   };
 
   struct Worker {
     std::thread thread;
+    pid_t tid{0};
     // The job this thread runs. Its run() loop owns it, and clears this
     // under mutex before destroying it.
     Task* running{nullptr};
@@ -132,8 +137,22 @@ struct ReclaimPool::State {
   // thread.
   void cancelRunningLocked(Worker& worker, CancelReason reason) {
     auto none = CancelReason::None;
-    worker.running->cancel.compare_exchange_strong(none, reason);
+    if (worker.running->cancel.compare_exchange_strong(none, reason)) {
+      worker.running->cancelled_at = options.clock();
+    }
     ::pthread_kill(worker.thread.native_handle(), kCancelSignal);
+  }
+
+  bool stuckLocked(const Task& task, Clock::time_point now) const {
+    return task.cancel.load() != CancelReason::None &&
+        now - task.cancelled_at >= options.stuck_after;
+  }
+
+  // The worker running the job, or workers.end() if no thread runs it
+  std::vector<Worker>::iterator findWorkerLocked(JobId id) {
+    return std::find_if(workers.begin(), workers.end(), [&](const Worker& w) {
+      return w.running != nullptr && w.running->id == id;
+    });
   }
 
   void cancelQueuedLocked(
@@ -141,7 +160,7 @@ struct ReclaimPool::State {
     auto task = std::move(*it);
     queue.erase(it);
     task->cancel = CancelReason::Requested;
-    finishLocked(*task, ECANCELED, Clock::now());
+    finishLocked(*task, ECANCELED, options.clock());
   }
 
   void run(int index) {
@@ -149,6 +168,7 @@ struct ReclaimPool::State {
 
     std::unique_lock<std::mutex> lock(mutex);
     auto& worker = workers.at(index);
+    worker.tid = static_cast<pid_t>(::syscall(SYS_gettid));
     while (true) {
       work_cv.wait(lock, [&] { return stopping || !queue.empty(); });
       if (queue.empty()) {
@@ -160,7 +180,7 @@ struct ReclaimPool::State {
         continue;
       }
       task->thread = index;
-      task->started = Clock::now();
+      task->started = options.clock();
       worker.running = task.get();
       lock.unlock();
 
@@ -175,7 +195,7 @@ struct ReclaimPool::State {
 
       lock.lock();
       worker.running = nullptr;
-      finishLocked(*task, err, Clock::now());
+      finishLocked(*task, err, options.clock());
     }
     worker.exited = true;
     exit_cv.notify_all();
@@ -194,6 +214,9 @@ ReclaimPool::ReclaimPool(int threads) : ReclaimPool(threads, Options{}) {}
 ReclaimPool::ReclaimPool(int threads, Options options) {
   if (!options.write) {
     options.write = &ReclaimPool::writeMemoryReclaim;
+  }
+  if (!options.clock) {
+    options.clock = &Clock::now;
   }
   installCancelHandler();
   state_ = std::make_shared<State>(std::max(1, threads), std::move(options));
@@ -269,7 +292,7 @@ ReclaimPool::JobId ReclaimPool::submit(
   task->id = s.next_id++;
   task->request = std::move(request);
   task->owner = owner;
-  task->enqueued = Clock::now();
+  task->enqueued = s.options.clock();
   const auto id = task->id;
   s.queue.push_back(std::move(task));
   s.work_cv.notify_one();
@@ -322,18 +345,16 @@ void ReclaimPool::cancel(JobId id) {
     s.cancelQueuedLocked(it);
     return;
   }
-  for (auto& worker : s.workers) {
-    if (worker.running != nullptr && worker.running->id == id) {
-      s.cancelRunningLocked(worker, CancelReason::Requested);
-      return;
-    }
+  const auto worker = s.findWorkerLocked(id);
+  if (worker != s.workers.end()) {
+    s.cancelRunningLocked(*worker, CancelReason::Requested);
   }
 }
 
 void ReclaimPool::supervise() {
   auto& s = *state_;
   std::lock_guard<std::mutex> lock(s.mutex);
-  const auto now = Clock::now();
+  const auto now = s.options.clock();
   for (auto& worker : s.workers) {
     if (worker.running == nullptr) {
       continue;
@@ -352,6 +373,46 @@ int ReclaimPool::threads() const {
 
 std::string ReclaimPool::threadName(int index) const {
   return state_->options.thread_name + "-" + std::to_string(index);
+}
+
+std::vector<ReclaimPool::StuckJob> ReclaimPool::stuckJobs() const {
+  auto& s = *state_;
+  std::lock_guard<std::mutex> lock(s.mutex);
+  const auto now = s.options.clock();
+  std::vector<StuckJob> stuck;
+  for (const auto& worker : s.workers) {
+    const auto* task = worker.running;
+    if (task == nullptr || !s.stuckLocked(*task, now) ||
+        (task->stuck_reported &&
+         now - *task->stuck_reported < s.options.stuck_repeat)) {
+      continue;
+    }
+    StuckJob job;
+    job.id = task->id;
+    job.thread = task->thread;
+    job.tid = worker.tid;
+    job.request = task->request;
+    job.running = msBetween(task->started, now);
+    job.since_cancel = msBetween(task->cancelled_at, now);
+    job.expired = task->cancel.load() == CancelReason::Expired;
+    stuck.push_back(std::move(job));
+  }
+  return stuck;
+}
+
+void ReclaimPool::stuckJobReported(JobId id) {
+  auto& s = *state_;
+  std::lock_guard<std::mutex> lock(s.mutex);
+  const auto worker = s.findWorkerLocked(id);
+  if (worker != s.workers.end()) {
+    worker->running->stuck_reported = s.options.clock();
+  }
+}
+
+bool ReclaimPool::isRunning(JobId id) const {
+  auto& s = *state_;
+  std::lock_guard<std::mutex> lock(s.mutex);
+  return s.findWorkerLocked(id) != s.workers.end();
 }
 
 ReclaimPool::Counts ReclaimPool::counts() const {

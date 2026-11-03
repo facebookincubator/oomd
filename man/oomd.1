@@ -91,7 +91,9 @@ Locking needs an \fBRLIMIT_MEMLOCK\fR that covers them or
 Run Senpai memory.reclaim writes on N threads named oomd-senpai-0 to
 oomd-senpai-N-1, so the event loop does not wait for reclaim. Zero writes on
 the event loop. Values above the number of online CPUs are clamped
-(default: 0).
+(default: 0). With the watchdog on, a write still running 30 s after it was
+cancelled is reported with its thread's kernel stack, then every 5 minutes
+while it lasts.
 
 
 .SH SEE ALSO

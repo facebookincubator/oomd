@@ -26,6 +26,8 @@
 #include <memory>
 #include <string>
 #include <thread>
+#include <utility>
+#include <vector>
 
 #include "oomd/util/Fs.h"
 
@@ -52,6 +54,31 @@ class Watchdog {
   // the configured timeout, the watchdog samples the watched thread's kernel
   // stack at that same interval until progress resumes.
   void beat();
+
+  // A record about another thread of this process
+  struct ThreadRecord {
+    // What the record is about, such as reclaim_stuck
+    std::string kind;
+    pid_t tid{0};
+    // More key=value fields, written in this order after kind
+    std::vector<std::pair<std::string, std::string>> fields;
+  };
+
+  // Writes the record with the thread's kernel stack:
+  // "fb-oomd watchdog: kind= <fields> fields_truncated= pid= tid= stack...".
+  // Values are escaped with fieldValue(). Like a stall record, the record fits
+  // in 800 bytes: the fields get at most 256 and the stack the rest, each cut
+  // if needed. still_current is called after the stack is read; if it returns
+  // false, the thread has moved on and nothing is written. Returns whether the
+  // record reached kmsg. Safe to call from any thread.
+  bool reportThread(
+      const ThreadRecord& record,
+      const std::function<bool()>& still_current) const;
+
+  // A value for one of those fields: spaces, backslashes and control
+  // characters become \xNN, as in systemd unit names, so that a value such
+  // as a cgroup path stays one field.
+  static std::string fieldValue(const std::string& value);
 
  private:
   friend class WatchdogTestPeer;
@@ -95,7 +122,7 @@ class Watchdog {
   EventAction handleTimerExpiration();
   EventAction handleHeartbeatDeadline();
   void threadMain();
-  StackCapture captureKernelStack() const;
+  StackCapture captureKernelStack(pid_t tid) const;
   static StackCapture
   normalizeStack(const char* input, size_t input_len, bool source_truncated);
   bool reportStall(uint64_t heartbeat_ns, uint64_t observed_ns) const;

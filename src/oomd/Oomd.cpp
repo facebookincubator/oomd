@@ -27,6 +27,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <functional>
+#include <string>
 #include <thread>
 
 #include "oomd/CgroupContext.h"
@@ -41,6 +42,23 @@
 namespace Oomd {
 
 namespace {
+
+// The watchdog record about a stuck reclaim write.
+Watchdog::ThreadRecord stuckWriteRecord(
+    const ReclaimPool& pool,
+    const ReclaimPool::StuckJob& stuck) {
+  return {
+      .kind = "reclaim_stuck",
+      .tid = stuck.tid,
+      .fields = {
+          {"thread", pool.threadName(stuck.thread)},
+          {"cgroup", stuck.request.path},
+          {"bytes", std::to_string(stuck.request.bytes)},
+          {"run_ms", std::to_string(stuck.running.count())},
+          {"cancel_age_ms", std::to_string(stuck.since_cancel.count())},
+          {"expired", stuck.expired ? "1" : "0"},
+      }};
+}
 
 // Minimal sd_notify(3). libsystemd is an optional dependency of the open
 // source build, so oomd cannot rely on it being linked.
@@ -140,11 +158,27 @@ Oomd::Oomd(
 
 Oomd::~Oomd() = default;
 
-// Resends signals to cancelled writes that may have missed theirs, and expires
-// writes that run too long.
+// Resends signals to cancelled writes that may have missed theirs, expires
+// writes that run too long, and reports writes stuck in the kernel.
 void Oomd::superviseReclaimPool() {
-  if (reclaim_pool_) {
-    reclaim_pool_->supervise();
+  if (!reclaim_pool_) {
+    return;
+  }
+  reclaim_pool_->supervise();
+  // A write still running long after its cancel is stuck in the kernel.
+  // Report it with its thread's kernel stack, as the watchdog does for the
+  // event loop.
+  if (watchdog_) {
+    for (const auto& stuck : reclaim_pool_->stuckJobs()) {
+      // A report that didn't reach kmsg is tried again next tick. One whose
+      // write ended while the stack was read is dropped: the stack would be
+      // from the thread's next job.
+      if (watchdog_->reportThread(stuckWriteRecord(*reclaim_pool_, stuck), [&] {
+            return reclaim_pool_->isRunning(stuck.id);
+          })) {
+        reclaim_pool_->stuckJobReported(stuck.id);
+      }
+    }
   }
 }
 

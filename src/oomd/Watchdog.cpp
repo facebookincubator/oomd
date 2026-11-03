@@ -25,7 +25,9 @@
 #include <sys/timerfd.h>
 #include <time.h>
 #include <unistd.h>
+#include <algorithm>
 #include <cstdio>
+#include <string>
 #include <system_error>
 #include <utility>
 
@@ -36,6 +38,8 @@ namespace {
 static_assert(std::atomic<uint64_t>::is_always_lock_free);
 constexpr auto kDefaultKmsgPath = "/dev/kmsg";
 constexpr size_t kRecordMax = 800;
+// The most a thread record's fields can take, so its stack always has room
+constexpr size_t kThreadFieldsMax = 256;
 constexpr size_t kRawStackMax = 4096;
 // A zero initial expiration disarms timerfd instead of firing immediately.
 constexpr auto kImmediateTimerDelay = std::chrono::nanoseconds(1);
@@ -378,7 +382,7 @@ void Watchdog::threadMain() {
   }
 }
 
-Watchdog::StackCapture Watchdog::captureKernelStack() const {
+Watchdog::StackCapture Watchdog::captureKernelStack(pid_t tid) const {
   char default_path[64];
   const char* path = stack_path_.c_str();
   if (stack_path_.empty()) {
@@ -386,7 +390,7 @@ Watchdog::StackCapture Watchdog::captureKernelStack() const {
         default_path,
         sizeof(default_path),
         "/proc/self/task/%d/stack",
-        static_cast<int>(watched_tid_));
+        static_cast<int>(tid));
     if (n <= 0 || static_cast<size_t>(n) >= sizeof(default_path)) {
       StackCapture capture;
       capture.status = "open_failed";
@@ -484,7 +488,7 @@ Watchdog::StackCapture Watchdog::normalizeStack(
 bool Watchdog::reportStall(uint64_t heartbeat_ns, uint64_t observed_ns) const {
   const uint64_t timeout_ns = static_cast<uint64_t>(timeout_.count());
   const uint64_t heartbeat_age_ns = observed_ns - heartbeat_ns;
-  const auto capture = captureKernelStack();
+  const auto capture = captureKernelStack(watched_tid_);
   if (beat_ns_.load(std::memory_order_acquire) != heartbeat_ns) {
     return false;
   }
@@ -518,6 +522,62 @@ bool Watchdog::reportStall(uint64_t heartbeat_ns, uint64_t observed_ns) const {
     return false;
   }
   return emit(record, static_cast<size_t>(n));
+}
+
+std::string Watchdog::fieldValue(const std::string& value) {
+  constexpr char kHex[] = "0123456789abcdef";
+  std::string out;
+  out.reserve(value.size());
+  for (const char ch : value) {
+    const auto byte = static_cast<unsigned char>(ch);
+    if (byte <= ' ' || byte == '\\' || byte == 0x7f) {
+      out += "\\x";
+      out += kHex[byte >> 4];
+      out += kHex[byte & 0xf];
+    } else {
+      out += ch;
+    }
+  }
+  return out;
+}
+
+bool Watchdog::reportThread(
+    const ThreadRecord& record,
+    const std::function<bool()>& still_current) const {
+  const auto capture = captureKernelStack(record.tid);
+  if (!still_current()) {
+    return false;
+  }
+  constexpr size_t kMaxSignedDecimal = 11;
+  constexpr size_t kMaxStackStatus = sizeof("open_failed") - 1;
+  constexpr size_t kFixedRecordMax =
+      sizeof(
+          "<4>fb-oomd watchdog:  fields_truncated= pid= tid= "
+          "stack_truncated= stack_status= stack=\n") -
+      1 + kThreadFieldsMax + 1 + 2 * kMaxSignedDecimal + 1 + kMaxStackStatus;
+  static_assert(kFixedRecordMax + kStackMax / 2 <= kRecordMax);
+
+  std::string fields = "kind=" + fieldValue(record.kind);
+  for (const auto& [key, value] : record.fields) {
+    fields += " " + key + "=" + fieldValue(value);
+  }
+  const bool fields_truncated = fields.size() > kThreadFieldsMax;
+  if (fields_truncated) {
+    fields.resize(kThreadFieldsMax);
+  }
+  const std::string head = "<4>fb-oomd watchdog: " + fields +
+      " fields_truncated=" + (fields_truncated ? "1" : "0") +
+      " pid=" + std::to_string(::getpid()) +
+      " tid=" + std::to_string(record.tid) + " stack_truncated=";
+  const std::string status = std::string(" stack_status=") + capture.status;
+  // The stack gets what the rest leaves of kRecordMax.
+  const size_t rest = head.size() + 1 + status.size() + sizeof(" stack=\n") - 1;
+  const size_t stack_len = std::min(capture.stack_len, kRecordMax - rest);
+  const bool stack_truncated =
+      capture.truncated || stack_len < capture.stack_len;
+  const std::string out = head + (stack_truncated ? "1" : "0") + status +
+      " stack=" + std::string(capture.stack.data(), stack_len) + "\n";
+  return emit(out.data(), out.size());
 }
 
 bool Watchdog::emit(const char* buf, size_t len) const {

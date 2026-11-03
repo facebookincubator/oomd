@@ -530,6 +530,141 @@ TEST(WatchdogTest, EarlyTimerExpirationRearmsForLatestHeartbeat) {
   EXPECT_EQ(initial, 1ns);
 }
 
+TEST(WatchdogTest, ReportsAnotherThreadsStack) {
+  TempSink sink;
+  ASSERT_GE(sink.fd(), 0);
+  const std::string raw_stack =
+      "[<0>] try_to_free_mem_cgroup_pages+0x1a/0x90\n"
+      "[<0>] user_proactive_reclaim+0x2/0x3\n";
+  const TempStackSource stack(raw_stack);
+  ASSERT_TRUE(stack.valid());
+  WatchdogTestClock clock;
+  {
+    auto watchdog =
+        WatchdogTestPeer::create(100ms, sink.fd(), stack.path(), clock);
+    ASSERT_TRUE(watchdog);
+    EXPECT_TRUE(watchdog->reportThread(
+        {.kind = "reclaim_stuck",
+         .tid = 1234,
+         .fields = {{"thread", "oomd-senpai-0"}, {"bytes", "4096"}}},
+        [] { return true; }));
+  }
+
+  std::string record;
+  std::istringstream lines(sink.contents());
+  for (std::string line; std::getline(lines, line);) {
+    if (line.find("kind=reclaim_stuck") != std::string::npos) {
+      record = line;
+    }
+  }
+  EXPECT_EQ(
+      record,
+      "<4>fb-oomd watchdog: kind=reclaim_stuck thread=oomd-senpai-0 "
+      "bytes=4096 fields_truncated=0 pid=" +
+          std::to_string(::getpid()) +
+          " tid=1234 stack_truncated=0 stack_status=ok stack=" +
+          WatchdogTestPeer::normalizeStack(raw_stack).stack);
+}
+
+TEST(WatchdogTest, ThreadReportKeepsTheStackReadBeforeItsCheck) {
+  TempSink sink;
+  ASSERT_GE(sink.fd(), 0);
+  const TempStackSource stack("[<0>] memory_reclaim+0x1/0x2\n");
+  ASSERT_TRUE(stack.valid());
+  WatchdogTestClock clock;
+  {
+    auto watchdog =
+        WatchdogTestPeer::create(100ms, sink.fd(), stack.path(), clock);
+    ASSERT_TRUE(watchdog);
+    // The thread moves on right after its stack is read.
+    EXPECT_TRUE(watchdog->reportThread(
+        {.kind = "reclaim_stuck", .tid = 1234},
+        [&] { return stack.replace("[<0>] futex_wait+0x1/0x2\n"); }));
+  }
+
+  EXPECT_EQ(
+      sink.contents(),
+      "<4>fb-oomd watchdog: kind=reclaim_stuck fields_truncated=0 pid=" +
+          std::to_string(::getpid()) +
+          " tid=1234 stack_truncated=0 stack_status=ok stack=memory_reclaim\n");
+}
+
+TEST(WatchdogTest, ThreadReportIsDroppedIfTheThreadMovedOn) {
+  TempSink sink;
+  ASSERT_GE(sink.fd(), 0);
+  const TempStackSource stack("[<0>] memory_reclaim+0x1/0x2\n");
+  ASSERT_TRUE(stack.valid());
+  WatchdogTestClock clock;
+  {
+    auto watchdog =
+        WatchdogTestPeer::create(100ms, sink.fd(), stack.path(), clock);
+    ASSERT_TRUE(watchdog);
+    EXPECT_FALSE(watchdog->reportThread(
+        {.kind = "reclaim_stuck", .tid = 1234}, [] { return false; }));
+  }
+
+  EXPECT_TRUE(sink.contents().empty());
+}
+
+TEST(WatchdogTest, ThreadRecordValuesStayOneField) {
+  TempSink sink;
+  ASSERT_GE(sink.fd(), 0);
+  const TempStackSource stack("[<0>] memory_reclaim+0x1/0x2\n");
+  ASSERT_TRUE(stack.valid());
+  WatchdogTestClock clock;
+  {
+    auto watchdog =
+        WatchdogTestPeer::create(100ms, sink.fd(), stack.path(), clock);
+    ASSERT_TRUE(watchdog);
+    EXPECT_TRUE(watchdog->reportThread(
+        {.kind = "reclaim_stuck",
+         .tid = 1234,
+         .fields = {{"cgroup", "my job\nx=y"}}},
+        [] { return true; }));
+  }
+
+  EXPECT_EQ(field(sink.contents(), "cgroup="), "my\\x20job\\x0ax=y");
+  EXPECT_EQ(sink.contents().find('\n'), sink.contents().size() - 1);
+}
+
+TEST(WatchdogTest, LongThreadRecordFitsInTheRecordLimit) {
+  TempSink sink;
+  ASSERT_GE(sink.fd(), 0);
+  const TempStackSource stack(std::string(1000, 'x'));
+  ASSERT_TRUE(stack.valid());
+  WatchdogTestClock clock;
+  {
+    auto watchdog =
+        WatchdogTestPeer::create(100ms, sink.fd(), stack.path(), clock);
+    ASSERT_TRUE(watchdog);
+    // kmsg takes at most 1024 bytes per write, so a record this long would
+    // never be written, and the caller would try again every tick.
+    EXPECT_TRUE(watchdog->reportThread(
+        {.kind = "reclaim_stuck",
+         .tid = 1234,
+         .fields = {{"cgroup", std::string(4000, 'c')}}},
+        [] { return true; }));
+  }
+
+  const auto record = sink.contents();
+  ASSERT_FALSE(record.empty());
+  EXPECT_EQ(record.back(), '\n');
+  EXPECT_LE(record.size(), 800);
+  EXPECT_EQ(field(record, "fields_truncated="), "1");
+  EXPECT_EQ(field(record, "stack_truncated="), "1");
+  // The stack keeps most of its room.
+  EXPECT_GE(field(record, "stack=").size(), 400);
+}
+
+TEST(WatchdogTest, FieldValuesStayOneField) {
+  EXPECT_EQ(
+      Watchdog::fieldValue("workload.slice/a-b_c.service"),
+      "workload.slice/a-b_c.service");
+  EXPECT_EQ(
+      Watchdog::fieldValue("my job\\1\tx=y\x7f"),
+      "my\\x20job\\x5c1\\x09x=y\\x7f");
+}
+
 TEST(WatchdogTest, NormalizeStackRemovesAddressesAndWhitespace) {
   const auto normalized = WatchdogTestPeer::normalizeStack(
       "[<0>] do_freezer_trap+0x1a/0x90\n"

@@ -21,6 +21,7 @@
 #include <pthread.h>
 #include <sys/resource.h>
 #include <sys/stat.h>
+#include <sys/syscall.h>
 #include <unistd.h>
 #include <atomic>
 #include <cerrno>
@@ -90,6 +91,26 @@ class Gate {
   bool open_{false};
 };
 
+// A clock that moves only when the test advances it. Pool threads read it
+// too and may outlive the test, so they share the time.
+class FakeClock {
+ public:
+  std::function<std::chrono::steady_clock::time_point()> now() const {
+    return [ns = ns_] {
+      return std::chrono::steady_clock::time_point(
+          std::chrono::nanoseconds(ns->load()));
+    };
+  }
+
+  void advance(std::chrono::nanoseconds by) {
+    *ns_ += by.count();
+  }
+
+ private:
+  std::shared_ptr<std::atomic<int64_t>> ns_ =
+      std::make_shared<std::atomic<int64_t>>(0);
+};
+
 MemoryReclaimRequest makeJob(uint64_t cgroup_id, int64_t bytes = 4096) {
   MemoryReclaimRequest request;
   request.cgroup_id = cgroup_id;
@@ -148,6 +169,17 @@ ReclaimPool::Write gatedWriter(std::shared_ptr<Gate> gate) {
 // in the kernel.
 ReclaimPool::Write stuckWriter(std::shared_ptr<Gate> gate) {
   return [gate](const MemoryReclaimRequest&, const std::atomic<Cancel>&) {
+    gate->arriveAndWait();
+    return EINTR;
+  };
+}
+
+// The same, recording the thread it runs on.
+ReclaimPool::Write stuckWriter(
+    std::shared_ptr<Gate> gate,
+    std::shared_ptr<std::atomic<pid_t>> tid) {
+  return [gate, tid](const MemoryReclaimRequest&, const std::atomic<Cancel>&) {
+    tid->store(static_cast<pid_t>(::syscall(SYS_gettid)));
     gate->arriveAndWait();
     return EINTR;
   };
@@ -467,6 +499,124 @@ TEST(ReclaimPoolTest, KeepsTheFirstCancelReason) {
 
   ASSERT_EQ(done.size(), 1);
   EXPECT_EQ(done[0].cancel, Cancel::Expired);
+}
+
+TEST(ReclaimPoolTest, ReportsAWriteStillRunningAfterItsCancel) {
+  auto gate = std::make_shared<Gate>();
+  auto tid = std::make_shared<std::atomic<pid_t>>(0);
+  FakeClock clock;
+  ReclaimPool pool(
+      1,
+      {.write = stuckWriter(gate, tid),
+       .stuck_after = 50ms,
+       .stuck_repeat = 300ms,
+       .clock = clock.now()});
+  auto owner = pool.registerOwner();
+  auto request = makeJob(7, 8192);
+  request.path = "/cgroup/a";
+  const auto id = pool.submit(owner, std::move(request));
+  ASSERT_TRUE(gate->waitForArrivals(1));
+
+  pool.cancel(id);
+  clock.advance(49ms);
+  EXPECT_TRUE(pool.stuckJobs().empty());
+
+  clock.advance(1ms);
+  const auto stuck = pool.stuckJobs();
+  ASSERT_EQ(stuck.size(), 1);
+  EXPECT_EQ(stuck[0].id, id);
+  EXPECT_EQ(stuck[0].thread, 0);
+  EXPECT_EQ(stuck[0].tid, tid->load());
+  EXPECT_EQ(stuck[0].request.cgroup_id, 7);
+  EXPECT_EQ(stuck[0].request.path, "/cgroup/a");
+  EXPECT_EQ(stuck[0].request.bytes, 8192);
+  EXPECT_EQ(stuck[0].running, 50ms);
+  EXPECT_EQ(stuck[0].since_cancel, 50ms);
+  EXPECT_FALSE(stuck[0].expired);
+
+  // Once a report went out, the next one comes stuck_repeat later.
+  pool.stuckJobReported(id);
+  clock.advance(299ms);
+  EXPECT_TRUE(pool.stuckJobs().empty());
+  clock.advance(1ms);
+  EXPECT_EQ(pool.stuckJobs().size(), 1);
+
+  gate->release();
+  EXPECT_EQ(waitForCompletions(pool, *owner, 1).size(), 1);
+  EXPECT_TRUE(pool.stuckJobs().empty());
+}
+
+TEST(ReclaimPoolTest, ReturnsAStuckWriteUntilItsReportGoesOut) {
+  auto gate = std::make_shared<Gate>();
+  auto tid = std::make_shared<std::atomic<pid_t>>(0);
+  FakeClock clock;
+  ReclaimPool pool(
+      1,
+      {.write = stuckWriter(gate, tid),
+       .stuck_after = 50ms,
+       .clock = clock.now()});
+  auto owner = pool.registerOwner();
+  const auto id = pool.submit(owner, makeJob(1));
+  ASSERT_TRUE(gate->waitForArrivals(1));
+  pool.cancel(id);
+  clock.advance(50ms);
+
+  // No report went out, so every tick returns the write again.
+  EXPECT_EQ(pool.stuckJobs().size(), 1);
+  clock.advance(1s);
+  EXPECT_EQ(pool.stuckJobs().size(), 1);
+
+  pool.stuckJobReported(id);
+  EXPECT_TRUE(pool.stuckJobs().empty());
+
+  gate->release();
+  EXPECT_EQ(waitForCompletions(pool, *owner, 1).size(), 1);
+}
+
+TEST(ReclaimPoolTest, ReportsAnExpiredWriteThatKeepsRunning) {
+  auto gate = std::make_shared<Gate>();
+  auto tid = std::make_shared<std::atomic<pid_t>>(0);
+  FakeClock clock;
+  ReclaimPool pool(
+      1,
+      {.write = stuckWriter(gate, tid),
+       .max_run = 20ms,
+       .stuck_after = 50ms,
+       .clock = clock.now()});
+  auto owner = pool.registerOwner();
+  pool.submit(owner, makeJob(1));
+  ASSERT_TRUE(gate->waitForArrivals(1));
+
+  // supervise() expires the write at 20 ms, but it keeps running.
+  clock.advance(20ms);
+  pool.supervise();
+  clock.advance(50ms);
+  const auto stuck = pool.stuckJobs();
+  ASSERT_EQ(stuck.size(), 1);
+  EXPECT_TRUE(stuck[0].expired);
+
+  gate->release();
+  const auto done = waitForCompletions(pool, *owner, 1);
+  ASSERT_EQ(done.size(), 1);
+  EXPECT_EQ(done[0].err, EINTR);
+  EXPECT_EQ(done[0].cancel, Cancel::Expired);
+}
+
+TEST(ReclaimPoolTest, IsRunningOnlyWhileAThreadRunsTheJob) {
+  auto gate = std::make_shared<Gate>();
+  ReclaimPool pool(1, {.write = gatedWriter(gate)});
+  auto owner = pool.registerOwner();
+
+  const auto running = pool.submit(owner, makeJob(1));
+  ASSERT_TRUE(gate->waitForArrivals(1));
+  const auto queued = pool.submit(owner, makeJob(2));
+  EXPECT_TRUE(pool.isRunning(running));
+  EXPECT_FALSE(pool.isRunning(queued));
+
+  gate->release();
+  ASSERT_EQ(waitForCompletions(pool, *owner, 2).size(), 2);
+  EXPECT_FALSE(pool.isRunning(running));
+  EXPECT_FALSE(pool.isRunning(queued));
 }
 
 TEST(ReclaimPoolTest, DropsCompletionsForAGoneOwner) {

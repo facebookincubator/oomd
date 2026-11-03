@@ -18,6 +18,7 @@
 #pragma once
 
 #include <signal.h>
+#include <sys/types.h>
 #include <atomic>
 #include <chrono>
 #include <cstddef>
@@ -58,6 +59,8 @@ struct MemoryReclaimRequest {
  *   its next reclaim batch, and the job finishes when the write returns.
  *   supervise() sends the signal again, in case it landed just before the
  *   write started, and cancels writes that run longer than max_run.
+ *   stuckJobs() returns the writes still running long after their cancel,
+ *   for reporting, and stuckJobReported() records a report that went out.
  * - The destructor cancels everything and waits up to 1 s for the threads. A
  *   thread still stuck in the kernel is left to finish on its own, so the
  *   write function and everything it captures must outlive the pool. The pool
@@ -84,6 +87,17 @@ class ReclaimPool {
     int thread{-1};
   };
 
+  // A write that kept running long after it was cancelled or expired
+  struct StuckJob {
+    JobId id{0};
+    int thread{-1};
+    pid_t tid{0};
+    MemoryReclaimRequest request;
+    std::chrono::milliseconds running{0};
+    std::chrono::milliseconds since_cancel{0};
+    bool expired{false};
+  };
+
   // Performs one write and returns 0 or an errno. Once cancel is no longer
   // None and the thread gets kCancelSignal, it must return EINTR instead of
   // retrying.
@@ -96,6 +110,11 @@ class ReclaimPool {
     // Empty means writeMemoryReclaim()
     Write write;
     std::chrono::milliseconds max_run{kMaxRun};
+    std::chrono::milliseconds stuck_after{kStuckAfter};
+    std::chrono::milliseconds stuck_repeat{kStuckRepeat};
+    // Where the pool reads the time. Empty means std::chrono::steady_clock;
+    // tests pass a fake clock.
+    std::function<std::chrono::steady_clock::time_point()> clock;
   };
 
   // A plugin's handle for its jobs
@@ -104,6 +123,10 @@ class ReclaimPool {
   static constexpr int kCancelSignal = SIGUSR2;
   // Writes that run longer are cancelled and end as expired
   static constexpr std::chrono::seconds kMaxRun{60};
+  // A write still running this long after its cancel counts as stuck, and is
+  // reported again at most every kStuckRepeat while it lasts
+  static constexpr std::chrono::seconds kStuckAfter{30};
+  static constexpr std::chrono::minutes kStuckRepeat{5};
 
   // Blocks kCancelSignal in the calling thread and every thread it creates
   // later. Call early in main(); pool threads unblock it for themselves.
@@ -148,6 +171,18 @@ class ReclaimPool {
   int threads() const;
   // The name of the thread with this index: <thread_name>-<index>
   std::string threadName(int index) const;
+
+  // Stuck writes to report now: each one once it has run stuck_after past its
+  // cancel, then at most once per stuck_repeat after a report went out. Call
+  // every tick.
+  std::vector<StuckJob> stuckJobs() const;
+  // Records that the report for a stuck job went out. Until then stuckJobs()
+  // keeps returning the job, so a report that failed is tried again.
+  void stuckJobReported(JobId id);
+  // Whether a thread is running the job now. A report reads the thread's
+  // stack outside the pool's lock, so it checks this afterwards: by then the
+  // write may have ended and the thread moved on to its next job.
+  bool isRunning(JobId id) const;
 
   // The default write: checks that request.path is still the cgroup
   // request.cgroup_id and writes "<bytes>[ swappiness=<n>]" to its
