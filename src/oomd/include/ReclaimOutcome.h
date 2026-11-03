@@ -32,6 +32,8 @@ enum class ReclaimOutcome {
   Error,
   // Cancelled by whoever asked for it, before or during the write
   Cancelled,
+  // Cancelled because the write ran longer than its limit
+  Expired,
 };
 
 // Maps a write's errno (0 on success) to its outcome. EINTR and ECANCELED

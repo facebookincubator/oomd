@@ -3524,3 +3524,18 @@ TEST_F(StopTest, Stops) {
 
   EXPECT_EQ(plugin->run(ctx_), Engine::PluginRet::STOP);
 }
+
+TEST_F(SenpaiTest, ModulatingSwappinessIsRefusedWithReclaimThreads) {
+  const Engine::PluginArgs args{
+      {"cgroup", "workload.slice"},
+      {"modulate_swappiness", "true"},
+  };
+
+  auto with_threads = createPlugin("senpai");
+  ASSERT_NE(with_threads, nullptr);
+  EXPECT_NE(with_threads->init(args, PluginConstructionContext("/", 1)), 0);
+
+  auto without_threads = createPlugin("senpai");
+  ASSERT_NE(without_threads, nullptr);
+  EXPECT_EQ(without_threads->init(args, PluginConstructionContext("/", 0)), 0);
+}

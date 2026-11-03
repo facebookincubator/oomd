@@ -364,6 +364,33 @@ TEST(ReclaimPoolTest, CancelledQueuedJobFinishesWithoutRunning) {
   EXPECT_EQ(done[0].cancel, Cancel::None);
 }
 
+TEST(ReclaimPoolTest, CancelIfQueuedLeavesAStartedJobAlone) {
+  auto gate = std::make_shared<Gate>();
+  ReclaimPool pool(1, {.write = gatedWriter(gate)});
+  auto owner = pool.registerOwner();
+
+  const auto running = pool.submit(owner, makeJob(1));
+  ASSERT_TRUE(gate->waitForArrivals(1));
+  const auto queued = pool.submit(owner, makeJob(2));
+
+  EXPECT_FALSE(pool.cancelIfQueued(running));
+  EXPECT_TRUE(pool.cancelIfQueued(queued));
+  const auto cancelled = pool.drain(*owner);
+  ASSERT_EQ(cancelled.size(), 1);
+  EXPECT_EQ(cancelled[0].id, queued);
+  EXPECT_EQ(cancelled[0].err, ECANCELED);
+  EXPECT_EQ(cancelled[0].thread, -1);
+
+  gate->release();
+  const auto done = waitForCompletions(pool, *owner, 1);
+  ASSERT_EQ(done.size(), 1);
+  EXPECT_EQ(done[0].id, running);
+  EXPECT_EQ(done[0].err, 0);
+  EXPECT_EQ(done[0].cancel, Cancel::None);
+  // A finished job isn't queued either.
+  EXPECT_FALSE(pool.cancelIfQueued(queued));
+}
+
 TEST(ReclaimPoolTest, CancelInterruptsABlockedWrite) {
   // A full pipe makes a blocking write() sleep in the kernel, like a long
   // memory.reclaim. Since v7.2, memory.reclaim returns -ERESTARTSYS on a

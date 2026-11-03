@@ -131,6 +131,10 @@ class ReclaimPool {
   // queue. Returns false if the job is no longer queued.
   bool update(JobId id, int64_t bytes, std::optional<int64_t> swappiness);
 
+  // Cancels a job that is still queued, as cancel() does, and returns true.
+  // Returns false, and leaves the job alone, if it is running or finished.
+  bool cancelIfQueued(JobId id);
+
   // Returns the owner's finished jobs and forgets them.
   std::vector<Completion> drain(Owner& owner);
 

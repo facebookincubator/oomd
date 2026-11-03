@@ -292,6 +292,20 @@ bool ReclaimPool::update(
   return false;
 }
 
+bool ReclaimPool::cancelIfQueued(JobId id) {
+  auto& s = *state_;
+  std::lock_guard<std::mutex> lock(s.mutex);
+  const auto it =
+      std::find_if(s.queue.begin(), s.queue.end(), [&](const auto& task) {
+        return task->id == id;
+      });
+  if (it == s.queue.end()) {
+    return false;
+  }
+  s.cancelQueuedLocked(it);
+  return true;
+}
+
 std::vector<ReclaimPool::Completion> ReclaimPool::drain(Owner& owner) {
   std::lock_guard<std::mutex> lock(state_->mutex);
   return std::exchange(owner.completions, {});

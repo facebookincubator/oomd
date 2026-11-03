@@ -68,6 +68,12 @@ int Senpai::init(
   if (!argParser_.parse(args)) {
     return 1;
   }
+  if (modulate_swappiness_ && context.senpaiThreads() > 0) {
+    // This sets the global vm.swappiness around each reclaim. Reclaim
+    // threads would write with whatever value is set at the time.
+    OLOG << "senpai: modulate_swappiness can't be used with --senpai-threads";
+    return 1;
+  }
 
   auto meminfo = Fs::getMeminfo();
   // TODO(dschatzberg): Report Error
