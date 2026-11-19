@@ -21,6 +21,7 @@
 #include <unordered_set>
 
 #include "oomd/engine/BasePlugin.h"
+#include "oomd/util/Fs.h"
 
 namespace Oomd {
 
@@ -42,6 +43,7 @@ class PressureAbove : public Oomd::Engine::BasePlugin {
   std::unordered_set<CgroupPath> cgroups_;
   std::unordered_set<CgroupPath> ruleset_cgroups_;
   ResourceType resource_;
+  Fs::PressureType pressure_type_{Fs::PressureType::FULL};
   // Initialized to bogus values; init() will crash oomd if non-0 return
   int threshold_;
   int duration_;

@@ -18,6 +18,7 @@
 #include "oomd/plugins/PressureAbove.h"
 
 #include <iomanip>
+#include <stdexcept>
 #include <string>
 
 #include "oomd/Log.h"
@@ -43,6 +44,16 @@ int PressureAbove::init(
       });
 
   argParser_.addArgument("resource", resource_, true);
+  argParser_.addArgumentCustom(
+      "pressure_type", pressure_type_, [](const std::string& value) {
+        if (value == "full") {
+          return Fs::PressureType::FULL;
+        }
+        if (value == "some") {
+          return Fs::PressureType::SOME;
+        }
+        throw std::invalid_argument("pressure_type must be full or some");
+      });
   argParser_.addArgument("threshold", threshold_, true);
   argParser_.addArgument("duration", duration_, true);
 
@@ -59,16 +70,19 @@ Engine::PluginRet PressureAbove::run(OomdContext& ctx) {
 
   ResourcePressure current_pressure;
   int64_t current_memory_usage = 0;
+  const bool some = pressure_type_ == Fs::PressureType::SOME;
 
   for (const CgroupContext& cgroup_ctx :
        ctx.addToCacheAndGet(cgroups_, ruleset_cgroups_)) {
     ResourcePressure rp;
     switch (resource_) {
       case ResourceType::IO:
-        rp = cgroup_ctx.io_pressure().value_or(rp);
+        rp = (some ? cgroup_ctx.io_pressure_some() : cgroup_ctx.io_pressure())
+                 .value_or(rp);
         break;
       case ResourceType::MEMORY:
-        rp = cgroup_ctx.mem_pressure().value_or(rp);
+        rp = (some ? cgroup_ctx.mem_pressure_some() : cgroup_ctx.mem_pressure())
+                 .value_or(rp);
         break;
         // No default to catch new additions in ResourceType
     }
@@ -101,10 +115,10 @@ Engine::PluginRet PressureAbove::run(OomdContext& ctx) {
     if (diff >= duration_) {
       std::ostringstream oss;
       oss << std::setprecision(2) << std::fixed;
-      oss << "10s pressure " << current_pressure.sec_10
-          << " is over the threshold of " << threshold_ << " for " << duration_
-          << " seconds , total usage is " << current_memory_usage / 1024 / 1024
-          << "MB";
+      oss << "10s " << Fs::pressureTypeToString(pressure_type_) << " pressure "
+          << current_pressure.sec_10 << " is over the threshold of "
+          << threshold_ << " for " << duration_ << " seconds , total usage is "
+          << current_memory_usage / 1024 / 1024 << "MB";
       OLOG << oss.str();
 
       return Engine::PluginRet::CONTINUE;

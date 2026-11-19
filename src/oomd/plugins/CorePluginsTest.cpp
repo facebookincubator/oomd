@@ -922,6 +922,85 @@ TEST_F(PressureRisingBeyondTest, DetectsHighMemPressureWildcard) {
 
 class PressureAboveTest : public CorePluginsTest {};
 
+TEST_F(PressureAboveTest, DetectsHighMemSomePressure) {
+  F::materialize(F::makeDir(tempdir_, {F::makeDir("high_pressure")}));
+  auto plugin = createPlugin("pressure_above");
+  ASSERT_NE(plugin, nullptr);
+  const PluginConstructionContext compile_context(tempdir_);
+  const Engine::PluginArgs args{
+      {"cgroup", "high_pressure"},
+      {"resource", "memory"},
+      {"pressure_type", "some"},
+      {"threshold", "80"},
+      {"duration", "0"}};
+  ASSERT_EQ(plugin->init(args, compile_context), 0);
+  TestHelper::setCgroupData(
+      ctx_,
+      CgroupPath(tempdir_, "high_pressure"),
+      CgroupData{
+          .mem_pressure = ResourcePressure{1, 1, 1},
+          .mem_pressure_some = ResourcePressure{99, 99, 99},
+          .io_pressure_some = ResourcePressure{0, 0, 0}});
+  EXPECT_EQ(plugin->run(ctx_), Engine::PluginRet::CONTINUE);
+}
+
+TEST_F(PressureAboveTest, IgnoresSomePressureByDefault) {
+  F::materialize(F::makeDir(tempdir_, {F::makeDir("high_pressure")}));
+  auto plugin = createPlugin("pressure_above");
+  ASSERT_NE(plugin, nullptr);
+  const PluginConstructionContext compile_context(tempdir_);
+  const Engine::PluginArgs args{
+      {"cgroup", "high_pressure"},
+      {"resource", "memory"},
+      {"threshold", "80"},
+      {"duration", "0"}};
+  ASSERT_EQ(plugin->init(args, compile_context), 0);
+  TestHelper::setCgroupData(
+      ctx_,
+      CgroupPath(tempdir_, "high_pressure"),
+      CgroupData{
+          .mem_pressure = ResourcePressure{1, 1, 1},
+          .mem_pressure_some = ResourcePressure{99, 99, 99}});
+  EXPECT_EQ(plugin->run(ctx_), Engine::PluginRet::STOP);
+}
+
+TEST_F(PressureAboveTest, DetectsHighIoSomePressure) {
+  F::materialize(F::makeDir(tempdir_, {F::makeDir("high_pressure")}));
+  auto plugin = createPlugin("pressure_above");
+  ASSERT_NE(plugin, nullptr);
+  const PluginConstructionContext compile_context(tempdir_);
+  const Engine::PluginArgs args{
+      {"cgroup", "high_pressure"},
+      {"resource", "io"},
+      {"pressure_type", "some"},
+      {"threshold", "80"},
+      {"duration", "0"}};
+  ASSERT_EQ(plugin->init(args, compile_context), 0);
+  TestHelper::setCgroupData(
+      ctx_,
+      CgroupPath(tempdir_, "high_pressure"),
+      CgroupData{
+          .mem_pressure_some = ResourcePressure{0, 0, 0},
+          .io_pressure = ResourcePressure{1, 1, 1},
+          .io_pressure_some = ResourcePressure{99, 99, 99}});
+  EXPECT_EQ(plugin->run(ctx_), Engine::PluginRet::CONTINUE);
+}
+
+TEST_F(PressureAboveTest, RejectsInvalidPressureType) {
+  const PluginConstructionContext compile_context(tempdir_);
+  for (const std::string pressure_type : {"", "partial", "SOME"}) {
+    SCOPED_TRACE(pressure_type);
+    auto plugin = createPlugin("pressure_above");
+    ASSERT_NE(plugin, nullptr);
+    const Engine::PluginArgs args{
+        {"resource", "memory"},
+        {"pressure_type", pressure_type},
+        {"threshold", "80"},
+        {"duration", "0"}};
+    EXPECT_NE(plugin->init(args, compile_context), 0);
+  }
+}
+
 TEST_F(PressureAboveTest, DetectsHighMemPressure) {
   F::materialize(F::makeDir(tempdir_, {F::makeDir("high_pressure")}));
 
@@ -931,6 +1010,7 @@ TEST_F(PressureAboveTest, DetectsHighMemPressure) {
   Engine::PluginArgs args;
   args["cgroup"] = "high_pressure";
   args["resource"] = "memory";
+  args["pressure_type"] = "full";
   args["threshold"] = "80";
   args["duration"] = "0";
   const PluginConstructionContext compile_context(tempdir_);

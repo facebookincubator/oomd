@@ -105,6 +105,7 @@ If `threshold_anon` is specified, CONTINUE if anonymous memory usage >
     cgroup (optional)
     ruleset_cgroup (optional)
     resource
+    pressure_type (optional, default: full)
     threshold
     duration
 
@@ -115,8 +116,14 @@ If `threshold_anon` is specified, CONTINUE if anonymous memory usage >
 
 `resource` is `io` or `memory`.
 
-CONTINUE if 10s pressure > `threshold` longer than `duration` STOP
-otherwise.
+`pressure_type` is `full` or `some`. Leave it out for `full`; an empty string
+is invalid. It selects which line of the cgroup's `memory.pressure` or
+`io.pressure` file is read. See the kernel's
+[PSI documentation](https://docs.kernel.org/accounting/psi.html) for what each
+line measures.
+
+CONTINUE if the 10s `pressure_type` pressure > `threshold` longer than
+`duration`, STOP otherwise.
 
 ## memory_reclaim
 
