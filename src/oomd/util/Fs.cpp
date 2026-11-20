@@ -30,6 +30,7 @@
 #include <sys/xattr.h>
 #include <unistd.h>
 
+#include <charconv>
 #include <cinttypes>
 #include <fstream>
 #include <utility>
@@ -691,12 +692,51 @@ std::unordered_map<std::string, int64_t> Fs::getMemstatLikeFromLines(
 
 SystemMaybe<std::unordered_map<std::string, int64_t>> Fs::getMemstatAt(
     const DirFd& dirfd) {
-  auto lines = readFileByLine(Fs::Fd::openat(dirfd, kMemStatFile));
-  if (!lines) {
-    return SYSTEM_ERROR(lines.error());
+  auto fd = Fs::Fd::openat(dirfd, kMemStatFile);
+  if (!fd) {
+    return SYSTEM_ERROR(fd.error());
+  }
+  const int raw_fd = fd->fd();
+
+  std::string buf;
+  buf.reserve(4096);
+  char chunk[4096];
+  while (true) {
+    ssize_t n = ::read(raw_fd, chunk, sizeof(chunk));
+    if (n > 0) {
+      buf.append(chunk, static_cast<size_t>(n));
+    } else if (n == 0) {
+      break;
+    } else if (errno == EINTR) {
+      continue;
+    } else {
+      return SYSTEM_ERROR(errno);
+    }
   }
 
-  return getMemstatLikeFromLines(lines.value());
+  std::unordered_map<std::string, int64_t> map;
+  map.reserve(64);
+  const char* p = buf.data();
+  const char* const end = p + buf.size();
+  while (p < end) {
+    const char* line_end = static_cast<const char*>(::memchr(p, '\n', end - p));
+    if (line_end == nullptr) {
+      line_end = end;
+    }
+    const char* space =
+        static_cast<const char*>(::memchr(p, ' ', line_end - p));
+    if (space != nullptr) {
+      uint64_t val = 0;
+      auto res = std::from_chars(space + 1, line_end, val);
+      if (res.ec == std::errc()) {
+        map.insert_or_assign(
+            std::string(p, space - p), static_cast<int64_t>(val));
+      }
+    }
+    p = line_end == end ? end : line_end + 1;
+  }
+
+  return map;
 }
 
 SystemMaybe<ResourcePressure> Fs::readRootIopressure(PressureType type) {
