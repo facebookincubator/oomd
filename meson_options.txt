@@ -1,0 +1,4 @@
+option('envfiledir',
+  type : 'string',
+  value : 'etc/default',
+  description : 'Directory for files of daemon options, usually "etc/default" or "etc/sysconfig"')
