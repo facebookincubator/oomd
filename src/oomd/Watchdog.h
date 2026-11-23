@@ -60,17 +60,21 @@ class Watchdog {
     // What the record is about, such as reclaim_stuck
     std::string kind;
     pid_t tid{0};
-    // More key=value fields, written in this order after kind
+    // More key=value fields, written in this order after kind. Put a value
+    // that can be long, such as a path, last (see reportThread()).
     std::vector<std::pair<std::string, std::string>> fields;
   };
 
   // Writes the record with the thread's kernel stack:
   // "fb-oomd watchdog: kind= <fields> fields_truncated= pid= tid= stack...".
   // Values are escaped with fieldValue(). Like a stall record, the record fits
-  // in 800 bytes: the fields get at most 256 and the stack the rest, each cut
-  // if needed. still_current is called after the stack is read; if it returns
-  // false, the thread has moved on and nothing is written. Returns whether the
-  // record reached kmsg. Safe to call from any thread.
+  // in 800 bytes: the fields get at most 256 and the stack the rest. Fields
+  // that don't fit lose the start of the last value, which then begins with
+  // "...", so the end of a path stays. If the fields before it don't fit
+  // either, they are cut at 256. still_current is called after the stack is
+  // read; if it returns false, the thread has moved on and nothing is
+  // written. Returns whether the record reached kmsg. Safe to call from any
+  // thread.
   bool reportThread(
       const ThreadRecord& record,
       const std::function<bool()>& still_current) const;

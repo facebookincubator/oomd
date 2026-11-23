@@ -28,6 +28,7 @@
 #include <algorithm>
 #include <cstdio>
 #include <string>
+#include <string_view>
 #include <system_error>
 #include <utility>
 
@@ -40,6 +41,8 @@ constexpr auto kDefaultKmsgPath = "/dev/kmsg";
 constexpr size_t kRecordMax = 800;
 // The most a thread record's fields can take, so its stack always has room
 constexpr size_t kThreadFieldsMax = 256;
+// Starts a value that lost its beginning to kThreadFieldsMax
+constexpr std::string_view kCutMarker{"..."};
 constexpr size_t kRawStackMax = 4096;
 // A zero initial expiration disarms timerfd instead of firing immediately.
 constexpr auto kImmediateTimerDelay = std::chrono::nanoseconds(1);
@@ -128,6 +131,65 @@ void writePollError(int fd, short timer_revents, short control_revents) {
   }
 
   writeRecord(fd, record, static_cast<size_t>(n));
+}
+
+bool needsEscape(unsigned char byte) {
+  return byte <= ' ' || byte == '\\' || byte == 0x7f;
+}
+
+// The longest end of value that takes at most room bytes once escaped. It
+// starts on a character, never inside an escape.
+std::string escapedEnd(const std::string& value, size_t room) {
+  size_t start = value.size();
+  size_t size = 0;
+  while (start > 0) {
+    const auto byte = static_cast<unsigned char>(value[start - 1]);
+    const size_t next = needsEscape(byte) ? sizeof("\\xNN") - 1 : 1;
+    if (size + next > room) {
+      break;
+    }
+    size += next;
+    --start;
+  }
+  return Watchdog::fieldValue(value.substr(start));
+}
+
+// "kind=<kind>", then " <key>=<value>" for the first count fields
+std::string joinFields(const Watchdog::ThreadRecord& record, size_t count) {
+  std::string text = "kind=" + Watchdog::fieldValue(record.kind);
+  for (size_t i = 0; i < count; ++i) {
+    const auto& [key, value] = record.fields.at(i);
+    text += " " + key + "=" + Watchdog::fieldValue(value);
+  }
+  return text;
+}
+
+struct ThreadFields {
+  std::string text;
+  bool truncated{false};
+};
+
+// The record's fields in at most kThreadFieldsMax bytes. If they don't fit,
+// the last value keeps its end behind kCutMarker, so a cgroup path keeps the
+// cgroup's own name. If the fields before it don't fit either, the text is
+// cut at the limit.
+ThreadFields threadFields(const Watchdog::ThreadRecord& record) {
+  std::string text = joinFields(record, record.fields.size());
+  if (text.size() <= kThreadFieldsMax) {
+    return {.text = std::move(text)};
+  }
+  if (!record.fields.empty()) {
+    const auto& [key, value] = record.fields.back();
+    const std::string head = joinFields(record, record.fields.size() - 1) +
+        " " + key + "=" + std::string(kCutMarker);
+    if (head.size() < kThreadFieldsMax) {
+      return {
+          .text = head + escapedEnd(value, kThreadFieldsMax - head.size()),
+          .truncated = true};
+    }
+  }
+  text.resize(kThreadFieldsMax);
+  return {.text = std::move(text), .truncated = true};
 }
 
 } // namespace
@@ -530,7 +592,7 @@ std::string Watchdog::fieldValue(const std::string& value) {
   out.reserve(value.size());
   for (const char ch : value) {
     const auto byte = static_cast<unsigned char>(ch);
-    if (byte <= ' ' || byte == '\\' || byte == 0x7f) {
+    if (needsEscape(byte)) {
       out += "\\x";
       out += kHex[byte >> 4];
       out += kHex[byte & 0xf];
@@ -557,16 +619,9 @@ bool Watchdog::reportThread(
       1 + kThreadFieldsMax + 1 + 2 * kMaxSignedDecimal + 1 + kMaxStackStatus;
   static_assert(kFixedRecordMax + kStackMax / 2 <= kRecordMax);
 
-  std::string fields = "kind=" + fieldValue(record.kind);
-  for (const auto& [key, value] : record.fields) {
-    fields += " " + key + "=" + fieldValue(value);
-  }
-  const bool fields_truncated = fields.size() > kThreadFieldsMax;
-  if (fields_truncated) {
-    fields.resize(kThreadFieldsMax);
-  }
-  const std::string head = "<4>fb-oomd watchdog: " + fields +
-      " fields_truncated=" + (fields_truncated ? "1" : "0") +
+  const auto fields = threadFields(record);
+  const std::string head = "<4>fb-oomd watchdog: " + fields.text +
+      " fields_truncated=" + (fields.truncated ? "1" : "0") +
       " pid=" + std::to_string(::getpid()) +
       " tid=" + std::to_string(record.tid) + " stack_truncated=";
   const std::string status = std::string(" stack_status=") + capture.status;

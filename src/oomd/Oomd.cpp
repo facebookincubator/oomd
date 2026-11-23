@@ -43,7 +43,8 @@ namespace Oomd {
 
 namespace {
 
-// The watchdog record about a stuck reclaim write.
+// The watchdog record about a stuck reclaim write. The cgroup goes last: a
+// long path loses its start, and the numbers before it always fit.
 Watchdog::ThreadRecord stuckWriteRecord(
     const ReclaimPool& pool,
     const ReclaimPool::StuckJob& stuck) {
@@ -52,11 +53,11 @@ Watchdog::ThreadRecord stuckWriteRecord(
       .tid = stuck.tid,
       .fields = {
           {"thread", pool.threadName(stuck.thread)},
-          {"cgroup", stuck.request.path},
-          {"bytes", std::to_string(stuck.request.bytes)},
           {"run_ms", std::to_string(stuck.running.count())},
           {"cancel_age_ms", std::to_string(stuck.since_cancel.count())},
           {"expired", stuck.expired ? "1" : "0"},
+          {"bytes", std::to_string(stuck.request.bytes)},
+          {"cgroup", stuck.request.path},
       }};
 }
 

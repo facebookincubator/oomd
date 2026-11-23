@@ -350,6 +350,37 @@ std::string field(const std::string& record, const std::string& name) {
   return record.substr(value_begin, end - value_begin);
 }
 
+// What reportThread() writes for these fields, with a one-frame stack
+std::string threadRecord(
+    std::vector<std::pair<std::string, std::string>> fields) {
+  TempSink sink;
+  const TempStackSource stack("[<0>] memory_reclaim+0x1/0x2\n");
+  WatchdogTestClock clock;
+  {
+    auto watchdog =
+        WatchdogTestPeer::create(100ms, sink.fd(), stack.path(), clock);
+    if (!watchdog ||
+        !watchdog->reportThread(
+            {.kind = "reclaim_stuck", .tid = 1234, .fields = std::move(fields)},
+            [] { return true; })) {
+      return "";
+    }
+  }
+  return sink.contents();
+}
+
+// The fields of a thread record: the text between "fb-oomd watchdog: " and
+// " fields_truncated="
+std::string recordFields(const std::string& record) {
+  const std::string prefix = "fb-oomd watchdog: ";
+  const size_t begin = record.find(prefix);
+  const size_t end = record.find(" fields_truncated=");
+  if (begin == std::string::npos || end == std::string::npos) {
+    return "";
+  }
+  return record.substr(begin + prefix.size(), end - begin - prefix.size());
+}
+
 void expectRecord(
     const std::string& record,
     const std::string& heartbeat_ms,
@@ -654,6 +685,44 @@ TEST(WatchdogTest, LongThreadRecordFitsInTheRecordLimit) {
   EXPECT_EQ(field(record, "stack_truncated="), "1");
   // The stack keeps most of its room.
   EXPECT_GE(field(record, "stack=").size(), 400);
+}
+
+TEST(WatchdogTest, LongLastValueKeepsItsEnd) {
+  const std::string path = "/sys/fs/cgroup/workload.slice/" +
+      std::string(300, 'a') + "/task.service";
+
+  const auto record =
+      threadRecord({{"run_ms", "91234"}, {"expired", "1"}, {"cgroup", path}});
+
+  const std::string head =
+      "kind=reclaim_stuck run_ms=91234 expired=1 cgroup=...";
+  EXPECT_EQ(
+      recordFields(record),
+      head + path.substr(path.size() - (256 - head.size())));
+  EXPECT_EQ(field(record, "fields_truncated="), "1");
+}
+
+TEST(WatchdogTest, CutValueStartsOnACharacter) {
+  // A space takes 4 bytes once escaped as \x20.
+  const auto record = threadRecord({{"cgroup", std::string(300, ' ')}});
+
+  const std::string head = "kind=reclaim_stuck cgroup=...";
+  std::string expected = head;
+  for (size_t room = 256 - head.size(); room >= 4; room -= 4) {
+    expected += "\\x20";
+  }
+  EXPECT_EQ(recordFields(record), expected);
+}
+
+TEST(WatchdogTest, FieldsBeforeTheLastAreCutAtTheLimit) {
+  const std::string first(300, 'x');
+
+  const auto record = threadRecord({{"first", first}, {"cgroup", "/a"}});
+
+  EXPECT_EQ(
+      recordFields(record),
+      ("kind=reclaim_stuck first=" + first + " cgroup=/a").substr(0, 256));
+  EXPECT_EQ(field(record, "fields_truncated="), "1");
 }
 
 TEST(WatchdogTest, FieldValuesStayOneField) {
