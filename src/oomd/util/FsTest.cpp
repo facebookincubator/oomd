@@ -291,6 +291,16 @@ TEST_F(FsTest, GetNrDying) {
   EXPECT_EQ(nr_dying, 27);
 }
 
+TEST_F(FsTest, GetNrDyingMissingIsZero) {
+  using F = Fixture;
+  auto path = fixture_.cgroupDataDir() + "/nr_dying_test";
+  F::materialize(
+      F::makeDir(path, {F::makeFile("cgroup.stat", "nr_descendants 3\n")}));
+
+  auto dir = ASSERT_SYS_OK(Fs::DirFd::open(path));
+  EXPECT_EQ(ASSERT_SYS_OK(Fs::getNrDyingDescendantsAt(dir)), 0);
+}
+
 TEST_F(FsTest, ReadMemoryCurrent) {
   auto path = fixture_.cgroupDataDir();
   auto dir = ASSERT_SYS_OK(Fs::DirFd::open(path));
@@ -448,6 +458,43 @@ TEST_F(FsTest, GetMemstat) {
 
   // we expect the key is missing (ie default val = 0)
   EXPECT_EQ(meminfo["asdf"], 0);
+}
+
+TEST_F(FsTest, GetMemstatReadsEveryConsumedKey) {
+  using F = Fixture;
+  auto path = fixture_.cgroupDataDir() + "/memstat_test";
+  F::materialize(
+      F::makeDir(
+          path,
+          {F::makeFile(
+              "memory.stat",
+              "anon 1\n"
+              "file 2\n"
+              "shmem 3\n"
+              "zswap 4\n"
+              "swapcached 5\n"
+              "active_anon 6\n"
+              "inactive_anon 7\n"
+              "active_file 8\n"
+              "inactive_file 9\n"
+              "pgscan 10\n")}));
+
+  auto dir = ASSERT_SYS_OK(Fs::DirFd::open(path));
+  auto memstat = ASSERT_SYS_OK(Fs::getMemstatAt(dir));
+
+  EXPECT_EQ(
+      memstat,
+      (std::unordered_map<std::string, int64_t>{
+          {"anon", 1},
+          {"file", 2},
+          {"shmem", 3},
+          {"zswap", 4},
+          {"swapcached", 5},
+          {"active_anon", 6},
+          {"inactive_anon", 7},
+          {"active_file", 8},
+          {"inactive_file", 9},
+          {"pgscan", 10}}));
 }
 
 TEST_F(FsTest, ReadIoPressure) {

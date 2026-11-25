@@ -545,6 +545,86 @@ TEST_F(CgroupContextTest, DataLifeCycle) {
   EXPECT_EQ(pg_scan_rate, 5678901234 - 4567890123);
 }
 
+TEST_F(CgroupContextTest, MemoryStatAccessorsReadTheirKeys) {
+  F::materialize(
+      F::makeDir(
+          tempDir_,
+          {F::makeDir(
+              "system.slice",
+              {F::makeFile("cgroup.controllers"),
+               F::makeFile(
+                   "memory.stat",
+                   "anon 100\n"
+                   "file 200\n"
+                   "shmem 10\n"
+                   "zswap 30\n"
+                   "swapcached 5\n"
+                   "active_anon 70\n"
+                   "inactive_anon 60\n"
+                   "pgscan 40\n"
+                   "unknown_key 999\n")})}));
+
+  auto cgroup_ctx = ASSERT_EXISTS(
+      CgroupContext::make(ctx_, CgroupPath(tempDir_, "system.slice")));
+
+  EXPECT_EQ(cgroup_ctx.anon_usage(), 100);
+  EXPECT_EQ(cgroup_ctx.file_usage(), 200);
+  EXPECT_EQ(cgroup_ctx.shmem_usage(), 10);
+  EXPECT_EQ(cgroup_ctx.zswap_usage(), 30);
+  // active_anon + inactive_anon - shmem - anon - swapcached
+  EXPECT_EQ(cgroup_ctx.unmapped_anon_usage(), 15);
+  EXPECT_EQ(cgroup_ctx.pg_scan_cumulative(), 40);
+}
+
+TEST_F(CgroupContextTest, MemoryStatAccessorsFlagMissingKeys) {
+  F::materialize(
+      F::makeDir(
+          tempDir_,
+          {F::makeDir(
+              "system.slice",
+              {F::makeFile("cgroup.controllers"),
+               F::makeFile("memory.stat", "pgscan 40\n")})}));
+
+  auto cgroup_ctx = ASSERT_EXISTS(
+      CgroupContext::make(ctx_, CgroupPath(tempDir_, "system.slice")));
+
+  using Accessor =
+      std::optional<int64_t> (CgroupContext::*)(CgroupContext::Error*) const;
+  for (Accessor accessor :
+       {&CgroupContext::anon_usage,
+        &CgroupContext::file_usage,
+        &CgroupContext::shmem_usage,
+        &CgroupContext::zswap_usage,
+        &CgroupContext::unmapped_anon_usage}) {
+    auto err = CgroupContext::Error::NO_ERROR;
+    EXPECT_EQ((cgroup_ctx.*accessor)(&err), std::nullopt);
+    EXPECT_EQ(err, CgroupContext::Error::INVALID_CGROUP);
+  }
+}
+
+TEST_F(CgroupContextTest, MemoryStatSkipsMalformedLines) {
+  F::materialize(
+      F::makeDir(
+          tempDir_,
+          {F::makeDir(
+              "system.slice",
+              {F::makeFile("cgroup.controllers"),
+               F::makeFile(
+                   "memory.stat",
+                   "\n"
+                   "shmem 10kB\n"
+                   "zswap\n"
+                   "pgscan 40\n"
+                   "pgscan abc\n")})}));
+
+  auto cgroup_ctx = ASSERT_EXISTS(
+      CgroupContext::make(ctx_, CgroupPath(tempDir_, "system.slice")));
+
+  EXPECT_EQ(cgroup_ctx.shmem_usage(), 10);
+  EXPECT_EQ(cgroup_ctx.zswap_usage(), std::nullopt);
+  EXPECT_EQ(cgroup_ctx.pg_scan_cumulative(), 40);
+}
+
 TEST_F(CgroupContextTest, EffectiveSwapMax) {
   ctx_.setSystemContext(SystemContext{.swaptotal = 3000});
   F::materialize(
