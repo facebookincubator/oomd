@@ -675,17 +675,53 @@ SystemMaybe<std::unordered_map<std::string, int64_t>> Fs::getMeminfo(
 }
 
 namespace {
-// Calls fn(key, value) for each "<key> <value>" line, as in memory.stat and
-// cgroup.stat. Lines that do not parse are skipped.
-template <typename Fn>
-void forEachStatLine(const std::vector<std::string>& lines, Fn&& fn) {
-  char name[256] = {0};
-  uint64_t val;
-  for (const auto& line : lines) {
-    int ret = sscanf(line.c_str(), "%255s %" SCNu64 "\n", name, &val);
-    if (ret == 2) {
-      fn(std::string_view(name), static_cast<int64_t>(val));
+// Reads a cgroup file in full.
+SystemMaybe<std::string> readStatFile(
+    const Fs::DirFd& dirfd,
+    const char* name) {
+  auto fd = Fs::Fd::openat(dirfd, name);
+  if (!fd) {
+    return SYSTEM_ERROR(fd.error());
+  }
+  std::string buf;
+  buf.reserve(4096);
+  char chunk[4096];
+  while (true) {
+    ssize_t n = ::read(fd->fd(), chunk, sizeof(chunk));
+    if (n > 0) {
+      buf.append(chunk, static_cast<size_t>(n));
+    } else if (n == 0) {
+      break;
+    } else if (errno == EINTR) {
+      continue;
+    } else {
+      return SYSTEM_ERROR(errno);
     }
+  }
+  return buf;
+}
+
+// Calls fn(key, value) for each line of a flat-keyed cgroup file such as
+// memory.stat or cgroup.stat. The kernel writes these as "<key> <value>" with
+// one space and an unsigned decimal value; other lines are skipped.
+template <typename Fn>
+void forEachStatLine(std::string_view buf, Fn&& fn) {
+  const char* p = buf.data();
+  const char* const end = p + buf.size();
+  while (p < end) {
+    const char* line_end = static_cast<const char*>(::memchr(p, '\n', end - p));
+    if (line_end == nullptr) {
+      line_end = end;
+    }
+    const char* space =
+        static_cast<const char*>(::memchr(p, ' ', line_end - p));
+    if (space != nullptr) {
+      uint64_t val = 0;
+      if (std::from_chars(space + 1, line_end, val).ec == std::errc()) {
+        fn(std::string_view(p, space - p), static_cast<int64_t>(val));
+      }
+    }
+    p = line_end == end ? end : line_end + 1;
   }
 }
 
@@ -705,54 +741,20 @@ constexpr std::pair<std::string_view, std::optional<int64_t> MemoryStat::*>
 } // namespace
 
 SystemMaybe<MemoryStat> Fs::getMemstatAt(const DirFd& dirfd) {
-  auto fd = Fs::Fd::openat(dirfd, kMemStatFile);
-  if (!fd) {
-    return SYSTEM_ERROR(fd.error());
-  }
-  const int raw_fd = fd->fd();
-
-  std::string buf;
-  buf.reserve(4096);
-  char chunk[4096];
-  while (true) {
-    ssize_t n = ::read(raw_fd, chunk, sizeof(chunk));
-    if (n > 0) {
-      buf.append(chunk, static_cast<size_t>(n));
-    } else if (n == 0) {
-      break;
-    } else if (errno == EINTR) {
-      continue;
-    } else {
-      return SYSTEM_ERROR(errno);
-    }
+  auto buf = readStatFile(dirfd, kMemStatFile);
+  if (!buf) {
+    return SYSTEM_ERROR(buf.error());
   }
 
   MemoryStat stat;
-  const char* p = buf.data();
-  const char* const end = p + buf.size();
-  while (p < end) {
-    const char* line_end = static_cast<const char*>(::memchr(p, '\n', end - p));
-    if (line_end == nullptr) {
-      line_end = end;
-    }
-    const char* space =
-        static_cast<const char*>(::memchr(p, ' ', line_end - p));
-    if (space != nullptr) {
-      uint64_t val = 0;
-      auto res = std::from_chars(space + 1, line_end, val);
-      if (res.ec == std::errc()) {
-        const std::string_view key(p, space - p);
-        for (const auto& [name, field] : kMemoryStatFields) {
-          if (key == name) {
-            stat.*field = static_cast<int64_t>(val);
-            break;
-          }
-        }
+  forEachStatLine(*buf, [&](std::string_view key, int64_t val) {
+    for (const auto& [name, field] : kMemoryStatFields) {
+      if (key == name) {
+        stat.*field = val;
+        break;
       }
     }
-    p = line_end == end ? end : line_end + 1;
-  }
-
+  });
   return stat;
 }
 
@@ -883,13 +885,13 @@ SystemMaybe<Unit> Fs::writeKillAt(const DirFd& dirfd) {
 }
 
 SystemMaybe<int64_t> Fs::getNrDyingDescendantsAt(const DirFd& dirfd) {
-  auto lines = readFileByLine(Fs::Fd::openat(dirfd, kCgroupStatFile));
-  if (!lines) {
-    return SYSTEM_ERROR(lines.error());
+  auto buf = readStatFile(dirfd, kCgroupStatFile);
+  if (!buf) {
+    return SYSTEM_ERROR(buf.error());
   }
   // Will return 0 for missing entries
   int64_t nr_dying_descendants = 0;
-  forEachStatLine(*lines, [&](std::string_view key, int64_t val) {
+  forEachStatLine(*buf, [&](std::string_view key, int64_t val) {
     if (key == "nr_dying_descendants") {
       nr_dying_descendants = val;
     }
