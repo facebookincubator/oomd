@@ -449,15 +449,19 @@ TEST_F(FsTest, GetMeminfo) {
 TEST_F(FsTest, GetMemstat) {
   auto path = fixture_.cgroupDataDir();
   auto dir = ASSERT_SYS_OK(Fs::DirFd::open(path));
-  auto meminfo = ASSERT_SYS_OK(Fs::getMemstatAt(dir));
+  auto memstat = ASSERT_SYS_OK(Fs::getMemstatAt(dir));
 
-  EXPECT_EQ(meminfo.size(), 29);
-  EXPECT_EQ(meminfo["anon"], 1294168064);
-  EXPECT_EQ(meminfo["file"], 3870687232);
-  EXPECT_EQ(meminfo["pglazyfree"], 0);
-
-  // we expect the key is missing (ie default val = 0)
-  EXPECT_EQ(meminfo["asdf"], 0);
+  EXPECT_EQ(
+      memstat,
+      (MemoryStat{
+          .anon = 1294168064,
+          .file = 3870687232,
+          .shmem = 135168,
+          .active_anon = 997982208,
+          .inactive_anon = 296529920,
+          .active_file = 2586988544,
+          .inactive_file = 1284907008,
+          .pgscan = 787288}));
 }
 
 TEST_F(FsTest, GetMemstatReadsEveryConsumedKey) {
@@ -484,17 +488,17 @@ TEST_F(FsTest, GetMemstatReadsEveryConsumedKey) {
 
   EXPECT_EQ(
       memstat,
-      (std::unordered_map<std::string, int64_t>{
-          {"anon", 1},
-          {"file", 2},
-          {"shmem", 3},
-          {"zswap", 4},
-          {"swapcached", 5},
-          {"active_anon", 6},
-          {"inactive_anon", 7},
-          {"active_file", 8},
-          {"inactive_file", 9},
-          {"pgscan", 10}}));
+      (MemoryStat{
+          .anon = 1,
+          .file = 2,
+          .shmem = 3,
+          .zswap = 4,
+          .swapcached = 5,
+          .active_anon = 6,
+          .inactive_anon = 7,
+          .active_file = 8,
+          .inactive_file = 9,
+          .pgscan = 10}));
 }
 
 TEST_F(FsTest, ReadIoPressure) {

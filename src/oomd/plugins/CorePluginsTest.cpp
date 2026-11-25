@@ -127,7 +127,6 @@ class BaseKillPluginShim : public BaseKillPluginMock {
 class CorePluginsTest : public ::testing::Test {
  protected:
   using CgroupData = TestHelper::CgroupData;
-  using memory_stat_t = decltype(CgroupData::memory_stat)::value_type;
   using F = Fixture;
   void SetUp() override {
     tempdir_ = F::mkdtempChecked();
@@ -582,7 +581,7 @@ TEST_F(StandardKillRecursionTest, KillsCgroupWithOnlyZswapUsage) {
       ctx_,
       CgroupPath(tempdir_, "B"),
       CgroupData{
-          .memory_stat = {{{"anon", 0}, {"zswap", 4096}, {"pgscan", 0}}},
+          .memory_stat = MemoryStat{.anon = 0, .zswap = 4096, .pgscan = 0},
           .is_populated = true});
 
   auto plugin = std::make_shared<AlphabeticStandardKillPlugin>();
@@ -1334,7 +1333,7 @@ TEST_F(MemoryAboveTest, DetectsHighAnonUsage) {
       ctx_,
       CgroupPath(compile_context.cgroupFs(), "high_memory"),
       CgroupData{
-          .memory_stat = memory_stat_t{{"anon", 2147483648}},
+          .memory_stat = MemoryStat{.anon = 2147483648},
           .swap_usage = 20,
       });
   EXPECT_EQ(plugin->run(ctx_), Engine::PluginRet::CONTINUE);
@@ -1359,7 +1358,7 @@ TEST_F(MemoryAboveTest, NoDetectLowAnonUsage) {
       ctx_,
       CgroupPath(compile_context.cgroupFs(), "low_memory"),
       CgroupData{
-          .memory_stat = memory_stat_t{{"anon", 1073741824}},
+          .memory_stat = MemoryStat{.anon = 1073741824},
           .swap_usage = 20,
       });
   EXPECT_EQ(plugin->run(ctx_), Engine::PluginRet::STOP);
@@ -1385,7 +1384,7 @@ TEST_F(MemoryAboveTest, DetectsHighAnonUsageIgnoreLowMemUsage) {
       ctx_,
       CgroupPath(compile_context.cgroupFs(), "high_memory"),
       CgroupData{
-          .memory_stat = memory_stat_t{{"anon", 2147483648}},
+          .memory_stat = MemoryStat{.anon = 2147483648},
           .current_usage = 1073741824,
           .swap_usage = 20,
       });
@@ -1412,7 +1411,7 @@ TEST_F(MemoryAboveTest, NoDetectLowAnonUsageIgnoreHighMemUsage) {
       ctx_,
       CgroupPath(compile_context.cgroupFs(), "low_memory"),
       CgroupData{
-          .memory_stat = memory_stat_t{{"anon", 1073741824}},
+          .memory_stat = MemoryStat{.anon = 1073741824},
           .current_usage = 2147483648,
           .swap_usage = 20,
       });
@@ -3514,13 +3513,13 @@ class SenpaiTest : public CorePluginsTest {
       .mem_pressure_some = ResourcePressure{},
       .io_pressure_some = ResourcePressure{},
       .memory_stat =
-          memory_stat_t{
-              {"anon", 2 << 20},
-              {"shmem", 1 << 20},
-              {"active_anon", 2 << 20},
-              {"inactive_anon", 5 << 20},
-              {"active_file", 1 << 20},
-              {"inactive_file", 1 << 20}},
+          MemoryStat{
+              .anon = 2 << 20,
+              .shmem = 1 << 20,
+              .active_anon = 2 << 20,
+              .inactive_anon = 5 << 20,
+              .active_file = 1 << 20,
+              .inactive_file = 1 << 20},
       .current_usage = 9 << 20,
       .memory_min = 0};
   SystemContext system_;
@@ -3539,29 +3538,30 @@ TEST_F(SenpaiTest, ReclaimUnmappedAnonIsDisabledByDefault) {
 
 TEST_F(SenpaiTest, ReclaimIgnoresFullyMappedAndNegativeAnonGaps) {
   for (const auto anon : {6 << 20, 7 << 20}) {
-    (*data_.memory_stat)["anon"] = anon;
+    data_.memory_stat->anon = anon;
     runProbe();
     EXPECT_THAT(reclaim_requests_, ElementsAre("524288"));
   }
 }
 
 TEST_F(SenpaiTest, ReclaimUsesOnlyFileCacheWithIncompleteAnonStats) {
-  data_.memory_stat->erase("anon");
+  data_.memory_stat->anon.reset();
   runProbe();
   EXPECT_THAT(reclaim_requests_, ElementsAre("524288"));
 }
 
 TEST_F(SenpaiTest, ReclaimIgnoresEmptyAnonLru) {
-  for (const auto* key : {"anon", "shmem", "active_anon", "inactive_anon"}) {
-    (*data_.memory_stat)[key] = 0;
-  }
+  data_.memory_stat->anon = 0;
+  data_.memory_stat->shmem = 0;
+  data_.memory_stat->active_anon = 0;
+  data_.memory_stat->inactive_anon = 0;
   runProbe();
   EXPECT_THAT(reclaim_requests_, ElementsAre("524288"));
 }
 
 TEST_F(SenpaiTest, ReclaimDoesNotMistakeSwapCacheForUnusedAnon) {
   system_ = {.swaptotal = 16 << 20, .swappiness = 0};
-  (*data_.memory_stat)["swapcached"] = 4 << 20;
+  data_.memory_stat->swapcached = 4 << 20;
   runProbe();
   EXPECT_THAT(reclaim_requests_, ElementsAre("524288"));
 }

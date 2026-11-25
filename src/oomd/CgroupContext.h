@@ -106,8 +106,7 @@ class CgroupContext {
       Error* err = nullptr) const;
   const std::optional<ResourcePressure>& io_pressure_some(
       Error* err = nullptr) const;
-  const std::optional<std::unordered_map<std::string, int64_t>>& memory_stat(
-      Error* err = nullptr) const;
+  const std::optional<MemoryStat>& memory_stat(Error* err = nullptr) const;
   const std::optional<IOStat>& io_stat(Error* err = nullptr) const;
   std::optional<Id> id(Error* err = nullptr) const;
   std::optional<int64_t> current_usage(Error* err = nullptr) const;
@@ -189,7 +188,7 @@ class CgroupContext {
     std::optional<ResourcePressure> mem_pressure_some;
     std::optional<ResourcePressure> io_pressure;
     std::optional<ResourcePressure> io_pressure_some;
-    std::optional<std::unordered_map<std::string, int64_t>> memory_stat;
+    std::optional<MemoryStat> memory_stat;
     std::optional<IOStat> io_stat;
     std::optional<Id> id;
     std::optional<int64_t> current_usage;

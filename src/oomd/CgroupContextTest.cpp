@@ -360,8 +360,6 @@ TEST_F(CgroupContextTest, DataLifeCycle) {
 
   set_and_check_fields();
 
-  using memory_stat_t = decltype(memory_stat);
-
   // Check basic readings
   EXPECT_THAT(
       *children,
@@ -379,12 +377,12 @@ TEST_F(CgroupContextTest, DataLifeCycle) {
       io_pressure->total, std::optional<std::chrono::microseconds>(23456));
   EXPECT_EQ(
       memory_stat,
-      memory_stat_t(
-          {{"anon", 123456789},
-           {"zswap", 7654321},
-           {"file", 12345678},
-           {"shmem", 1234567},
-           {"pgscan", 4567890123}}));
+      (MemoryStat{
+          .anon = 123456789,
+          .file = 12345678,
+          .shmem = 1234567,
+          .zswap = 7654321,
+          .pgscan = 4567890123}));
   EXPECT_EQ(
       io_stat,
       IOStat(
@@ -509,12 +507,12 @@ TEST_F(CgroupContextTest, DataLifeCycle) {
       io_pressure->total, std::optional<std::chrono::microseconds>(23457));
   EXPECT_EQ(
       memory_stat,
-      memory_stat_t(
-          {{"anon", 123456790},
-           {"zswap", 7654322},
-           {"file", 12345679},
-           {"shmem", 1234568},
-           {"pgscan", 5678901234}}));
+      (MemoryStat{
+          .anon = 123456790,
+          .file = 12345679,
+          .shmem = 1234568,
+          .zswap = 7654322,
+          .pgscan = 5678901234}));
   EXPECT_EQ(
       io_stat,
       IOStat(

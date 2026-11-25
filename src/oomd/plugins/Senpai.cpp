@@ -362,13 +362,10 @@ SystemMaybe<int64_t> Senpai::getReclaimableBytes(
     return SYSTEM_ERROR(ENOENT);
   }
 
-  auto active_file_pos = stat_opt->find("active_file");
-  auto inactive_file_pos = stat_opt->find("inactive_file");
-  if (active_file_pos == stat_opt->end() ||
-      inactive_file_pos == stat_opt->end()) {
+  if (!stat_opt->active_file || !stat_opt->inactive_file) {
     throw std::runtime_error("Invalid memory.stat cgroup file");
   }
-  auto file_cache = active_file_pos->second + inactive_file_pos->second;
+  auto file_cache = *stat_opt->active_file + *stat_opt->inactive_file;
 
   int64_t swappable = 0;
   const auto& system_ctx = cgroup_ctx.oomd_ctx().getSystemContext();
@@ -377,13 +374,10 @@ SystemMaybe<int64_t> Senpai::getReclaimableBytes(
     if (!effective_swap_free_opt) {
       return SYSTEM_ERROR(ENOENT);
     } else if (*effective_swap_free_opt > 0) {
-      auto active_anon_pos = stat_opt->find("active_anon");
-      auto inactive_anon_pos = stat_opt->find("inactive_anon");
-      if (active_anon_pos == stat_opt->end() ||
-          inactive_anon_pos == stat_opt->end()) {
+      if (!stat_opt->active_anon || !stat_opt->inactive_anon) {
         return SYSTEM_ERROR(EINVAL);
       }
-      auto anon_size = active_anon_pos->second + inactive_anon_pos->second;
+      auto anon_size = *stat_opt->active_anon + *stat_opt->inactive_anon;
       swappable = std::min(*effective_swap_free_opt, anon_size);
     }
   }

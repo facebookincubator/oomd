@@ -20,8 +20,6 @@
 #include "oomd/PluginRegistry.h"
 #include "oomd/util/ScopeGuard.h"
 
-static constexpr auto kPgscan = "pgscan";
-
 namespace Oomd {
 
 REGISTER_PLUGIN(memory_reclaim, MemoryReclaim::create);
@@ -57,9 +55,7 @@ Engine::PluginRet MemoryReclaim::run(OomdContext& ctx) {
   for (const CgroupContext& cgroup_ctx :
        ctx.addToCacheAndGet(cgroups_, ruleset_cgroups_)) {
     if (const auto& memstat = cgroup_ctx.memory_stat()) {
-      if (auto pos = memstat->find(kPgscan); pos != memstat->end()) {
-        pgscan += pos->second;
-      }
+      pgscan += memstat->pgscan.value_or(0);
     }
   }
 

@@ -33,6 +33,7 @@
 #include <charconv>
 #include <cinttypes>
 #include <fstream>
+#include <string_view>
 #include <utility>
 
 #include "oomd/include/Assert.h"
@@ -673,25 +674,37 @@ SystemMaybe<std::unordered_map<std::string, int64_t>> Fs::getMeminfo(
   return map;
 }
 
-std::unordered_map<std::string, int64_t> Fs::getMemstatLikeFromLines(
-    const std::vector<std::string>& lines) {
+namespace {
+// Calls fn(key, value) for each "<key> <value>" line, as in memory.stat and
+// cgroup.stat. Lines that do not parse are skipped.
+template <typename Fn>
+void forEachStatLine(const std::vector<std::string>& lines, Fn&& fn) {
   char name[256] = {0};
   uint64_t val;
-  std::unordered_map<std::string, int64_t> map;
-  map.reserve(lines.size());
-
   for (const auto& line : lines) {
     int ret = sscanf(line.c_str(), "%255s %" SCNu64 "\n", name, &val);
     if (ret == 2) {
-      map[name] = val;
+      fn(std::string_view(name), static_cast<int64_t>(val));
     }
   }
-
-  return map;
 }
 
-SystemMaybe<std::unordered_map<std::string, int64_t>> Fs::getMemstatAt(
-    const DirFd& dirfd) {
+constexpr std::pair<std::string_view, std::optional<int64_t> MemoryStat::*>
+    kMemoryStatFields[] = {
+        {"anon", &MemoryStat::anon},
+        {"file", &MemoryStat::file},
+        {"shmem", &MemoryStat::shmem},
+        {"zswap", &MemoryStat::zswap},
+        {"swapcached", &MemoryStat::swapcached},
+        {"active_anon", &MemoryStat::active_anon},
+        {"inactive_anon", &MemoryStat::inactive_anon},
+        {"active_file", &MemoryStat::active_file},
+        {"inactive_file", &MemoryStat::inactive_file},
+        {"pgscan", &MemoryStat::pgscan},
+};
+} // namespace
+
+SystemMaybe<MemoryStat> Fs::getMemstatAt(const DirFd& dirfd) {
   auto fd = Fs::Fd::openat(dirfd, kMemStatFile);
   if (!fd) {
     return SYSTEM_ERROR(fd.error());
@@ -714,8 +727,7 @@ SystemMaybe<std::unordered_map<std::string, int64_t>> Fs::getMemstatAt(
     }
   }
 
-  std::unordered_map<std::string, int64_t> map;
-  map.reserve(64);
+  MemoryStat stat;
   const char* p = buf.data();
   const char* const end = p + buf.size();
   while (p < end) {
@@ -729,14 +741,19 @@ SystemMaybe<std::unordered_map<std::string, int64_t>> Fs::getMemstatAt(
       uint64_t val = 0;
       auto res = std::from_chars(space + 1, line_end, val);
       if (res.ec == std::errc()) {
-        map.insert_or_assign(
-            std::string(p, space - p), static_cast<int64_t>(val));
+        const std::string_view key(p, space - p);
+        for (const auto& [name, field] : kMemoryStatFields) {
+          if (key == name) {
+            stat.*field = static_cast<int64_t>(val);
+            break;
+          }
+        }
       }
     }
     p = line_end == end ? end : line_end + 1;
   }
 
-  return map;
+  return stat;
 }
 
 SystemMaybe<ResourcePressure> Fs::readRootIopressure(PressureType type) {
@@ -870,9 +887,14 @@ SystemMaybe<int64_t> Fs::getNrDyingDescendantsAt(const DirFd& dirfd) {
   if (!lines) {
     return SYSTEM_ERROR(lines.error());
   }
-  auto map = getMemstatLikeFromLines(lines.value());
   // Will return 0 for missing entries
-  return map["nr_dying_descendants"];
+  int64_t nr_dying_descendants = 0;
+  forEachStatLine(*lines, [&](std::string_view key, int64_t val) {
+    if (key == "nr_dying_descendants") {
+      nr_dying_descendants = val;
+    }
+  });
+  return nr_dying_descendants;
 }
 
 SystemMaybe<KillPreference> Fs::readKillPreferenceAt(const DirFd& path) {

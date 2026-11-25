@@ -137,15 +137,23 @@ PROXY(io_cost_rate, getIoCostRate(err))
 PROXY(average_usage, getAverageUsage(err))
 PROXY(pg_scan_rate, getPgScanRate(err))
 
-std::optional<int64_t> CgroupContext::anon_usage(Error* err) const {
-  if (const auto& stat = memory_stat(err)) {
-    if (auto anon = stat->find("anon"); anon != stat->end()) {
-      return anon->second;
-    } else if (err) {
-      *err = Error::INVALID_CGROUP;
-    }
+namespace {
+std::optional<int64_t> memoryStatField(
+    const std::optional<MemoryStat>& stat,
+    std::optional<int64_t> MemoryStat::* field,
+    CgroupContext::Error* err) {
+  if (!stat) {
+    return std::nullopt;
   }
-  return std::nullopt;
+  if (!((*stat).*field) && err) {
+    *err = CgroupContext::Error::INVALID_CGROUP;
+  }
+  return (*stat).*field;
+}
+} // namespace
+
+std::optional<int64_t> CgroupContext::anon_usage(Error* err) const {
+  return memoryStatField(memory_stat(err), &MemoryStat::anon, err);
 }
 
 std::optional<int64_t> CgroupContext::unmapped_anon_usage(Error* err) const {
@@ -154,13 +162,8 @@ std::optional<int64_t> CgroupContext::unmapped_anon_usage(Error* err) const {
     return std::nullopt;
   }
 
-  auto anon = stat->find("anon");
-  auto shmem = stat->find("shmem");
-  auto active_anon = stat->find("active_anon");
-  auto inactive_anon = stat->find("inactive_anon");
-  auto swapcached = stat->find("swapcached");
-  if (anon == stat->end() || shmem == stat->end() ||
-      active_anon == stat->end() || inactive_anon == stat->end()) {
+  if (!stat->anon || !stat->shmem || !stat->active_anon ||
+      !stat->inactive_anon) {
     if (err) {
       *err = Error::INVALID_CGROUP;
     }
@@ -169,39 +172,18 @@ std::optional<int64_t> CgroupContext::unmapped_anon_usage(Error* err) const {
 
   return std::max<int64_t>(
       0,
-      active_anon->second + inactive_anon->second - shmem->second -
-          anon->second - (swapcached == stat->end() ? 0 : swapcached->second));
+      *stat->active_anon + *stat->inactive_anon - *stat->shmem - *stat->anon -
+          stat->swapcached.value_or(0));
 }
 
 std::optional<int64_t> CgroupContext::zswap_usage(Error* err) const {
-  if (const auto& stat = memory_stat(err)) {
-    if (auto zswap = stat->find("zswap"); zswap != stat->end()) {
-      return zswap->second;
-    } else if (err) {
-      *err = Error::INVALID_CGROUP;
-    }
-  }
-  return std::nullopt;
+  return memoryStatField(memory_stat(err), &MemoryStat::zswap, err);
 }
 std::optional<int64_t> CgroupContext::file_usage(Error* err) const {
-  if (const auto& stat = memory_stat(err)) {
-    if (auto file = stat->find("file"); file != stat->end()) {
-      return file->second;
-    } else if (err) {
-      *err = Error::INVALID_CGROUP;
-    }
-  }
-  return std::nullopt;
+  return memoryStatField(memory_stat(err), &MemoryStat::file, err);
 }
 std::optional<int64_t> CgroupContext::shmem_usage(Error* err) const {
-  if (const auto& stat = memory_stat(err)) {
-    if (auto shmem = stat->find("shmem"); shmem != stat->end()) {
-      return shmem->second;
-    } else if (err) {
-      *err = Error::INVALID_CGROUP;
-    }
-  }
-  return std::nullopt;
+  return memoryStatField(memory_stat(err), &MemoryStat::shmem, err);
 }
 
 std::optional<int64_t> CgroupContext::effective_usage(
@@ -496,13 +478,11 @@ std::optional<double> CgroupContext::getIoCostCumulative(Error* err) const {
 
 std::optional<int64_t> CgroupContext::getPgScanCumulative(
     Error* err = nullptr) const {
-  static constexpr auto kPgScan = "pgscan";
   if (const auto& memstat = memory_stat(err)) {
-    if (auto pos = memstat->find(kPgScan); pos != memstat->end()) {
-      return std::make_optional(pos->second);
-    } else {
+    if (!memstat->pgscan) {
       throw std::runtime_error("Bad memory.stat format: missing pgscan entry");
     }
+    return memstat->pgscan;
   }
   return std::nullopt;
 }

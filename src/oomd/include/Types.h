@@ -58,6 +58,23 @@ struct DeviceIOStat {
 
 using IOStat = std::vector<DeviceIOStat>;
 
+// The memory.stat entries oomd consumes. A field is unset if the kernel does
+// not report that entry.
+struct MemoryStat {
+  std::optional<int64_t> anon;
+  std::optional<int64_t> file;
+  std::optional<int64_t> shmem;
+  std::optional<int64_t> zswap;
+  std::optional<int64_t> swapcached;
+  std::optional<int64_t> active_anon;
+  std::optional<int64_t> inactive_anon;
+  std::optional<int64_t> active_file;
+  std::optional<int64_t> inactive_file;
+  std::optional<int64_t> pgscan;
+
+  bool operator==(const MemoryStat& rhs) const = default;
+};
+
 struct IOCostCoeffs {
   double read_iops{0};
   double readbw{0};

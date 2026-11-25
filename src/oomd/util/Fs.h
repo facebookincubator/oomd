@@ -258,8 +258,7 @@ class Fs {
   static SystemMaybe<std::unordered_map<std::string, int64_t>> getMeminfo(
       const std::string& path = "/proc/meminfo");
 
-  static SystemMaybe<std::unordered_map<std::string, int64_t>> getMemstatAt(
-      const DirFd& dirfd);
+  static SystemMaybe<MemoryStat> getMemstatAt(const DirFd& dirfd);
 
   // Return root part of cgroup2 from /proc/mounts/
   static SystemMaybe<std::string> getCgroup2MountPoint(
@@ -307,8 +306,6 @@ class Fs {
  private:
   friend class FsReadDirTestPeer;
   using ReaddirFn = struct dirent* (*)(DIR * dir, void* context);
-  static std::unordered_map<std::string, int64_t> getMemstatLikeFromLines(
-      const std::vector<std::string>& lines);
   static SystemMaybe<Unit> writeControlFileAt(
       SystemMaybe<Fd>&& fd,
       const std::string& content);
